@@ -1,0 +1,43 @@
+<template>
+  <MainLayout>
+    <template #navbar>
+      <AppNavbar :show-back="false">
+        <template #default>
+          <view :style="searchBox">
+            <text :style="searchText">搜索商品、品牌、穿搭</text>
+          </view>
+        </template>
+      </AppNavbar>
+    </template>
+    <template #default>
+      <view :style="emptyWrap">
+        <text :style="emptyTitle">发现</text>
+        <text :style="emptyMsg">搜索、分类浏览和趋势日历即将上线</text>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+<script setup lang="uts">
+import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
+import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexColumnCenter } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+
+const searchBox = {
+  flex: 1,
+  height: '64rpx',
+  borderRadius: radius.full,
+  backgroundColor: neutralLight.bgTertiary,
+  display: 'flex',
+  alignItems: 'center',
+  paddingHorizontal: spacing[3],
+}
+const searchText = { fontSize: fontSize.sm, color: neutralLight.textTertiary }
+const emptyWrap = { ...flexColumnCenter, justifyContent: 'center', flex: 1, padding: spacing[8], gap: spacing[3] }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: n.value.text }))
+const emptyMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
+</script>

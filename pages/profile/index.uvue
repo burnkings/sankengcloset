@@ -4,63 +4,40 @@
       <AppNavbar title="我的" :show-back="false" />
     </template>
     <template #default>
-      <view :style="pageStyle">
-        <view :style="userCardStyle">
-          <view :style="avatarStyle">
-            <text :style="avatarTextStyle">🎀</text>
-          </view>
-          <view :style="userInfoStyle">
-            <text :style="userNameStyle">三坑小主</text>
-            <text :style="userTagStyle">本地账户 · 游客模式</text>
-          </view>
+      <view :style="sectionWrap">
+        <view :style="cardStyle" @tap="goManage">
+          <text :style="cardTitle">管理中心</text>
+          <text :style="cardDesc">衣橱、订单、提醒、预算</text>
+        </view>
+        <view :style="cardStyle">
+          <text :style="cardTitle">设置</text>
+          <text :style="cardDesc">主题、通知、关于</text>
         </view>
       </view>
     </template>
   </MainLayout>
 </template>
-
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
-import { spacing } from '@/theme/tokens/spacing'
+import { brand, neutralLight } from '@/theme/tokens/colors'
+import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { radius, semanticRadius } from '@/theme/tokens/radius'
+import { shadow } from '@/theme/tokens/shadow'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRowCenter, flexCenter } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 
-
-const pageStyle = computed((): any => ({
-  ...gap.lg,
-  padding: spacing[4] }))
-
-const userCardStyle = computed((): any => ({
-  ...flexRowCenter,
-  gap: spacing[4],
+const sectionWrap = { padding: semanticSpacing.pageHorizontal, paddingTop: spacing[3], gap: spacing[3] }
+const cardStyle = computed((): any => ({
   padding: spacing[4],
+  borderRadius: semanticRadius.card,
   backgroundColor: n.value.surface,
-  borderRadius: '24rpx' }))
+  boxShadow: shadow.sm,
+}))
+const cardTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const cardDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: spacing[0.5] }))
 
-const avatarStyle = computed((): any => ({
-  width: '100rpx',
-  height: '100rpx',
-  borderRadius: '50%',
-  backgroundColor: brand[500] + '15',
-  ...flexCenter }))
-
-const avatarTextStyle = computed((): any => ({
-  fontSize: '48rpx' }))
-
-const userInfoStyle = computed((): any => ({
-  flex: 1 }))
-
-const userNameStyle = computed((): any => ({
-  fontSize: fontSize.lg,
-  fontWeight: fontWeight.semibold,
-  color: n.value.text }))
-
-const userTagStyle = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.textTertiary,
-  marginTop: spacing[1] }))
+function goManage() {
+  // Phase 2: navigate to management center
+}
 </script>

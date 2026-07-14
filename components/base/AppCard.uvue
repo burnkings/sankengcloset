@@ -34,10 +34,10 @@ const emit = defineEmits<{
 
 
 const cardStyle = computed((): any => ({
-  backgroundColor: isDark.value ? neutralDark.surface : neutralLight.surface,
+  backgroundColor: n.value.surface,
   borderRadius: props.radiusToken,
   padding: props.padding,
-  boxShadow: props.elevated ? (isDark.value ? shadowDark.card : shadow.card) : shadow.none,
+  boxShadow: props.elevated ? (shadow.card) : shadow.none,
   overflow: 'hidden' }))
 
 const headerStyle = (() => {

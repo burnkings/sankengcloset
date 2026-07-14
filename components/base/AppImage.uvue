@@ -1,7 +1,7 @@
 <template>
   <view :style="wrapperStyle">
     <image
-      v-if="src"
+      v-if="src !== ''"
       :src="src"
       :style="imgStyle"
       :mode="mode"
@@ -9,9 +9,9 @@
       @load="onLoad"
       @error="onError"
     />
-    <view v-if="!loaded || hasError" :style="placeholderStyle">
-      <text v-if="hasError"> 🖼️ </text>
-      <view v-else :style="skeletonPulseStyle" />
+    <view v-if="src === '' || !loaded || hasError" :style="placeholderStyle">
+      <view v-if="!hasError" :style="skeletonPulseStyle" />
+      <text v-else :style="errorIconStyle">!</text>
     </view>
   </view>
 </template>
@@ -65,16 +65,20 @@ const placeholderStyle = computed((): any => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  backgroundColor: isDark.value ? neutralDark.bgTertiary : neutralLight.bgTertiary,
+  backgroundColor: n.value.bgTertiary,
   borderRadius: props.radiusToken }))
 
-const skeletonPulseStyle = (() => {
-  const s = {}
-  s.width = '100%'
-  s.height = '100%'
-  s.backgroundColor = 'rgba(0,0,0,0.05)'
-  return s
-})()
+const skeletonPulseStyle = {
+  width: '100%',
+  height: '100%',
+  backgroundColor: 'rgba(0,0,0,0.05)',
+} as any
+
+const errorIconStyle = {
+  fontSize: '32rpx',
+  color: 'rgba(0,0,0,0.2)',
+  fontWeight: 'bold',
+} as any
 
 function onLoad() {
   loaded.value = true

@@ -7,6 +7,30 @@
       }
     },
     {
+      "path": "pages/discover/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/ai/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/favorites/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/wardrobe/index",
       "style": {
         "navigationStyle": "custom"
@@ -26,12 +50,6 @@
     },
     {
       "path": "pages/purchase/edit",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/profile/index",
       "style": {
         "navigationStyle": "custom"
       }
@@ -96,12 +114,16 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/wardrobe/index",
-        "text": "衣橱"
+        "pagePath": "pages/discover/index",
+        "text": "发现"
       },
       {
-        "pagePath": "pages/purchase/index",
-        "text": "消费"
+        "pagePath": "pages/ai/index",
+        "text": "绮灵AI"
+      },
+      {
+        "pagePath": "pages/favorites/index",
+        "text": "收藏"
       },
       {
         "pagePath": "pages/profile/index",
