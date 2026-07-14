@@ -1,0 +1,54 @@
+/**
+ * SourceRecord — 数据来源记录
+ * 追踪商品/发售信息的原始来源，用于审核和可信度评估
+ * 不保存账号密码、Cookie 或抓取密钥
+ */
+
+// ====== 来源类型 ======
+
+export const SOURCE_TAOBAO = 'taobao'
+export const SOURCE_WEIBO = 'weibo'
+export const SOURCE_XIAOHONGSHU = 'xiaohongshu'
+export const SOURCE_OFFICIAL = 'official'
+export const SOURCE_USER_SUBMIT = 'user_submit'
+export const SOURCE_AI_EXTRACT = 'ai_extract'
+
+export class SourceTypeLabels {
+  static readonly taobao = '淘宝'
+  static readonly weibo = '微博'
+  static readonly xiaohongshu = '小红书'
+  static readonly official = '官方'
+  static readonly user_submit = '用户提交'
+  static readonly ai_extract = 'AI提取'
+}
+
+// ====== 审核状态 ======
+
+export const REVIEW_PENDING = 'pending'
+export const REVIEW_APPROVED = 'approved'
+export const REVIEW_REJECTED = 'rejected'
+export const REVIEW_CORRECTED = 'corrected'
+
+export class ReviewStatusLabels {
+  static readonly pending = '待审核'
+  static readonly approved = '已通过'
+  static readonly rejected = '已拒绝'
+  static readonly corrected = '已修正'
+}
+
+// ====== 数据模型 ======
+
+export class SourceRecord {
+  id: string = ''
+  sourceType: string = 'official'
+  sourceName: string = ''     // "星辰猫旗舰店" / "三坑资讯bot"
+  sourceUrl: string = ''      // 原始链接 (公开 URL)
+  originalId: string = ''     // 原始平台的 ID
+  fetchedAt: string = ''      // 抓取时间
+  publishedAt: string = ''    // 原始发布时间
+  reviewStatus: string = 'pending'
+  confidence: number = 0      // 0~100 可信度评分
+  rawSnapshotRef: string = '' // 原始数据存储引用 (非实际内容)
+  createdAt: string = ''
+  updatedAt: string = ''
+}

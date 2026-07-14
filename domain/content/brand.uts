@@ -12,6 +12,7 @@ export class Brand {
   category: string = ''       // JK / LOLITA / HANFU / MIXED
   officialUrl: string = ''
   followerCount: number = 0
+  /** @deprecated 使用 UserBrandRelation 替代，保留兼容 */
   isFollowed: boolean = false
   createdAt: string = ''
   updatedAt: string = ''
