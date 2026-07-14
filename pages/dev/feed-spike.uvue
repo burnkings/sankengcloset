@@ -1,0 +1,473 @@
+<template>
+  <MainLayout>
+    <template #navbar>
+      <AppNavbar title="Feed 性能 Spike" :show-back="false">
+        <template #right>
+          <text :style="badgeStyle">{{ itemCount }}卡</text>
+        </template>
+      </AppNavbar>
+    </template>
+
+    <template #default>
+      <!-- 控制面板 -->
+      <view :style="controlPanel">
+        <text :style="controlTitle">数据量</text>
+        <view :style="controlRow">
+          <view
+            v-for="opt in countOptions"
+            :key="opt"
+            :style="countBtn(opt)"
+            @tap="setItemCount(opt)"
+          >
+            <text :style="countBtnText(opt)">{{ opt }}</text>
+          </view>
+        </view>
+
+        <text :style="controlTitle">布局</text>
+        <view :style="controlRow">
+          <view
+            :style="layoutBtn('single')"
+            @tap="setLayout('single')"
+          >
+            <text :style="layoutBtnText('single')">单列</text>
+          </view>
+          <view
+            :style="layoutBtn('grid')"
+            @tap="setLayout('grid')"
+          >
+            <text :style="layoutBtnText('grid')">双列</text>
+          </view>
+        </view>
+
+        <!-- 性能指标 -->
+        <view :style="metricsRow">
+          <view :style="metricItem">
+            <text :style="metricValue">{{ renderTime }}ms</text>
+            <text :style="metricLabel">渲染耗时</text>
+          </view>
+          <view :style="metricItem">
+            <text :style="metricValue">{{ scrollFPS }}</text>
+            <text :style="metricLabel">滑动FPS</text>
+          </view>
+          <view :style="metricItem">
+            <text :style="metricValue">{{ imageLoadCount }}/{{ itemCount }}</text>
+            <text :style="metricLabel">图片加载</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 单列 Feed -->
+      <scroll-view
+        v-if="layout === 'single'"
+        scroll-y
+        :style="scrollStyle"
+        @scrolltolower="onScrollToLower"
+        @scroll="onScroll"
+      >
+        <view v-for="(item, index) in feedItems" :key="item.id" :style="singleCardStyle">
+          <!-- 图片区：固定 3:4 -->
+          <view :style="imageWrapStyle">
+            <view :style="imagePlaceholderStyle(item.color)">
+              <text :style="placeholderIndex">{{ index + 1 }}</text>
+            </view>
+          </view>
+          <!-- 信息区 -->
+          <view :style="infoStyle">
+            <text :style="cardTitleStyle">{{ item.title }}</text>
+            <text :style="cardBrandStyle">{{ item.brand }}</text>
+            <view :style="cardBottomRow">
+              <text :style="cardPriceStyle">¥{{ item.price }}</text>
+              <view :style="favBtnStyle">
+                <text :style="favBtnText">{{ item.liked ? '❤️' : '🤍' }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <!-- 底部加载状态 -->
+        <view :style="bottomStyle">
+          <text :style="bottomText">{{ isLoadingMore ? '加载中...' : '已加载全部' }}</text>
+        </view>
+      </scroll-view>
+
+      <!-- 双列网格 Feed -->
+      <scroll-view
+        v-else
+        scroll-y
+        :style="scrollStyle"
+        @scrolltolower="onScrollToLower"
+        @scroll="onScroll"
+      >
+        <view :style="gridContainerStyle">
+          <view
+            v-for="(item, index) in feedItems"
+            :key="item.id"
+            :style="gridCardStyle"
+          >
+            <!-- 图片区：固定 3:4 -->
+            <view :style="gridImageWrapStyle">
+              <view :style="imagePlaceholderStyle(item.color)">
+                <text :style="placeholderIndex">{{ index + 1 }}</text>
+              </view>
+            </view>
+            <!-- 信息区 -->
+            <view :style="gridInfoStyle">
+              <text :style="gridTitleStyle">{{ item.title }}</text>
+              <text :style="gridPriceStyle">¥{{ item.price }}</text>
+            </view>
+          </view>
+        </view>
+        <view :style="bottomStyle">
+          <text :style="bottomText">{{ isLoadingMore ? '加载中...' : '已加载全部' }}</text>
+        </view>
+      </scroll-view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { brand, accent, neutralLight } from '@/theme/tokens/colors'
+import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { radius, semanticRadius } from '@/theme/tokens/radius'
+import { shadow } from '@/theme/tokens/shadow'
+import { flexRow, flexRowBetween, flexColumnCenter, flexCenter, flexFill } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { grid2, grid2Item } from '@/theme/layout/grid'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+
+// ====== 测试数据生成 ======
+
+const BRANDS = ['兔缝缝', '星辰猫', '花筵', '仲夏物语', '摇篮曲', 'With Puji', '表面咒语', '婴梵塔']
+const TITLES = ['格裙 45cm', '衬衫 关西襟', 'KC 头饰', 'Lo裙 A型', '宋制旋裙', '马面裙', '发带 缎面', '皮鞋 玛丽珍']
+const COLORS = ['#FFE0E8', '#EDE9FE', '#FFF8E1', '#E8F5E9', '#E3F2FD', '#FCE4EC', '#F3E5F5', '#FFF3E0']
+
+class FeedItem {
+  id: string = ''
+  title: string = ''
+  brand: string = ''
+  price: number = 0
+  color: string = ''
+  liked: boolean = false
+}
+
+function generateItems(count: number): FeedItem[] {
+  const items: FeedItem[] = []
+  for (let i = 0; i < count; i++) {
+    const item = new FeedItem()
+    item.id = `feed-${i}`
+    item.title = TITLES[i % TITLES.length]
+    item.brand = BRANDS[i % BRANDS.length]
+    item.price = Math.floor(Math.random() * 500) + 99
+    item.color = COLORS[i % COLORS.length]
+    item.liked = i % 5 === 0
+    items.push(item)
+  }
+  return items
+}
+
+// ====== 状态 ======
+
+const countOptions = [30, 100, 300]
+const itemCount = ref(30)
+const layout = ref('single') // 'single' | 'grid'
+const feedItems = ref([]) as Ref<FeedItem[]>
+const renderTime = ref(0)
+const scrollFPS = ref('—')
+const imageLoadCount = ref(0)
+const isLoadingMore = ref(false)
+
+let scrollStartY = 0
+let scrollFrameCount = 0
+let scrollLastTime = 0
+
+// ====== 操作 ======
+
+function setItemCount(count: number) {
+  itemCount.value = count
+  rebuildFeed()
+}
+
+function setLayout(mode: string) {
+  layout.value = mode
+  rebuildFeed()
+}
+
+function rebuildFeed() {
+  const start = Date.now()
+  feedItems.value = generateItems(itemCount.value)
+  imageLoadCount.value = itemCount.value // 色块模拟"加载完成"
+  // 延迟计算渲染时间
+  setTimeout(() => {
+    renderTime.value = Date.now() - start
+  }, 100)
+}
+
+function onScrollToLower() {
+  // 模拟加载更多
+  if (isLoadingMore.value) return
+  isLoadingMore.value = true
+  setTimeout(() => {
+    const newItems = generateItems(20)
+    for (let i = 0; i < newItems.length; i++) {
+      newItems[i].id = `feed-more-${Date.now()}-${i}`
+    }
+    feedItems.value = [...feedItems.value, ...newItems]
+    itemCount.value = feedItems.value.length
+    isLoadingMore.value = false
+  }, 300)
+}
+
+function onScroll() {
+  const now = Date.now()
+  if (scrollLastTime === 0) {
+    scrollLastTime = now
+    scrollFrameCount = 0
+  }
+  scrollFrameCount++
+  const elapsed = now - scrollLastTime
+  if (elapsed >= 1000) {
+    scrollFPS.value = `${Math.round(scrollFrameCount * 1000 / elapsed)}`
+    scrollFrameCount = 0
+    scrollLastTime = now
+  }
+}
+
+// ====== 初始化 ======
+
+rebuildFeed()
+
+// ====== 样式 ======
+
+const scrollStyle = {
+  ...flexFill,
+}
+
+const controlPanel = computed((): any => ({
+  padding: spacing[3],
+  paddingHorizontal: semanticSpacing.pageHorizontal,
+  backgroundColor: n.value.surface,
+  borderBottomWidth: '1rpx',
+  borderBottomStyle: 'solid',
+  borderBottomColor: n.value.divider,
+  gap: spacing[2],
+}))
+
+const controlTitle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  fontWeight: fontWeight.medium,
+}))
+
+const controlRow = {
+  ...flexRow,
+  gap: spacing[2],
+}
+
+function countBtn(count: number) {
+  const active = itemCount.value === count
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? brand[500] : neutralLight.bgTertiary,
+  }
+}
+
+function countBtnText(count: number) {
+  const active = itemCount.value === count
+  return {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: active ? '#FFFFFF' : neutralLight.textSecondary,
+  }
+}
+
+function layoutBtn(mode: string) {
+  const active = layout.value === mode
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? accent[500] : neutralLight.bgTertiary,
+  }
+}
+
+function layoutBtnText(mode: string) {
+  const active = layout.value === mode
+  return {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: active ? '#FFFFFF' : neutralLight.textSecondary,
+  }
+}
+
+const metricsRow = {
+  ...flexRow,
+  justifyContent: 'space-around',
+  marginTop: spacing[2],
+  padding: spacing[2],
+  backgroundColor: neutralLight.bgTertiary,
+  borderRadius: radius.md,
+}
+
+const metricItem = {
+  ...flexColumnCenter,
+  gap: '2rpx',
+}
+
+const metricValue = {
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.bold,
+  color: brand[500],
+}
+
+const metricLabel = {
+  fontSize: fontSize.xs,
+  color: neutralLight.textTertiary,
+}
+
+const badgeStyle = {
+  fontSize: fontSize.xs,
+  color: neutralLight.textTertiary,
+  backgroundColor: neutralLight.bgTertiary,
+  paddingHorizontal: spacing[2],
+  paddingVertical: spacing[1],
+  borderRadius: radius.sm,
+}
+
+// --- 单列卡片 ---
+
+const singleCardStyle = computed((): any => ({
+  marginHorizontal: semanticSpacing.pageHorizontal,
+  marginTop: spacing[3],
+  borderRadius: semanticRadius.card,
+  backgroundColor: n.value.surface,
+  boxShadow: shadow.card,
+  overflow: 'hidden',
+}))
+
+const imageWrapStyle = {
+  width: '100%',
+  height: '0',
+  paddingBottom: '133.33%', // 3:4 比例
+  position: 'relative' as string,
+  overflow: 'hidden',
+}
+
+function imagePlaceholderStyle(color: string) {
+  return {
+    position: 'absolute' as string,
+    top: '0',
+    left: '0',
+    right: '0',
+    bottom: '0',
+    backgroundColor: color,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
+}
+
+const placeholderIndex = {
+  fontSize: fontSize['3xl'],
+  fontWeight: fontWeight.extrabold,
+  color: 'rgba(0,0,0,0.15)',
+}
+
+const infoStyle = {
+  padding: spacing[3],
+  gap: spacing[1],
+}
+
+const cardTitleStyle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+}))
+
+const cardBrandStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+}))
+
+const cardBottomRow = {
+  ...flexRowBetween,
+  alignItems: 'center',
+  marginTop: spacing[1],
+}
+
+const cardPriceStyle = {
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.bold,
+  color: brand[600],
+}
+
+const favBtnStyle = {
+  width: '56rpx',
+  height: '56rpx',
+  ...flexCenter,
+}
+
+const favBtnText = {
+  fontSize: '32rpx',
+}
+
+// --- 双列网格 ---
+
+const gridContainerStyle = {
+  ...flexRow,
+  flexWrap: 'wrap' as string,
+  gap: spacing[2],
+  padding: spacing[2],
+  paddingHorizontal: semanticSpacing.pageHorizontal,
+}
+
+const gridCardStyle = computed((): any => ({
+  width: '48.5%',
+  borderRadius: semanticRadius.card,
+  backgroundColor: n.value.surface,
+  boxShadow: shadow.sm,
+  overflow: 'hidden',
+}))
+
+const gridImageWrapStyle = {
+  width: '100%',
+  height: '0',
+  paddingBottom: '133.33%',
+  position: 'relative' as string,
+  overflow: 'hidden',
+}
+
+const gridInfoStyle = {
+  padding: spacing[2],
+  gap: '2rpx',
+}
+
+const gridTitleStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: n.value.text,
+  lines: 1,
+  textOverflow: 'ellipsis',
+}))
+
+const gridPriceStyle = {
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.bold,
+  color: brand[600],
+}
+
+// --- 底部 ---
+
+const bottomStyle = {
+  ...flexCenter,
+  padding: spacing[4],
+}
+
+const bottomText = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary,
+}))
+</script>

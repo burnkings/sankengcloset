@@ -77,6 +77,12 @@
       "style": {
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/dev/feed-spike",
+      "style": {
+        "navigationStyle": "custom"
+      }
     }
   ],
   "tabBar": {
