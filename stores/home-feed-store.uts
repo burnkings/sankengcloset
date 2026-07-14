@@ -1,15 +1,26 @@
 /**
  * HomeFeedStore — 首页内容发现 Feed 状态管理
- * Phase 1B: 替代旧 Dashboard HomeStore
+ * Phase 1C: 状态完整性、分页防重、频道切换重置
  * 使用 MockFeedRepo 提供数据
  */
 
-import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT } from '@/domain/content/feed-item'
-import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel, getPlaceholderColor } from '@/domain/content/mock-feed-repo'
+import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
+import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel } from '@/domain/content/mock-feed-repo'
 
 // ====== 频道定义 ======
 
 export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭', 'JK', 'Lolita', '汉服']
+
+// ====== 调试常量 ======
+// Mock 阶段可通过调试常量触发失败和空状态
+// 正式用户界面不暴露这些入口
+
+/** 设为 true 模拟加载失败 */
+const DEBUG_FORCE_ERROR = false
+/** 设为 true 模拟空频道 */
+const DEBUG_FORCE_EMPTY = false
+/** 设为某个频道名模拟该频道为空 */
+const DEBUG_EMPTY_CHANNEL = ''
 
 // ====== 格式化工具 ======
 
@@ -33,13 +44,11 @@ export function formatRelativeTime(isoStr: string): string {
   const diffDay = Math.floor(diffHour / 24)
 
   if (diffMs > 0) {
-    // 未来
     if (diffDay > 0) return `${diffDay}天后`
     if (diffHour > 0) return `${diffHour}小时后`
     if (diffMin > 0) return `${diffMin}分钟后`
     return '即将'
   } else {
-    // 过去
     if (diffDay > 0) return `${diffDay}天前`
     if (diffHour > 0) return `${diffHour}小时前`
     if (diffMin > 0) return `${diffMin}分钟前`
@@ -47,169 +56,7 @@ export function formatRelativeTime(isoStr: string): string {
   }
 }
 
-/** 格式化月份日期: 7月15日 */
-export function formatMonthDay(isoStr: string): string {
-  if (isoStr === '') return ''
-  const d = new Date(isoStr)
-  return `${d.getMonth() + 1}月${d.getDate()}日`
-}
-
-// ====== 卡片布局类型 ======
-
-export const CARD_LAYOUT_PRODUCT = 'product'       // 双列商品卡
-export const CARD_LAYOUT_EVENT = 'event'            // 单列事件卡
-export const CARD_LAYOUT_OUTFIT = 'outfit'          // 单列沉浸卡
-export const CARD_LAYOUT_POST = 'post'              // 单列动态卡
-
-/** 判断 FeedItem 的卡片布局类型 */
-export function getCardLayout(item: FeedItem): string {
-  if (item.feedType === FEED_PRODUCT) return CARD_LAYOUT_PRODUCT
-  if (item.feedType === FEED_RELEASE_EVENT) return CARD_LAYOUT_EVENT
-  if (item.feedType === FEED_OUTFIT) return CARD_LAYOUT_OUTFIT
-  return CARD_LAYOUT_POST
-}
-
-/** 是否是大图卡片（单列沉浸） */
-export function isImmersiveCard(item: FeedItem): boolean {
-  return item.feedType === FEED_OUTFIT || item.feedType === 'editorial'
-}
-
-// ====== Store ======
-
-export const useHomeFeedStore = defineStore('homeFeed', () => {
-  const loading = ref(false)
-  const currentChannel = ref('推荐')
-  const allItems = ref([]) as Ref<FeedItem[]>
-  const currentPage = ref(0)
-  const isLoadingMore = ref(false)
-  const hasMore = ref(true)
-
-  // 筛选后的展示列表
-  const displayItems = computed((): FeedItem[] => {
-    return filterByChannel(allItems.value, currentChannel.value)
-  })
-
-  // 双列商品配对（仅 product 类型用）
-  const productPairs = computed((): FeedItem[][] => {
-    const products: FeedItem[] = []
-    const others: FeedItem[] = []
-    // 按原始顺序分组
-    const filtered = displayItems.value
-    for (let i = 0; i < filtered.length; i++) {
-      const item = filtered[i]
-      if (item.feedType === FEED_PRODUCT) {
-        products.push(item)
-      }
-    }
-    const pairs: FeedItem[][] = []
-    for (let i = 0; i < products.length; i += 2) {
-      if (i + 1 < products.length) {
-        pairs.push([products[i], products[i + 1]])
-      } else {
-        pairs.push([products[i]])
-      }
-    }
-    return pairs
-  })
-
-  // 混合流：product 双列合并，其他单列
-  // 为了 list-view 渲染，我们将所有 item 按原始顺序排列
-  // product 连续出现时合并为 pair 行
-  const feedRows = computed((): FeedRow[] => {
-    const rows: FeedRow[] = []
-    const filtered = displayItems.value
-    let i = 0
-    while (i < filtered.length) {
-      const item = filtered[i]
-      if (item.feedType === FEED_PRODUCT) {
-        // 收集连续的 product
-        if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
-          rows.push(createPairRow(item, filtered[i + 1]))
-          i += 2
-        } else {
-          rows.push(createPairRow(item, null))
-          i += 1
-        }
-      } else {
-        rows.push(createSingleRow(item))
-        i += 1
-      }
-    }
-    return rows
-  })
-
-  // 首屏加载
-  async function loadFirstPage() {
-    loading.value = true
-    // 模拟异步
-    await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 300))
-    allItems.value = getFirstPage()
-    currentPage.value = 1
-    hasMore.value = true
-    loading.value = false
-  }
-
-  // 加载更多
-  async function loadMore() {
-    if (isLoadingMore.value || !hasMore.value) return
-    isLoadingMore.value = true
-    await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 200))
-    const newItems = getFeedPage(currentPage.value)
-    if (newItems.length === 0) {
-      hasMore.value = false
-    } else {
-      allItems.value = [...allItems.value, ...newItems]
-      currentPage.value++
-      if (allItems.value.length >= getMaxItems()) {
-        hasMore.value = false
-      }
-    }
-    isLoadingMore.value = false
-  }
-
-  // 切换频道
-  function setChannel(ch: string) {
-    currentChannel.value = ch
-  }
-
-  // 切换收藏
-  function toggleLike(itemId: string) {
-    const items = allItems.value
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) {
-        items[i].liked = !items[i].liked
-        break
-      }
-    }
-  }
-
-  function toggleSave(itemId: string) {
-    const items = allItems.value
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) {
-        items[i].saved = !items[i].saved
-        break
-      }
-    }
-  }
-
-  return {
-    loading,
-    currentChannel,
-    allItems,
-    displayItems,
-    feedRows,
-    isLoadingMore,
-    hasMore,
-    loadFirstPage,
-    loadMore,
-    setChannel,
-    toggleLike,
-    toggleSave,
-  }
-})
-
-// ====== FeedRow — list-view 渲染行 ======
+// ====== Feed 行类型 ======
 
 export class FeedRow {
   id: string = ''
@@ -235,3 +82,150 @@ function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
   row.right = right
   return row
 }
+
+// ====== Store ======
+
+export const useHomeFeedStore = defineStore('homeFeed', () => {
+  // 状态: 'idle' | 'loading' | 'loaded' | 'error'
+  const state = ref('idle')
+  const currentChannel = ref('推荐')
+  const allItems = ref([]) as Ref<FeedItem[]>
+  const currentPage = ref(0)
+  const isLoadingMore = ref(false)
+  const hasMore = ref(true)
+  const errorMessage = ref('')
+
+  const loading = computed((): boolean => state.value === 'loading')
+
+  // 筛选后的展示列表
+  const displayItems = computed((): FeedItem[] => {
+    const ch = currentChannel.value
+    if (DEBUG_EMPTY_CHANNEL !== '' && ch === DEBUG_EMPTY_CHANNEL) return []
+    if (DEBUG_FORCE_EMPTY) return []
+    return filterByChannel(allItems.value, ch)
+  })
+
+  const isEmpty = computed((): boolean => {
+    return state.value === 'loaded' && displayItems.value.length === 0
+  })
+
+  // 混合流: product 双列合并，其他单列
+  const feedRows = computed((): FeedRow[] => {
+    const rows: FeedRow[] = []
+    const filtered = displayItems.value
+    let i = 0
+    while (i < filtered.length) {
+      const item = filtered[i]
+      if (item.feedType === FEED_PRODUCT) {
+        if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
+          rows.push(createPairRow(item, filtered[i + 1]))
+          i += 2
+        } else {
+          rows.push(createPairRow(item, null))
+          i += 1
+        }
+      } else {
+        rows.push(createSingleRow(item))
+        i += 1
+      }
+    }
+    return rows
+  })
+
+  // 首屏加载
+  async function loadFirstPage() {
+    state.value = 'loading'
+    errorMessage.value = ''
+    try {
+      await new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          if (DEBUG_FORCE_ERROR) {
+            reject(new Error('网络连接失败，请重试'))
+          } else {
+            resolve()
+          }
+        }, 300)
+      })
+      allItems.value = getFirstPage()
+      currentPage.value = 1
+      hasMore.value = allItems.value.length < getMaxItems()
+      state.value = 'loaded'
+    } catch (e) {
+      state.value = 'error'
+      errorMessage.value = e instanceof Error ? e.message : '加载失败'
+    }
+  }
+
+  // 加载更多（防重入）
+  async function loadMore() {
+    if (isLoadingMore.value || !hasMore.value || state.value !== 'loaded') return
+    isLoadingMore.value = true
+    try {
+      await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 200))
+      const newItems = getFeedPage(currentPage.value)
+      if (newItems.length === 0) {
+        hasMore.value = false
+      } else {
+        allItems.value = [...allItems.value, ...newItems]
+        currentPage.value++
+        if (allItems.value.length >= getMaxItems()) {
+          hasMore.value = false
+        }
+      }
+    } finally {
+      isLoadingMore.value = false
+    }
+  }
+
+  // 切换频道（重置分页状态，不重新加载数据）
+  function setChannel(ch: string) {
+    if (ch === currentChannel.value) return
+    currentChannel.value = ch
+    // displayItems computed 自动重算，hasMore 基于全量数据
+  }
+
+  // 重试
+  function retry() {
+    loadFirstPage()
+  }
+
+  // 切换收藏
+  function toggleLike(itemId: string) {
+    const items = allItems.value
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].id === itemId) {
+        items[i].liked = !items[i].liked
+        break
+      }
+    }
+  }
+
+  function toggleSave(itemId: string) {
+    const items = allItems.value
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].id === itemId) {
+        items[i].saved = !items[i].saved
+        break
+      }
+    }
+  }
+
+  return {
+    state,
+    loading,
+    isEmpty,
+    errorMessage,
+    currentChannel,
+    allItems,
+    displayItems,
+    feedRows,
+    isLoadingMore,
+    hasMore,
+    loadFirstPage,
+    loadMore,
+    setChannel,
+    retry,
+    toggleLike,
+    toggleSave,
+  }
+})

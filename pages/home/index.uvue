@@ -16,8 +16,19 @@
     </template>
 
     <template #default>
+      <!-- 初次加载骨架 -->
       <AppLoading v-if="store.loading" />
 
+      <!-- 加载失败 -->
+      <view v-else-if="store.state === 'error'" :style="errorWrap">
+        <text :style="errorTitle">加载失败</text>
+        <text :style="errorMsg">{{ store.errorMessage }}</text>
+        <view :style="retryBtn" @tap="onRetry">
+          <text :style="retryBtnText">点击重试</text>
+        </view>
+      </view>
+
+      <!-- 正常 Feed -->
       <list-view v-else :style="listViewStyle" @scrolltolower="onLoadMore">
         <!-- 频道栏 -->
         <list-item :type="'channelBar'">
@@ -35,7 +46,15 @@
           </scroll-view>
         </list-item>
 
-        <!-- 焦点专题：当前最重要的发售事件 -->
+        <!-- 空频道 -->
+        <list-item v-if="store.isEmpty" :type="'empty'">
+          <view :style="emptyWrap">
+            <text :style="emptyTitle">暂无内容</text>
+            <text :style="emptyMsg">该频道下暂时没有内容，切换其他频道看看</text>
+          </view>
+        </list-item>
+
+        <!-- 焦点专题 -->
         <list-item v-if="focusEvent !== null" :type="'focus'">
           <view :style="focusCardStyle" @tap="onFocusTap">
             <view :style="focusTagRow">
@@ -52,7 +71,7 @@
           </view>
         </list-item>
 
-        <!-- Feed 行: 单列 or 双列配对 -->
+        <!-- Feed 行 -->
         <list-item
           v-for="row in store.feedRows"
           :key="row.id"
@@ -61,27 +80,24 @@
           <!-- 双列商品卡 -->
           <view v-if="row.rowType === 'pair'" :style="pairRowStyle">
             <view :style="productCardStyle" @tap="onCardTap(row.left!)">
-              <!-- 图片区 3:4 -->
               <view :style="productImageWrap">
                 <view :style="placeholderBg(row.left!)">
                   <text :style="placeholderTitle">{{ row.left!.title }}</text>
                   <text :style="placeholderBrand">{{ row.left!.brandName }}</text>
                 </view>
-                <!-- 角标 -->
-                <view v-if="row.left!.badgeText !== ''" :style="badgeCornerStyle(row.left!.badgeText)">
+                <view v-if="row.left!.badgeText !== ''" :style="badgeCorner(row.left!.badgeText)">
                   <text :style="badgeCornerText">{{ row.left!.badgeText }}</text>
                 </view>
               </view>
-              <!-- 信息区 -->
               <view :style="productInfoStyle">
                 <text :style="productTitleText">{{ row.left!.title }}</text>
+                <text :style="productBrandText">{{ row.left!.brandName }}</text>
                 <view :style="productBottomRow">
                   <text :style="productPriceText">{{ formatPrice(row.left!.price) }}</text>
                   <text v-if="row.left!.originalPrice > row.left!.price" :style="productOriginalPrice">
                     {{ formatPrice(row.left!.originalPrice) }}
                   </text>
                 </view>
-                <text :style="productSourceText">{{ row.left!.sourceLabel }}</text>
               </view>
             </view>
 
@@ -91,24 +107,24 @@
                   <text :style="placeholderTitle">{{ row.right!.title }}</text>
                   <text :style="placeholderBrand">{{ row.right!.brandName }}</text>
                 </view>
-                <view v-if="row.right!.badgeText !== ''" :style="badgeCornerStyle(row.right!.badgeText)">
+                <view v-if="row.right!.badgeText !== ''" :style="badgeCorner(row.right!.badgeText)">
                   <text :style="badgeCornerText">{{ row.right!.badgeText }}</text>
                 </view>
               </view>
               <view :style="productInfoStyle">
                 <text :style="productTitleText">{{ row.right!.title }}</text>
+                <text :style="productBrandText">{{ row.right!.brandName }}</text>
                 <view :style="productBottomRow">
                   <text :style="productPriceText">{{ formatPrice(row.right!.price) }}</text>
                   <text v-if="row.right!.originalPrice > row.right!.price" :style="productOriginalPrice">
                     {{ formatPrice(row.right!.originalPrice) }}
                   </text>
                 </view>
-                <text :style="productSourceText">{{ row.right!.sourceLabel }}</text>
               </view>
             </view>
           </view>
 
-          <!-- 单列: 发售事件卡 -->
+          <!-- 单列: 发售事件卡 16:9 -->
           <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType === 'release_event'" :style="eventCardStyle" @tap="onCardTap(row.single!)">
             <view :style="eventImageWrap">
               <view :style="placeholderBg(row.single!)">
@@ -117,8 +133,8 @@
             </view>
             <view :style="eventInfoStyle">
               <view :style="eventTopRow">
-                <view :style="eventTypeTagBg(row.single!.badgeText)">
-                  <text :style="eventTypeTagText">{{ row.single!.badgeText }}</text>
+                <view :style="eventTagBg(row.single!.badgeText)">
+                  <text :style="eventTagText">{{ row.single!.badgeText }}</text>
                 </view>
                 <text :style="eventTimeText">{{ formatRelativeTime(row.single!.eventStartAt) }}</text>
               </view>
@@ -130,7 +146,7 @@
             </view>
           </view>
 
-          <!-- 单列: 穿搭沉浸卡 -->
+          <!-- 单列: 穿搭沉浸卡 4:5 -->
           <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType === 'outfit'" :style="outfitCardStyle" @tap="onCardTap(row.single!)">
             <view :style="outfitImageWrap">
               <view :style="placeholderBg(row.single!)">
@@ -148,8 +164,8 @@
             </view>
           </view>
 
-          <!-- 单列: 品牌动态/编辑精选卡 -->
-          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType !== 'release_event' && row.single!.feedType !== 'outfit'" :style="postCardStyle" @tap="onCardTap(row.single!)">
+          <!-- 单列: 品牌动态卡 16:9 -->
+          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType === 'brand_post'" :style="postCardStyle" @tap="onCardTap(row.single!)">
             <view :style="postImageWrap">
               <view :style="placeholderBg(row.single!)">
                 <text :style="placeholderTitle">{{ row.single!.title }}</text>
@@ -157,8 +173,8 @@
             </view>
             <view :style="postInfoStyle">
               <view :style="postTopRow">
-                <view :style="postTypeTagBg">
-                  <text :style="postTypeTagText">{{ row.single!.badgeText !== '' ? row.single!.badgeText : row.single!.feedType }}</text>
+                <view :style="postTagBg">
+                  <text :style="postTagText">{{ row.single!.badgeText !== '' ? row.single!.badgeText : '动态' }}</text>
                 </view>
                 <text :style="postSourceText">{{ row.single!.sourceLabel }}</text>
               </view>
@@ -166,9 +182,27 @@
               <text :style="postBrandText">{{ row.single!.brandName }}</text>
             </view>
           </view>
+
+          <!-- 单列: 编辑精选/AI推荐/未知类型 安全 fallback 卡 -->
+          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType !== 'release_event' && row.single!.feedType !== 'outfit' && row.single!.feedType !== 'brand_post' && row.single!.feedType !== 'product'" :style="fallbackCardStyle" @tap="onCardTap(row.single!)">
+            <view :style="fallbackImageWrap">
+              <view :style="placeholderBg(row.single!)">
+                <text :style="placeholderTitle">{{ row.single!.title }}</text>
+              </view>
+            </view>
+            <view :style="fallbackInfoStyle">
+              <view :style="fallbackTagRow">
+                <view :style="fallbackTagBg">
+                  <text :style="fallbackTagText">{{ feedTypeLabel(row.single!.feedType) }}</text>
+                </view>
+              </view>
+              <text :style="fallbackTitleText">{{ row.single!.title }}</text>
+              <text :style="fallbackSubText">{{ row.single!.subtitle }}</text>
+            </view>
+          </view>
         </list-item>
 
-        <!-- 加载更多 / 已加载全部 -->
+        <!-- 底部: 加载中/到底 -->
         <list-item :type="'footer'">
           <view :style="footerStyle">
             <text :style="footerText">{{ store.isLoadingMore ? '加载中...' : (store.hasMore ? '上拉加载更多' : '已显示全部内容') }}</text>
@@ -180,9 +214,9 @@
 </template>
 
 <script setup lang="uts">
-import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime, getCardLayout, CARD_LAYOUT_PRODUCT, CARD_LAYOUT_EVENT, CARD_LAYOUT_OUTFIT } from '@/stores/home-feed-store'
-import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FeedTypeLabels } from '@/domain/content/feed-item'
-import { EventTypeLabels } from '@/domain/content/release-event'
+import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime } from '@/stores/home-feed-store'
+import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST } from '@/domain/content/feed-item'
+import { getEventTypeLabel, getBadgeColor, getCategoryPlaceholderBg, getFeedTypeLabel } from '@/presentation/content/feed-presenter'
 import { brand, accent, warm, neutralLight, baseColors, jkColors, lolitaColors, hanfuColors } from '@/theme/tokens/colors'
 import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
 import { radius, semanticRadius } from '@/theme/tokens/radius'
@@ -197,7 +231,13 @@ import AppLoading from '@/components/base/AppLoading.uvue'
 const store = useHomeFeedStore()
 const channels = CHANNELS
 
-// ====== 焦点专题（取第一条 release_event） ======
+// ====== 辅助 ======
+
+function feedTypeLabel(ft: string): string {
+  return getFeedTypeLabel(ft)
+}
+
+// ====== 焦点专题 ======
 
 const focusEvent = computed((): FeedItem | null => {
   const items = store.allItems
@@ -220,48 +260,31 @@ const focusTimeLabel = computed((): string => {
   return formatRelativeTime(focusEvent.value!.eventStartAt)
 })
 
-// ====== 导航事件 ======
+// ====== 事件 ======
 
-function onSearch() {
-  // Phase 1B: 不实现
-}
-
-function onNotify() {
-  // Phase 1B: 不实现
-}
+function onSearch() { /* Phase 2 */ }
+function onNotify() { /* Phase 2 */ }
 
 function onChannelTap(ch: string) {
   store.setChannel(ch)
 }
 
-function onFocusTap() {
-  // Phase 1B: 不实现详情页跳转
-}
+function onFocusTap() { /* Phase 2 */ }
 
-function onCardTap(item: FeedItem) {
-  // Phase 1B: 不实现详情页跳转
-}
+function onCardTap(item: FeedItem) { /* Phase 2 */ }
 
 function onLoadMore() {
   store.loadMore()
 }
 
-// ====== 占位图颜色（基于类别） ======
-
-function placeholderColorForItem(item: FeedItem): string {
-  const cat = item.category
-  if (cat === 'JK') return jkColors.bg
-  if (cat === 'LOLITA') return lolitaColors.bg
-  if (cat === 'HANFU') return hanfuColors.bg
-  return warm.cream
+function onRetry() {
+  store.retry()
 }
 
-function accentColorForItem(item: FeedItem): string {
-  const cat = item.category
-  if (cat === 'JK') return jkColors.primary
-  if (cat === 'LOLITA') return lolitaColors.primary
-  if (cat === 'HANFU') return hanfuColors.primary
-  return brand[500]
+// ====== 占位图颜色 ======
+
+function placeholderColorForItem(item: FeedItem): string {
+  return getCategoryPlaceholderBg(item.category)
 }
 
 // ====== 初始化 ======
@@ -294,6 +317,61 @@ const navIconStyle = computed((): any => ({
 const navDotStyle = computed((): any => ({
   fontSize: fontSize.xs,
   color: n.value.textTertiary,
+}))
+
+// --- Error state ---
+const errorWrap = {
+  ...flexFill,
+  ...flexColumnCenter,
+  justifyContent: 'center',
+  padding: spacing[8],
+  gap: spacing[3],
+}
+
+const errorTitle = computed((): any => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+}))
+
+const errorMsg = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+  textAlign: 'center',
+}))
+
+const retryBtn = {
+  paddingHorizontal: spacing[5],
+  paddingVertical: spacing[2],
+  borderRadius: radius.full,
+  backgroundColor: brand[500],
+  marginTop: spacing[2],
+}
+
+const retryBtnText = {
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: baseColors.white,
+}
+
+// --- Empty state ---
+const emptyWrap = {
+  ...flexColumnCenter,
+  justifyContent: 'center',
+  padding: spacing[8],
+  gap: spacing[2],
+}
+
+const emptyTitle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.textSecondary,
+}))
+
+const emptyMsg = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary,
+  textAlign: 'center',
 }))
 
 // --- List View ---
@@ -336,7 +414,7 @@ function channelChipText(ch: string) {
   }
 }
 
-// --- 焦点专题卡 ---
+// --- 焦点卡 ---
 const focusCardStyle = computed((): any => ({
   marginHorizontal: semanticSpacing.pageHorizontal,
   marginTop: spacing[3],
@@ -386,17 +464,14 @@ const focusBrandText = computed((): any => ({
   color: n.value.textSecondary,
 }))
 
-const focusPriceRow = {
-  marginTop: spacing[2],
-}
-
+const focusPriceRow = { marginTop: spacing[2] }
 const focusPriceText = {
   fontSize: fontSize.lg,
   fontWeight: fontWeight.bold,
   color: accent[600],
 }
 
-// --- 双列商品卡行 ---
+// --- 双列商品卡 ---
 const pairRowStyle = {
   ...flexRow,
   gap: spacing[2],
@@ -448,12 +523,7 @@ const placeholderBrand = {
   textAlign: 'center' as string,
 }
 
-// 角标（新品/预售/降价等）
-function badgeCornerStyle(badge: string) {
-  let bgColor = brand[500]
-  if (badge === '预售') bgColor = '#8B5CF6'
-  else if (badge === '降价') bgColor = '#EF4444'
-  else if (badge === '新品') bgColor = '#22C55E'
+function badgeCorner(badge: string) {
   return {
     position: 'absolute' as string,
     top: '0',
@@ -461,7 +531,7 @@ function badgeCornerStyle(badge: string) {
     paddingHorizontal: spacing[2],
     paddingVertical: '4rpx',
     borderBottomLeftRadius: radius.md,
-    backgroundColor: bgColor,
+    backgroundColor: getBadgeColor(badge),
   }
 }
 
@@ -471,7 +541,6 @@ const badgeCornerText = {
   color: baseColors.white,
 }
 
-// 商品信息区
 const productInfoStyle = {
   padding: spacing[2],
   gap: spacing[0.5],
@@ -481,8 +550,13 @@ const productTitleText = computed((): any => ({
   fontSize: fontSize.sm,
   fontWeight: fontWeight.semibold,
   color: n.value.text,
-  lines: 1,
+  lines: 2,
   textOverflow: 'ellipsis',
+}))
+
+const productBrandText = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
 }))
 
 const productBottomRow = {
@@ -504,13 +578,7 @@ const productOriginalPrice = {
   textDecoration: 'line-through',
 }
 
-const productSourceText = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-  marginTop: '2rpx',
-}))
-
-// --- 发售事件卡（单列） ---
+// --- 发售事件卡 16:9 ---
 const eventCardStyle = computed((): any => ({
   marginHorizontal: semanticSpacing.pageHorizontal,
   marginTop: spacing[3],
@@ -522,7 +590,7 @@ const eventCardStyle = computed((): any => ({
 
 const eventImageWrap = {
   width: '100%',
-  paddingBottom: '56.25%', // 16:9 横图
+  paddingBottom: '56.25%', // 16:9
   position: 'relative' as string,
   overflow: 'hidden',
 }
@@ -539,24 +607,16 @@ const eventTopRow = {
   marginBottom: spacing[1],
 }
 
-function eventTypeTagBg(badge: string) {
-  let bgColor = brand[500]
-  if (badge === '定金') bgColor = '#F59E0B'
-  else if (badge === '尾款') bgColor = '#FF4D7E'
-  else if (badge === '发售') bgColor = '#22C55E'
-  else if (badge === '补货') bgColor = '#3B82F6'
-  else if (badge === '降价') bgColor = '#EF4444'
-  else if (badge === '预约') bgColor = '#6366F1'
-  else if (badge === '预览') bgColor = '#8B5CF6'
+function eventTagBg(badge: string) {
   return {
     paddingHorizontal: spacing[2],
     paddingVertical: '4rpx',
     borderRadius: radius.full,
-    backgroundColor: bgColor + '20',
+    backgroundColor: getBadgeColor(badge) + '20',
   }
 }
 
-const eventTypeTagText = {
+const eventTagText = {
   fontSize: fontSize.xs,
   fontWeight: fontWeight.semibold,
   color: brand[600],
@@ -581,17 +641,14 @@ const eventBrandText = computed((): any => ({
   color: n.value.textSecondary,
 }))
 
-const eventPriceRow = {
-  marginTop: spacing[1],
-}
-
+const eventPriceRow = { marginTop: spacing[1] }
 const eventPriceText = {
   fontSize: fontSize.lg,
   fontWeight: fontWeight.bold,
   color: brand[600],
 }
 
-// --- 穿搭沉浸卡（单列大图） ---
+// --- 穿搭卡 4:5 ---
 const outfitCardStyle = computed((): any => ({
   marginHorizontal: semanticSpacing.pageHorizontal,
   marginTop: spacing[3],
@@ -602,7 +659,7 @@ const outfitCardStyle = computed((): any => ({
 
 const outfitImageWrap = {
   width: '100%',
-  paddingBottom: '100%', // 1:1
+  paddingBottom: '125%', // 4:5
   position: 'relative' as string,
   overflow: 'hidden',
 }
@@ -656,7 +713,7 @@ const outfitPlaceholderTitle = {
   textAlign: 'center' as string,
 }
 
-// --- 品牌动态/编辑卡（单列横图） ---
+// --- 品牌动态卡 16:9 ---
 const postCardStyle = computed((): any => ({
   marginHorizontal: semanticSpacing.pageHorizontal,
   marginTop: spacing[3],
@@ -685,14 +742,14 @@ const postTopRow = {
   marginBottom: spacing[0.5],
 }
 
-const postTypeTagBg = {
+const postTagBg = {
   paddingHorizontal: spacing[2],
   paddingVertical: '4rpx',
   borderRadius: radius.full,
   backgroundColor: brand[50],
 }
 
-const postTypeTagText = {
+const postTagText = {
   fontSize: fontSize.xs,
   fontWeight: fontWeight.medium,
   color: brand[500],
@@ -712,6 +769,60 @@ const postTitleText = computed((): any => ({
 }))
 
 const postBrandText = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+}))
+
+// --- Fallback 卡 (editorial/ai_recommendation/unknown) ---
+const fallbackCardStyle = computed((): any => ({
+  marginHorizontal: semanticSpacing.pageHorizontal,
+  marginTop: spacing[3],
+  borderRadius: semanticRadius.card,
+  backgroundColor: n.value.surface,
+  boxShadow: shadow.sm,
+  overflow: 'hidden',
+}))
+
+const fallbackImageWrap = {
+  width: '100%',
+  paddingBottom: '56.25%', // 16:9
+  position: 'relative' as string,
+  overflow: 'hidden',
+}
+
+const fallbackInfoStyle = {
+  padding: spacing[3],
+  gap: spacing[1],
+}
+
+const fallbackTagRow = {
+  ...flexRow,
+  alignItems: 'center',
+  marginBottom: spacing[0.5],
+}
+
+const fallbackTagBg = {
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+  borderRadius: radius.full,
+  backgroundColor: accent[50],
+}
+
+const fallbackTagText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: accent[600],
+}
+
+const fallbackTitleText = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  lines: 2,
+  textOverflow: 'ellipsis',
+}))
+
+const fallbackSubText = computed((): any => ({
   fontSize: fontSize.sm,
   color: n.value.textSecondary,
 }))
