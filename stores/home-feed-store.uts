@@ -1,0 +1,237 @@
+/**
+ * HomeFeedStore — 首页内容发现 Feed 状态管理
+ * Phase 1B: 替代旧 Dashboard HomeStore
+ * 使用 MockFeedRepo 提供数据
+ */
+
+import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT } from '@/domain/content/feed-item'
+import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel, getPlaceholderColor } from '@/domain/content/mock-feed-repo'
+
+// ====== 频道定义 ======
+
+export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭', 'JK', 'Lolita', '汉服']
+
+// ====== 格式化工具 ======
+
+/** 价格格式化：分 → ¥xxx.xx */
+export function formatPrice(cents: number): string {
+  if (cents <= 0) return ''
+  const yuan = cents / 100
+  if (yuan >= 10000) return `¥${(yuan / 10000).toFixed(1)}万`
+  if (yuan === Math.floor(yuan)) return `¥${Math.floor(yuan)}`
+  return `¥${yuan.toFixed(2)}`
+}
+
+/** 相对时间格式化 */
+export function formatRelativeTime(isoStr: string): string {
+  if (isoStr === '') return ''
+  const now = Date.now()
+  const target = new Date(isoStr).getTime()
+  const diffMs = target - now
+  const diffMin = Math.floor(Math.abs(diffMs) / 60000)
+  const diffHour = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHour / 24)
+
+  if (diffMs > 0) {
+    // 未来
+    if (diffDay > 0) return `${diffDay}天后`
+    if (diffHour > 0) return `${diffHour}小时后`
+    if (diffMin > 0) return `${diffMin}分钟后`
+    return '即将'
+  } else {
+    // 过去
+    if (diffDay > 0) return `${diffDay}天前`
+    if (diffHour > 0) return `${diffHour}小时前`
+    if (diffMin > 0) return `${diffMin}分钟前`
+    return '刚刚'
+  }
+}
+
+/** 格式化月份日期: 7月15日 */
+export function formatMonthDay(isoStr: string): string {
+  if (isoStr === '') return ''
+  const d = new Date(isoStr)
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+// ====== 卡片布局类型 ======
+
+export const CARD_LAYOUT_PRODUCT = 'product'       // 双列商品卡
+export const CARD_LAYOUT_EVENT = 'event'            // 单列事件卡
+export const CARD_LAYOUT_OUTFIT = 'outfit'          // 单列沉浸卡
+export const CARD_LAYOUT_POST = 'post'              // 单列动态卡
+
+/** 判断 FeedItem 的卡片布局类型 */
+export function getCardLayout(item: FeedItem): string {
+  if (item.feedType === FEED_PRODUCT) return CARD_LAYOUT_PRODUCT
+  if (item.feedType === FEED_RELEASE_EVENT) return CARD_LAYOUT_EVENT
+  if (item.feedType === FEED_OUTFIT) return CARD_LAYOUT_OUTFIT
+  return CARD_LAYOUT_POST
+}
+
+/** 是否是大图卡片（单列沉浸） */
+export function isImmersiveCard(item: FeedItem): boolean {
+  return item.feedType === FEED_OUTFIT || item.feedType === 'editorial'
+}
+
+// ====== Store ======
+
+export const useHomeFeedStore = defineStore('homeFeed', () => {
+  const loading = ref(false)
+  const currentChannel = ref('推荐')
+  const allItems = ref([]) as Ref<FeedItem[]>
+  const currentPage = ref(0)
+  const isLoadingMore = ref(false)
+  const hasMore = ref(true)
+
+  // 筛选后的展示列表
+  const displayItems = computed((): FeedItem[] => {
+    return filterByChannel(allItems.value, currentChannel.value)
+  })
+
+  // 双列商品配对（仅 product 类型用）
+  const productPairs = computed((): FeedItem[][] => {
+    const products: FeedItem[] = []
+    const others: FeedItem[] = []
+    // 按原始顺序分组
+    const filtered = displayItems.value
+    for (let i = 0; i < filtered.length; i++) {
+      const item = filtered[i]
+      if (item.feedType === FEED_PRODUCT) {
+        products.push(item)
+      }
+    }
+    const pairs: FeedItem[][] = []
+    for (let i = 0; i < products.length; i += 2) {
+      if (i + 1 < products.length) {
+        pairs.push([products[i], products[i + 1]])
+      } else {
+        pairs.push([products[i]])
+      }
+    }
+    return pairs
+  })
+
+  // 混合流：product 双列合并，其他单列
+  // 为了 list-view 渲染，我们将所有 item 按原始顺序排列
+  // product 连续出现时合并为 pair 行
+  const feedRows = computed((): FeedRow[] => {
+    const rows: FeedRow[] = []
+    const filtered = displayItems.value
+    let i = 0
+    while (i < filtered.length) {
+      const item = filtered[i]
+      if (item.feedType === FEED_PRODUCT) {
+        // 收集连续的 product
+        if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
+          rows.push(createPairRow(item, filtered[i + 1]))
+          i += 2
+        } else {
+          rows.push(createPairRow(item, null))
+          i += 1
+        }
+      } else {
+        rows.push(createSingleRow(item))
+        i += 1
+      }
+    }
+    return rows
+  })
+
+  // 首屏加载
+  async function loadFirstPage() {
+    loading.value = true
+    // 模拟异步
+    await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 300))
+    allItems.value = getFirstPage()
+    currentPage.value = 1
+    hasMore.value = true
+    loading.value = false
+  }
+
+  // 加载更多
+  async function loadMore() {
+    if (isLoadingMore.value || !hasMore.value) return
+    isLoadingMore.value = true
+    await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 200))
+    const newItems = getFeedPage(currentPage.value)
+    if (newItems.length === 0) {
+      hasMore.value = false
+    } else {
+      allItems.value = [...allItems.value, ...newItems]
+      currentPage.value++
+      if (allItems.value.length >= getMaxItems()) {
+        hasMore.value = false
+      }
+    }
+    isLoadingMore.value = false
+  }
+
+  // 切换频道
+  function setChannel(ch: string) {
+    currentChannel.value = ch
+  }
+
+  // 切换收藏
+  function toggleLike(itemId: string) {
+    const items = allItems.value
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].id === itemId) {
+        items[i].liked = !items[i].liked
+        break
+      }
+    }
+  }
+
+  function toggleSave(itemId: string) {
+    const items = allItems.value
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].id === itemId) {
+        items[i].saved = !items[i].saved
+        break
+      }
+    }
+  }
+
+  return {
+    loading,
+    currentChannel,
+    allItems,
+    displayItems,
+    feedRows,
+    isLoadingMore,
+    hasMore,
+    loadFirstPage,
+    loadMore,
+    setChannel,
+    toggleLike,
+    toggleSave,
+  }
+})
+
+// ====== FeedRow — list-view 渲染行 ======
+
+export class FeedRow {
+  id: string = ''
+  rowType: string = 'single' // 'single' | 'pair'
+  single: FeedItem | null = null
+  left: FeedItem | null = null
+  right: FeedItem | null = null
+}
+
+function createSingleRow(item: FeedItem): FeedRow {
+  const row = new FeedRow()
+  row.id = `row-${item.id}`
+  row.rowType = 'single'
+  row.single = item
+  return row
+}
+
+function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
+  const row = new FeedRow()
+  row.id = right !== null ? `row-${left.id}-${right.id}` : `row-${left.id}`
+  row.rowType = 'pair'
+  row.left = left
+  row.right = right
+  return row
+}
