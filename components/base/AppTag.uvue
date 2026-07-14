@@ -1,0 +1,132 @@
+<template>
+  <view :style="tagStyle" @tap="emit('tap')">
+    <text v-if="emoji" :style="emojiStyle">{{ emoji }}</text>
+    <text :style="textStyle">{{ label }}</text>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand, accent, neutralLight, neutralDark, baseColors, categoryColors, semantic } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { TAG_CHIP, TAG_CATEGORY, TAG_STATUS, TAG_PRIORITY } from './app-tag-types'
+import { n } from '@/theme/use-theme'
+
+// ====== 分类色映射 ======
+const CATEGORY_COLOR_MAP = {
+  JK: categoryColors.jk.primary,
+  LOLITA: categoryColors.lolita.primary,
+  HANFU: categoryColors.hanfu.primary,
+} as any
+
+// ====== 优先级色 ======
+const PRIORITY_COLOR_MAP = {
+  HIGH: semantic.error,
+  MEDIUM: semantic.warning,
+  LOW: neutralLight.textDisabled,
+} as any
+
+const props = withDefaults(defineProps<{
+  label?: string
+  variant?: string
+  color?: string
+  active?: boolean
+  emoji?: string
+}>(), {
+  label: '',
+  variant: TAG_CHIP,
+  color: '',
+  active: false,
+  emoji: '' })
+
+const emit = defineEmits<{
+  tap: []
+}>()
+
+
+const tagStyle = computed((): any => {
+  const base = {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.full,
+    flexShrink: 0,
+  } as any
+
+  if (props.variant == TAG_CHIP) {
+    base.paddingHorizontal = spacing[3]
+    base.paddingVertical = spacing[1]
+    base.backgroundColor = props.active ? brand[500] : n.value.bgTertiary
+    return base
+  }
+
+  if (props.variant == TAG_CATEGORY) {
+    const c = props.color || brand[500]
+    base.paddingHorizontal = spacing[2]
+    base.paddingVertical = '4rpx'
+    base.borderRadius = radius.full
+    base.backgroundColor = c + '15'
+    return base
+  }
+
+  if (props.variant == TAG_STATUS) {
+    const c = props.color || brand[500]
+    base.paddingHorizontal = spacing[2]
+    base.paddingVertical = '4rpx'
+    base.borderRadius = radius.full
+    base.backgroundColor = c + '20'
+    return base
+  }
+
+  if (props.variant == TAG_PRIORITY) {
+    const c = PRIORITY_COLOR_MAP[props.color] || neutralLight.textDisabled
+    base.paddingHorizontal = spacing[2]
+    base.paddingVertical = '4rpx'
+    base.borderRadius = radius.full
+    base.backgroundColor = c
+    return base
+  }
+
+  return base
+})
+
+const textStyle = computed((): any => {
+  if (props.variant == TAG_CHIP) {
+    return {
+      fontSize: fontSize.sm,
+      color: props.active ? baseColors.white : n.value.textSecondary,
+      fontWeight: props.active ? fontWeight.medium : fontWeight.regular,
+    }
+  }
+  if (props.variant == TAG_CATEGORY) {
+    return {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.medium,
+      color: props.color || brand[500],
+    }
+  }
+  if (props.variant == TAG_STATUS) {
+    return {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.medium,
+      color: props.color || brand[500],
+    }
+  }
+  if (props.variant == TAG_PRIORITY) {
+    return {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.bold,
+      color: baseColors.white,
+    }
+  }
+  return {
+    fontSize: fontSize.xs,
+    color: n.value.textSecondary,
+  }
+})
+
+const emojiStyle = {
+  fontSize: fontSize.xs,
+  marginRight: spacing[0.5],
+}
+</script>

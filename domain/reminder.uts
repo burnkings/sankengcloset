@@ -1,0 +1,93 @@
+/**
+ * Reminder — 提醒数据模型
+ * 到货提醒 / 尾款提醒 / 发售提醒 / 自定义提醒
+ */
+
+// ====== 提醒类型 ======
+
+export const TYPE_ARRIVAL = 'ARRIVAL'
+export const TYPE_BALANCE = 'BALANCE'
+export const TYPE_RELEASE = 'RELEASE'
+export const TYPE_CUSTOM = 'CUSTOM'
+
+export const TYPE_LABELS = {
+  ARRIVAL: '到货提醒',
+  BALANCE: '尾款提醒',
+  RELEASE: '发售提醒',
+  CUSTOM: '自定义',
+}
+
+export const TYPE_EMOJI = {
+  ARRIVAL: '📦',
+  BALANCE: '💰',
+  RELEASE: '🔔',
+  CUSTOM: '⏰',
+}
+
+export const TYPE_COLORS = {
+  ARRIVAL: '#22C55E',
+  BALANCE: '#F59E0B',
+  RELEASE: '#8B5CF6',
+  CUSTOM: '#6B7280',
+}
+
+// ====== 提醒状态 ======
+
+export const STATUS_PENDING = 'PENDING'
+export const STATUS_DONE = 'DONE'
+export const STATUS_MISSED = 'MISSED'
+
+export const STATUS_LABELS = {
+  PENDING: '待提醒',
+  DONE: '已完成',
+  MISSED: '已过期',
+}
+
+export const STATUS_COLORS = {
+  PENDING: '#3B82F6',
+  DONE: '#22C55E',
+  MISSED: '#9CA3AF',
+}
+
+// ====== 筛选选项 ======
+
+export class ReminderFilterOption {
+  label: string = ''
+  value: string = ''
+}
+
+export const REMINDER_FILTER_OPTIONS: ReminderFilterOption[] = [
+  { label: '全部', value: '' } as ReminderFilterOption,
+  { label: '待提醒', value: 'PENDING' } as ReminderFilterOption,
+  { label: '已完成', value: 'DONE' } as ReminderFilterOption,
+  { label: '已过期', value: 'MISSED' } as ReminderFilterOption,
+]
+
+// ====== 数据模型 ======
+
+export class Reminder {
+  id: string = ''
+  title: string = ''
+  type: string = 'CUSTOM' // ARRIVAL / BALANCE / RELEASE / CUSTOM
+  remindDate: string = '' // YYYY-MM-DD
+  remindTime: string = '' // HH:mm
+  relatedPurchaseId: string = ''
+  relatedWishId: string = ''
+  note: string = ''
+  status: string = 'PENDING' // PENDING / DONE / MISSED
+  isDeleted: boolean = false
+  createdAt: string = ''
+  updatedAt: string = ''
+}
+
+/** 更新数据 */
+export class ReminderUpdateData {
+  title: string = ''
+  type: string = ''
+  remindDate: string = ''
+  remindTime: string = ''
+  relatedPurchaseId: string = ''
+  relatedWishId: string = ''
+  note: string = ''
+  status: string = ''
+}

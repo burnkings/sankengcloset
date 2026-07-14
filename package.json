@@ -1,0 +1,13 @@
+{
+  "name": "sankengcloset",
+  "version": "1.0.0",
+  "description": "三坑绮橱 AppX",
+  "scripts": {
+    "build:mp-weixin": "uni build -p mp-weixin"
+  },
+  "dependencies": {
+    "@dcloudio/uni-components": "^3.0.0-alpha-5010220260604001",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21"
+  }
+}

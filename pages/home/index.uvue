@@ -1,0 +1,576 @@
+<template>
+  <MainLayout>
+    <template #navbar>
+      <AppNavbar title="三坑绮橱" :show-back="false" />
+    </template>
+
+    <template #default>
+      <AppLoading v-if="store.loading" />
+
+      <scroll-view v-else scroll-y :style="scrollStyle">
+        <!-- Hero 区域 -->
+        <view :style="heroSection">
+          <view :style="heroInner">
+            <text :style="heroGreeting">{{ store.greeting }} 👋</text>
+            <text :style="heroSub">今天也要美美的~</text>
+          </view>
+          <!-- 数据概览条 -->
+          <view :style="heroStatBar">
+            <view :style="heroStatItem" @tap="navigateTo('/pages/wardrobe/index')">
+              <text :style="heroStatNum">{{ store.wardrobeSummary.itemCount }}</text>
+              <text :style="heroStatLabel">衣物</text>
+            </view>
+            <view :style="heroStatDivider" />
+            <view :style="heroStatItem" @tap="navigateTo('/pages/wishlist/index')">
+              <text :style="heroStatNum">{{ store.wishlistSummary.wishCount + store.wishlistSummary.watchingCount + store.wishlistSummary.decidedCount }}</text>
+              <text :style="heroStatLabel">种草</text>
+            </view>
+            <view :style="heroStatDivider" />
+            <view :style="heroStatItem" @tap="navigateTo('/pages/purchase/index')">
+              <text :style="heroStatNum">{{ store.purchaseSummary.activeCount }}</text>
+              <text :style="heroStatLabel">进行中</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 消费概览 -->
+        <view :style="sectionWrap">
+          <view :style="summaryCard">
+            <view :style="summaryTop">
+              <text :style="summaryTitle">本月消费</text>
+              <text :style="summaryLink" @tap="navigateTo('/pages/purchase/index')">查看全部 ›</text>
+            </view>
+            <view :style="summaryAmountRow">
+              <text :style="summaryAmount">¥{{ store.purchaseSummary.monthSpent }}</text>
+              <view :style="summaryBadge">
+                <text :style="summaryBadgeText">{{ store.purchaseSummary.activeCount }} 笔进行中</text>
+              </view>
+            </view>
+            <view :style="summaryDivider" />
+            <view :style="summaryBottom">
+              <view :style="summaryBottomItem">
+                <text :style="summaryBottomLabel">待付款</text>
+                <text :style="summaryBottomNum">{{ store.purchaseSummary.pendingAmount }}</text>
+              </view>
+              <view :style="summaryBottomDivider" />
+              <view :style="summaryBottomItem">
+                <text :style="summaryBottomLabel">衣物总数</text>
+                <text :style="summaryBottomNum">{{ store.wardrobeSummary.itemCount }}</text>
+              </view>
+              <view :style="summaryBottomDivider" />
+              <view :style="summaryBottomItem">
+                <text :style="summaryBottomLabel">收藏</text>
+                <text :style="summaryBottomNum">{{ store.wardrobeSummary.favoriteCount }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 快捷入口 -->
+        <view :style="sectionWrap">
+          <text :style="sectionLabel">快捷入口</text>
+          <view :style="quickGrid">
+            <view :style="quickItem" @tap="navigateTo('/pages/wardrobe/index')">
+              <view :style="quickIconBg(brand[50])">
+                <text :style="quickIcon">👗</text>
+              </view>
+              <text :style="quickLabel">我的衣橱</text>
+            </view>
+            <view :style="quickItem" @tap="navigateTo('/pages/wishlist/index')">
+              <view :style="quickIconBg(accent[50])">
+                <text :style="quickIcon">💖</text>
+              </view>
+              <text :style="quickLabel">种草清单</text>
+            </view>
+            <view :style="quickItem" @tap="navigateTo('/pages/purchase/index')">
+              <view :style="quickIconBg(warm.cream)">
+                <text :style="quickIcon">🛍️</text>
+              </view>
+              <text :style="quickLabel">消费记录</text>
+            </view>
+            <view :style="quickItem" @tap="navigateTo('/pages/reminder/index')">
+              <view :style="quickIconBg(warm.lavender)">
+                <text :style="quickIcon">⏰</text>
+              </view>
+              <text :style="quickLabel">提醒</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 种草计划 -->
+        <view :style="sectionWrap">
+          <view :style="sectionHeader">
+            <text :style="sectionLabel">种草计划</text>
+            <text :style="sectionLink" @tap="navigateTo('/pages/wishlist/index')">查看全部 ›</text>
+          </view>
+          <view :style="wishCard">
+            <view :style="wishRow">
+              <view :style="wishStat">
+                <text :style="wishStatEmoji">🌱</text>
+                <text :style="wishStatNum">{{ store.wishlistSummary.wishCount }}</text>
+                <text :style="wishStatLabel">种草</text>
+              </view>
+              <view :style="wishDivider" />
+              <view :style="wishStat">
+                <text :style="wishStatEmoji">👀</text>
+                <text :style="wishStatNum">{{ store.wishlistSummary.watchingCount }}</text>
+                <text :style="wishStatLabel">观望</text>
+              </view>
+              <view :style="wishDivider" />
+              <view :style="wishStat">
+                <text :style="wishStatEmoji">✅</text>
+                <text :style="wishStatNum">{{ store.wishlistSummary.decidedCount }}</text>
+                <text :style="wishStatLabel">决定买</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 我的提醒 -->
+        <view :style="sectionWrap">
+          <view :style="sectionHeader">
+            <text :style="sectionLabel">我的提醒</text>
+            <text :style="sectionLink" @tap="navigateTo('/pages/reminder/index')">查看全部 ›</text>
+          </view>
+          <view :style="reminderCard" @tap="navigateTo('/pages/reminder/index')">
+            <view :style="reminderRow">
+              <view :style="reminderIconBg">
+                <text :style="reminderIcon">⏰</text>
+              </view>
+              <view :style="reminderInfo">
+                <text :style="reminderTitle">提醒管理</text>
+                <text :style="reminderDesc">不错过尾款、发售、到货每个重要时刻</text>
+              </view>
+              <text :style="reminderArrow">›</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 衣橱收藏 -->
+        <view :style="sectionWrap">
+          <view :style="sectionHeader">
+            <text :style="sectionLabel">衣橱收藏</text>
+            <text :style="sectionLink" @tap="navigateTo('/pages/wardrobe/index')">查看全部 ›</text>
+          </view>
+          <view :style="favCard">
+            <view :style="favRow">
+              <view :style="favIconBg">
+                <text :style="favIcon">❤️</text>
+              </view>
+              <view :style="favInfo">
+                <text :style="favCount">{{ store.wardrobeSummary.favoriteCount }}</text>
+                <text :style="favLabel">件收藏衣物</text>
+              </view>
+              <view v-if="store.wardrobeSummary.favoriteCount > 0" :style="favHint">
+                <text :style="favHintText">持续收集美好~</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 底部留白 -->
+        <view :style="bottomSpacer" />
+      </scroll-view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { useHomeStore } from '@/stores/home-store'
+import { brand, accent, warm, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
+import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { radius, semanticRadius } from '@/theme/tokens/radius'
+import { shadow, shadowDark } from '@/theme/tokens/shadow'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexRowBetween, flexColumnCenter, flexFill } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppLoading from '@/components/base/AppLoading.uvue'
+
+
+const store = useHomeStore()
+
+const TAB_PAGES = [
+  '/pages/home/index',
+  '/pages/wardrobe/index',
+  '/pages/purchase/index',
+  '/pages/profile/index',
+]
+
+function navigateTo(path: string) {
+  if (TAB_PAGES.indexOf(path) >= 0) {
+    uni.switchTab({ url: path })
+  } else {
+    uni.navigateTo({ url: path })
+  }
+}
+
+// ====== 样式 ======
+
+const scrollStyle = {
+  flex: 1,
+  backgroundColor: neutralLight.bg,
+}
+
+// --- Hero ---
+const heroSection = {
+  paddingHorizontal: semanticSpacing.pageHorizontal,
+  paddingTop: spacing[3],
+  paddingBottom: spacing[4],
+  backgroundColor: brand[500],
+}
+
+const heroInner = {
+  paddingLeft: spacing[1],
+  marginBottom: spacing[3],
+}
+
+const heroGreeting = {
+  fontSize: fontSize['2xl'],
+  fontWeight: fontWeight.bold,
+  color: baseColors.white,
+  marginBottom: spacing[0.5],
+}
+
+const heroSub = {
+  fontSize: fontSize.sm,
+  color: 'rgba(255,255,255,0.8)',
+}
+
+const heroStatBar = {
+  ...flexRow,
+  backgroundColor: 'rgba(255,255,255,0.15)',
+  borderRadius: semanticRadius.card,
+  padding: spacing[3],
+  justifyContent: 'space-around',
+}
+
+const heroStatItem = {
+  ...flexColumnCenter,
+  gap: spacing[0.5],
+}
+
+const heroStatNum = {
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: baseColors.white,
+  lineHeight: 1,
+}
+
+const heroStatLabel = {
+  fontSize: fontSize.xs,
+  color: 'rgba(255,255,255,0.7)',
+}
+
+const heroStatDivider = {
+  width: '1rpx',
+  height: '48rpx',
+  backgroundColor: 'rgba(255,255,255,0.2)',
+  alignSelf: 'center',
+}
+
+// --- Section ---
+const sectionWrap = {
+  paddingHorizontal: semanticSpacing.pageHorizontal,
+  marginTop: spacing[3],
+}
+
+const sectionHeader = {
+  ...flexRowBetween,
+  alignItems: 'center',
+  marginBottom: spacing[2],
+}
+
+const sectionLabel = computed((): any => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  marginBottom: spacing[2],
+}))
+
+const sectionLink = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: brand[500],
+  fontWeight: fontWeight.medium,
+}))
+
+// --- 消费概览卡片 ---
+const summaryCard = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.card,
+  padding: spacing[4],
+  boxShadow: shadow.card,
+}))
+
+const summaryTop = {
+  ...flexRowBetween,
+  alignItems: 'center',
+  marginBottom: spacing[3],
+}
+
+const summaryTitle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: n.value.textSecondary,
+}))
+
+const summaryLink = {
+  fontSize: fontSize.xs,
+  color: brand[500],
+}
+
+const summaryAmountRow = {
+  ...flexRow,
+  alignItems: 'flex-end',
+  gap: spacing[2],
+  marginBottom: spacing[3],
+}
+
+const summaryAmount = {
+  fontSize: fontSize['3xl'],
+  fontWeight: fontWeight.extrabold,
+  color: brand[600],
+  lineHeight: 1,
+}
+
+const summaryBadge = {
+  backgroundColor: brand[50],
+  borderRadius: semanticRadius.tag,
+  paddingHorizontal: spacing[2],
+  paddingVertical: spacing[0.5],
+  marginBottom: spacing[0.5],
+}
+
+const summaryBadgeText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: brand[500],
+}
+
+const summaryDivider = {
+  height: '1rpx',
+  backgroundColor: neutralLight.divider,
+  marginBottom: spacing[3],
+}
+
+const summaryBottom = {
+  ...flexRow,
+  justifyContent: 'space-around',
+}
+
+const summaryBottomItem = {
+  ...flexColumnCenter,
+  gap: spacing[0.5],
+}
+
+const summaryBottomLabel = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+}))
+
+const summaryBottomNum = computed((): any => ({
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: n.value.text,
+}))
+
+const summaryBottomDivider = {
+  width: '1rpx',
+  height: '48rpx',
+  backgroundColor: neutralLight.divider,
+  alignSelf: 'center',
+}
+
+// --- 快捷入口 ---
+const quickGrid = {
+  ...flexRow,
+  justifyContent: 'space-between',
+}
+
+const quickItem = {
+  ...flexColumnCenter,
+  gap: spacing[1],
+  width: '22%',
+}
+
+function quickIconBg(bgColor: string) {
+  return {
+    width: '96rpx',
+    height: '96rpx',
+    borderRadius: semanticRadius.cardLg,
+    backgroundColor: bgColor,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
+}
+
+const quickIcon = {
+  fontSize: '44rpx',
+}
+
+const quickLabel = computed((): any => ({
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: n.value.textSecondary,
+}))
+
+// --- 种草计划 ---
+const wishCard = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.card,
+  padding: spacing[4],
+  boxShadow: shadow.card,
+}))
+
+const wishRow = {
+  ...flexRow,
+  justifyContent: 'space-around',
+}
+
+const wishStat = {
+  ...flexColumnCenter,
+  gap: spacing[0.5],
+}
+
+const wishStatEmoji = {
+  fontSize: '28rpx',
+}
+
+const wishStatNum = {
+  fontSize: fontSize['2xl'],
+  fontWeight: fontWeight.bold,
+  color: accent[500],
+  lineHeight: 1,
+}
+
+const wishStatLabel = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+}))
+
+const wishDivider = {
+  width: '1rpx',
+  height: '80rpx',
+  backgroundColor: neutralLight.divider,
+  alignSelf: 'center',
+}
+
+// --- 衣橱收藏 ---
+const favCard = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.card,
+  padding: spacing[4],
+  boxShadow: shadow.card,
+}))
+
+const favRow = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: spacing[3],
+}
+
+const favIconBg = {
+  width: '72rpx',
+  height: '72rpx',
+  borderRadius: radius.full,
+  backgroundColor: brand[50],
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+const favIcon = {
+  fontSize: '32rpx',
+}
+
+const favInfo = {
+  ...flexColumnCenter,
+  alignItems: 'flex-start',
+  gap: spacing[0.5],
+}
+
+const favCount = {
+  fontSize: fontSize['2xl'],
+  fontWeight: fontWeight.bold,
+  color: brand[500],
+  lineHeight: 1,
+}
+
+const favLabel = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+}))
+
+const favHint = {
+  marginLeft: 'auto',
+}
+
+const favHintText = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  fontStyle: 'italic',
+}))
+
+// --- 提醒卡片 ---
+const reminderCard = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.card,
+  padding: spacing[4],
+  boxShadow: shadow.card,
+}))
+
+const reminderRow = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: spacing[3],
+}
+
+const reminderIconBg = {
+  width: '72rpx',
+  height: '72rpx',
+  borderRadius: radius.full,
+  backgroundColor: warm.lavender,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+const reminderIcon = {
+  fontSize: '32rpx',
+}
+
+const reminderInfo = {
+  ...flexColumnCenter,
+  alignItems: 'flex-start',
+  gap: spacing[0.5],
+  ...flexFill,
+}
+
+const reminderTitle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+}))
+
+const reminderDesc = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+}))
+
+const reminderArrow = computed((): any => ({
+  fontSize: fontSize.xl,
+  color: n.value.textTertiary,
+}))
+
+// --- 底部留白 ---
+const bottomSpacer = {
+  height: spacing[6],
+}
+
+onMounted(() => {
+  store.fetchDashboard()
+})
+</script>

@@ -1,0 +1,291 @@
+/**
+ * WishlistStore — 心愿单状态管理
+ * Page → Store → Repository
+ */
+
+import { WishItem, WishUpdateData, PRIORITY_ORDER, WISH_STATUS_FLOW } from '@/domain/wish-item'
+import { toDisplayModel, toDisplayModels, WishDisplayModel } from '@/domain/wish-presenter'
+import * as repo from '@/domain/repositories/wishlist-repo'
+import { PurchaseRecord } from '@/domain/purchase-record'
+
+export const useWishListStore = defineStore('wishlist', () => {
+  // ====== State ======
+  const items = ref([]) as Ref<WishItem[]>
+  const loading = ref(false)
+  const error = ref('')
+  const filterStatus = ref('')
+  const searchKeyword = ref('')
+  const currentSort = ref('priority') // priority | price-high | price-low | newest
+  const showFavoritesOnly = ref(false)
+
+  // ====== Getters ======
+
+  const activeItems = computed((): WishItem[] =>
+    items.value.filter((w) => !w.isDeleted)
+  )
+
+  const filteredItems = computed((): WishItem[] => {
+    let result = activeItems.value
+
+    // 状态筛选
+    if (filterStatus.value) {
+      result = result.filter((w) => w.status == filterStatus.value)
+    }
+
+    // 收藏筛选
+    if (showFavoritesOnly.value) {
+      result = result.filter((w) => w.isFavorite)
+    }
+
+    // 搜索
+    if (searchKeyword.value) {
+      const kw = searchKeyword.value.toLowerCase()
+      result = result.filter((w) => {
+        if (w.name.toLowerCase().includes(kw)) return true
+        if (w.brand.toLowerCase().includes(kw)) return true
+        if (w.note.toLowerCase().includes(kw)) return true
+        return false
+      })
+    }
+
+    // 排序
+    result = [...result].sort((a, b) => {
+      if (currentSort.value == 'priority') {
+        const pa = PRIORITY_ORDER[a.priority] ?? 2
+        const pb = PRIORITY_ORDER[b.priority] ?? 2
+        if (pa != pb) return pa - pb
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return db - da
+      }
+      if (currentSort.value == 'price-high') return b.estimatedPrice - a.estimatedPrice
+      if (currentSort.value == 'price-low') return a.estimatedPrice - b.estimatedPrice
+      if (currentSort.value == 'newest') {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return db - da
+      }
+      return 0
+    })
+
+    return result
+  })
+
+  const displayItems = computed((): WishDisplayModel[] =>
+    toDisplayModels(filteredItems.value)
+  )
+
+  const itemCount = computed((): number => activeItems.value.length)
+  const favoriteCount = computed((): number =>
+    activeItems.value.filter((w) => w.isFavorite).length
+  )
+
+  const wishCount = computed((): number =>
+    activeItems.value.filter((w) => w.status == 'WISH').length
+  )
+  const watchingCount = computed((): number =>
+    activeItems.value.filter((w) => w.status == 'WATCHING').length
+  )
+  const decidedCount = computed((): number =>
+    activeItems.value.filter((w) => w.status == 'DECIDED').length
+  )
+  const purchasedCount = computed((): number =>
+    activeItems.value.filter((w) => w.status == 'PURCHASED').length
+  )
+
+  const highPriorityCount = computed((): number =>
+    activeItems.value.filter((w) =>
+      w.priority == 'HIGH' && w.status != 'PURCHASED' && w.status != 'CANCELED'
+    ).length
+  )
+
+  const estimatedTotal = computed((): number =>
+    activeItems.value
+      .filter((w) => w.status != 'PURCHASED' && w.status != 'CANCELED')
+      .reduce((sum, w) => sum + w.estimatedPrice, 0)
+  )
+
+  const convertedCount = computed((): number =>
+    activeItems.value.filter((w) => w.purchaseId !== '').length
+  )
+
+  // ====== Actions ======
+
+  function fetchItems() {
+    loading.value = true
+    error.value = ''
+    try {
+      repo.initMockData()
+      items.value = repo.getAll()
+    } catch (err) {
+      error.value = String(err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function addItem(item: WishItem): WishItem | null {
+    try {
+      const added = repo.add(item)
+      items.value = [...items.value, added]
+      return added
+    } catch (err) {
+      error.value = String(err)
+      return null
+    }
+  }
+
+  function updateItem(id: string, data: WishUpdateData): boolean {
+    const ok = repo.update(id, data)
+    if (ok) {
+      const existing = items.value.find((w) => w.id == id)
+      if (existing) {
+        if (data.name != '') existing.name = data.name
+        if (data.coverImage != '') existing.coverImage = data.coverImage
+        if (data.brand != '') existing.brand = data.brand
+        if (data.estimatedPrice >= 0) existing.estimatedPrice = data.estimatedPrice
+        if (data.priority != '') existing.priority = data.priority
+        if (data.status != '') existing.status = data.status
+        if (data.note != '') existing.note = data.note
+        if (data.url != '') existing.url = data.url
+        if (data.isFavorite >= 0) existing.isFavorite = data.isFavorite == 1
+        existing.updatedAt = new Date().toISOString()
+      }
+    }
+    return ok
+  }
+
+  function deleteItem(id: string): boolean {
+    const ok = repo.softDelete(id)
+    if (ok) {
+      items.value = items.value.filter((w) => w.id !== id)
+    }
+    return ok
+  }
+
+  function changeStatus(id: string, newStatus: string): boolean {
+    const ok = repo.changeStatus(id, newStatus)
+    if (ok) {
+      const existing = items.value.find((w) => w.id == id)
+      if (existing) {
+        existing.status = newStatus
+        existing.updatedAt = new Date().toISOString()
+      }
+    }
+    return ok
+  }
+
+  function toggleFavorite(id: string): boolean {
+    const ok = repo.toggleFavorite(id)
+    if (ok) {
+      const existing = items.value.find((w) => w.id == id)
+      if (existing) {
+        existing.isFavorite = !existing.isFavorite
+      }
+    }
+    return ok
+  }
+
+  function convertToPurchase(id: string): PurchaseRecord | null {
+    const item = items.value.find((w) => w.id == id)
+    if (!item) return null
+
+    const record = new PurchaseRecord()
+    record.name = item.name
+    record.brand = item.brand
+    record.totalAmount = item.estimatedPrice
+    record.depositAmount = 0
+    record.paidAmount = 0
+    record.remainingAmount = item.estimatedPrice
+    record.paymentStatus = 'PRE_ORDER'
+    record.purchaseDate = new Date().toISOString().split('T')[0]
+    record.note = `从心愿单转入: ${item.name}`
+    return record
+  }
+
+  function markPurchased(id: string, purchaseId: string): boolean {
+    const ok = repo.markPurchased(id, purchaseId)
+    if (ok) {
+      const existing = items.value.find((w) => w.id == id)
+      if (existing) {
+        existing.status = 'PURCHASED'
+        existing.purchaseId = purchaseId
+        existing.convertedAt = new Date().toISOString()
+        existing.updatedAt = existing.convertedAt
+      }
+    }
+    return ok
+  }
+
+  function linkWardrobe(id: string, wardrobeId: string): boolean {
+    const ok = repo.linkWardrobe(id, wardrobeId)
+    if (ok) {
+      const existing = items.value.find((w) => w.id == id)
+      if (existing) {
+        existing.wardrobeId = wardrobeId
+        existing.updatedAt = new Date().toISOString()
+      }
+    }
+    return ok
+  }
+
+  function getAvailableTransitions(currentStatus: string): string[] {
+    return WISH_STATUS_FLOW[currentStatus] ?? []
+  }
+
+  function setFilterStatus(status: string) {
+    filterStatus.value = status
+  }
+
+  function setSearch(keyword: string) {
+    searchKeyword.value = keyword
+  }
+
+  function setSort(sort: string) {
+    currentSort.value = sort
+  }
+
+  function setShowFavoritesOnly(val: boolean) {
+    showFavoritesOnly.value = val
+  }
+
+  function getById(id: string): WishItem | undefined {
+    return items.value.find((w) => w.id == id)
+  }
+
+  return {
+    loading,
+    error,
+    filterStatus,
+    searchKeyword,
+    currentSort,
+    showFavoritesOnly,
+    activeItems,
+    filteredItems,
+    displayItems,
+    itemCount,
+    favoriteCount,
+    wishCount,
+    watchingCount,
+    decidedCount,
+    purchasedCount,
+    highPriorityCount,
+    estimatedTotal,
+    convertedCount,
+    fetchItems,
+    addItem,
+    updateItem,
+    deleteItem,
+    changeStatus,
+    toggleFavorite,
+    convertToPurchase,
+    markPurchased,
+    linkWardrobe,
+    getAvailableTransitions,
+    setFilterStatus,
+    setSearch,
+    setSort,
+    setShowFavoritesOnly,
+    getById,
+  }
+})

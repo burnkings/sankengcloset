@@ -1,0 +1,38 @@
+/**
+ * Radius — 设计令牌 v2.0
+ * 更圆润的圆角，符合年轻女性消费 App 的柔和视觉
+ */
+
+export const radius = {
+  none: '0rpx',
+  xs: '4rpx',
+  sm: '8rpx',
+  md: '12rpx',
+  lg: '16rpx',
+  xl: '24rpx',
+  '2xl': '32rpx',
+  '3xl': '48rpx',
+  full: '9999rpx',
+}
+
+export const semanticRadius = {
+  button: radius.xl,       // 24rpx (更圆润)
+  buttonSm: radius.lg,     // 16rpx
+  card: radius.xl,         // 24rpx (卡片更圆润)
+  cardLg: radius['2xl'],   // 32rpx (大卡片)
+  dialog: radius['2xl'],   // 32rpx
+  bottomSheet: radius['2xl'],
+  input: radius.lg,        // 16rpx (输入框更圆润)
+  tag: radius.full,        // 胶囊形
+  badge: radius.full,
+  avatar: radius.full,     // 50%
+  image: radius.lg,        // 16rpx
+  imageLg: radius.xl,      // 24rpx (大图更圆润)
+  chip: radius.full,       // 胶囊形
+  toast: radius.xl,        // 24rpx
+  modal: radius['2xl'],    // 32rpx
+  tab: radius.lg,          // 16rpx
+  switch: radius.full,
+  progress: radius.full,
+  skeleton: radius.md,     // 12rpx
+}

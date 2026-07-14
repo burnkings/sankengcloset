@@ -1,0 +1,56 @@
+<template>
+  <view v-if="visible" :style="wrapperStyle">
+    <view :style="spinnerStyle" />
+    <text v-if="text" :style="textStyle">{{ text }}</text>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { fontSize } from '@/theme/tokens/typography'
+import { zIndex } from '@/theme/tokens/z-index'
+import { flexCenter } from '@/theme/layout/flex'
+
+const props = withDefaults(defineProps<{
+  visible?: boolean
+  text?: string
+  size?: string
+  overlay?: boolean
+}>(), {
+  visible: true,
+  text: '',
+  size: '48rpx',
+  overlay: false,
+})
+
+const wrapperStyle = computed(() => ({
+  ...flexCenter,
+  flexDirection: 'column' as string,
+  padding: spacing[4],
+  ...(props.overlay ? {
+    position: 'fixed' as string,
+    top: '0',
+    left: '0',
+    right: '0',
+    bottom: '0',
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    zIndex: zIndex.loading,
+  } : {}),
+}))
+
+const spinnerStyle = computed(() => ({
+  width: props.size,
+  height: props.size,
+  borderWidth: '4rpx',
+  borderStyle: 'solid',
+  borderColor: `${brand[200]} transparent transparent transparent`,
+  borderRadius: '50%',
+}))
+
+const textStyle = computed(() => ({
+  fontSize: fontSize.sm,
+  color: brand[500],
+  marginTop: spacing[2],
+}))
+</script>

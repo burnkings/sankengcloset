@@ -1,0 +1,146 @@
+/**
+ * WardrobeRepo — 衣橱数据仓库
+ * 简单封装 uni.storage，后续可替换为云存储
+ */
+
+import { WardrobeItem } from '@/domain/wardrobe-item'
+
+const STORAGE_KEY = 'wardrobe_items'
+
+function loadAll(): WardrobeItem[] {
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY)
+    if (!raw) return []
+    const arr = JSON.parse(raw) as any[]
+    return arr.map((obj) => {
+      const item = new WardrobeItem()
+      item.id = obj.id ?? ''
+      item.name = obj.name ?? ''
+      item.category = obj.category ?? 'OTHER'
+      item.style = obj.style ?? ''
+      item.brand = obj.brand ?? ''
+      item.color = obj.color ?? ''
+      item.size = obj.size ?? ''
+      item.wearStatus = obj.wearStatus ?? 'UNWORN'
+      item.seasons = obj.seasons ?? []
+      item.images = obj.images ?? []
+      item.tags = obj.tags ?? []
+      item.purchaseDate = obj.purchaseDate ?? ''
+      item.purchasePrice = obj.purchasePrice ?? 0
+      item.purchaseSource = obj.purchaseSource ?? ''
+      item.note = obj.note ?? ''
+      item.isFavorite = obj.isFavorite ?? false
+      item.isDeleted = obj.isDeleted ?? false
+      item.createdAt = obj.createdAt ?? ''
+      item.updatedAt = obj.updatedAt ?? ''
+      return item
+    })
+  } catch {
+    return []
+  }
+}
+
+function saveAll(items: WardrobeItem[]) {
+  uni.setStorageSync(STORAGE_KEY, JSON.stringify(items))
+}
+
+function generateId(): string {
+  return `${Date.now()}-${Math.floor(Math.random() * 10000)}`
+}
+
+/** 获取全部（不含已删除） */
+export function getAll(): WardrobeItem[] {
+  return loadAll().filter((i) => !i.isDeleted)
+}
+
+/** 按 ID 获取 */
+export function getById(id: string): WardrobeItem | undefined {
+  return loadAll().find((i) => i.id === id && !i.isDeleted)
+}
+
+/** 按分类获取 */
+export function getByCategory(category: string): WardrobeItem[] {
+  return loadAll().filter((i) => !i.isDeleted && i.category === category)
+}
+
+/** 搜索 */
+export function search(keyword: string): WardrobeItem[] {
+  const kw = keyword.toLowerCase()
+  return loadAll().filter((i) => {
+    if (i.isDeleted) return false
+    if (i.name.toLowerCase().includes(kw)) return true
+    if (i.brand.toLowerCase().includes(kw)) return true
+    if (i.note.toLowerCase().includes(kw)) return true
+    return false
+  })
+}
+
+/** 新增 */
+export function add(item: WardrobeItem): WardrobeItem {
+  const items = loadAll()
+  item.id = generateId()
+  item.createdAt = new Date().toISOString()
+  item.updatedAt = item.createdAt
+  items.push(item)
+  saveAll(items)
+  return item
+}
+
+/** 更新 */
+export function update(id: string, data: any): boolean {
+  const records = loadAll()
+  const idx = records.findIndex((r) => r.id === id)
+  if (idx < 0) return false
+  const r = records[idx]
+  if (data.name !== undefined) r.name = data.name
+  if (data.category !== undefined) r.category = data.category
+  if (data.style !== undefined) r.style = data.style
+  if (data.brand !== undefined) r.brand = data.brand
+  if (data.color !== undefined) r.color = data.color
+  if (data.size !== undefined) r.size = data.size
+  if (data.wearStatus !== undefined) r.wearStatus = data.wearStatus
+  if (data.note !== undefined) r.note = data.note
+  if (data.isFavorite !== undefined) r.isFavorite = data.isFavorite
+  r.updatedAt = new Date().toISOString()
+  saveAll(records)
+  return true
+}
+
+/** 软删除 */
+export function softDelete(id: string): boolean {
+  const items = loadAll()
+  const item = items.find((i) => i.id === id)
+  if (!item) return false
+  item.isDeleted = true
+  item.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+/** 切换收藏 */
+export function toggleFavorite(id: string): boolean {
+  const items = loadAll()
+  const item = items.find((i) => i.id === id)
+  if (!item) return false
+  item.isFavorite = !item.isFavorite
+  item.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+/** 初始化模拟数据（开发阶段） */
+export function initMockData() {
+  const existing = loadAll()
+  if (existing.length > 0) return
+
+  const now = new Date().toISOString()
+  const mockItems: WardrobeItem[] = [
+    (() => { const i = new WardrobeItem(); i.id = '1'; i.name = '深蓝格裙 45cm'; i.category = 'JK'; i.brand = '中牌'; i.color = '深蓝'; i.wearStatus = 'WORN'; i.isFavorite = true; i.purchasePrice = 128; i.createdAt = now; i.updatedAt = now; return i })(),
+    (() => { const i = new WardrobeItem(); i.id = '2'; i.name = '白无本水手服'; i.category = 'JK'; i.brand = '月野house'; i.color = '白'; i.wearStatus = 'WORN'; i.purchasePrice = 89; i.createdAt = now; i.updatedAt = now; return i })(),
+    (() => { const i = new WardrobeItem(); i.id = '3'; i.name = '甜系草莓柄 SK'; i.category = 'LOLITA'; i.brand = 'Alice兔'; i.color = '粉'; i.wearStatus = 'UNWORN'; i.isFavorite = true; i.purchasePrice = 680; i.createdAt = now; i.updatedAt = now; return i })(),
+    (() => { const i = new WardrobeItem(); i.id = '4'; i.name = '哥特十字架 JSK'; i.category = 'LOLITA'; i.brand = 'BABY'; i.color = '黑红'; i.wearStatus = 'WORN'; i.purchasePrice = 1580; i.createdAt = now; i.updatedAt = now; return i })(),
+    (() => { const i = new WardrobeItem(); i.id = '5'; i.name = '宋制旋裙套装'; i.category = 'HANFU'; i.brand = '重回汉唐'; i.color = '浅蓝'; i.wearStatus = 'WORN'; i.purchasePrice = 320; i.createdAt = now; i.updatedAt = now; return i })(),
+    (() => { const i = new WardrobeItem(); i.id = '6'; i.name = '明制马面裙'; i.category = 'HANFU'; i.brand = '汉尚华莲'; i.color = '织金红'; i.wearStatus = 'UNWORN'; i.isFavorite = true; i.purchasePrice = 450; i.createdAt = now; i.updatedAt = now; return i })(),
+  ]
+  saveAll(mockItems)
+}

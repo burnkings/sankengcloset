@@ -1,0 +1,72 @@
+/**
+ * PurchaseRecord — 消费记录数据模型
+ * 简化版：纯数据 class
+ *
+ * ★★★★★ Android 规范：string union → class 常量；any → 具体类型
+ */
+
+export const STATUS_PRE_ORDER = 'PRE_ORDER'
+export const STATUS_DEPOSIT_PAID = 'DEPOSIT_PAID'
+export const STATUS_BALANCE_PENDING = 'BALANCE_PENDING'
+export const STATUS_COMPLETED = 'COMPLETED'
+export const STATUS_CANCELLED = 'CANCELLED'
+
+export const PAYMENT_STATUS_LABELS = {
+  PRE_ORDER: '预售中',
+  DEPOSIT_PAID: '已付定金',
+  BALANCE_PENDING: '待付款',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+}
+
+export const PAYMENT_STATUS_COLORS = {
+  PRE_ORDER: '#8B5CF6',
+  DEPOSIT_PAID: '#FF4D7E',
+  BALANCE_PENDING: '#F59E0B',
+  COMPLETED: '#22C55E',
+  CANCELLED: '#9CA3AF',
+}
+
+export class PurchaseRecord {
+  id: string = ''
+  name: string = ''
+  brand: string = ''
+  shopName: string = ''
+  category: string = ''
+  totalAmount: number = 0
+  depositAmount: number = 0
+  paidAmount: number = 0
+  remainingAmount: number = 0
+  paymentStatus: string = 'PRE_ORDER'
+  purchaseDate: string = ''
+  deadline: string = ''
+  note: string = ''
+  isFavorite: boolean = false
+  isDeleted: boolean = false
+  createdAt: string = ''
+  updatedAt: string = ''
+}
+
+/** 更新数据 — 替代 updatePurchase(id, data: any) */
+export class PurchaseUpdateData {
+  name: string = ''
+  brand: string = ''
+  totalAmount: number = -1
+  paidAmount: number = -1
+  paymentStatus: string = ''
+  deadline: string = ''
+}
+
+export class FilterOption {
+  label: string = ''
+  value: string = ''
+}
+
+export const FILTER_OPTIONS: FilterOption[] = [
+  { label: '全部', value: '' } as FilterOption,
+  { label: '预售中', value: 'PRE_ORDER' } as FilterOption,
+  { label: '已付定金', value: 'DEPOSIT_PAID' } as FilterOption,
+  { label: '待付款', value: 'BALANCE_PENDING' } as FilterOption,
+  { label: '已完成', value: 'COMPLETED' } as FilterOption,
+  { label: '已取消', value: 'CANCELLED' } as FilterOption,
+]

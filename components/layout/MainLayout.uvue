@@ -1,0 +1,33 @@
+<template>
+  <view :style="layoutStyle">
+    <slot name="navbar" />
+    <scroll-view scroll-y :style="bodyStyle">
+      <view :style="navbarSpacerStyle" />
+      <slot />
+      <view :style="safeBottomStyle" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { semanticSpacing } from '@/theme/tokens/spacing'
+import { flexFill } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+
+const layoutStyle = computed((): any => ({
+  height: '100vh',
+  backgroundColor: n.value.bg }))
+
+const bodyStyle = computed((): any => ({
+  ...flexFill }))
+
+// Navbar 固定定位占位 — statusBar + 44px 内容区
+const navbarSpacerStyle = computed((): any => ({
+  height: `${statusBarHeight + 44}px` }))
+
+const safeBottomStyle = computed((): any => ({
+  height: semanticSpacing.safeBottom }))
+</script>

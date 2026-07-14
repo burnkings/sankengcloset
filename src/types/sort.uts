@@ -1,0 +1,19 @@
+/**
+ * SortType — 排序类型
+ */
+
+export type SortType = 'newest' | 'priceHigh' | 'priceLow' | 'name'
+
+export const SORT_OPTIONS = [
+  { value: 'newest', label: '最近添加' },
+  { value: 'priceHigh', label: '价格从高到低' },
+  { value: 'priceLow', label: '价格从低到高' },
+  { value: 'name', label: '按名称排序' },
+]
+
+export function getSortLabel(sort: string): string {
+  for (const opt of SORT_OPTIONS) {
+    if (opt.value === sort) return opt.label
+  }
+  return '最近添加'
+}

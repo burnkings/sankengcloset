@@ -1,0 +1,83 @@
+/**
+ * Spacing Layout Helpers — 间距快捷方式
+ *
+ * 与 tokens/spacing.uts 的区别:
+ *   tokens/spacing = 原始值（'16rpx'）
+ *   layout/spacing = 可直接展开的样式对象
+ */
+
+import { spacing, semanticSpacing } from '../tokens/spacing'
+
+// ==================== Gap ====================
+
+/** gap 快捷对象 */
+export const gap = {
+  none: { gap: spacing[0] } as any,
+  xs: { gap: spacing[1] } as any,
+  sm: { gap: spacing[2] } as any,
+  md: { gap: spacing[3] } as any,
+  lg: { gap: spacing[4] } as any,
+  xl: { gap: spacing[5] } as any,
+}
+
+// ==================== Padding ====================
+
+/** padding 快捷对象 */
+export const pad = {
+  none: { padding: spacing[0] } as any,
+  xs: { padding: spacing[1] } as any,
+  sm: { padding: spacing[2] } as any,
+  md: { padding: spacing[3] } as any,
+  lg: { padding: spacing[4] } as any,
+  xl: { padding: spacing[5] } as any,
+}
+
+/** 页面标准 padding */
+export const pagePadding = {
+  paddingHorizontal: semanticSpacing.pageHorizontal,
+  paddingVertical: semanticSpacing.pageVertical,
+} as any
+
+/** 卡片标准 padding */
+export const cardPadding = {
+  padding: semanticSpacing.cardPadding,
+} as any
+
+/** 底部安全区 */
+export const safeBottom = {
+  height: semanticSpacing.safeBottom,
+} as any
+
+// ==================== 工厂函数 ====================
+
+/**
+ * 创建 padding 样式
+ */
+export function createPadding(top: string, right?: string, bottom?: string, left?: string): any {
+  if (right === undefined) {
+    return { padding: top } as any
+  }
+  if (bottom === undefined) {
+    return { paddingTop: top, paddingBottom: top, paddingLeft: right, paddingRight: right } as any
+  }
+  if (left === undefined) {
+    return { paddingTop: top, paddingLeft: right, paddingRight: right, paddingBottom: bottom } as any
+  }
+  return { paddingTop: top, paddingRight: right, paddingBottom: bottom, paddingLeft: left } as any
+}
+
+/**
+ * 创建 margin 样式
+ */
+export function createMargin(top: string, right?: string, bottom?: string, left?: string): any {
+  if (right === undefined) {
+    return { margin: top } as any
+  }
+  if (bottom === undefined) {
+    return { marginTop: top, marginBottom: top, marginLeft: right, marginRight: right } as any
+  }
+  if (left === undefined) {
+    return { marginTop: top, marginLeft: right, marginRight: right, marginBottom: bottom } as any
+  }
+  return { marginTop: top, marginRight: right, marginBottom: bottom, marginLeft: left } as any
+}

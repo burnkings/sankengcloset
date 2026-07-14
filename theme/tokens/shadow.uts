@@ -1,0 +1,48 @@
+/**
+ * Shadow — 设计令牌 v2.0
+ * 更柔和、更有层次感的阴影
+ * 适合年轻女性消费 App 的视觉风格
+ */
+
+export const shadow = {
+  none: 'none',
+  // 微阴影 — 按钮、标签
+  xs: '0 1rpx 3rpx 0 rgba(0,0,0,0.04)',
+  // 轻阴影 — 卡片默认
+  sm: '0 2rpx 8rpx 0 rgba(0,0,0,0.05)',
+  // 中阴影 — 浮层、弹窗
+  md: '0 4rpx 16rpx -2rpx rgba(0,0,0,0.08)',
+  // 重阴影 — 导航栏、底部栏
+  lg: '0 8rpx 24rpx -4rpx rgba(0,0,0,0.1)',
+  // 特重阴影 — 全屏弹窗
+  xl: '0 16rpx 48rpx -8rpx rgba(0,0,0,0.12)',
+  // 语义阴影
+  card: '0 2rpx 12rpx 0 rgba(0,0,0,0.04)',
+  cardHover: '0 4rpx 20rpx 0 rgba(0,0,0,0.08)',
+  cardActive: '0 1rpx 4rpx 0 rgba(0,0,0,0.06)',
+  float: '0 8rpx 32rpx -4rpx rgba(0,0,0,0.1)',
+  navbar: '0 1rpx 6rpx 0 rgba(0,0,0,0.04)',
+  tabbar: '0 -1rpx 6rpx 0 rgba(0,0,0,0.04)',
+  button: '0 2rpx 8rpx 0 rgba(255,77,126,0.2)',
+  buttonPressed: '0 1rpx 4rpx 0 rgba(255,77,126,0.15)',
+  dialog: '0 12rpx 40rpx -8rpx rgba(0,0,0,0.15)',
+}
+
+/** 暗色模式阴影 */
+export const shadowDark = {
+  none: 'none',
+  xs: '0 1rpx 3rpx 0 rgba(0,0,0,0.15)',
+  sm: '0 2rpx 8rpx 0 rgba(0,0,0,0.2)',
+  md: '0 4rpx 16rpx -2rpx rgba(0,0,0,0.3)',
+  lg: '0 8rpx 24rpx -4rpx rgba(0,0,0,0.35)',
+  xl: '0 16rpx 48rpx -8rpx rgba(0,0,0,0.4)',
+  card: '0 2rpx 12rpx 0 rgba(0,0,0,0.15)',
+  cardHover: '0 4rpx 20rpx 0 rgba(0,0,0,0.25)',
+  cardActive: '0 1rpx 4rpx 0 rgba(0,0,0,0.2)',
+  float: '0 8rpx 32rpx -4rpx rgba(0,0,0,0.3)',
+  navbar: '0 1rpx 6rpx 0 rgba(0,0,0,0.15)',
+  tabbar: '0 -1rpx 6rpx 0 rgba(0,0,0,0.15)',
+  button: '0 2rpx 8rpx 0 rgba(255,77,126,0.15)',
+  buttonPressed: '0 1rpx 4rpx 0 rgba(255,77,126,0.1)',
+  dialog: '0 12rpx 40rpx -8rpx rgba(0,0,0,0.35)',
+}

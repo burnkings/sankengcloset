@@ -1,0 +1,6 @@
+/** AppTag 常量 */
+
+export const TAG_CHIP = 'CHIP'
+export const TAG_CATEGORY = 'CATEGORY'
+export const TAG_STATUS = 'STATUS'
+export const TAG_PRIORITY = 'PRIORITY'

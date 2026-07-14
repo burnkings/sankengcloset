@@ -1,0 +1,58 @@
+/**
+ * Typography — 设计令牌 v2.0
+ * 更清晰的字体层级，适合年轻女性消费 App
+ */
+
+export const fontSize = {
+  '2xs': '20rpx',   // 极小标签
+  xs: '24rpx',      // 辅助文字
+  sm: '28rpx',      // 次要文字
+  base: '32rpx',    // 正文
+  lg: '36rpx',      // 小标题
+  xl: '40rpx',      // 标题
+  '2xl': '48rpx',   // 大标题
+  '3xl': '60rpx',   // 超大标题
+  '4xl': '80rpx',   // 展示数字
+}
+
+export const fontWeight = {
+  light: 300,
+  regular: 400,
+  medium: 500,
+  semibold: 600,
+  bold: 700,
+  extrabold: 800,
+}
+
+export const lineHeight = {
+  none: 1,
+  tight: 1.2,
+  snug: 1.375,
+  normal: 1.5,
+  relaxed: 1.625,
+  loose: 1.75,
+}
+
+/** 语义字体样式 — 组合 fontSize + fontWeight + lineHeight */
+export const textStyle = {
+  // 展示
+  display: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, lineHeight: lineHeight.tight },
+  h1: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, lineHeight: lineHeight.tight },
+  h2: { fontSize: fontSize.xl, fontWeight: fontWeight.semibold, lineHeight: lineHeight.snug },
+  h3: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, lineHeight: lineHeight.snug },
+  // 正文
+  body: { fontSize: fontSize.base, fontWeight: fontWeight.regular, lineHeight: lineHeight.normal },
+  bodyMedium: { fontSize: fontSize.base, fontWeight: fontWeight.medium, lineHeight: lineHeight.normal },
+  bodySmall: { fontSize: fontSize.sm, fontWeight: fontWeight.regular, lineHeight: lineHeight.normal },
+  // 辅助
+  caption: { fontSize: fontSize.xs, fontWeight: fontWeight.regular, lineHeight: lineHeight.normal },
+  captionMedium: { fontSize: fontSize.xs, fontWeight: fontWeight.medium, lineHeight: lineHeight.normal },
+  tiny: { fontSize: fontSize['2xs'], fontWeight: fontWeight.regular, lineHeight: lineHeight.normal },
+  // 特殊
+  price: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, lineHeight: lineHeight.none },
+  priceSmall: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, lineHeight: lineHeight.none },
+  button: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, lineHeight: lineHeight.none },
+  buttonSm: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, lineHeight: lineHeight.none },
+  tag: { fontSize: fontSize.xs, fontWeight: fontWeight.medium, lineHeight: lineHeight.none },
+  navTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, lineHeight: lineHeight.none },
+}

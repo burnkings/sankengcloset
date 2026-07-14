@@ -1,0 +1,24 @@
+<template>
+  <view :style="layoutStyle">
+    <slot name="navbar" />
+    <view :style="bodyStyle">
+      <slot />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { } from '@/theme/tokens/colors'
+import { flexFill } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+
+const layoutStyle = computed(() => ({
+  height: '100vh',
+  backgroundColor: n.value.bg,
+}))
+
+const bodyStyle = computed(() => ({
+  ...flexFill,
+}))
+</script>

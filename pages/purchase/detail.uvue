@@ -1,0 +1,308 @@
+<template>
+  <DetailLayout title="消费详情">
+    <template #right>
+      <text :style="deleteBtnStyle" @tap="onDeleteTap">删除</text>
+      <text :style="editBtnStyle" @tap="onEditTap">编辑</text>
+    </template>
+
+    <!-- 未找到 -->
+    <view v-if="!item" :style="notFoundStyle">
+      <text :style="notFoundText">记录不存在</text>
+    </view>
+
+    <!-- 详情内容 -->
+    <view v-else :style="contentStyle">
+
+      <!-- 名称 + 状态 -->
+      <AppCard>
+        <view :style="nameRowStyle">
+          <text :style="nameTextStyle">{{ item.name }}</text>
+          <view :style="statusTagStyle">
+            <text :style="statusTagText">{{ item.statusText }}</text>
+          </view>
+        </view>
+        <text v-if="item.brand !== '' || item.shopName !== ''" :style="shopTextStyle">
+          {{ item.brand !== '' && item.shopName !== '' ? item.brand + ' · ' + item.shopName : (item.brand !== '' ? item.brand : item.shopName) }}
+        </text>
+      </AppCard>
+
+      <!-- 金额卡片 -->
+      <AppCard>
+        <template #header>
+          <text :style="sectionTitleStyle">金额信息</text>
+        </template>
+
+        <view :style="amountGridStyle">
+          <view :style="amountItemStyle">
+            <text :style="amountLabelStyle">总金额</text>
+            <text :style="amountValueStyle">{{ item.totalText }}</text>
+          </view>
+          <view v-if="item.depositText" :style="amountItemStyle">
+            <text :style="amountLabelStyle">定金</text>
+            <text :style="amountValueSmallStyle">{{ item.depositText }}</text>
+          </view>
+          <view :style="amountItemStyle">
+            <text :style="amountLabelStyle">已付</text>
+            <text :style="amountValuePaidStyle">{{ item.paidText }}</text>
+          </view>
+          <view :style="amountItemStyle">
+            <text :style="amountLabelStyle">状态</text>
+            <text :style="amountValueRemainingStyle">{{ item.remainingText }}</text>
+          </view>
+        </view>
+
+        <!-- 进度条 -->
+        <view :style="progressSectionStyle">
+          <view :style="progressTrackStyle">
+            <view :style="progressFillStyle" />
+          </view>
+          <text :style="progressLabelStyle">付款进度 {{ item.progressPercent }}%</text>
+        </view>
+      </AppCard>
+
+      <!-- 详情信息 -->
+      <AppCard>
+        <template #header>
+          <text :style="sectionTitleStyle">详细信息</text>
+        </template>
+
+        <view :style="infoListStyle">
+          <view v-if="item.category" :style="infoRowStyle">
+            <text :style="infoLabelStyle">分类</text>
+            <text :style="infoValueStyle">{{ item.category }}</text>
+          </view>
+          <view :style="infoRowStyle">
+            <text :style="infoLabelStyle">购买日期</text>
+            <text :style="infoValueStyle">{{ item.purchaseDateText }}</text>
+          </view>
+          <view v-if="item.deadlineText !== '—'" :style="infoRowStyle">
+            <text :style="infoLabelStyle">截止日期</text>
+            <text :style="deadlineValueStyle">{{ item.deadlineLabel }}</text>
+          </view>
+          <view v-if="item.isOverdue" :style="overdueBannerStyle">
+            <text :style="overdueTextStyle">⚠️ 已逾期</text>
+          </view>
+        </view>
+      </AppCard>
+
+      <!-- 备注 -->
+      <AppCard v-if="item.note">
+        <template #header>
+          <text :style="sectionTitleStyle">备注</text>
+        </template>
+        <text :style="noteTextStyle">{{ item.note }}</text>
+      </AppCard>
+    </view>
+  </DetailLayout>
+
+  <!-- 删除确认 -->
+  <AppDialog
+    v-model:visible="deleteDialogVisible"
+    title="确认删除"
+    message="删除后无法恢复，确定要删除这条消费记录吗？"
+    @confirm="onConfirmDelete"
+  />
+</template>
+
+<script setup lang="uts">
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { toDisplayModel, PurchaseDisplayModel } from '@/domain/purchase-presenter'
+import { brand, semantic } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { semanticRadius } from '@/theme/tokens/radius'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexRowBetween, flexCenter, flexColumnCenter, flexFill } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import AppCard from '@/components/base/AppCard.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
+
+
+const store = usePurchaseStore()
+const deleteDialogVisible = ref(false)
+
+// 获取路由参数 id
+const itemId = ref('')
+
+// 展示模型
+const item = computed((): PurchaseDisplayModel | null => {
+  if (!itemId.value) return null
+  const record = store.getPurchaseById(itemId.value)
+  if (!record) return null
+  return toDisplayModel(record)
+})
+
+function onDeleteTap() {
+  deleteDialogVisible.value = true
+}
+
+function onEditTap() {
+  uni.navigateTo({ url: `/pages/purchase/edit?id=${itemId.value}` })
+}
+
+function onConfirmDelete() {
+  if (itemId.value) {
+    store.deletePurchase(itemId.value)
+    uni.navigateBack()
+  }
+}
+
+// 页面加载时获取路由参数
+onMounted(() => {
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  const id = (currentPage as any).options?.id ?? ''
+  itemId.value = id
+})
+
+// ====== 样式 ======
+
+const deleteBtnStyle = {
+  fontSize: fontSize.sm,
+  color: semantic.error,
+  paddingHorizontal: spacing[2] }
+
+const editBtnStyle = {
+  fontSize: fontSize.sm,
+  color: brand[500],
+  paddingHorizontal: spacing[2],
+  marginLeft: spacing[2] }
+
+const notFoundStyle = {
+  ...flexCenter,
+  padding: spacing[8] }
+
+const notFoundText = computed((): any => ({
+  fontSize: fontSize.lg,
+  color: n.value.textTertiary }))
+
+const contentStyle = {
+  ...gap.sm,
+  padding: `${spacing[3]} ${spacing[4]}` }
+
+const nameRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' as string }
+
+const nameTextStyle = computed((): any => ({
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: n.value.text,
+  ...flexFill,
+  marginRight: spacing[2] }))
+
+const statusTagStyle = computed((): any => ({
+  paddingHorizontal: spacing[3],
+  paddingVertical: spacing[1],
+  borderRadius: radius.full,
+  backgroundColor: item.value ? item.value.statusColor + '15' : '',
+  flexShrink: 0 }))
+
+const statusTagText = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: item.value ? item.value.statusColor : n.value.textSecondary }))
+
+const shopTextStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+  marginTop: spacing[1] }))
+
+const sectionTitleStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.semibold,
+  color: n.value.textSecondary }))
+
+const amountGridStyle = {
+  ...flexRow,
+  flexWrap: 'wrap' as string,
+  gap: spacing[3] }
+
+const amountItemStyle = {
+  width: '45%',
+  gap: spacing[1] }
+
+const amountLabelStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary }))
+
+const amountValueStyle = computed((): any => ({
+  fontSize: fontSize['2xl'],
+  fontWeight: fontWeight.bold,
+  color: n.value.text }))
+
+const amountValueSmallStyle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.medium,
+  color: n.value.text }))
+
+const amountValuePaidStyle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.medium,
+  color: semantic.success }))
+
+const amountValueRemainingStyle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.medium,
+  color: item.value && item.value.remainingText !== '已结清' ? semantic.error : semantic.success }))
+
+const progressSectionStyle = {
+  marginTop: spacing[3],
+  gap: spacing[1] }
+
+const progressTrackStyle = computed((): any => ({
+  height: '10rpx',
+  borderRadius: radius.full,
+  backgroundColor: n.value.bgTertiary,
+  overflow: 'hidden' as string }))
+
+const progressFillStyle = computed((): any => ({
+  width: item.value ? `${item.value.progressPercent}%` : '0%',
+  height: '100%',
+  borderRadius: radius.full,
+  backgroundColor: item.value ? item.value.statusColor : '' }))
+
+const progressLabelStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  textAlign: 'right' as string }))
+
+const infoListStyle = {
+  ...gap.sm }
+
+const infoRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' as string,
+  paddingVertical: spacing[1] }
+
+const infoLabelStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary }))
+
+const infoValueStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.text }))
+
+const deadlineValueStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: item.value && item.value.isOverdue ? semantic.error : n.value.text,
+  fontWeight: item.value && item.value.isOverdue ? fontWeight.medium : fontWeight.regular }))
+
+const overdueBannerStyle = {
+  ...flexCenter,
+  padding: spacing[2],
+  borderRadius: radius.md,
+  backgroundColor: semantic.errorLight }
+
+const overdueTextStyle = {
+  fontSize: fontSize.sm,
+  color: semantic.error,
+  fontWeight: fontWeight.medium }
+
+const noteTextStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+  lineHeight: '1.6' }))
+</script>

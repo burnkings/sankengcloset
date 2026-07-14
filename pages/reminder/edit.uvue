@@ -1,0 +1,285 @@
+<template>
+  <DetailLayout :title="isEdit ? '编辑提醒' : '新增提醒'">
+    <template #right>
+      <text v-if="isEdit" :style="deleteBtnStyle" @tap="onDeleteTap">删除</text>
+      <text :style="saveBtnStyle" @tap="onSave">保存</text>
+    </template>
+
+    <view :style="formStyle">
+
+      <!-- 标题 -->
+      <AppInput v-model="form.title" label="标题" placeholder="例如：草莓柄 SK 到货" />
+
+      <!-- 类型 -->
+      <view :style="fieldGroupStyle">
+        <text :style="labelStyle">提醒类型</text>
+        <view :style="chipRowStyle">
+          <view
+            v-for="opt in typeOptions"
+            :key="opt.value"
+            :style="typeChipStyle(opt.value === form.type, opt.color)"
+            @tap="form.type = opt.value"
+          >
+            <text :style="typeChipText(opt.value === form.type, opt.color)">{{ opt.emoji }} {{ opt.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 日期 -->
+      <AppInput v-model="form.remindDate" label="提醒日期" placeholder="2026-01-01" />
+
+      <!-- 时间 -->
+      <AppInput v-model="form.remindTime" label="提醒时间" placeholder="10:00（可选）" />
+
+      <!-- 状态（仅编辑模式） -->
+      <view v-if="isEdit" :style="fieldGroupStyle">
+        <text :style="labelStyle">状态</text>
+        <view :style="chipRowStyle">
+          <view
+            v-for="opt in statusOptions"
+            :key="opt.value"
+            :style="statusChipStyle(opt.value === form.status, opt.color)"
+            @tap="form.status = opt.value"
+          >
+            <text :style="statusChipText(opt.value === form.status, opt.color)">{{ opt.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 备注 -->
+      <view :style="fieldGroupStyle">
+        <text :style="labelStyle">备注</text>
+        <view :style="textareaWrapperStyle">
+          <input
+            :value="form.note"
+            placeholder="可选备注..."
+            :placeholder-style="placeholderStyleStr"
+            :style="textareaStyle"
+            @input="onNoteInput"
+          />
+        </view>
+      </view>
+    </view>
+  </DetailLayout>
+
+  <AppDialog
+    v-model:visible="showConfirm"
+    title="保存确认"
+    :message="confirmMessage"
+    @confirm="onConfirmSave"
+  />
+
+  <AppDialog
+    v-model:visible="showDelete"
+    title="确认删除"
+    message="删除后无法恢复，确定要删除这条提醒吗？"
+    @confirm="onConfirmDelete"
+  />
+</template>
+
+<script setup lang="uts">
+import { useReminderStore } from '@/stores/reminder-store'
+import { Reminder, ReminderUpdateData, TYPE_LABELS, TYPE_EMOJI, TYPE_COLORS, STATUS_LABELS, STATUS_COLORS } from '@/domain/reminder'
+import { brand, semantic } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
+
+
+const store = useReminderStore()
+
+const isEdit = ref(false)
+const editId = ref('')
+const showConfirm = ref(false)
+const showDelete = ref(false)
+const confirmMessage = ref('')
+
+const form = ref({
+  title: '',
+  type: 'CUSTOM',
+  remindDate: '',
+  remindTime: '',
+  note: '',
+  status: 'PENDING' })
+
+const typeOptions = [
+  { label: TYPE_LABELS['ARRIVAL'], value: 'ARRIVAL', emoji: TYPE_EMOJI['ARRIVAL'], color: TYPE_COLORS['ARRIVAL'] },
+  { label: TYPE_LABELS['BALANCE'], value: 'BALANCE', emoji: TYPE_EMOJI['BALANCE'], color: TYPE_COLORS['BALANCE'] },
+  { label: TYPE_LABELS['RELEASE'], value: 'RELEASE', emoji: TYPE_EMOJI['RELEASE'], color: TYPE_COLORS['RELEASE'] },
+  { label: TYPE_LABELS['CUSTOM'], value: 'CUSTOM', emoji: TYPE_EMOJI['CUSTOM'], color: TYPE_COLORS['CUSTOM'] },
+]
+
+const statusOptions = [
+  { label: '待提醒', value: 'PENDING', color: STATUS_COLORS['PENDING'] },
+  { label: '已完成', value: 'DONE', color: STATUS_COLORS['DONE'] },
+  { label: '已过期', value: 'MISSED', color: STATUS_COLORS['MISSED'] },
+]
+
+function onNoteInput(e: any) {
+  form.value.note = e.detail?.value ?? ''
+}
+
+function onDeleteTap() {
+  showDelete.value = true
+}
+
+function onSave() {
+  if (!form.value.title.trim()) {
+    uni.showToast({ title: '请输入标题', icon: 'none' })
+    return
+  }
+  if (!form.value.remindDate.trim()) {
+    uni.showToast({ title: '请输入提醒日期', icon: 'none' })
+    return
+  }
+  confirmMessage.value = isEdit.value ? '确认保存修改？' : '确认新增这条提醒？'
+  showConfirm.value = true
+}
+
+function onConfirmSave() {
+  if (isEdit.value) {
+    const data = new ReminderUpdateData()
+    data.title = form.value.title.trim()
+    data.type = form.value.type
+    data.remindDate = form.value.remindDate.trim()
+    data.remindTime = form.value.remindTime.trim()
+    data.note = form.value.note.trim()
+    data.status = form.value.status
+    const ok = store.updateItem(editId.value, data)
+    if (ok) {
+      uni.showToast({ title: '保存成功', icon: 'success' })
+      setTimeout(() => uni.navigateBack(), 500)
+    }
+  } else {
+    const item = new Reminder()
+    item.title = form.value.title.trim()
+    item.type = form.value.type
+    item.remindDate = form.value.remindDate.trim()
+    item.remindTime = form.value.remindTime.trim()
+    item.note = form.value.note.trim()
+    item.status = 'PENDING'
+    const added = store.addItem(item)
+    if (added) {
+      uni.showToast({ title: '新增成功', icon: 'success' })
+      setTimeout(() => uni.navigateBack(), 500)
+    }
+  }
+}
+
+function onConfirmDelete() {
+  if (editId.value) {
+    store.deleteItem(editId.value)
+    uni.navigateBack()
+  }
+}
+
+onMounted(() => {
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  const id = (currentPage as any).options?.id ?? ''
+
+  if (id) {
+    editId.value = id
+    isEdit.value = true
+    const item = store.getById(id)
+    if (item) {
+      form.value.title = item.title
+      form.value.type = item.type
+      form.value.remindDate = item.remindDate
+      form.value.remindTime = item.remindTime
+      form.value.note = item.note
+      form.value.status = item.status
+    }
+  }
+})
+
+// ====== 样式 ======
+
+const saveBtnStyle = {
+  fontSize: fontSize.sm,
+  color: brand[500],
+  fontWeight: fontWeight.medium,
+  paddingHorizontal: spacing[2] }
+
+const deleteBtnStyle = {
+  fontSize: fontSize.sm,
+  color: semantic.error,
+  paddingHorizontal: spacing[2] }
+
+const formStyle = {
+  ...gap.md,
+  padding: `${spacing[3]} ${spacing[4]}` }
+
+const fieldGroupStyle = {
+  gap: spacing[2] }
+
+const labelStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: n.value.text,
+  marginBottom: spacing[1] }))
+
+const chipRowStyle = {
+  ...flexRow,
+  gap: spacing[2],
+  flexWrap: 'wrap' as string }
+
+function typeChipStyle(active: boolean, color: string) {
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? color + '20' : n.value.bgTertiary,
+    borderWidth: active ? '2rpx' : '0',
+    borderStyle: 'solid',
+    borderColor: active ? color : 'transparent' }
+}
+
+function typeChipText(active: boolean, color: string) {
+  return {
+    fontSize: fontSize.sm,
+    color: active ? color : n.value.textSecondary,
+    fontWeight: active ? fontWeight.medium : fontWeight.regular }
+}
+
+function statusChipStyle(active: boolean, color: string) {
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? color + '20' : n.value.bgTertiary,
+    borderWidth: active ? '2rpx' : '0',
+    borderStyle: 'solid',
+    borderColor: active ? color : 'transparent' }
+}
+
+function statusChipText(active: boolean, color: string) {
+  return {
+    fontSize: fontSize.sm,
+    color: active ? color : n.value.textSecondary,
+    fontWeight: active ? fontWeight.medium : fontWeight.regular }
+}
+
+const textareaWrapperStyle = computed((): any => ({
+  height: '160rpx',
+  paddingHorizontal: spacing[3],
+  paddingTop: spacing[2],
+  backgroundColor: n.value.bgTertiary,
+  borderRadius: radius.md,
+  borderWidth: '2rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.border }))
+
+const placeholderStyleStr = `color: ${n.value.placeholder}`
+
+const textareaStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.text,
+  width: '100%' }))
+</script>

@@ -1,0 +1,33 @@
+/**
+ * ClothingCategory — 服装类别
+ * 三坑：JK / Lolita / 汉服
+ */
+
+export const CATEGORY_JK = 'JK'
+export const CATEGORY_LOLITA = 'LOLITA'
+export const CATEGORY_HANFU = 'HANFU'
+export const CATEGORY_OTHER = 'OTHER'
+
+export type ClothingCategory = 'JK' | 'LOLITA' | 'HANFU' | 'OTHER'
+
+export const CATEGORY_LABELS: any = {
+  JK: 'JK制服',
+  LOLITA: 'Lolita',
+  HANFU: '汉服',
+  OTHER: '其他',
+}
+
+export const CATEGORY_EMOJI: any = {
+  JK: '🎒',
+  LOLITA: '🎀',
+  HANFU: '🏯',
+  OTHER: '👗',
+}
+
+/** 全部分类列表（含全部选项） */
+export const ALL_CATEGORIES = [
+  { label: '全部', value: '' },
+  { label: 'JK制服', value: 'JK' },
+  { label: 'Lolita', value: 'LOLITA' },
+  { label: '汉服', value: 'HANFU' },
+]

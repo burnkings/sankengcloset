@@ -1,0 +1,44 @@
+/**
+ * ClothingCategory — 服装类别
+ * 三坑：JK / Lolita / 汉服
+ *
+ * ★★★★★ Android 规范：string union → class 常量；any → 具体类型
+ */
+
+export const CATEGORY_JK = 'JK'
+export const CATEGORY_LOLITA = 'LOLITA'
+export const CATEGORY_HANFU = 'HANFU'
+export const CATEGORY_OTHER = 'OTHER'
+
+export class CATEGORY_LABELS_CLASS {
+  static readonly JK = 'JK制服'
+  static readonly LOLITA = 'Lolita'
+  static readonly HANFU = '汉服'
+  static readonly OTHER = '其他'
+}
+
+export const CATEGORY_LABELS = {
+  JK: 'JK制服',
+  LOLITA: 'Lolita',
+  HANFU: '汉服',
+  OTHER: '其他',
+}
+
+export const CATEGORY_EMOJI = {
+  JK: '🎒',
+  LOLITA: '🎀',
+  HANFU: '🏯',
+  OTHER: '👗',
+}
+
+export class CategoryOption {
+  label: string = ''
+  value: string = ''
+}
+
+export const ALL_CATEGORIES: CategoryOption[] = [
+  { label: '全部', value: '' } as CategoryOption,
+  { label: 'JK制服', value: 'JK' } as CategoryOption,
+  { label: 'Lolita', value: 'LOLITA' } as CategoryOption,
+  { label: '汉服', value: 'HANFU' } as CategoryOption,
+]

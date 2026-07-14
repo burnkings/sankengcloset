@@ -1,0 +1,32 @@
+/**
+ * Shadow — 设计令牌
+ */
+
+export const shadow = {
+  none: 'none',
+  xs: '0 1rpx 2rpx 0 rgba(0,0,0,0.05)',
+  sm: '0 2rpx 4rpx -1rpx rgba(0,0,0,0.06), 0 4rpx 8rpx -2rpx rgba(0,0,0,0.06)',
+  md: '0 4rpx 8rpx -2rpx rgba(0,0,0,0.08), 0 8rpx 16rpx -4rpx rgba(0,0,0,0.08)',
+  lg: '0 8rpx 16rpx -4rpx rgba(0,0,0,0.1), 0 16rpx 32rpx -8rpx rgba(0,0,0,0.1)',
+  xl: '0 16rpx 32rpx -8rpx rgba(0,0,0,0.12), 0 32rpx 64rpx -16rpx rgba(0,0,0,0.12)',
+  card: '0 2rpx 8rpx 0 rgba(0,0,0,0.04)',
+  cardHover: '0 4rpx 16rpx 0 rgba(0,0,0,0.08)',
+  float: '0 8rpx 32rpx -4rpx rgba(0,0,0,0.12)',
+  navbar: '0 2rpx 8rpx 0 rgba(0,0,0,0.04)',
+  tabbar: '0 -2rpx 8rpx 0 rgba(0,0,0,0.04)',
+}
+
+/** 暗色模式阴影 (更重) */
+export const shadowDark = {
+  none: 'none',
+  xs: '0 1rpx 2rpx 0 rgba(0,0,0,0.2)',
+  sm: '0 2rpx 4rpx -1rpx rgba(0,0,0,0.25), 0 4rpx 8rpx -2rpx rgba(0,0,0,0.2)',
+  md: '0 4rpx 8rpx -2rpx rgba(0,0,0,0.3), 0 8rpx 16rpx -4rpx rgba(0,0,0,0.25)',
+  lg: '0 8rpx 16rpx -4rpx rgba(0,0,0,0.35), 0 16rpx 32rpx -8rpx rgba(0,0,0,0.3)',
+  xl: '0 16rpx 32rpx -8rpx rgba(0,0,0,0.4), 0 32rpx 64rpx -16rpx rgba(0,0,0,0.35)',
+  card: '0 2rpx 8rpx 0 rgba(0,0,0,0.15)',
+  cardHover: '0 4rpx 16rpx 0 rgba(0,0,0,0.2)',
+  float: '0 8rpx 32rpx -4rpx rgba(0,0,0,0.3)',
+  navbar: '0 2rpx 8rpx 0 rgba(0,0,0,0.15)',
+  tabbar: '0 -2rpx 8rpx 0 rgba(0,0,0,0.15)',
+}

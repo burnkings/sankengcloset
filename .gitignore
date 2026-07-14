@@ -1,0 +1,43 @@
+# ====== 构建产物 ======
+unpackage/
+
+# ====== 依赖 ======
+node_modules/
+
+# ====== HBuilderX ======
+.hbuilderx/
+
+# ====== 缓存 ======
+.cache/
+*.cache
+.uts2js/
+
+# ====== 日志 ======
+*.log
+nohup.out
+npm-debug.log*
+
+# ====== 系统文件 ======
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ====== 编辑器 ======
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ====== 敏感文件 ======
+*.key
+*.pem
+*.p12
+*.keystore
+*.jks
+.env
+.env.*
+
+# ====== 临时文件 ======
+*.tmp
+*.bak

@@ -1,0 +1,122 @@
+<template>
+  <view v-if="visible" :style="overlayStyle" @tap="onOverlayClick">
+    <view :style="dialogStyle" @tap.stop>
+      <view v-if="title" :style="headerStyle">
+        <text :style="titleStyle">{{ title }}</text>
+      </view>
+      <view :style="bodyStyle">
+        <text v-if="message" :style="messageStyle">{{ message }}</text>
+        <slot />
+      </view>
+      <view :style="footerStyle">
+        <slot name="actions">
+          <AppButton v-if="showCancel" variant="ghost" size="md" @click="onCancel">
+            {{ cancelText }}
+          </AppButton>
+          <AppButton variant="primary" size="md" @click="onConfirm">
+            {{ confirmText }}
+          </AppButton>
+        </slot>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { semanticRadius } from '@/theme/tokens/radius'
+import { spacing } from '@/theme/tokens/spacing'
+import { zIndex } from '@/theme/tokens/z-index'
+import { flexCenter, flexRowEnd } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+import AppButton from './AppButton.uvue'
+
+const props = withDefaults(defineProps<{
+  visible?: boolean
+  title?: string
+  message?: string
+  showCancel?: boolean
+  cancelText?: string
+  confirmText?: string
+  closeOnOverlay?: boolean
+}>(), {
+  visible: false,
+  title: '',
+  message: '',
+  showCancel: true,
+  cancelText: '取消',
+  confirmText: '确定',
+  closeOnOverlay: true })
+
+const emit = defineEmits<{
+  'update:visible': [val: boolean]
+  confirm: []
+  cancel: []
+}>()
+
+
+const overlayStyle = computed((): any => ({
+  position: 'fixed',
+  top: '0',
+  left: '0',
+  right: '0',
+  bottom: '0',
+  backgroundColor: n.value.overlay,
+  ...flexCenter,
+  zIndex: zIndex.dialog }))
+
+const dialogStyle = computed((): any => ({
+  width: '80%',
+  maxWidth: '600rpx',
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.dialog,
+  padding: spacing[5],
+  overflow: 'hidden' }))
+
+const headerStyle = (() => {
+  const s = {}
+  s.marginBottom = '24rpx'
+  return s
+})()
+
+const titleStyle = computed((): any => ({
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  textAlign: 'center' }))
+
+const bodyStyle = (() => {
+  const s = {}
+  s.marginBottom = '32rpx'
+  return s
+})()
+
+const messageStyle = computed((): any => ({
+  fontSize: fontSize.base,
+  color: n.value.textSecondary,
+  lineHeight: '1.6',
+  textAlign: 'center' }))
+
+const footerStyle = (() => {
+  const s = {}
+  s.flexDirection = 'row'
+  s.justifyContent = 'flex-end'
+  s.gap = '16rpx'
+  return s
+})()
+
+function onOverlayClick() {
+  if (props.closeOnOverlay) onCancel()
+}
+
+function onCancel() {
+  emit('update:visible', false)
+  emit('cancel')
+}
+
+function onConfirm() {
+  emit('update:visible', false)
+  emit('confirm')
+}
+</script>

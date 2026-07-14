@@ -1,0 +1,31 @@
+/**
+ * SortType — 排序类型
+ *
+ * ★★★★★ Android 规范：UTS 不支持 string union type，改用 class 常量
+ */
+
+export class SortType {
+  static readonly NEWEST = 'newest'
+  static readonly PRICE_HIGH = 'priceHigh'
+  static readonly PRICE_LOW = 'priceLow'
+  static readonly NAME = 'name'
+}
+
+export class SortOption {
+  value: string = ''
+  label: string = ''
+}
+
+export const SORT_OPTIONS: SortOption[] = [
+  { value: SortType.NEWEST, label: '最近添加' } as SortOption,
+  { value: SortType.PRICE_HIGH, label: '价格从高到低' } as SortOption,
+  { value: SortType.PRICE_LOW, label: '价格从低到高' } as SortOption,
+  { value: SortType.NAME, label: '按名称排序' } as SortOption,
+]
+
+export function getSortLabel(sort: string): string {
+  for (const opt of SORT_OPTIONS) {
+    if (opt.value == sort) return opt.label
+  }
+  return '最近添加'
+}

@@ -1,0 +1,13 @@
+<script setup lang="uts">
+onLaunch(() => {
+  console.log('App Launch')
+})
+
+onAppShow(() => {
+  console.log('App Show')
+})
+
+onAppHide(() => {
+  console.log('App Hide')
+})
+</script>

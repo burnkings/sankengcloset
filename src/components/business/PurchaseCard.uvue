@@ -1,0 +1,164 @@
+<template>
+  <AppCard :padding="spacing[4]" @click="emit('click')">
+    <view :style="cardGapStyle">
+      <!-- 头部：名称 + 状态标签 -->
+      <view :style="headerRowStyle">
+        <text :style="nameStyle">{{ item.name }}</text>
+        <view :style="tagStyle">
+          <text :style="tagTextStyle">{{ item.statusText }}</text>
+        </view>
+      </view>
+
+      <!-- 品牌 · 店铺 -->
+      <text v-if="shopText" :style="shopStyle">{{ shopText }}</text>
+
+      <!-- 金额行 -->
+      <view :style="amountRowStyle">
+        <text :style="totalStyle">{{ item.totalText }}</text>
+        <text v-if="item.remainingText" :style="remainingStyle">{{ item.remainingText }}</text>
+      </view>
+
+      <!-- 进度条 -->
+      <view :style="progressRowStyle">
+        <view :style="progressTrackStyle">
+          <view :style="progressFillStyle" />
+        </view>
+        <text :style="progressTextStyle">{{ item.progressPercent }}%</text>
+      </view>
+
+      <!-- 日期行 -->
+      <view :style="dateRowStyle">
+        <text :style="dateStyle">{{ item.purchaseDateText }}</text>
+        <text v-if="item.deadlineText !== '—'" :style="deadlineStyle">
+          截止 {{ item.deadlineText }}
+        </text>
+      </view>
+    </view>
+  </AppCard>
+</template>
+
+<script setup lang="uts">
+import { PurchaseDisplayModel } from '@/domain/purchase-presenter'
+import { } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill, flexRowBetween } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import AppCard from '@/components/base/AppCard.uvue'
+
+const props = defineProps<{
+  item: PurchaseDisplayModel
+}>()
+
+const emit = defineEmits<{
+  click: []
+}>()
+
+
+const shopText = computed(() => {
+  const parts = []
+  if (props.item.brand) parts.push(props.item.brand)
+  if (props.item.shopName) parts.push(props.item.shopName)
+  return parts.join(' · ')
+})
+
+// ====== 样式 ======
+
+const cardGapStyle = {
+  ...gap.sm,
+}
+
+const headerRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' as string,
+}
+
+const nameStyle = computed(() => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  ...flexFill,
+  marginRight: spacing[2],
+}))
+
+const tagStyle = computed(() => ({
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+  borderRadius: radius.sm,
+  backgroundColor: props.item.statusColor + '15',
+  flexShrink: 0,
+}))
+
+const tagTextStyle = computed(() => ({
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: props.item.statusColor,
+}))
+
+const shopStyle = computed(() => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+}))
+
+const amountRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'baseline' as string,
+}
+
+const totalStyle = computed(() => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.bold,
+  color: n.value.text,
+}))
+
+const remainingStyle = {
+  fontSize: fontSize.sm,
+  color: '#EF4444',
+  fontWeight: fontWeight.medium,
+}
+
+const progressRowStyle = {
+  ...flexRow,
+  alignItems: 'center' as string,
+  gap: spacing[2],
+}
+
+const progressTrackStyle = computed(() => ({
+  ...flexFill,
+  height: '8rpx',
+  borderRadius: '4rpx',
+  backgroundColor: n.value.bgTertiary,
+  overflow: 'hidden' as string,
+}))
+
+const progressFillStyle = computed(() => ({
+  width: `${props.item.progressPercent}%`,
+  height: '100%',
+  borderRadius: '4rpx',
+  backgroundColor: props.item.statusColor,
+}))
+
+const progressTextStyle = computed(() => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  minWidth: '40rpx',
+  textAlign: 'right' as string,
+}))
+
+const dateRowStyle = {
+  ...flexRowBetween,
+}
+
+const dateStyle = computed(() => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+}))
+
+const deadlineStyle = computed(() => ({
+  fontSize: fontSize.xs,
+  color: props.item.isOverdue ? '#EF4444' : n.value.textTertiary,
+  fontWeight: props.item.isOverdue ? fontWeight.medium : fontWeight.regular,
+}))
+</script>

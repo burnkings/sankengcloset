@@ -1,0 +1,148 @@
+<template>
+  <view :style="cardStyle" @tap="emit('click')">
+    <!-- 封面区 -->
+    <view :style="coverStyle">
+      <AppImage
+        v-if="item.hasCover"
+        :src="item.coverImage"
+        width="100%"
+        height="100%"
+        :radius-token="radius.md"
+        mode="aspectFill"
+      />
+      <text v-else :style="placeholderEmojiStyle">{{ item.statusEmoji }}</text>
+    </view>
+
+    <!-- 信息区 -->
+    <view :style="infoStyle">
+      <text :style="nameStyle" :lines="2">{{ item.name }}</text>
+      <text v-if="item.brand !== ''" :style="brandStyle">{{ item.brand }}</text>
+
+      <view :style="bottomRowStyle">
+        <text v-if="item.priceText !== ''" :style="priceStyle">{{ item.priceText }}</text>
+        <view :style="statusBadgeStyle">
+          <text :style="statusBadgeText">{{ item.statusText }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 优先级角标 -->
+    <view v-if="item.priorityOrder <= 2" :style="priorityDotStyle">
+      <text :style="priorityDotText">{{ item.priorityLabel }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { WishDisplayModel } from '@/domain/wish-presenter'
+import { neutralLight, brand } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { shadow } from '@/theme/tokens/shadow'
+import { flexRow, flexFill, flexRowBetween } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import AppImage from '@/components/base/AppImage.uvue'
+
+const props = defineProps<{
+  item: WishDisplayModel
+}>()
+
+const emit = defineEmits<{
+  click: []
+}>()
+
+
+// ====== 样式 ======
+
+const cardStyle = computed(() => ({
+  ...flexRow,
+  padding: spacing[3],
+  backgroundColor: n.value.bgSecondary,
+  borderRadius: radius.lg,
+  position: 'relative' as string,
+  overflow: 'hidden' as string,
+  boxShadow: shadow.card,
+}))
+
+const coverStyle = {
+  width: '140rpx',
+  height: '140rpx',
+  borderRadius: radius.md,
+  backgroundColor: neutralLight.bgTertiary,
+  flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'hidden' as string,
+}
+
+const placeholderEmojiStyle = {
+  fontSize: '56rpx',
+}
+
+const infoStyle = {
+  ...flexFill,
+  marginLeft: spacing[3],
+  gap: spacing[1],
+  justifyContent: 'space-between' as string,
+  minWidth: 0,
+}
+
+const nameStyle = computed(() => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.medium,
+  color: n.value.text,
+  overflow: 'hidden' as string,
+  lines: 2,
+}))
+
+const brandStyle = computed(() => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary,
+}))
+
+const bottomRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' as string,
+  marginTop: spacing[2],
+}
+
+const priceStyle = computed(() => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: brand[500],
+}))
+
+const statusBadgeStyle = computed(() => ({
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+  borderRadius: radius.full,
+  backgroundColor: props.item.statusColor + '20',
+}))
+
+const statusBadgeText = computed(() => ({
+  fontSize: fontSize.xs,
+  color: props.item.statusColor,
+}))
+
+const priorityDotStyle = computed(() => ({
+  position: 'absolute' as string,
+  top: spacing[2],
+  right: spacing[2],
+  width: '32rpx',
+  height: '32rpx',
+  borderRadius: '50%',
+  backgroundColor: props.item.priorityColor,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}))
+
+const priorityDotText = {
+  fontSize: '16rpx',
+  color: '#FFFFFF',
+  fontWeight: fontWeight.bold,
+}
+</script>

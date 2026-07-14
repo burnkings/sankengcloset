@@ -1,0 +1,105 @@
+<template>
+  <view :style="navbarStyle">
+    <view :style="statusBarSpacerStyle" />
+    <view :style="contentStyle">
+      <view :style="leftStyle" @tap="onBack">
+        <slot name="left">
+          <text v-if="showBack" :style="backStyle"> ← </text>
+        </slot>
+      </view>
+      <view :style="centerStyle">
+        <slot>
+          <text :style="titleStyle">{{ title }}</text>
+        </slot>
+      </view>
+      <view :style="rightStyle">
+        <slot name="right" />
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { semanticSpacing } from '@/theme/tokens/spacing'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { zIndex } from '@/theme/tokens/z-index'
+import { shadow } from '@/theme/tokens/shadow'
+import { flexFill, flexCenter, flexRow, flexRowStart, flexRowEnd } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{
+  title?: string
+  showBack?: boolean
+  transparent?: boolean
+}>(), {
+  title: '',
+  showBack: true,
+  transparent: false })
+
+const emit = defineEmits<{
+  back: []
+}>()
+
+
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+
+const navbarStyle = computed((): any => ({
+  position: 'fixed',
+  top: '0',
+  left: '0',
+  right: '0',
+  zIndex: zIndex.navbar,
+  backgroundColor: props.transparent ? 'transparent' : n.value.bg,
+  boxShadow: props.transparent ? shadow.none : shadow.navbar }))
+
+const statusBarSpacerStyle = computed((): any => ({
+  height: `${statusBarHeight}px` }))
+
+const contentStyle = computed((): any => ({
+  height: semanticSpacing.navbarHeight,
+  ...flexRow,
+  alignItems: 'center',
+  paddingHorizontal: semanticSpacing.pageHorizontal }))
+
+const leftStyle = (() => {
+  const s = {}
+  s.width = '80rpx'
+  s.flexShrink = 0
+  s.flexDirection = 'row'
+  s.alignItems = 'center'
+  return s
+})()
+
+const centerStyle = (() => {
+  const s = {}
+  s.flex = 1
+  s.alignItems = 'center'
+  s.justifyContent = 'center'
+  s.overflow = 'hidden'
+  return s
+})()
+
+const rightStyle = (() => {
+  const s = {}
+  s.width = '80rpx'
+  s.flexShrink = 0
+  s.flexDirection = 'row'
+  s.alignItems = 'center'
+  s.justifyContent = 'flex-end'
+  return s
+})()
+
+const backStyle = computed((): any => ({
+  fontSize: fontSize.lg,
+  color: n.value.text }))
+
+const titleStyle = computed((): any => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text }))
+
+function onBack() {
+  emit('back')
+  uni.navigateBack()
+}
+</script>

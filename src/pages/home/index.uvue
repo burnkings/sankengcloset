@@ -1,0 +1,179 @@
+<template>
+  <MainLayout>
+    <template #navbar>
+      <AppNavbar title="三坑绮橱" :show-back="false" />
+    </template>
+
+    <template #default>
+      <AppLoading v-if="store.loading" />
+
+      <view v-else :style="contentStyle">
+        <!-- 欢迎 -->
+        <view :style="welcomeStyle">
+          <text :style="welcomeTextStyle">{{ store.greeting }} 👋</text>
+        </view>
+
+        <!-- 消费概览 -->
+        <AppCard @click="navigateTo('/pages/purchase/index')">
+          <template #header>
+            <view :style="cardHeaderStyle">
+              <text :style="cardTitleStyle">消费概览</text>
+              <text :style="arrowStyle">›</text>
+            </view>
+          </template>
+          <view :style="statsRowStyle">
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.purchaseSummary.pendingAmount }}</text>
+              <text :style="statLabelStyle">待付</text>
+            </view>
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.purchaseSummary.monthSpent }}</text>
+              <text :style="statLabelStyle">本月消费</text>
+            </view>
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.purchaseSummary.activeCount }}</text>
+              <text :style="statLabelStyle">进行中</text>
+            </view>
+          </view>
+        </AppCard>
+
+        <!-- 衣橱概览 -->
+        <AppCard @click="navigateTo('/pages/wardrobe/index')">
+          <template #header>
+            <view :style="cardHeaderStyle">
+              <text :style="cardTitleStyle">衣橱概览</text>
+              <text :style="arrowStyle">›</text>
+            </view>
+          </template>
+          <view :style="statsRowStyle">
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.wardrobeSummary.itemCount }}</text>
+              <text :style="statLabelStyle">衣物</text>
+            </view>
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.wardrobeSummary.favoriteCount }}</text>
+              <text :style="statLabelStyle">收藏</text>
+            </view>
+          </view>
+        </AppCard>
+
+        <!-- 种草计划 -->
+        <AppCard @click="navigateTo('/pages/purchase/index')">
+          <template #header>
+            <view :style="cardHeaderStyle">
+              <text :style="cardTitleStyle">种草计划</text>
+              <text :style="arrowStyle">›</text>
+            </view>
+          </template>
+          <view :style="statsRowStyle">
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.wishlistSummary.wishCount }}</text>
+              <text :style="statLabelStyle">种草</text>
+            </view>
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.wishlistSummary.watchingCount }}</text>
+              <text :style="statLabelStyle">观望</text>
+            </view>
+            <view :style="statItemStyle">
+              <text :style="statValueStyle">{{ store.wishlistSummary.decidedCount }}</text>
+              <text :style="statLabelStyle">决定买</text>
+            </view>
+          </view>
+        </AppCard>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { useHomeStore } from '@/stores/home-store'
+import {, brand } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexColumnCenter } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppCard from '@/components/base/AppCard.uvue'
+import AppLoading from '@/components/base/AppLoading.uvue'
+
+
+const store = useHomeStore()
+
+// Tab 页面集合（switchTab 判断）
+const TAB_PAGES = [
+  '/pages/home/index',
+  '/pages/wardrobe/index',
+  '/pages/purchase/index',
+  '/pages/profile/index',
+]
+
+function navigateTo(path: string) {
+  if (TAB_PAGES.indexOf(path) >= 0) {
+    uni.switchTab({ url: path })
+  } else {
+    uni.navigateTo({ url: path })
+  }
+}
+
+// ====== 样式 ======
+
+const contentStyle = {
+  ...gap.md,
+  padding: `${spacing[3]} ${spacing[4]}`,
+}
+
+const welcomeStyle = {
+  padding: `${spacing[2]} 0`,
+}
+
+const welcomeTextStyle = computed(() => ({
+  fontSize: fontSize['2xl'],
+  fontWeight: fontWeight.bold,
+  color: n.value.text,
+}))
+
+const cardHeaderStyle = {
+  ...flexRow,
+  justifyContent: 'space-between',
+  alignItems: 'center',
+}
+
+const cardTitleStyle = computed(() => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.semibold,
+  color: n.value.textSecondary,
+}))
+
+const arrowStyle = computed(() => ({
+  fontSize: fontSize.xl,
+  color: n.value.textTertiary,
+}))
+
+const statsRowStyle = {
+  ...flexRow,
+  ...gap.sm,
+}
+
+const statItemStyle = {
+  flex: 1,
+  ...flexColumnCenter,
+  ...gap.xs,
+}
+
+const statValueStyle = computed(() => ({
+  fontSize: fontSize['2xl'],
+  fontWeight: fontWeight.bold,
+  color: brand[500],
+}))
+
+const statLabelStyle = computed(() => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+}))
+
+onMounted(() => {
+  store.fetchDashboard()
+})
+</script>

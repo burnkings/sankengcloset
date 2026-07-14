@@ -1,0 +1,309 @@
+<template>
+  <DetailLayout :title="isEdit ? '编辑消费' : '新增消费'">
+    <template #right>
+      <text :style="saveBtnStyle" @tap="onSave">保存</text>
+    </template>
+
+    <view :style="formStyle">
+
+      <!-- 名称 -->
+      <AppInput v-model="form.name" label="名称" placeholder="例如：甜系草莓柄 SK" />
+
+      <!-- 品牌 -->
+      <AppInput v-model="form.brand" label="品牌" placeholder="例如：Alice兔" />
+
+      <!-- 店铺 -->
+      <AppInput v-model="form.shopName" label="店铺" placeholder="例如：Alice兔原创" />
+
+      <!-- 分类 -->
+      <view :style="fieldGroupStyle">
+        <text :style="labelStyle">分类</text>
+        <view :style="chipRowStyle">
+          <view
+            v-for="opt in categoryOptions"
+            :key="opt.value"
+            :style="chipStyle(opt.value === form.category)"
+            @tap="form.category = opt.value"
+          >
+            <text :style="chipTextStyle(opt.value === form.category)">{{ opt.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 金额行 -->
+      <view :style="amountRowStyle">
+        <view :style="amountFieldStyle">
+          <AppInput v-model="form.totalAmountStr" label="总金额" placeholder="0" type="digit" />
+        </view>
+        <view :style="amountFieldStyle">
+          <AppInput v-model="form.depositAmountStr" label="定金" placeholder="0" type="digit" />
+        </view>
+      </view>
+
+      <view :style="amountRowStyle">
+        <view :style="amountFieldStyle">
+          <AppInput v-model="form.paidAmountStr" label="已付" placeholder="0" type="digit" />
+        </view>
+      </view>
+
+      <!-- 状态 -->
+      <view :style="fieldGroupStyle">
+        <text :style="labelStyle">付款状态</text>
+        <view :style="chipRowStyle">
+          <view
+            v-for="opt in statusOptions"
+            :key="opt.value"
+            :style="statusChipStyle(opt.value === form.paymentStatus, opt.color)"
+            @tap="form.paymentStatus = opt.value"
+          >
+            <text :style="statusChipText(opt.value === form.paymentStatus, opt.color)">{{ opt.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 日期 -->
+      <AppInput v-model="form.purchaseDate" label="购买日期" placeholder="2026-01-01" />
+      <AppInput v-model="form.deadline" label="截止日期" placeholder="2026-08-01（可选）" />
+
+      <!-- 备注 -->
+      <view :style="fieldGroupStyle">
+        <text :style="labelStyle">备注</text>
+        <view :style="textareaWrapperStyle">
+          <input
+            :value="form.note"
+            placeholder="可选备注..."
+            :placeholder-style="placeholderStyleStr"
+            :style="textareaStyle"
+            @input="onNoteInput"
+          />
+        </view>
+      </view>
+    </view>
+  </DetailLayout>
+
+  <!-- 保存确认 -->
+  <AppDialog
+    v-model:visible="showConfirm"
+    title="保存确认"
+    :message="confirmMessage"
+    @confirm="onConfirmSave"
+  />
+</template>
+
+<script setup lang="uts">
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { PurchaseRecord, FILTER_OPTIONS, PAYMENT_STATUS_COLORS } from '@/domain/purchase-record'
+import { brand, semantic, neutralLight, baseColors } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
+
+
+const store = usePurchaseStore()
+
+const isEdit = ref(false)
+const editId = ref('')
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+
+// 表单数据
+const form = ref({
+  name: '',
+  brand: '',
+  shopName: '',
+  category: '',
+  totalAmountStr: '',
+  depositAmountStr: '',
+  paidAmountStr: '',
+  paymentStatus: 'PRE_ORDER',
+  purchaseDate: '',
+  deadline: '',
+  note: '' })
+
+// 分类选项
+const categoryOptions = [
+  { label: 'JK', value: 'JK' },
+  { label: 'Lolita', value: 'LOLITA' },
+  { label: '汉服', value: 'HANFU' },
+  { label: '其他', value: 'OTHER' },
+]
+
+// 状态选项
+const statusOptions = FILTER_OPTIONS.filter((o) => o.value !== '').map((o) => ({
+  ...o,
+  color: PAYMENT_STATUS_COLORS[o.value] ?? neutralLight.textDisabled }))
+
+function onNoteInput(e: any) {
+  form.value.note = e.detail?.value ?? ''
+}
+
+function onSave() {
+  if (!form.value.name.trim()) {
+    uni.showToast({ title: '请输入名称', icon: 'none' })
+    return
+  }
+  confirmMessage.value = isEdit.value ? '确认保存修改？' : '确认新增这条消费记录？'
+  showConfirm.value = true
+}
+
+function onConfirmSave() {
+  const totalAmountStr = form.value.totalAmountStr
+  const depositAmountStr = form.value.depositAmountStr
+  const paidAmountStr = form.value.paidAmountStr
+  const totalAmount = totalAmountStr !== '' ? parseFloat(totalAmountStr) : 0
+  const depositAmount = depositAmountStr !== '' ? parseFloat(depositAmountStr) : 0
+  const paidAmount = paidAmountStr !== '' ? parseFloat(paidAmountStr) : 0
+
+  if (isEdit.value) {
+    const ok = store.updatePurchase(editId.value, {
+      name: form.value.name.trim(),
+      brand: form.value.brand.trim(),
+      shopName: form.value.shopName.trim(),
+      category: form.value.category,
+      totalAmount: totalAmount,
+      depositAmount: depositAmount,
+      paidAmount: paidAmount,
+      paymentStatus: form.value.paymentStatus,
+      purchaseDate: form.value.purchaseDate.trim(),
+      deadline: form.value.deadline.trim(),
+      note: form.value.note.trim() })
+    if (ok) {
+      uni.showToast({ title: '保存成功', icon: 'success' })
+      setTimeout(() => uni.navigateBack(), 500)
+    }
+  } else {
+    const record = new PurchaseRecord()
+    record.name = form.value.name.trim()
+    record.brand = form.value.brand.trim()
+    record.shopName = form.value.shopName.trim()
+    record.category = form.value.category
+    record.totalAmount = totalAmount
+    record.depositAmount = depositAmount
+    record.paidAmount = paidAmount
+    record.paymentStatus = form.value.paymentStatus
+    record.purchaseDate = form.value.purchaseDate.trim()
+    record.deadline = form.value.deadline.trim()
+    record.note = form.value.note.trim()
+    const added = store.addPurchase(record)
+    if (added) {
+      uni.showToast({ title: '新增成功', icon: 'success' })
+      setTimeout(() => uni.navigateBack(), 500)
+    }
+  }
+}
+
+// 页面加载
+onMounted(() => {
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  const id = (currentPage as any).options?.id ?? ''
+
+  if (id) {
+    editId.value = id
+    isEdit.value = true
+    const record = store.getPurchaseById(id)
+    if (record) {
+      form.value.name = record.name
+      form.value.brand = record.brand
+      form.value.shopName = record.shopName
+      form.value.category = record.category
+      form.value.totalAmountStr = record.totalAmount > 0 ? `${record.totalAmount}` : ''
+      form.value.depositAmountStr = record.depositAmount > 0 ? `${record.depositAmount}` : ''
+      form.value.paidAmountStr = record.paidAmount > 0 ? `${record.paidAmount}` : ''
+      form.value.paymentStatus = record.paymentStatus
+      form.value.purchaseDate = record.purchaseDate
+      form.value.deadline = record.deadline
+      form.value.note = record.note
+    }
+  }
+})
+
+// ====== 样式 ======
+
+const saveBtnStyle = {
+  fontSize: fontSize.sm,
+  color: brand[500],
+  fontWeight: fontWeight.medium,
+  paddingHorizontal: spacing[2] }
+
+const formStyle = {
+  ...gap.md,
+  padding: `${spacing[3]} ${spacing[4]}` }
+
+const fieldGroupStyle = {
+  gap: spacing[2] }
+
+const labelStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: n.value.text,
+  marginBottom: spacing[1] }))
+
+const chipRowStyle = {
+  ...flexRow,
+  gap: spacing[2],
+  flexWrap: 'wrap' as string }
+
+function chipStyle(active: boolean) {
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? brand[500] : n.value.bgTertiary }
+}
+
+function chipTextStyle(active: boolean) {
+  return {
+    fontSize: fontSize.sm,
+    color: active ? baseColors.white : n.value.textSecondary,
+    fontWeight: active ? fontWeight.medium : fontWeight.regular }
+}
+
+function statusChipStyle(active: boolean, color: string) {
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? color + '20' : n.value.bgTertiary,
+    borderWidth: active ? '2rpx' : '0',
+    borderStyle: 'solid',
+    borderColor: active ? color : 'transparent' }
+}
+
+function statusChipText(active: boolean, color: string) {
+  return {
+    fontSize: fontSize.xs,
+    color: active ? color : n.value.textSecondary,
+    fontWeight: active ? fontWeight.medium : fontWeight.regular }
+}
+
+const amountRowStyle = {
+  ...flexRow,
+  gap: spacing[3] }
+
+const amountFieldStyle = {
+  ...flexFill }
+
+const textareaWrapperStyle = computed((): any => ({
+  height: '160rpx',
+  paddingHorizontal: spacing[3],
+  paddingTop: spacing[2],
+  backgroundColor: n.value.bgTertiary,
+  borderRadius: radius.md,
+  borderWidth: '2rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.border }))
+
+const placeholderStyleStr = `color: ${n.value.placeholder}`
+
+const textareaStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.text,
+  width: '100%' }))
+</script>

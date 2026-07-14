@@ -1,0 +1,118 @@
+/**
+ * ReminderRepo — 提醒数据仓库
+ */
+
+import { Reminder, ReminderUpdateData } from '@/domain/reminder'
+
+const STORAGE_KEY = 'reminder_items'
+
+function loadAll(): Reminder[] {
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY)
+    if (!raw) return []
+    const arr = JSON.parse(raw) as any[]
+    return arr.map((obj) => {
+      const r = new Reminder()
+      r.id = obj.id ?? ''
+      r.title = obj.title ?? ''
+      r.type = obj.type ?? 'CUSTOM'
+      r.remindDate = obj.remindDate ?? ''
+      r.remindTime = obj.remindTime ?? ''
+      r.relatedPurchaseId = obj.relatedPurchaseId ?? ''
+      r.relatedWishId = obj.relatedWishId ?? ''
+      r.note = obj.note ?? ''
+      r.status = obj.status ?? 'PENDING'
+      r.isDeleted = obj.isDeleted ?? false
+      r.createdAt = obj.createdAt ?? ''
+      r.updatedAt = obj.updatedAt ?? ''
+      return r
+    })
+  } catch {
+    return []
+  }
+}
+
+function saveAll(items: Reminder[]) {
+  uni.setStorageSync(STORAGE_KEY, JSON.stringify(items))
+}
+
+function generateId(): string {
+  return `${Date.now()}-${Math.floor(Math.random() * 10000)}`
+}
+
+export function getAll(): Reminder[] {
+  return loadAll().filter((r) => !r.isDeleted)
+}
+
+export function getById(id: string): Reminder | undefined {
+  return loadAll().find((r) => r.id == id && !r.isDeleted)
+}
+
+export function add(item: Reminder): Reminder {
+  const items = loadAll()
+  item.id = generateId()
+  item.createdAt = new Date().toISOString()
+  item.updatedAt = item.createdAt
+  items.push(item)
+  saveAll(items)
+  return item
+}
+
+export function update(id: string, data: ReminderUpdateData): boolean {
+  const items = loadAll()
+  const idx = items.findIndex((r) => r.id == id)
+  if (idx < 0) return false
+  const r = items[idx]
+  if (data.title != '') r.title = data.title
+  if (data.type != '') r.type = data.type
+  if (data.remindDate != '') r.remindDate = data.remindDate
+  if (data.remindTime != '') r.remindTime = data.remindTime
+  if (data.relatedPurchaseId != '') r.relatedPurchaseId = data.relatedPurchaseId
+  if (data.relatedWishId != '') r.relatedWishId = data.relatedWishId
+  if (data.note != '') r.note = data.note
+  if (data.status != '') r.status = data.status
+  r.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function softDelete(id: string): boolean {
+  const items = loadAll()
+  const r = items.find((item) => item.id == id)
+  if (!r) return false
+  r.isDeleted = true
+  r.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function markDone(id: string): boolean {
+  const items = loadAll()
+  const r = items.find((item) => item.id == id)
+  if (!r) return false
+  r.status = 'DONE'
+  r.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function initMockData() {
+  const existing = loadAll()
+  if (existing.length > 0) return
+
+  const now = new Date()
+  const today = now.toISOString().split('T')[0]
+  const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0]
+  const nextWeek = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
+  const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0]
+  const nowStr = now.toISOString()
+
+  const mockData: Reminder[] = [
+    (() => { const r = new Reminder(); r.id = 'r1'; r.title = '草莓柄 SK 到货'; r.type = 'ARRIVAL'; r.remindDate = today; r.remindTime = '10:00'; r.note = '快递预计今天到'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'r2'; r.title = '宋制套装尾款'; r.type = 'BALANCE'; r.remindDate = tomorrow; r.remindTime = '20:00'; r.note = '尾款 ¥220'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'r3'; r.title = '中牌新品发售'; r.type = 'RELEASE'; r.remindDate = nextWeek; r.remindTime = '12:00'; r.note = '新款格裙预约开始'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'r4'; r.title = '整理衣橱'; r.type = 'CUSTOM'; r.remindDate = nextWeek; r.remindTime = ''; r.note = '换季整理'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'r5'; r.title = '已到货确认'; r.type = 'ARRIVAL'; r.remindDate = yesterday; r.remindTime = '10:00'; r.note = '已签收'; r.status = 'DONE'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+  ]
+  saveAll(mockData)
+}

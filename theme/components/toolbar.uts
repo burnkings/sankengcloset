@@ -1,0 +1,89 @@
+/**
+ * Toolbar Design System — 工具栏通用样式
+ * 筛选 chips + 搜索 + 排序 + 收藏切换
+ * 
+ * 用法：
+ *   import { toolbarSection, chipScroll, chipRow, sortBtn, sortIcon } from '@/theme/components/toolbar'
+ *   import { favToggle, favToggleText } from '@/theme/components/toolbar'
+ */
+
+import { brand, neutralLight } from '../tokens/colors'
+import { spacing, semanticSpacing } from '../tokens/spacing'
+import { radius } from '../tokens/radius'
+import { fontSize } from '../tokens/typography'
+import { flexRow, flexCenter, flexFill } from '../layout/flex'
+import { n } from '../use-theme'
+
+// ====== 工具栏容器 ======
+
+/** 工具栏行 — 筛选+排序 */
+export const toolbarSection = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: spacing[2],
+  paddingHorizontal: semanticSpacing.pageHorizontal,
+  paddingVertical: spacing[3],
+} as any
+
+// ====== 筛选 Chips ======
+
+/** Chip 滚动容器 */
+export const chipScroll = {
+  ...flexFill,
+  overflow: 'hidden',
+} as any
+
+/** Chip 行 */
+export const chipRow = {
+  ...flexRow,
+  gap: spacing[2],
+} as any
+
+// ====== 排序按钮 ======
+
+/** 排序按钮 */
+export const sortBtn = {
+  ...flexCenter,
+  width: '56rpx',
+  height: '56rpx',
+  borderRadius: radius.md,
+  flexShrink: 0,
+} as any
+
+/** 排序图标 */
+export const sortIcon = {
+  fontSize: fontSize.lg,
+} as any
+
+// ====== 收藏切换 ======
+
+/** 收藏切换按钮 */
+export const favToggle = {
+  ...flexCenter,
+  width: '56rpx',
+  height: '56rpx',
+  flexShrink: 0,
+} as any
+
+/** 收藏切换文字 */
+export const favToggleText = {
+  fontSize: fontSize.lg,
+} as any
+
+// ====== 工具函数 ======
+
+/** 生成排序按钮样式（支持 dark mode） */
+export function createSortBtn(): any {
+  return {
+    ...sortBtn,
+    backgroundColor: n.value.bgTertiary,
+  }
+}
+
+/** 生成排序图标样式（支持 dark mode） */
+export function createSortIcon(): any {
+  return {
+    ...sortIcon,
+    color: n.value.textSecondary,
+  }
+}

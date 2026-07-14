@@ -1,0 +1,194 @@
+/**
+ * WishlistRepo — 心愿单数据仓库
+ */
+
+import { WishItem, WishUpdateData } from '@/domain/wish-item'
+
+const STORAGE_KEY = 'wishlist_items'
+
+function loadAll(): WishItem[] {
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY)
+    if (!raw) return []
+    const arr = JSON.parse(raw) as any[]
+    return arr.map((obj) => {
+      const w = new WishItem()
+      w.id = obj.id ?? ''
+      w.name = obj.name ?? ''
+      w.coverImage = obj.coverImage ?? ''
+      w.brand = obj.brand ?? ''
+      w.estimatedPrice = obj.estimatedPrice ?? 0
+      w.priority = obj.priority ?? 'MEDIUM'
+      w.status = obj.status ?? 'WISH'
+      w.source = obj.source ?? 'MANUAL'
+      w.wardrobeId = obj.wardrobeId ?? ''
+      w.purchaseId = obj.purchaseId ?? ''
+      w.convertedAt = obj.convertedAt ?? ''
+      w.note = obj.note ?? ''
+      w.url = obj.url ?? ''
+      w.isFavorite = obj.isFavorite ?? false
+      w.isDeleted = obj.isDeleted ?? false
+      w.createdAt = obj.createdAt ?? ''
+      w.updatedAt = obj.updatedAt ?? ''
+      return w
+    })
+  } catch {
+    return []
+  }
+}
+
+function saveAll(items: WishItem[]) {
+  uni.setStorageSync(STORAGE_KEY, JSON.stringify(items))
+}
+
+function generateId(): string {
+  return `${Date.now()}-${Math.floor(Math.random() * 10000)}`
+}
+
+export function getAll(): WishItem[] {
+  return loadAll().filter((w) => !w.isDeleted)
+}
+
+export function getById(id: string): WishItem | undefined {
+  return loadAll().find((w) => w.id == id && !w.isDeleted)
+}
+
+export function add(item: WishItem): WishItem {
+  const items = loadAll()
+  item.id = generateId()
+  item.createdAt = new Date().toISOString()
+  item.updatedAt = item.createdAt
+  items.push(item)
+  saveAll(items)
+  return item
+}
+
+export function update(id: string, data: WishUpdateData): boolean {
+  const items = loadAll()
+  const idx = items.findIndex((w) => w.id == id)
+  if (idx < 0) return false
+  const w = items[idx]
+  if (data.name != '') w.name = data.name
+  if (data.coverImage != '') w.coverImage = data.coverImage
+  if (data.brand != '') w.brand = data.brand
+  if (data.estimatedPrice >= 0) w.estimatedPrice = data.estimatedPrice
+  if (data.priority != '') w.priority = data.priority
+  if (data.status != '') w.status = data.status
+  if (data.note != '') w.note = data.note
+  if (data.url != '') w.url = data.url
+  w.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function softDelete(id: string): boolean {
+  const items = loadAll()
+  const w = items.find((item) => item.id == id)
+  if (!w) return false
+  w.isDeleted = true
+  w.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function changeStatus(id: string, newStatus: string): boolean {
+  const items = loadAll()
+  const w = items.find((item) => item.id == id)
+  if (!w) return false
+  w.status = newStatus
+  w.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function markPurchased(id: string, purchaseId: string): boolean {
+  const items = loadAll()
+  const w = items.find((item) => item.id == id)
+  if (!w) return false
+  w.status = 'PURCHASED'
+  w.purchaseId = purchaseId
+  w.convertedAt = new Date().toISOString()
+  w.updatedAt = w.convertedAt
+  saveAll(items)
+  return true
+}
+
+export function linkWardrobe(id: string, wardrobeId: string): boolean {
+  const items = loadAll()
+  const w = items.find((item) => item.id == id)
+  if (!w) return false
+  w.wardrobeId = wardrobeId
+  w.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function toggleFavorite(id: string): boolean {
+  const items = loadAll()
+  const w = items.find((item) => item.id == id)
+  if (!w) return false
+  w.isFavorite = !w.isFavorite
+  w.updatedAt = new Date().toISOString()
+  saveAll(items)
+  return true
+}
+
+export function addMany(newItems: WishItem[]): WishItem[] {
+  const items = loadAll()
+  const now = new Date().toISOString()
+  for (const w of newItems) {
+    w.id = generateId()
+    w.createdAt = now
+    w.updatedAt = now
+    items.push(w)
+  }
+  saveAll(items)
+  return newItems
+}
+
+export function updateMany(ids: string[], data: WishUpdateData): number {
+  const items = loadAll()
+  let count = 0
+  for (const id of ids) {
+    const w = items.find((item) => item.id == id)
+    if (w) {
+      if (data.status != '') w.status = data.status
+      if (data.priority != '') w.priority = data.priority
+      w.updatedAt = new Date().toISOString()
+      count++
+    }
+  }
+  saveAll(items)
+  return count
+}
+
+export function deleteMany(ids: string[]): number {
+  const items = loadAll()
+  let count = 0
+  for (const id of ids) {
+    const w = items.find((item) => item.id == id)
+    if (w) {
+      w.isDeleted = true
+      w.updatedAt = new Date().toISOString()
+      count++
+    }
+  }
+  saveAll(items)
+  return count
+}
+
+export function initMockData() {
+  const existing = loadAll()
+  if (existing.length > 0) return
+
+  const now = new Date().toISOString()
+  const mockData: WishItem[] = [
+    (() => { const w = new WishItem(); w.id = 'w1'; w.name = '草莓柄甜系 SK'; w.brand = 'Alice兔'; w.estimatedPrice = 680; w.priority = 'HIGH'; w.status = 'WISH'; w.source = 'MANUAL'; w.isFavorite = true; w.note = '看到博主种草了'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'w2'; w.name = '深蓝格裙 45cm'; w.brand = '中牌'; w.estimatedPrice = 128; w.priority = 'MEDIUM'; w.status = 'WATCHING'; w.source = 'MANUAL'; w.note = '等开预约'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'w3'; w.name = '宋制旋裙套装'; w.brand = '重回汉唐'; w.estimatedPrice = 320; w.priority = 'HIGH'; w.status = 'DECIDED'; w.source = 'MANUAL'; w.isFavorite = true; w.note = '夏天穿'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'w4'; w.name = '哥特十字架 JSK'; w.brand = 'BABY'; w.estimatedPrice = 1580; w.priority = 'LOW'; w.status = 'WISH'; w.source = 'MANUAL'; w.note = '太贵了观望'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'w5'; w.name = '明制马面裙'; w.brand = '汉尚华莲'; w.estimatedPrice = 450; w.priority = 'MEDIUM'; w.status = 'PAUSED'; w.source = 'MANUAL'; w.note = '暂时搁置'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'w6'; w.name = '蕾丝 KC 发饰'; w.brand = '表面咒语'; w.estimatedPrice = 68; w.priority = 'HIGH'; w.status = 'WISH'; w.source = 'MANUAL'; w.note = ''; w.createdAt = now; w.updatedAt = now; return w })(),
+  ]
+  saveAll(mockData)
+}

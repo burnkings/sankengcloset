@@ -1,0 +1,289 @@
+<template>
+  <!-- Grid 模式：图片在上，信息在下 -->
+  <view v-if="mode === 'grid'" :style="gridContainerStyle" @tap="emit('click')">
+    <view :style="gridImageWrap">
+      <AppImage
+        :src="item.coverImage"
+        width="100%"
+        height="320rpx"
+        :radius-token="'0rpx'"
+        lazy-load
+      />
+      <!-- 分类角标叠在图上 -->
+      <view :style="overlayTagStyle">
+        <text :style="overlayTagText">{{ categoryLabel }}</text>
+      </view>
+      <!-- 收藏角标 -->
+      <view v-if="item.isFavorite" :style="overlayFavStyle">
+        <text :style="overlayFavText">❤️</text>
+      </view>
+    </view>
+    <view :style="gridBodyStyle">
+      <text :style="gridNameStyle">{{ item.name }}</text>
+      <text v-if="item.brand" :style="gridBrandStyle">{{ item.brand }}</text>
+      <view :style="gridBottomRow">
+        <text v-if="item.purchasePrice > 0" :style="priceStyle">¥{{ item.purchasePrice }}</text>
+        <text :style="wearTagStyle">{{ wearStatusLabel }}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- List 模式：图片在左，信息在右 -->
+  <view v-else :style="listContainerStyle" @tap="emit('click')">
+    <view :style="listImageWrap">
+      <AppImage
+        :src="item.coverImage"
+        width="180rpx"
+        height="220rpx"
+        :radius-token="radius.lg"
+        lazy-load
+      />
+    </view>
+    <view :style="infoStyle">
+      <view :style="listTopRow">
+        <text :style="nameStyle">{{ item.name }}</text>
+        <view v-if="item.isFavorite" :style="listFavStyle">
+          <text :style="listFavText">❤️</text>
+        </view>
+      </view>
+      <text v-if="item.brand" :style="brandStyle">{{ item.brand }}</text>
+      <view :style="tagRowStyle">
+        <view :style="categoryTagStyle">
+          <text :style="categoryTagText">{{ categoryLabel }}</text>
+        </view>
+        <view v-if="item.wearStatus" :style="wearBadgeStyle">
+          <text :style="wearBadgeText">{{ wearStatusLabel }}</text>
+        </view>
+      </view>
+      <view :style="detailRowStyle">
+        <text v-if="item.color" :style="detailStyle">{{ item.color }}</text>
+        <text v-if="item.size" :style="detailStyle">{{ item.size }}</text>
+      </view>
+      <view :style="bottomRowStyle">
+        <text v-if="item.purchasePrice > 0" :style="priceStyle">¥{{ item.purchasePrice }}</text>
+        <text v-if="item.purchaseDate" :style="dateStyle">{{ formatDate(item.purchaseDate) }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { WardrobeItem } from '@/domain/wardrobe-item'
+import { CATEGORY_LABELS, CATEGORY_JK, CATEGORY_LOLITA, CATEGORY_HANFU } from '@/domain/clothing-category'
+import { brand, categoryColors, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius, semanticRadius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { shadow } from '@/theme/tokens/shadow'
+import { flexRow, flexFill, flexRowBetween } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import AppImage from '@/components/base/AppImage.uvue'
+
+const props = withDefaults(defineProps<{
+  item: WardrobeItem
+  mode?: string
+}>(), {
+  mode: 'list' })
+
+const emit = defineEmits<{
+  click: []
+}>()
+
+
+const categoryLabel = computed(() => CATEGORY_LABELS[props.item.category] ?? '其他')
+
+const wearStatusLabel = computed(() => {
+  if (props.item.wearStatus == 'UNWORN') return '未穿'
+  if (props.item.wearStatus == 'WORN') return '已穿'
+  if (props.item.wearStatus == 'FREQUENT') return '常穿'
+  return ''
+})
+
+const categoryTagColor = computed(() => {
+  if (props.item.category == CATEGORY_JK) return categoryColors.jk.primary
+  if (props.item.category == CATEGORY_LOLITA) return categoryColors.lolita.primary
+  if (props.item.category == CATEGORY_HANFU) return categoryColors.hanfu.primary
+  return brand[500]
+})
+
+function formatDate(dateStr: string): string {
+  if (dateStr.length < 10) return dateStr
+  return dateStr.substring(0, 10)
+}
+
+// ====== Grid 模式样式 ======
+
+const gridContainerStyle = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.card,
+  overflow: 'hidden',
+  boxShadow: shadow.card }))
+
+const gridImageWrap = {
+  position: 'relative',
+}
+
+const overlayTagStyle = computed((): any => ({
+  position: 'absolute',
+  top: spacing[2],
+  left: spacing[2],
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+  borderRadius: radius.full,
+  backgroundColor: categoryTagColor.value + 'E6',
+}))
+
+const overlayTagText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: baseColors.white,
+}
+
+const overlayFavStyle = {
+  position: 'absolute',
+  top: spacing[2],
+  right: spacing[2],
+}
+
+const overlayFavText = {
+  fontSize: '28rpx',
+}
+
+const gridBodyStyle = {
+  padding: `${spacing[2]} ${spacing[3]}`,
+}
+
+const gridNameStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  overflow: 'hidden',
+  lines: 1 }))
+
+const gridBrandStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  marginTop: '4rpx',
+  overflow: 'hidden',
+  lines: 1 }))
+
+const gridBottomRow = {
+  ...flexRowBetween,
+  alignItems: 'center',
+  marginTop: spacing[1],
+}
+
+const wearTagStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  paddingHorizontal: spacing[1],
+  paddingVertical: '2rpx',
+  borderRadius: radius.xs,
+  backgroundColor: n.value.bgTertiary,
+}))
+
+// ====== List 模式样式 ======
+
+const listContainerStyle = computed((): any => ({
+  ...flexRow,
+  gap: spacing[3],
+  padding: spacing[3],
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.card,
+  boxShadow: shadow.card,
+  position: 'relative',
+  overflow: 'hidden' }))
+
+const listImageWrap = {
+  flexShrink: 0,
+}
+
+const infoStyle = {
+  ...flexFill,
+  gap: spacing[1],
+  overflow: 'hidden',
+  justifyContent: 'space-between',
+}
+
+const listTopRow = {
+  ...flexRowBetween,
+  alignItems: 'flex-start',
+}
+
+const nameStyle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  ...flexFill,
+  overflow: 'hidden',
+  lines: 1,
+  marginRight: spacing[1] }))
+
+const listFavStyle = {
+  flexShrink: 0,
+}
+
+const listFavText = {
+  fontSize: '24rpx',
+}
+
+const brandStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary,
+  overflow: 'hidden',
+  lines: 1 }))
+
+const tagRowStyle = {
+  ...flexRow,
+  gap: spacing[1],
+  alignItems: 'center',
+  flexWrap: 'wrap',
+}
+
+const categoryTagStyle = computed((): any => ({
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+  borderRadius: radius.full,
+  backgroundColor: categoryTagColor.value + '15' }))
+
+const categoryTagText = computed((): any => ({
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: categoryTagColor.value }))
+
+const wearBadgeStyle = computed((): any => ({
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+  borderRadius: radius.full,
+  backgroundColor: n.value.bgTertiary,
+}))
+
+const wearBadgeText = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+}))
+
+const detailRowStyle = {
+  ...flexRow,
+  gap: spacing[2],
+}
+
+const detailStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary }))
+
+const bottomRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center',
+  marginTop: spacing[1] }
+
+const priceStyle = computed((): any => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.bold,
+  color: brand[500] }))
+
+const dateStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary }))
+</script>

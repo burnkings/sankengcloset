@@ -1,0 +1,22 @@
+/**
+ * useTheme — 主题切换
+ * 
+ * 注意：不要解构返回值，直接用 theme.isDark / theme.n
+ * UTS→Kotlin 编译器不支持对象解构
+ */
+
+import { neutralLight, neutralDark } from './tokens/colors'
+
+const _isDark = ref(false)
+const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
+
+export function useTheme() {
+  return {
+    isDark: _isDark,
+    neutral: _neutral,
+  }
+}
+
+/** 直接导出，避免解构 */
+export const isDark = _isDark
+export const n = _neutral

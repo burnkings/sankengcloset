@@ -1,0 +1,30 @@
+/**
+ * Radius — 设计令牌
+ */
+
+export const radius = {
+  none: '0rpx',
+  xs: '4rpx',
+  sm: '8rpx',
+  md: '12rpx',
+  lg: '16rpx',
+  xl: '24rpx',
+  '2xl': '32rpx',
+  '3xl': '48rpx',
+  full: '9999rpx',
+}
+
+export const semanticRadius = {
+  button: radius.md,       // 12rpx
+  card: radius.lg,         // 16rpx
+  dialog: radius['2xl'],   // 32rpx
+  bottomSheet: radius['2xl'],
+  input: radius.md,        // 12rpx
+  tag: radius.sm,          // 8rpx
+  badge: radius.full,
+  avatar: radius.full,     // 50%
+  image: radius.lg,        // 16rpx
+  chip: radius.full,
+  toast: radius.xl,        // 24rpx
+  modal: radius['2xl'],    // 32rpx
+}

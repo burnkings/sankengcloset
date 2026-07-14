@@ -1,0 +1,142 @@
+/**
+ * Hero Design System — 页面顶部 Hero 区域通用样式
+ * 
+ * 用法：
+ *   import { heroSection, heroTitle, heroSub, heroStatBar, heroStatItem, heroStatDivider } from '@/theme/components/hero'
+ *   import { heroStatNum, heroStatLabel, heroDataBar, heroDataLabel, heroDataValue } from '@/theme/components/hero'
+ */
+
+import { brand, accent, warm, baseColors, neutralLight } from '../tokens/colors'
+import { spacing, semanticSpacing } from '../tokens/spacing'
+import { radius, semanticRadius } from '../tokens/radius'
+import { fontSize, fontWeight } from '../tokens/typography'
+import { shadow } from '../tokens/shadow'
+import { flexRow, flexColumnCenter, flexFill } from '../layout/flex'
+
+// ====== Hero 区域 ======
+
+/** Hero 容器 — 品牌色背景 */
+export const heroSection = {
+  paddingHorizontal: semanticSpacing.pageHorizontal,
+  paddingTop: spacing[4],
+  paddingBottom: spacing[4],
+} as any
+
+/** Hero 内容区 — 标题+副文案 */
+export const heroInner = {
+  marginBottom: spacing[3],
+} as any
+
+/** Hero 标题 — 白色大号加粗 */
+export const heroTitle = {
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: baseColors.white,
+  marginBottom: spacing[0.5],
+} as any
+
+/** Hero 副文案 — 半透明白色 */
+export const heroSub = {
+  fontSize: fontSize.sm,
+  color: 'rgba(255,255,255,0.75)',
+} as any
+
+// ====== 统计胶囊行 ======
+
+/** 统计胶囊行容器 */
+export const heroStatBar = {
+  ...flexRow,
+  justifyContent: 'space-around',
+  paddingVertical: spacing[2],
+  backgroundColor: 'rgba(255,255,255,0.12)',
+  borderRadius: semanticRadius.card,
+} as any
+
+/** 单个统计项 */
+export const heroStatItem = {
+  ...flexColumnCenter,
+  gap: spacing[0.5],
+} as any
+
+/** 统计数字 — 白色加粗 */
+export const heroStatNum = {
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: baseColors.white,
+  lineHeight: 1,
+} as any
+
+/** 统计标签 — 半透明白色 */
+export const heroStatLabel = {
+  fontSize: fontSize.xs,
+  color: 'rgba(255,255,255,0.65)',
+} as any
+
+/** 统计列分隔线 */
+export const heroStatDivider = {
+  width: '1rpx',
+  height: '48rpx',
+  backgroundColor: 'rgba(255,255,255,0.15)',
+  alignSelf: 'center',
+} as any
+
+// ====== 数据条（预算/关键数据） ======
+
+/** 数据条容器 — 半透明底 */
+export const heroDataBar = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: spacing[2],
+  marginBottom: spacing[3],
+  paddingHorizontal: spacing[3],
+  paddingVertical: spacing[2],
+  backgroundColor: 'rgba(255,255,255,0.15)',
+  borderRadius: semanticRadius.card,
+} as any
+
+/** 数据条标签 */
+export const heroDataLabel = {
+  fontSize: fontSize.sm,
+  color: 'rgba(255,255,255,0.8)',
+} as any
+
+/** 数据条数值 */
+export const heroDataValue = {
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.bold,
+  color: baseColors.white,
+} as any
+
+/** 数据条胶囊标签 */
+export const heroDataBadge = {
+  marginLeft: 'auto',
+  backgroundColor: 'rgba(255,255,255,0.25)',
+  borderRadius: radius.full,
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+} as any
+
+/** 数据条胶囊文字 */
+export const heroDataBadgeText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: baseColors.white,
+} as any
+
+// ====== Hero 背景色预设 ======
+
+export const HERO_COLORS = {
+  brand: brand[500],      // 蔷薇粉 — Home, Wardrobe, Purchase, Reminder
+  accent: accent[500],    // 薰衣草紫 — Wishlist
+  warm: warm.gold,        // 金色 — 特殊页面
+} as any
+
+// ====== 工具函数 ======
+
+/** 生成 Hero 容器样式（指定背景色） */
+export function createHeroSection(bgColor: string): any {
+  return {
+    ...heroSection,
+    backgroundColor: bgColor,
+  }
+}

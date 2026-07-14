@@ -1,0 +1,54 @@
+<template>
+  <view :style="cardStyle" @tap="emit('click')">
+    <view v-if="$slots.header" :style="headerStyle">
+      <slot name="header" />
+    </view>
+    <view :style="bodyStyle">
+      <slot />
+    </view>
+    <view v-if="$slots.footer" :style="footerStyle">
+      <slot name="footer" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { neutralLight, neutralDark } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { semanticRadius } from '@/theme/tokens/radius'
+import { shadow, shadowDark } from '@/theme/tokens/shadow'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{
+  elevated?: boolean
+  padding?: string
+  radiusToken?: string
+}>(), {
+  elevated: true,
+  padding: spacing[4],
+  radiusToken: semanticRadius.card,
+})
+
+const emit = defineEmits<{
+  click: []
+}>()
+
+
+const cardStyle = computed(() => ({
+  backgroundColor: isDark.value ? neutralDark.surface : neutralLight.surface,
+  borderRadius: props.radiusToken,
+  padding: props.padding,
+  boxShadow: props.elevated ? (isDark.value ? shadowDark.card : shadow.card) : shadow.none,
+  overflow: 'hidden',
+}))
+
+const headerStyle = {
+  marginBottom: '24rpx',
+}
+
+const bodyStyle = {}
+
+const footerStyle = {
+  marginTop: '24rpx',
+}
+</script>

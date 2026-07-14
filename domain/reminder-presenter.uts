@@ -1,0 +1,90 @@
+/**
+ * ReminderPresenter — 提醒展示层
+ * domain model → display model
+ */
+
+import {
+  Reminder,
+  TYPE_LABELS,
+  TYPE_EMOJI,
+  TYPE_COLORS,
+  STATUS_LABELS,
+  STATUS_COLORS,
+} from './reminder'
+
+export class ReminderDisplayModel {
+  id: string = ''
+  title: string = ''
+  // 类型
+  typeText: string = ''
+  typeEmoji: string = ''
+  typeColor: string = ''
+  // 状态
+  statusText: string = ''
+  statusColor: string = ''
+  // 时间
+  dateText: string = ''
+  timeText: string = ''
+  // 关联
+  hasPurchase: boolean = false
+  hasWish: boolean = false
+  // 其他
+  note: string = ''
+  // 时间判断
+  isToday: boolean = false
+  isUpcoming: boolean = false // 7天内
+  isOverdue: boolean = false
+}
+
+function formatDate(dateStr: string): string {
+  if (dateStr === '') return '未设置'
+  return dateStr
+}
+
+function formatTime(timeStr: string): string {
+  if (timeStr === '') return ''
+  return timeStr
+}
+
+function diffDays(dateStr: string): number {
+  if (dateStr === '') return 999
+  try {
+    const target = new Date(dateStr).getTime()
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    return Math.floor((target - today) / (1000 * 60 * 60 * 24))
+  } catch {
+    return 999
+  }
+}
+
+export function toDisplayModel(item: Reminder): ReminderDisplayModel {
+  const dm = new ReminderDisplayModel()
+  dm.id = item.id
+  dm.title = item.title
+  // 类型
+  dm.typeText = TYPE_LABELS[item.type] ?? '自定义'
+  dm.typeEmoji = TYPE_EMOJI[item.type] ?? '⏰'
+  dm.typeColor = TYPE_COLORS[item.type] ?? '#6B7280'
+  // 状态
+  dm.statusText = STATUS_LABELS[item.status] ?? '待提醒'
+  dm.statusColor = STATUS_COLORS[item.status] ?? '#3B82F6'
+  // 时间
+  dm.dateText = formatDate(item.remindDate)
+  dm.timeText = formatTime(item.remindTime)
+  // 关联
+  dm.hasPurchase = item.relatedPurchaseId !== ''
+  dm.hasWish = item.relatedWishId !== ''
+  // 其他
+  dm.note = item.note
+  // 时间判断
+  const days = diffDays(item.remindDate)
+  dm.isToday = days === 0
+  dm.isUpcoming = days > 0 && days <= 7
+  dm.isOverdue = days < 0 && item.status === 'PENDING'
+  return dm
+}
+
+export function toDisplayModels(items: Reminder[]): ReminderDisplayModel[] {
+  return items.map(toDisplayModel)
+}

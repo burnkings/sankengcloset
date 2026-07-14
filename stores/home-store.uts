@@ -1,0 +1,70 @@
+/** HomeStore — 首页仪表盘状态管理 */
+
+import { WardrobeItem } from '@/domain/wardrobe-item'
+
+class PurchaseSummary {
+  pendingAmount: number = 0
+  monthSpent: number = 0
+  activeCount: number = 0
+}
+
+class WardrobeSummary {
+  itemCount: number = 0
+  favoriteCount: number = 0
+  recentItems: WardrobeItem[] = []
+}
+
+class WishlistSummary {
+  wishCount: number = 0
+  watchingCount: number = 0
+  decidedCount: number = 0
+  recentItems: any[] = []
+}
+
+export const useHomeStore = defineStore('home', () => {
+  const loading = ref(false)
+
+  const greeting = computed((): string => {
+    const hour = new Date().getHours()
+    if (hour < 6) return '夜深了'
+    if (hour < 9) return '早上好'
+    if (hour < 12) return '上午好'
+    if (hour < 14) return '中午好'
+    if (hour < 18) return '下午好'
+    return '晚上好'
+  })
+
+  const purchaseSummary = ref(new PurchaseSummary())
+  const wardrobeSummary = ref(new WardrobeSummary())
+  const upcomingReminders = ref([] as any[])
+  const wishlistSummary = ref(new WishlistSummary())
+
+  async function fetchDashboard() {
+    loading.value = true
+    await new Promise((r) => setTimeout(r, 500))
+
+    const ps = new PurchaseSummary()
+    ps.pendingAmount = 2; ps.monthSpent = 368; ps.activeCount = 3
+    purchaseSummary.value = ps
+
+    const ws = new WardrobeSummary()
+    ws.itemCount = 12; ws.favoriteCount = 5
+    wardrobeSummary.value = ws
+
+    const wls = new WishlistSummary()
+    wls.wishCount = 8; wls.watchingCount = 3; wls.decidedCount = 2
+    wishlistSummary.value = wls
+
+    loading.value = false
+  }
+
+  return {
+    loading,
+    greeting,
+    purchaseSummary,
+    wardrobeSummary,
+    upcomingReminders,
+    wishlistSummary,
+    fetchDashboard,
+  }
+})

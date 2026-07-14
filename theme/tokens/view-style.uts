@@ -1,0 +1,60 @@
+/**
+ * ViewStyle — 统一样式对象类型
+ *
+ * 所有 flex/spacing/grid 布局系统返回此类型，替代 `as any`
+ * Kotlin 生成器可正确推断属性访问
+ */
+
+export class ViewStyle {
+  display: string = ''
+  flexDirection: string = ''
+  flexWrap: string = ''
+  alignItems: string = ''
+  justifyContent: string = ''
+  flex: number = -1
+  gap: string = ''
+  padding: string = ''
+  paddingTop: string = ''
+  paddingRight: string = ''
+  paddingBottom: string = ''
+  paddingLeft: string = ''
+  paddingHorizontal: string = ''
+  paddingVertical: string = ''
+  margin: string = ''
+  marginTop: string = ''
+  marginRight: string = ''
+  marginBottom: string = ''
+  marginLeft: string = ''
+  marginHorizontal: string = ''
+  marginVertical: string = ''
+  width: string = ''
+  height: string = ''
+  minWidth: string = ''
+  minHeight: string = ''
+  maxWidth: string = ''
+  maxHeight: string = ''
+  borderRadius: string = ''
+  borderTopLeftRadius: string = ''
+  borderTopRightRadius: string = ''
+  borderBottomLeftRadius: string = ''
+  borderBottomRightRadius: string = ''
+  backgroundColor: string = ''
+  opacity: number = -1
+  zIndex: number = -1
+  position: string = ''
+  top: string = ''
+  right: string = ''
+  bottom: string = ''
+  left: string = ''
+  overflow: string = ''
+  borderWidth: string = ''
+  borderStyle: string = ''
+  borderColor: string = ''
+  borderBottomWidth: string = ''
+  borderBottomStyle: string = ''
+  borderBottomColor: string = ''
+  borderTopWidth: string = ''
+  borderTopStyle: string = ''
+  borderTopColor: string = ''
+  boxShadow: string = ''
+}

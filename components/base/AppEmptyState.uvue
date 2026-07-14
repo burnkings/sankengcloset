@@ -1,0 +1,113 @@
+<template>
+  <view :style="containerStyle">
+    <view :style="iconBgStyle">
+      <text :style="iconStyle">{{ icon }}</text>
+    </view>
+    <text :style="titleStyle">{{ title }}</text>
+    <text v-if="description" :style="descStyle">{{ description }}</text>
+    <view :style="actionsStyle">
+      <view v-if="actionText" :style="actionWrapStyle" @tap="emit('action')">
+        <text :style="actionTextStyle">{{ actionText }}</text>
+      </view>
+      <view v-if="secondaryText" :style="secondaryWrapStyle" @tap="emit('secondary')">
+        <text :style="secondaryTextStyle">{{ secondaryText }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexCenter } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{
+  icon?: string
+  title?: string
+  description?: string
+  actionText?: string
+  secondaryText?: string
+}>(), {
+  icon: '📦',
+  title: '这里还是空的',
+  description: '',
+  actionText: '',
+  secondaryText: '' })
+
+const emit = defineEmits<{
+  action: []
+  secondary: []
+}>()
+
+
+const containerStyle = {
+  ...flexCenter,
+  flexDirection: 'column',
+  paddingVertical: spacing[10],
+  paddingHorizontal: spacing[6],
+  gap: spacing[2],
+}
+
+const iconBgStyle = {
+  width: '140rpx',
+  height: '140rpx',
+  borderRadius: radius.full,
+  backgroundColor: brand[50],
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: spacing[3],
+}
+
+const iconStyle = {
+  fontSize: '60rpx',
+}
+
+const titleStyle = computed((): any => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  textAlign: 'center',
+}))
+
+const descStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary,
+  textAlign: 'center',
+  lineHeight: 1.5,
+  paddingHorizontal: spacing[4],
+}))
+
+const actionsStyle = {
+  marginTop: spacing[4],
+  gap: spacing[2],
+  alignItems: 'center',
+}
+
+const actionWrapStyle = {
+  paddingHorizontal: spacing[6],
+  paddingVertical: spacing[2.5],
+  borderRadius: radius.full,
+  backgroundColor: brand[500],
+}
+
+const actionTextStyle = {
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.semibold,
+  color: baseColors.white,
+}
+
+const secondaryWrapStyle = {
+  paddingHorizontal: spacing[4],
+  paddingVertical: spacing[2],
+}
+
+const secondaryTextStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: brand[500],
+}))
+</script>

@@ -1,0 +1,37 @@
+/**
+ * Spacing — 间距令牌
+ * 基于 4px 网格系统
+ */
+
+/** 间距 (rpx) */
+export const spacing = {
+  0: '0rpx',
+  1: '8rpx',
+  2: '16rpx',
+  3: '24rpx',
+  4: '32rpx',
+  5: '40rpx',
+  6: '48rpx',
+  8: '64rpx',
+  10: '80rpx',
+  12: '96rpx',
+}
+
+/** 语义间距 */
+export const semanticSpacing = {
+  pageHorizontal: '32rpx',
+  pageVertical: '24rpx',
+  cardPadding: '32rpx',
+  cardGap: '24rpx',
+  sectionGap: '48rpx',
+  listItemPadding: '24rpx',
+  listItemGap: '16rpx',
+  tagGap: '12rpx',
+  inputPadding: '24rpx',
+  buttonPaddingH: '40rpx',
+  buttonPaddingV: '20rpx',
+  iconGap: '16rpx',
+  navbarHeight: '88rpx',
+  tabbarHeight: '100rpx',
+  safeBottom: '34rpx',
+}

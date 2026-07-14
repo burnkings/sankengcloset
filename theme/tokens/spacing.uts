@@ -1,0 +1,67 @@
+/**
+ * Spacing — 间距令牌 v2.0
+ * 基于 4px 网格系统，更精细的间距控制
+ */
+
+/** 间距 (rpx) */
+export const spacing = {
+  0: '0rpx',
+  0.5: '4rpx',
+  1: '8rpx',
+  1.5: '12rpx',
+  2: '16rpx',
+  2.5: '20rpx',
+  3: '24rpx',
+  4: '32rpx',
+  5: '40rpx',
+  6: '48rpx',
+  8: '64rpx',
+  10: '80rpx',
+  12: '96rpx',
+  16: '128rpx',
+}
+
+/** 语义间距 */
+export const semanticSpacing = {
+  // 页面
+  pageHorizontal: '32rpx',
+  pageVertical: '24rpx',
+  pageGap: '24rpx',
+  // 卡片
+  cardPadding: '32rpx',
+  cardPaddingSm: '24rpx',
+  cardGap: '24rpx',
+  cardGapSm: '16rpx',
+  // 区块
+  sectionGap: '48rpx',
+  sectionGapSm: '32rpx',
+  // 列表
+  listItemPadding: '24rpx',
+  listItemGap: '16rpx',
+  listItemGapSm: '12rpx',
+  // 表单
+  inputPadding: '24rpx',
+  inputGap: '16rpx',
+  formGap: '32rpx',
+  formFieldGap: '24rpx',
+  // 按钮
+  buttonPaddingH: '40rpx',
+  buttonPaddingV: '20rpx',
+  buttonPaddingHSm: '24rpx',
+  buttonPaddingVSm: '12rpx',
+  buttonGap: '16rpx',
+  // 标签
+  tagGap: '12rpx',
+  tagPaddingH: '16rpx',
+  tagPaddingV: '6rpx',
+  // 图标
+  iconGap: '16rpx',
+  iconSize: '40rpx',
+  iconSizeSm: '32rpx',
+  iconSizeLg: '48rpx',
+  // 布局
+  navbarHeight: '88rpx',
+  tabbarHeight: '100rpx',
+  safeBottom: '34rpx',
+  statusBarHeight: '44rpx',
+}

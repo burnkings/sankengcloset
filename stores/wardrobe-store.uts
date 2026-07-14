@@ -1,0 +1,152 @@
+/**
+ * WardrobeStore — 衣橱状态管理
+ * Page → Store → Repository
+ */
+
+import { WardrobeItem } from '@/domain/wardrobe-item'
+import * as repo from '@/domain/repositories/wardrobe-repo'
+import { CATEGORY_LABELS } from '@/domain/clothing-category'
+
+export const useWardrobeStore = defineStore('wardrobe', () => {
+  // ====== State ======
+  const items = ref([]) as Ref<WardrobeItem[]>
+  const loading = ref(false)
+  const error = ref('')
+  const currentCategory = ref('')
+  const searchKeyword = ref('')
+  const currentSort = ref('newest')
+  const viewMode = ref('grid')
+
+  // ====== Getters ======
+
+  const filteredItems = computed((): WardrobeItem[] => {
+    let result = items.value
+
+    if (currentCategory.value) {
+      result = result.filter((i) => i.category == currentCategory.value)
+    }
+
+    if (searchKeyword.value) {
+      const kw = searchKeyword.value.toLowerCase()
+      result = result.filter((i) => {
+        if (i.name.toLowerCase().includes(kw)) return true
+        if (i.brand.toLowerCase().includes(kw)) return true
+        if (i.note.toLowerCase().includes(kw)) return true
+        const catLabel = CATEGORY_LABELS[i.category] ?? ''
+        if (catLabel.toLowerCase().includes(kw)) return true
+        return false
+      })
+    }
+
+    return result
+  })
+
+  const sortedItems = computed((): WardrobeItem[] => {
+    const arr = [...filteredItems.value]
+    switch (currentSort.value) {
+      case 'newest':
+        arr.sort((a, b) => {
+          const da = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          const db = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          return db - da
+        })
+        break
+      case 'priceHigh':
+        arr.sort((a, b) => (b.purchasePrice ?? 0) - (a.purchasePrice ?? 0))
+        break
+      case 'priceLow':
+        arr.sort((a, b) => (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0))
+        break
+      case 'name':
+        arr.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+        break
+    }
+    return arr
+  })
+
+  const itemCount = computed((): number => items.value.length)
+
+  const categoryCounts = computed(() => {
+    const counts = {}
+    for (const item of items.value) {
+      counts[item.category] = (counts[item.category] ?? 0) + 1
+    }
+    return counts
+  })
+
+  // ====== Actions ======
+
+  function fetchItems() {
+    loading.value = true
+    error.value = ''
+    try {
+      repo.initMockData()
+      items.value = repo.getAll()
+    } catch (err) {
+      error.value = String(err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function deleteItem(id: string): boolean {
+    const ok = repo.softDelete(id)
+    if (ok) {
+      items.value = items.value.filter((i) => i.id !== id)
+    }
+    return ok
+  }
+
+  function toggleFavorite(id: string) {
+    const ok = repo.toggleFavorite(id)
+    if (ok) {
+      const item = items.value.find((i) => i.id == id)
+      if (item) item.isFavorite = !item.isFavorite
+    }
+  }
+
+  function setCategory(category: string) {
+    currentCategory.value = category
+  }
+
+  function setSearch(keyword: string) {
+    searchKeyword.value = keyword
+  }
+
+  function setSort(sort: string) {
+    currentSort.value = sort
+  }
+
+  function setViewMode(mode: string) {
+    viewMode.value = mode
+  }
+
+  function toggleViewMode() {
+    viewMode.value = viewMode.value == 'grid' ? 'list' : 'grid'
+  }
+
+  function getById(id: string): WardrobeItem | undefined {
+    return items.value.find((i) => i.id == id)
+  }
+
+  return {
+    loading,
+    error,
+    currentCategory,
+    searchKeyword,
+    currentSort,
+    viewMode,
+    sortedItems,
+    itemCount,
+    categoryCounts,
+    fetchItems,
+    deleteItem,
+    toggleFavorite,
+    setCategory,
+    setSearch,
+    setSort,
+    setViewMode,
+    toggleViewMode,
+    getById,
+  }
+})

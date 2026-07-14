@@ -1,0 +1,166 @@
+<template>
+  <view :style="cardStyle" @tap="emit('click')">
+    <!-- 顶部状态条 -->
+    <view :style="statusBarStyle" />
+
+    <view :style="cardGapStyle">
+      <!-- 头部：名称 + 状态标签 -->
+      <view :style="headerRowStyle">
+        <text :style="nameStyle">{{ item.name }}</text>
+        <view :style="tagStyle">
+          <text :style="tagTextStyle">{{ item.statusText }}</text>
+        </view>
+      </view>
+
+      <!-- 品牌 · 店铺 -->
+      <text v-if="shopText" :style="shopStyle">{{ shopText }}</text>
+
+      <!-- 金额行 -->
+      <view :style="amountRowStyle">
+        <text :style="totalStyle">{{ item.totalText }}</text>
+        <text v-if="item.remainingText" :style="remainingStyle">{{ item.remainingText }}</text>
+      </view>
+
+      <!-- 进度条 -->
+      <view :style="progressRowStyle">
+        <view :style="progressTrackStyle">
+          <view :style="progressFillStyle" />
+        </view>
+        <text :style="progressTextStyle">{{ item.progressPercent }}%</text>
+      </view>
+
+      <!-- 日期行 -->
+      <view :style="dateRowStyle">
+        <text :style="dateStyle">{{ item.purchaseDateText }}</text>
+        <text v-if="item.deadlineText !== '—'" :style="deadlineStyle">
+          截止 {{ item.deadlineText }}
+        </text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { PurchaseDisplayModel } from '@/domain/purchase-presenter'
+import { brand, neutralLight, neutralDark, semantic, baseColors } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius, semanticRadius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { shadow } from '@/theme/tokens/shadow'
+import { flexRow, flexFill, flexRowBetween } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+
+const props = defineProps<{
+  item: PurchaseDisplayModel
+}>()
+
+const emit = defineEmits<{
+  click: []
+}>()
+
+
+const shopText = computed(() => {
+  const parts = []
+  if (props.item.brand) parts.push(props.item.brand)
+  if (props.item.shopName) parts.push(props.item.shopName)
+  return parts.join(' · ')
+})
+
+// ====== 样式 ======
+
+const cardStyle = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: semanticRadius.card,
+  boxShadow: shadow.card,
+  overflow: 'hidden',
+}))
+
+const statusBarStyle = computed((): any => ({
+  height: '6rpx',
+  backgroundColor: props.item.statusColor,
+}))
+
+const cardGapStyle = {
+  ...gap.sm,
+  padding: spacing[4],
+}
+
+const headerRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' }
+
+const nameStyle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  ...flexFill,
+  marginRight: spacing[2] }))
+
+const tagStyle = computed((): any => ({
+  paddingHorizontal: spacing[2],
+  paddingVertical: '4rpx',
+  borderRadius: radius.full,
+  backgroundColor: props.item.statusColor + '15',
+  flexShrink: 0 }))
+
+const tagTextStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: props.item.statusColor }))
+
+const shopStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary }))
+
+const amountRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'baseline' }
+
+const totalStyle = computed((): any => ({
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: n.value.text }))
+
+const remainingStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: semantic.error,
+  fontWeight: fontWeight.medium }))
+
+const progressRowStyle = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: spacing[2] }
+
+const progressTrackStyle = computed((): any => ({
+  ...flexFill,
+  height: '10rpx',
+  borderRadius: radius.full,
+  backgroundColor: n.value.bgTertiary,
+  overflow: 'hidden' }))
+
+const progressFillStyle = computed((): any => ({
+  width: `${props.item.progressPercent}%`,
+  height: '100%',
+  borderRadius: radius.full,
+  backgroundColor: props.item.statusColor }))
+
+const progressTextStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: n.value.textTertiary,
+  minWidth: '48rpx',
+  textAlign: 'right' }))
+
+const dateRowStyle = {
+  ...flexRowBetween }
+
+const dateStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary }))
+
+const deadlineStyle = computed((): any => ({
+  fontSize: fontSize.xs,
+  color: props.item.isOverdue ? semantic.error : n.value.textTertiary,
+  fontWeight: props.item.isOverdue ? fontWeight.medium : fontWeight.regular }))
+</script>

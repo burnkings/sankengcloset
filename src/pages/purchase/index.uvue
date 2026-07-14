@@ -1,0 +1,192 @@
+<template>
+  <MainLayout>
+    <template #navbar>
+      <AppNavbar title="消费记录" :show-back="false">
+        <template #right>
+          <view :style="navRightStyle">
+            <text :style="addBtnStyle" @tap="onAddTap">+添加</text>
+            <text :style="countBadgeStyle">{{ store.itemCount }}笔</text>
+          </view>
+        </template>
+      </AppNavbar>
+    </template>
+
+    <template #default>
+      <!-- 状态筛选 -->
+      <view :style="filterStyle">
+        <scroll-view scroll-x :show-scrollbar="false" :style="chipScrollStyle">
+          <view :style="chipRowStyle">
+            <view
+              v-for="opt in filterOptions"
+              :key="opt.value"
+              :style="chipStyle(opt.value === store.filterStatus)"
+              @tap="store.setFilterStatus(opt.value)"
+            >
+              <text :style="chipTextStyle(opt.value === store.filterStatus)">{{ opt.label }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- Loading -->
+      <AppLoading v-if="store.loading" />
+
+      <!-- Empty -->
+      <view v-else-if="store.displayItems.length === 0" :style="emptyStyle">
+        <text :style="emptyIconStyle">🛒</text>
+        <text :style="emptyTitleStyle">
+          {{ store.filterStatus ? '没有该状态的购买记录' : '还没有购买记录' }}
+        </text>
+        <text :style="emptyDescStyle">
+          {{ store.filterStatus ? '换个筛选试试' : '点击 + 添加购买记录' }}
+        </text>
+      </view>
+
+      <!-- 列表 -->
+      <view v-else :style="listStyle">
+        <PurchaseCard
+          v-for="item in store.displayItems"
+          :key="item.id"
+          :item="item"
+          @click="onItemTap(item.id)"
+        />
+      </view>
+    </template>
+  </MainLayout>
+
+  <!-- 删除确认 -->
+  <AppDialog
+    v-model:visible="deleteDialogVisible"
+    title="确认删除"
+    message="删除后无法恢复，确定要删除这条消费记录吗？"
+    @confirm="onConfirmDelete"
+  />
+</template>
+
+<script setup lang="uts">
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { FILTER_OPTIONS } from '@/domain/purchase-record'
+import {, brand } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { radius } from '@/theme/tokens/radius'
+import { flexRow, flexCenter } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppLoading from '@/components/base/AppLoading.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
+import PurchaseCard from '@/components/business/PurchaseCard.uvue'
+
+
+const store = usePurchaseStore()
+
+const filterOptions = FILTER_OPTIONS
+const deleteDialogVisible = ref(false)
+const deleteTargetId = ref('')
+
+function onItemTap(id: string) {
+  uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` })
+}
+
+function onConfirmDelete() {
+  if (deleteTargetId.value) {
+    store.deletePurchase(deleteTargetId.value)
+    deleteTargetId.value = ''
+  }
+}
+
+function onAddTap() {
+  uni.navigateTo({ url: '/pages/purchase/edit' })
+}
+
+// ====== 样式 ======
+
+const countBadgeStyle = {
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  backgroundColor: n.value.bgTertiary,
+  paddingHorizontal: spacing[2],
+  paddingVertical: spacing[1],
+  borderRadius: radius.sm,
+}
+
+const navRightStyle = {
+  ...flexRow,
+  alignItems: 'center' as string,
+  gap: spacing[2],
+}
+
+const addBtnStyle = {
+  fontSize: fontSize.sm,
+  color: brand[500],
+  fontWeight: fontWeight.medium,
+}
+
+const filterStyle = {
+  ...flexRow,
+  gap: spacing[2],
+  padding: `${spacing[3]} ${spacing[4]}`,
+}
+
+const chipScrollStyle = {
+  flex: 1,
+  overflow: 'hidden' as string,
+}
+
+const chipRowStyle = {
+  ...flexRow,
+  gap: spacing[2],
+}
+
+function chipStyle(active: boolean) {
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? brand[500] : n.value.bgTertiary,
+    flexShrink: 0,
+  }
+}
+
+function chipTextStyle(active: boolean) {
+  return {
+    fontSize: fontSize.sm,
+    color: active ? '#FFFFFF' : n.value.textSecondary,
+    fontWeight: active ? fontWeight.medium : fontWeight.regular,
+  }
+}
+
+const emptyStyle = {
+  ...flexCenter,
+  flexDirection: 'column' as string,
+  padding: spacing[8],
+  gap: spacing[2],
+}
+
+const emptyIconStyle = {
+  fontSize: '80rpx',
+}
+
+const emptyTitleStyle = computed(() => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  marginTop: spacing[4],
+}))
+
+const emptyDescStyle = computed(() => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary,
+}))
+
+const listStyle = {
+  ...gap.sm,
+  padding: `0 ${spacing[4]} ${spacing[4]}`,
+}
+
+onMounted(() => {
+  store.fetchPurchases()
+})
+</script>

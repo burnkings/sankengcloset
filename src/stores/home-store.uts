@@ -1,0 +1,76 @@
+/** HomeStore — 首页仪表盘状态管理 */
+
+export const useHomeStore = defineStore('home', () => {
+  const loading = ref(false)
+
+  const greeting = computed(() => {
+    const hour = new Date().getHours()
+    if (hour < 6) return '夜深了'
+    if (hour < 9) return '早上好'
+    if (hour < 12) return '上午好'
+    if (hour < 14) return '中午好'
+    if (hour < 18) return '下午好'
+    return '晚上好'
+  })
+
+  // 消费概览
+  const purchaseSummary = ref({
+    pendingAmount: 0,
+    monthSpent: 0,
+    activeCount: 0,
+  })
+
+  // 衣橱概览
+  const wardrobeSummary = ref({
+    itemCount: 0,
+    favoriteCount: 0,
+    recentItems: [] as any[],
+  })
+
+  // 提醒
+  const upcomingReminders = ref([] as any[])
+
+  // 心愿单
+  const wishlistSummary = ref({
+    wishCount: 0,
+    watchingCount: 0,
+    decidedCount: 0,
+    recentItems: [] as any[],
+  })
+
+  async function fetchDashboard() {
+    loading.value = true
+    // 模拟加载 — 后续接入真实数据源
+    await new Promise((r) => setTimeout(r, 500))
+
+    // 模拟数据（开发阶段）
+    purchaseSummary.value = {
+      pendingAmount: 2,
+      monthSpent: 368,
+      activeCount: 3,
+    }
+    wardrobeSummary.value = {
+      itemCount: 12,
+      favoriteCount: 5,
+      recentItems: [],
+    }
+    wishlistSummary.value = {
+      wishCount: 8,
+      watchingCount: 3,
+      decidedCount: 2,
+      recentItems: [],
+    }
+
+    loading.value = false
+  }
+
+  return {
+    loading,
+    greeting,
+    purchaseSummary,
+    wardrobeSummary,
+    upcomingReminders,
+    wishlistSummary,
+    fetchDashboard,
+  }
+})

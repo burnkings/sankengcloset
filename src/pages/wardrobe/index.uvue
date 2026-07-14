@@ -1,0 +1,324 @@
+<template>
+  <MainLayout>
+    <template #navbar>
+      <AppNavbar title="我的衣橱" :show-back="false">
+        <template #right>
+          <text :style="countBadgeStyle">{{ store.itemCount }}件</text>
+        </template>
+      </AppNavbar>
+    </template>
+
+    <template #default>
+      <!-- 分类筛选 + 排序 + 视图切换 -->
+      <view :style="toolbarStyle">
+        <!-- 分类 chips -->
+        <scroll-view scroll-x :show-scrollbar="false" :style="chipScrollStyle">
+          <view :style="chipRowStyle">
+            <view
+              v-for="cat in categories"
+              :key="cat.value"
+              :style="chipStyle(cat.value === store.currentCategory)"
+              @tap="onCategoryTap(cat.value)"
+            >
+              <text :style="chipTextStyle(cat.value === store.currentCategory)">{{ cat.label }}</text>
+            </view>
+          </view>
+        </scroll-view>
+
+        <!-- 排序 + 视图切换 -->
+        <view :style="toolbarRightStyle">
+          <view :style="sortBtnStyle" @tap="onSortTap">
+            <text :style="sortLabelStyle">{{ currentSortLabel }}</text>
+          </view>
+          <view :style="viewToggleStyle" @tap="store.toggleViewMode()">
+            <text :style="viewIconStyle">{{ store.viewMode === 'grid' ? '☰' : '▦' }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 搜索栏 -->
+      <view :style="searchBarStyle">
+        <input
+          :value="store.searchKeyword"
+          placeholder="搜索衣物名称、品牌..."
+          :placeholder-style="placeholderStyleStr"
+          :style="searchInputStyle"
+          @input="onSearchInput"
+        />
+      </view>
+
+      <!-- Loading -->
+      <AppLoading v-if="store.loading" />
+
+      <!-- Empty -->
+      <view v-else-if="store.sortedItems.length === 0" :style="emptyStyle">
+        <text :style="emptyIconStyle">👗</text>
+        <text :style="emptyTitleStyle">
+          {{ store.searchKeyword ? '没有找到匹配的衣物' : '衣橱还是空的' }}
+        </text>
+        <text :style="emptyDescStyle">
+          {{ store.searchKeyword ? '换个关键词试试' : '点击下方 + 添加第一件衣物' }}
+        </text>
+      </view>
+
+      <!-- Grid 模式 -->
+      <view v-else-if="store.viewMode === 'grid'" :style="gridListStyle">
+        <view
+          v-for="item in store.sortedItems"
+          :key="item.id"
+          :style="gridCellSize"
+        >
+          <WardrobeCard :item="item" mode="grid" @click="onItemTap(item)" />
+        </view>
+      </view>
+
+      <!-- List 模式 -->
+      <view v-else :style="listStyle">
+        <WardrobeCard
+          v-for="item in store.sortedItems"
+          :key="item.id"
+          :item="item"
+          mode="list"
+          @click="onItemTap(item)"
+        />
+      </view>
+    </template>
+  </MainLayout>
+
+  <!-- 排序选择弹窗 -->
+  <AppDialog
+    v-model:visible="sortSheetVisible"
+    title="排序方式"
+    :show-cancel="false"
+    confirm-text="关闭"
+  >
+    <view :style="sortListStyle">
+      <view
+        v-for="opt in sortOptions"
+        :key="opt.value"
+        :style="sortItemStyle(opt.value === store.currentSort)"
+        @tap="onSortSelect(opt.value)"
+      >
+        <text :style="sortItemText(opt.value === store.currentSort)">{{ opt.label }}</text>
+        <text v-if="opt.value === store.currentSort" :style="checkStyle">✓</text>
+      </view>
+    </view>
+  </AppDialog>
+</template>
+
+<script setup lang="uts">
+import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { WardrobeItem } from '@/domain/wardrobe-item'
+import { ALL_CATEGORIES } from '@/domain/clothing-category'
+import { SORT_OPTIONS, getSortLabel } from '@/types/sort'
+import {, brand } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { radius } from '@/theme/tokens/radius'
+import { flexRow, flexCenter } from '@/theme/layout/flex'
+import { gap, pad } from '@/theme/layout/spacing'
+import { grid2, grid2Item } from '@/theme/layout/grid'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppLoading from '@/components/base/AppLoading.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
+import WardrobeCard from '@/components/business/WardrobeCard.uvue'
+
+
+const store = useWardrobeStore()
+
+const sortSheetVisible = ref(false)
+const sortOptions = SORT_OPTIONS
+const categories = ALL_CATEGORIES
+const currentSortLabel = computed(() => getSortLabel(store.currentSort))
+
+function onCategoryTap(category: string) {
+  store.setCategory(category)
+}
+
+function onSearchInput(e: any) {
+  store.setSearch(e.detail?.value ?? '')
+}
+
+function onSortTap() {
+  sortSheetVisible.value = true
+}
+
+function onSortSelect(sort: string) {
+  store.setSort(sort)
+  sortSheetVisible.value = false
+}
+
+function onItemTap(item: WardrobeItem) {
+  uni.navigateTo({ url: `/pages/wardrobe/detail?id=${item.id}` })
+}
+
+// ====== 样式 ======
+
+const countBadgeStyle = {
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  backgroundColor: n.value.bgTertiary,
+  paddingHorizontal: spacing[2],
+  paddingVertical: spacing[1],
+  borderRadius: radius.sm,
+}
+
+const toolbarStyle = {
+  ...flexRow,
+  alignItems: 'center' as string,
+  gap: spacing[2],
+  padding: `${spacing[3]} ${spacing[4]}`,
+}
+
+const chipScrollStyle = {
+  flex: 1,
+  overflow: 'hidden' as string,
+}
+
+const chipRowStyle = {
+  ...flexRow,
+  gap: spacing[2],
+}
+
+function chipStyle(active: boolean) {
+  return {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radius.full,
+    backgroundColor: active ? brand[500] : n.value.bgTertiary,
+    flexShrink: 0,
+  }
+}
+
+function chipTextStyle(active: boolean) {
+  return {
+    fontSize: fontSize.sm,
+    color: active ? '#FFFFFF' : n.value.textSecondary,
+    fontWeight: active ? fontWeight.medium : fontWeight.regular,
+  }
+}
+
+const toolbarRightStyle = {
+  ...flexRow,
+  gap: spacing[1],
+  flexShrink: 0,
+}
+
+const sortBtnStyle = {
+  ...flexRow,
+  alignItems: 'center' as string,
+  gap: spacing[1],
+  paddingHorizontal: spacing[2],
+  paddingVertical: spacing[1],
+  borderRadius: radius.sm,
+  backgroundColor: n.value.bgTertiary,
+}
+
+const sortLabelStyle = {
+  fontSize: fontSize.xs,
+  color: n.value.textSecondary,
+}
+
+const viewToggleStyle = {
+  ...flexCenter,
+  width: '56rpx',
+  height: '56rpx',
+  borderRadius: radius.sm,
+  backgroundColor: n.value.bgTertiary,
+}
+
+const viewIconStyle = {
+  fontSize: fontSize.lg,
+  color: n.value.textSecondary,
+}
+
+const searchBarStyle = {
+  paddingHorizontal: spacing[4],
+  paddingBottom: spacing[3],
+}
+
+const placeholderStyleStr = `color: ${n.value.placeholder}`
+
+const searchInputStyle = computed(() => ({
+  height: '72rpx',
+  paddingHorizontal: spacing[3],
+  backgroundColor: n.value.bgTertiary,
+  borderRadius: radius.md,
+  fontSize: fontSize.sm,
+  color: n.value.text,
+}))
+
+const emptyStyle = {
+  ...flexCenter,
+  flexDirection: 'column' as string,
+  padding: spacing[8],
+  gap: spacing[2],
+}
+
+const emptyIconStyle = {
+  fontSize: '80rpx',
+}
+
+const emptyTitleStyle = computed(() => ({
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  marginTop: spacing[4],
+}))
+
+const emptyDescStyle = computed(() => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary,
+}))
+
+// List 模式样式
+const listStyle = {
+  ...gap.sm,
+  padding: `0 ${spacing[4]} ${spacing[4]}`,
+}
+
+// Grid 模式样式 — 使用 grid2 系统
+const gridListStyle = {
+  ...grid2,
+  padding: `0 ${spacing[4]} ${spacing[4]}`,
+}
+
+const gridCellSize = {
+  ...grid2Item,
+}
+
+// 排序弹窗
+const sortListStyle = {
+  ...gap.xs,
+}
+
+function sortItemStyle(active: boolean) {
+  return {
+    ...flexRow,
+    justifyContent: 'space-between' as string,
+    alignItems: 'center' as string,
+    padding: spacing[3],
+    borderRadius: radius.md,
+    backgroundColor: active ? n.value.bgTertiary : 'transparent',
+  }
+}
+
+function sortItemText(active: boolean) {
+  return {
+    fontSize: fontSize.base,
+    color: active ? brand[500] : n.value.text,
+    fontWeight: active ? fontWeight.medium : fontWeight.regular,
+  }
+}
+
+const checkStyle = {
+  fontSize: fontSize.base,
+  color: brand[500],
+}
+
+onMounted(() => {
+  store.fetchItems()
+})
+</script>

@@ -1,0 +1,136 @@
+/**
+ * PurchaseStore — 消费记录状态管理
+ * Page → Store → Repository
+ */
+
+import { PurchaseRecord } from '@/domain/purchase-record'
+import { toDisplayModel, toDisplayModels, PurchaseDisplayModel } from '@/domain/purchase-presenter'
+import * as repo from '@/domain/repositories/purchase-repo'
+
+export const usePurchaseStore = defineStore('purchase', () => {
+  // ====== State ======
+  const items = ref([]) as Ref<PurchaseRecord[]>
+  const loading = ref(false)
+  const error = ref('')
+  const filterStatus = ref('')
+
+  // ====== Getters ======
+
+  /** 过滤掉已删除 */
+  const activeItems = computed(() => items.value.filter((r) => !r.isDeleted))
+
+  /** 状态筛选 + 按日期降序 */
+  const filteredItems = computed(() => {
+    let result = activeItems.value
+
+    if (filterStatus.value) {
+      result = result.filter((r) => r.paymentStatus === filterStatus.value)
+    }
+
+    result = [...result].sort((a, b) => {
+      const da = a.purchaseDate ? new Date(a.purchaseDate).getTime() : 0
+      const db = b.purchaseDate ? new Date(b.purchaseDate).getTime() : 0
+      return db - da
+    })
+
+    return result
+  })
+
+  /** 展示模型列表 */
+  const displayItems = computed(() => toDisplayModels(filteredItems.value))
+
+  /** 待付款项 */
+  const pendingPayments = computed(() =>
+    activeItems.value.filter((r) => r.remainingAmount > 0),
+  )
+
+  /** 总消费 */
+  const totalSpent = computed(() =>
+    activeItems.value.reduce((sum, r) => sum + r.totalAmount, 0),
+  )
+
+  /** 待付总额 */
+  const remainingTotal = computed(() =>
+    activeItems.value.reduce((sum, r) => sum + r.remainingAmount, 0),
+  )
+
+  const itemCount = computed(() => activeItems.value.length)
+
+  // ====== Actions ======
+
+  function fetchPurchases() {
+    loading.value = true
+    error.value = ''
+    try {
+      repo.initMockData()
+      items.value = repo.getAll()
+    } catch (err) {
+      error.value = String(err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
+    try {
+      const added = repo.add(record)
+      items.value = [...items.value, added]
+      return added
+    } catch (err) {
+      error.value = String(err)
+      return null
+    }
+  }
+
+  function updatePurchase(id: string, data: any): boolean {
+    const ok = repo.update(id, data)
+    if (ok) {
+      const existing = items.value.find((r) => r.id === id)
+      if (existing) {
+        if (data.name !== undefined) existing.name = data.name
+        if (data.brand !== undefined) existing.brand = data.brand
+        if (data.totalAmount !== undefined) existing.totalAmount = data.totalAmount
+        if (data.paidAmount !== undefined) existing.paidAmount = data.paidAmount
+        if (data.paymentStatus !== undefined) existing.paymentStatus = data.paymentStatus
+        if (data.deadline !== undefined) existing.deadline = data.deadline
+        existing.remainingAmount = Math.max(0, existing.totalAmount - existing.paidAmount)
+        existing.updatedAt = new Date().toISOString()
+      }
+    }
+    return ok
+  }
+
+  function deletePurchase(id: string): boolean {
+    const ok = repo.softDelete(id)
+    if (ok) {
+      items.value = items.value.filter((r) => r.id !== id)
+    }
+    return ok
+  }
+
+  function setFilterStatus(status: string) {
+    filterStatus.value = status
+  }
+
+  function getPurchaseById(id: string): PurchaseRecord | undefined {
+    return items.value.find((r) => r.id === id)
+  }
+
+  return {
+    loading,
+    error,
+    filterStatus,
+    filteredItems,
+    displayItems,
+    pendingPayments,
+    totalSpent,
+    remainingTotal,
+    itemCount,
+    fetchPurchases,
+    addPurchase,
+    updatePurchase,
+    deletePurchase,
+    setFilterStatus,
+    getPurchaseById,
+  }
+})

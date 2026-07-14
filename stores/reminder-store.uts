@@ -1,0 +1,218 @@
+/**
+ * ReminderStore — 提醒状态管理
+ */
+
+import { Reminder, ReminderUpdateData, STATUS_PENDING } from '@/domain/reminder'
+import { toDisplayModel, toDisplayModels, ReminderDisplayModel } from '@/domain/reminder-presenter'
+import * as repo from '@/domain/repositories/reminder-repo'
+
+export const useReminderStore = defineStore('reminder', () => {
+  // ====== State ======
+  const items = ref([]) as Ref<Reminder[]>
+  const loading = ref(false)
+  const error = ref('')
+  const filterStatus = ref('')
+  const searchKeyword = ref('')
+  const currentSort = ref('date-asc') // date-asc | date-desc | type
+
+  // ====== Getters ======
+
+  const activeItems = computed((): Reminder[] =>
+    items.value.filter((r) => !r.isDeleted)
+  )
+
+  const todayItems = computed((): Reminder[] => {
+    const today = new Date().toISOString().split('T')[0]
+    return activeItems.value.filter((r) =>
+      r.remindDate === today && r.status === STATUS_PENDING
+    )
+  })
+
+  const upcomingItems = computed((): Reminder[] => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const weekLater = today + 7 * 86400000
+    return activeItems.value.filter((r) => {
+      if (r.status !== STATUS_PENDING) return false
+      try {
+        const t = new Date(r.remindDate).getTime()
+        return t > today && t <= weekLater
+      } catch {
+        return false
+      }
+    })
+  })
+
+  const overdueItems = computed((): Reminder[] => {
+    const today = new Date().toISOString().split('T')[0]
+    return activeItems.value.filter((r) =>
+      r.remindDate < today && r.status === STATUS_PENDING
+    )
+  })
+
+  const doneItems = computed((): Reminder[] =>
+    activeItems.value.filter((r) => r.status === 'DONE')
+  )
+
+  const filteredItems = computed((): Reminder[] => {
+    let result = activeItems.value
+
+    // 状态筛选
+    if (filterStatus.value) {
+      result = result.filter((r) => r.status == filterStatus.value)
+    }
+
+    // 搜索
+    if (searchKeyword.value) {
+      const kw = searchKeyword.value.toLowerCase()
+      result = result.filter((r) => {
+        if (r.title.toLowerCase().includes(kw)) return true
+        if (r.note.toLowerCase().includes(kw)) return true
+        return false
+      })
+    }
+
+    // 排序
+    result = [...result].sort((a, b) => {
+      if (currentSort.value == 'date-asc') {
+        const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
+        const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
+        return da - db
+      }
+      if (currentSort.value == 'date-desc') {
+        const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
+        const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
+        return db - da
+      }
+      if (currentSort.value == 'type') {
+        if (a.type != b.type) return a.type < b.type ? -1 : 1
+        const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
+        const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
+        return da - db
+      }
+      return 0
+    })
+
+    return result
+  })
+
+  const displayItems = computed((): ReminderDisplayModel[] =>
+    toDisplayModels(filteredItems.value)
+  )
+
+  const itemCount = computed((): number => activeItems.value.length)
+  const pendingCount = computed((): number =>
+    activeItems.value.filter((r) => r.status == 'PENDING').length
+  )
+  const todayCount = computed((): number => todayItems.value.length)
+  const upcomingCount = computed((): number => upcomingItems.value.length)
+  const overdueCount = computed((): number => overdueItems.value.length)
+
+  // ====== Actions ======
+
+  function fetchItems() {
+    loading.value = true
+    error.value = ''
+    try {
+      repo.initMockData()
+      items.value = repo.getAll()
+    } catch (err) {
+      error.value = String(err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function addItem(item: Reminder): Reminder | null {
+    try {
+      const added = repo.add(item)
+      items.value = [...items.value, added]
+      return added
+    } catch (err) {
+      error.value = String(err)
+      return null
+    }
+  }
+
+  function updateItem(id: string, data: ReminderUpdateData): boolean {
+    const ok = repo.update(id, data)
+    if (ok) {
+      const existing = items.value.find((r) => r.id == id)
+      if (existing) {
+        if (data.title != '') existing.title = data.title
+        if (data.type != '') existing.type = data.type
+        if (data.remindDate != '') existing.remindDate = data.remindDate
+        if (data.remindTime != '') existing.remindTime = data.remindTime
+        if (data.note != '') existing.note = data.note
+        if (data.status != '') existing.status = data.status
+        existing.updatedAt = new Date().toISOString()
+      }
+    }
+    return ok
+  }
+
+  function deleteItem(id: string): boolean {
+    const ok = repo.softDelete(id)
+    if (ok) {
+      items.value = items.value.filter((r) => r.id !== id)
+    }
+    return ok
+  }
+
+  function markDone(id: string): boolean {
+    const ok = repo.markDone(id)
+    if (ok) {
+      const existing = items.value.find((r) => r.id == id)
+      if (existing) {
+        existing.status = 'DONE'
+        existing.updatedAt = new Date().toISOString()
+      }
+    }
+    return ok
+  }
+
+  function setFilterStatus(status: string) {
+    filterStatus.value = status
+  }
+
+  function setSearch(keyword: string) {
+    searchKeyword.value = keyword
+  }
+
+  function setSort(sort: string) {
+    currentSort.value = sort
+  }
+
+  function getById(id: string): Reminder | undefined {
+    return items.value.find((r) => r.id == id)
+  }
+
+  return {
+    loading,
+    error,
+    filterStatus,
+    searchKeyword,
+    currentSort,
+    activeItems,
+    todayItems,
+    upcomingItems,
+    overdueItems,
+    doneItems,
+    filteredItems,
+    displayItems,
+    itemCount,
+    pendingCount,
+    todayCount,
+    upcomingCount,
+    overdueCount,
+    fetchItems,
+    addItem,
+    updateItem,
+    deleteItem,
+    markDone,
+    setFilterStatus,
+    setSearch,
+    setSort,
+    getById,
+  }
+})

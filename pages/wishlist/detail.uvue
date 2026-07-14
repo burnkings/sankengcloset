@@ -1,0 +1,368 @@
+<template>
+  <DetailLayout title="心愿详情">
+    <template #right>
+      <text :style="favBtnStyle" @tap="onFavTap">{{ item.isFavorite ? '❤️' : '🤍' }}</text>
+      <text :style="editBtnStyle" @tap="onEditTap">编辑</text>
+      <text :style="deleteBtnStyle" @tap="onDeleteTap">删除</text>
+    </template>
+
+    <!-- 未找到 -->
+    <view v-if="!item" :style="notFoundStyle">
+      <text :style="notFoundText">心愿不存在</text>
+    </view>
+
+    <!-- 详情内容 -->
+    <view v-else :style="contentStyle">
+
+      <!-- 名称 + 状态 + 优先级 -->
+      <AppCard>
+        <view :style="nameRowStyle">
+          <text :style="nameTextStyle">{{ item.name }}</text>
+        </view>
+        <view :style="tagRowStyle">
+          <view :style="statusTagStyle">
+            <text :style="statusTagText">{{ item.statusEmoji }} {{ item.statusText }}</text>
+          </view>
+          <view :style="priorityTagStyle">
+            <text :style="priorityTagText">{{ item.priorityLabel }}</text>
+          </view>
+        </view>
+        <text v-if="item.brand !== ''" :style="brandTextStyle">{{ item.brand }}</text>
+      </AppCard>
+
+      <!-- 价格信息 -->
+      <AppCard>
+        <view :style="priceRowStyle">
+          <text :style="priceLabelStyle">预估价格</text>
+          <text :style="priceValueStyle">{{ item.priceText !== '' ? item.priceText : '未设置' }}</text>
+        </view>
+      </AppCard>
+
+      <!-- 状态流转 -->
+      <AppCard v-if="availableTransitions.length > 0">
+        <template #header>
+          <text :style="sectionTitleStyle">变更状态</text>
+        </template>
+        <view :style="transitionGridStyle">
+          <view
+            v-for="status in availableTransitions"
+            :key="status"
+            :style="transitionBtnStyle"
+            @tap="onStatusChange(status)"
+          >
+            <text :style="transitionBtnText">{{ getTransitionLabel(status) }}</text>
+          </view>
+        </view>
+      </AppCard>
+
+      <!-- 详细信息 -->
+      <AppCard>
+        <template #header>
+          <text :style="sectionTitleStyle">详细信息</text>
+        </template>
+
+        <view :style="infoListStyle">
+          <view :style="infoRowStyle">
+            <text :style="infoLabelStyle">来源</text>
+            <text :style="infoValueStyle">{{ item.sourceText }}</text>
+          </view>
+          <view v-if="item.url !== ''" :style="infoRowStyle">
+            <text :style="infoLabelStyle">链接</text>
+            <text :style="urlValueStyle">{{ item.url }}</text>
+          </view>
+          <view v-if="item.hasPurchase" :style="infoRowStyle">
+            <text :style="infoLabelStyle">消费记录</text>
+            <text :style="linkedTextStyle">已关联</text>
+          </view>
+          <view v-if="item.hasWardrobe" :style="infoRowStyle">
+            <text :style="infoLabelStyle">衣橱</text>
+            <text :style="linkedTextStyle">已关联</text>
+          </view>
+        </view>
+      </AppCard>
+
+      <!-- 备注 -->
+      <AppCard v-if="item.note !== ''">
+        <template #header>
+          <text :style="sectionTitleStyle">备注</text>
+        </template>
+        <text :style="noteTextStyle">{{ item.note }}</text>
+      </AppCard>
+
+      <!-- 转为消费记录 -->
+      <view v-if="canConvert" :style="convertSectionStyle">
+        <view :style="convertBtnStyle" @tap="onConvertTap">
+          <text :style="convertBtnText">转为消费记录</text>
+        </view>
+      </view>
+    </view>
+  </DetailLayout>
+
+  <!-- 删除确认 -->
+  <AppDialog
+    v-model:visible="deleteDialogVisible"
+    title="确认删除"
+    message="删除后无法恢复，确定要删除这个心愿吗？"
+    @confirm="onConfirmDelete"
+  />
+
+  <!-- 转消费确认 -->
+  <AppDialog
+    v-model:visible="convertDialogVisible"
+    title="转为消费记录"
+    message="将此心愿转为消费记录，状态将变为「已买」。确定吗？"
+    @confirm="onConfirmConvert"
+  />
+</template>
+
+<script setup lang="uts">
+import { useWishListStore } from '@/stores/wishlist-store'
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { toDisplayModel, WishDisplayModel } from '@/domain/wish-presenter'
+import { WISH_STATUS_LABELS, WISH_PURCHASED, WISH_CANCELED } from '@/domain/wish-item'
+import { accent, baseColors } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { shadow } from '@/theme/tokens/shadow'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexRowBetween, flexCenter, flexFill } from '@/theme/layout/flex'
+import { gap } from '@/theme/layout/spacing'
+import { n } from '@/theme/use-theme'
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import AppCard from '@/components/base/AppCard.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
+
+
+const store = useWishListStore()
+const purchaseStore = usePurchaseStore()
+const deleteDialogVisible = ref(false)
+const convertDialogVisible = ref(false)
+
+const itemId = ref('')
+
+const item = computed((): WishDisplayModel | null => {
+  if (!itemId.value) return null
+  const raw = store.getById(itemId.value)
+  if (!raw) return null
+  return toDisplayModel(raw)
+})
+
+const availableTransitions = computed((): string[] => {
+  if (!itemId.value) return []
+  const raw = store.getById(itemId.value)
+  if (!raw) return []
+  const transitions = store.getAvailableTransitions(raw.status)
+  return transitions
+})
+
+const canConvert = computed((): boolean => {
+  if (!itemId.value) return false
+  const raw = store.getById(itemId.value)
+  if (!raw) return false
+  return raw.status !== WISH_PURCHASED && raw.status !== WISH_CANCELED
+})
+
+function getTransitionLabel(status: string): string {
+  return WISH_STATUS_LABELS[status] ?? status
+}
+
+function onDeleteTap() {
+  deleteDialogVisible.value = true
+}
+
+function onFavTap() {
+  if (itemId.value) {
+    store.toggleFavorite(itemId.value)
+  }
+}
+
+function onEditTap() {
+  uni.navigateTo({ url: `/pages/wishlist/edit?id=${itemId.value}` })
+}
+
+function onConfirmDelete() {
+  if (itemId.value) {
+    store.deleteItem(itemId.value)
+    uni.navigateBack()
+  }
+}
+
+function onStatusChange(newStatus: string) {
+  if (itemId.value) {
+    store.changeStatus(itemId.value, newStatus)
+  }
+}
+
+function onConvertTap() {
+  convertDialogVisible.value = true
+}
+
+function onConfirmConvert() {
+  if (!itemId.value) return
+  const record = store.convertToPurchase(itemId.value)
+  if (!record) return
+  const added = purchaseStore.addPurchase(record)
+  if (added) {
+    store.markPurchased(itemId.value, added.id)
+    uni.showToast({ title: '已转为消费记录', icon: 'success' })
+  }
+}
+
+onMounted(() => {
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  const id = (currentPage as any).options?.id ?? ''
+  itemId.value = id
+})
+
+// ====== 样式 ======
+
+const favBtnStyle = {
+  fontSize: fontSize.lg,
+  paddingHorizontal: spacing[2] }
+
+const editBtnStyle = {
+  fontSize: fontSize.sm,
+  color: brand[500],
+  paddingHorizontal: spacing[2] }
+
+const deleteBtnStyle = {
+  fontSize: fontSize.sm,
+  color: semantic.error,
+  paddingHorizontal: spacing[2] }
+
+const notFoundStyle = {
+  ...flexCenter,
+  padding: spacing[8] }
+
+const notFoundText = computed((): any => ({
+  fontSize: fontSize.lg,
+  color: n.value.textTertiary }))
+
+const contentStyle = {
+  ...gap.sm,
+  padding: `${spacing[3]} ${spacing[4]}` }
+
+const nameRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' as string }
+
+const nameTextStyle = computed((): any => ({
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: n.value.text,
+  ...flexFill,
+  marginRight: spacing[2] }))
+
+const tagRowStyle = {
+  ...flexRow,
+  gap: spacing[2],
+  marginTop: spacing[2] }
+
+const statusTagStyle = computed((): any => ({
+  paddingHorizontal: spacing[3],
+  paddingVertical: spacing[1],
+  borderRadius: radius.full,
+  backgroundColor: item.value ? item.value.statusColor + '15' : '' }))
+
+const statusTagText = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: item.value ? item.value.statusColor : n.value.textSecondary }))
+
+const priorityTagStyle = computed((): any => ({
+  paddingHorizontal: spacing[3],
+  paddingVertical: spacing[1],
+  borderRadius: radius.full,
+  backgroundColor: item.value ? item.value.priorityColor + '15' : '' }))
+
+const priorityTagText = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: item.value ? item.value.priorityColor : n.value.textSecondary }))
+
+const brandTextStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+  marginTop: spacing[1] }))
+
+const priceRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' as string }
+
+const priceLabelStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary }))
+
+const priceValueStyle = computed((): any => ({
+  fontSize: fontSize.xl,
+  fontWeight: fontWeight.bold,
+  color: item.value && item.value.priceText ? accent[500] : n.value.textTertiary }))
+
+const sectionTitleStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.semibold,
+  color: n.value.textSecondary }))
+
+const transitionGridStyle = {
+  ...flexRow,
+  flexWrap: 'wrap' as string,
+  gap: spacing[2] }
+
+const transitionBtnStyle = {
+  ...flexCenter,
+  paddingHorizontal: spacing[3],
+  paddingVertical: spacing[2],
+  borderRadius: radius.md,
+  backgroundColor: brand[500] + '10' }
+
+const transitionBtnText = {
+  fontSize: fontSize.sm,
+  color: brand[500],
+  fontWeight: fontWeight.medium }
+
+const infoListStyle = {
+  ...gap.sm }
+
+const infoRowStyle = {
+  ...flexRowBetween,
+  alignItems: 'center' as string,
+  paddingVertical: spacing[1] }
+
+const infoLabelStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textTertiary }))
+
+const infoValueStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.text }))
+
+const urlValueStyle = {
+  fontSize: fontSize.sm,
+  color: brand[500] }
+
+const linkedTextStyle = {
+  fontSize: fontSize.sm,
+  color: semantic.success }
+
+const noteTextStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  color: n.value.textSecondary,
+  lineHeight: '1.6' }))
+
+const convertSectionStyle = {
+  padding: `${spacing[4]} 0` }
+
+const convertBtnStyle = {
+  ...flexCenter,
+  height: '88rpx',
+  borderRadius: radius.full,
+  backgroundColor: brand[500],
+  boxShadow: shadow.button }
+
+const convertBtnText = {
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: baseColors.white }
+</script>

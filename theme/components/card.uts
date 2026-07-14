@@ -1,0 +1,219 @@
+/**
+ * Card Design System — 卡片通用样式
+ * 
+ * 用法：
+ *   import { cardContainer, cardAccentBar, cardContent, cardTopRow } from '@/theme/components/card'
+ *   import { cardDateRow, cardActionRow, statusPill, timeBadge } from '@/theme/components/card'
+ *   import { doneBtn, doneBtnIcon, doneBtnText } from '@/theme/components/card'
+ */
+
+import { brand, semantic, baseColors, neutralLight } from '../tokens/colors'
+import { spacing } from '../tokens/spacing'
+import { radius, semanticRadius } from '../tokens/radius'
+import { fontSize, fontWeight } from '../tokens/typography'
+import { shadow } from '../tokens/shadow'
+import { flexRow, flexRowBetween, flexCenter, flexFill } from '../layout/flex'
+import { n } from '../use-theme'
+
+// ====== 卡片容器 ======
+
+/** 标准卡片容器 — 白色底 + 圆角 + 阴影 */
+export const cardContainer = {
+  borderRadius: semanticRadius.card,
+  boxShadow: shadow.card,
+  overflow: 'hidden',
+} as any
+
+/** 带左侧色条的卡片容器 */
+export const cardWithAccent = {
+  flexDirection: 'row',
+  borderRadius: semanticRadius.card,
+  boxShadow: shadow.card,
+  overflow: 'hidden',
+} as any
+
+/** 左侧色条 */
+export function cardAccentBar(color: string): any {
+  return {
+    width: '6rpx',
+    backgroundColor: color,
+    flexShrink: 0,
+  }
+}
+
+/** 卡片内容区 */
+export const cardContent = {
+  ...flexFill,
+  padding: spacing[3],
+  paddingLeft: spacing[3],
+  gap: spacing[2],
+} as any
+
+// ====== 卡片内行 ======
+
+/** 顶部行（标题 + 状态） */
+export const cardTopRow = {
+  ...flexRow,
+  alignItems: 'flex-start',
+  gap: spacing[2],
+} as any
+
+/** 日期行 */
+export const cardDateRow = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: spacing[1],
+} as any
+
+/** 操作行（右对齐） */
+export const cardActionRow = {
+  ...flexRow,
+  justifyContent: 'flex-end',
+} as any
+
+// ====== 状态 Pill ======
+
+/** 状态胶囊 */
+export function statusPill(color: string): any {
+  return {
+    paddingHorizontal: spacing[2],
+    paddingVertical: '4rpx',
+    borderRadius: radius.full,
+    backgroundColor: color + '20',
+    flexShrink: 0,
+  }
+}
+
+/** 状态胶囊文字（需要在 computed 中设置 color） */
+export const statusPillText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+} as any
+
+// ====== 时间标签 ======
+
+/** 时间胶囊（今日/即将/逾期） */
+export function timeBadge(color: string): any {
+  return {
+    paddingHorizontal: spacing[2],
+    paddingVertical: '2rpx',
+    borderRadius: radius.full,
+    backgroundColor: color + '15',
+    marginLeft: spacing[1],
+  }
+}
+
+/** 时间胶囊文字 */
+export const timeBadgeText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+} as any
+
+// ====== 操作按钮 ======
+
+/** 完成按钮 — pill 形 + success 色 */
+export const doneBtn = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: spacing[0.5],
+  paddingHorizontal: spacing[3],
+  paddingVertical: spacing[1.5],
+  borderRadius: radius.full,
+  backgroundColor: semantic.success + '12',
+} as any
+
+/** 完成按钮图标 */
+export const doneBtnIcon = {
+  fontSize: fontSize.xs,
+  color: semantic.success,
+  fontWeight: fontWeight.bold,
+} as any
+
+/** 完成按钮文字 */
+export const doneBtnText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.medium,
+  color: semantic.success,
+} as any
+
+// ====== 封面卡片（Wishlist/Wardrobe Grid） ======
+
+/** 封面区域容器 */
+export const coverWrap = {
+  width: '100%',
+  height: '360rpx',
+  position: 'relative',
+  backgroundColor: neutralLight.bgTertiary,
+  overflow: 'hidden',
+} as any
+
+/** 渐变遮罩（底部） */
+export const gradientOverlay = {
+  position: 'absolute',
+  bottom: '0',
+  left: '0',
+  right: '0',
+  height: '120rpx',
+  backgroundColor: 'rgba(0,0,0,0.35)',
+} as any
+
+/** 封面上名称容器 */
+export const overlayNameWrap = {
+  position: 'absolute',
+  bottom: spacing[2],
+  left: spacing[3],
+  right: spacing[3],
+} as any
+
+/** 封面上名称文字 */
+export const overlayNameText = {
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: baseColors.white,
+  overflow: 'hidden',
+  lines: 2,
+  lineHeight: 1.3,
+} as any
+
+/** 无图占位区域 */
+export const placeholderWrap = {
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: spacing[2],
+} as any
+
+/** 优先级角标 */
+export function priorityCorner(color: string): any {
+  return {
+    position: 'absolute',
+    top: '0',
+    right: '0',
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderBottomLeftRadius: radius.md,
+    backgroundColor: color,
+  }
+}
+
+/** 优先级角标文字 */
+export const priorityCornerText = {
+  fontSize: fontSize.xs,
+  fontWeight: fontWeight.bold,
+  color: baseColors.white,
+} as any
+
+/** 收藏角标 */
+export const favCorner = {
+  position: 'absolute',
+  top: spacing[2],
+  left: spacing[2],
+} as any
+
+/** 收藏角标文字 */
+export const favCornerText = {
+  fontSize: '28rpx',
+} as any

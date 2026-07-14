@@ -1,0 +1,126 @@
+/**
+ * WishItem — 心愿单数据模型
+ * 生命周期: Wishlist → Purchase → Wardrobe
+ */
+
+// ====== 心愿状态 ======
+
+export const WISH_WISH = 'WISH'
+export const WISH_WATCHING = 'WATCHING'
+export const WISH_DECIDED = 'DECIDED'
+export const WISH_PURCHASED = 'PURCHASED'
+export const WISH_PAUSED = 'PAUSED'
+export const WISH_CANCELED = 'CANCELED'
+
+export type WishStatus = 'WISH' | 'WATCHING' | 'DECIDED' | 'PURCHASED' | 'PAUSED' | 'CANCELED'
+
+export const WISH_STATUS_LABELS: any = {
+  WISH: '种草',
+  WATCHING: '观望',
+  DECIDED: '决定买',
+  PURCHASED: '已买',
+  PAUSED: '搁置',
+  CANCELED: '拔草',
+}
+
+export const WISH_STATUS_COLORS: any = {
+  WISH: '#8B5CF6',
+  WATCHING: '#6366F1',
+  DECIDED: '#22C55E',
+  PURCHASED: '#9CA3AF',
+  PAUSED: '#F59E0B',
+  CANCELED: '#9CA3AF',
+}
+
+export const WISH_STATUS_EMOJI: any = {
+  WISH: '💡',
+  WATCHING: '👀',
+  DECIDED: '✅',
+  PURCHASED: '🛍️',
+  PAUSED: '⏸️',
+  CANCELED: '❌',
+}
+
+/** 状态流转规则 — 页面/AppDialog 根据此表自动生成可选状态 */
+export const WISH_STATUS_FLOW: any = {
+  WISH: ['WATCHING', 'DECIDED', 'PAUSED', 'CANCELED'],
+  WATCHING: ['WISH', 'DECIDED', 'PAUSED', 'CANCELED'],
+  DECIDED: ['WATCHING', 'PURCHASED', 'PAUSED', 'CANCELED'],
+  PURCHASED: [],
+  PAUSED: ['WISH', 'WATCHING', 'CANCELED'],
+  CANCELED: ['WISH'],
+}
+
+/** 筛选选项列表 */
+export const WISH_FILTER_OPTIONS = [
+  { label: '全部', value: '' },
+  { label: '种草', value: 'WISH' },
+  { label: '观望', value: 'WATCHING' },
+  { label: '决定买', value: 'DECIDED' },
+  { label: '已买', value: 'PURCHASED' },
+  { label: '搁置', value: 'PAUSED' },
+  { label: '拔草', value: 'CANCELED' },
+]
+
+// ====== 优先级 ======
+
+export const PRIORITY_HIGH = 'HIGH'
+export const PRIORITY_MEDIUM = 'MEDIUM'
+export const PRIORITY_LOW = 'LOW'
+
+export type WishPriority = 'HIGH' | 'MEDIUM' | 'LOW'
+
+export const PRIORITY_LABELS: any = {
+  HIGH: '高',
+  MEDIUM: '中',
+  LOW: '低',
+}
+
+export const PRIORITY_COLORS: any = {
+  HIGH: '#EF4444',
+  MEDIUM: '#F59E0B',
+  LOW: '#9CA3AF',
+}
+
+export const PRIORITY_ORDER: any = {
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+}
+
+// ====== 来源 ======
+
+export const SOURCE_MANUAL = 'MANUAL'
+export const SOURCE_AI_IMPORT = 'AI_IMPORT'
+export const SOURCE_DISCOVERY = 'DISCOVERY'
+
+export type WishSource = 'MANUAL' | 'AI_IMPORT' | 'DISCOVERY'
+
+export const SOURCE_LABELS: any = {
+  MANUAL: '手动添加',
+  AI_IMPORT: 'AI导入',
+  DISCOVERY: '发现',
+}
+
+// ====== 数据模型 ======
+
+export class WishItem {
+  id: string = ''
+  name: string = ''
+  coverImage: string = ''
+  brand: string = ''
+  estimatedPrice: number = 0
+  priority: string = 'MEDIUM'
+  status: string = 'WISH'
+  source: string = 'MANUAL'
+  // 生命周期关联
+  wardrobeId: string = ''
+  purchaseId: string = ''
+  convertedAt: string = ''
+  // 附加信息
+  note: string = ''
+  url: string = ''
+  isDeleted: boolean = false
+  createdAt: string = ''
+  updatedAt: string = ''
+}
