@@ -1,0 +1,18 @@
+/**
+ * Brand — 三坑品牌
+ * Product V2 内容域基础实体
+ */
+
+export class Brand {
+  id: string = ''
+  name: string = ''           // 兔缝缝、星辰猫、花筵
+  nameEn: string = ''         // 英文名 (可选)
+  logo: string = ''           // logo URL
+  description: string = ''
+  category: string = ''       // JK / LOLITA / HANFU / MIXED
+  officialUrl: string = ''
+  followerCount: number = 0
+  isFollowed: boolean = false
+  createdAt: string = ''
+  updatedAt: string = ''
+}

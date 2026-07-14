@@ -1,0 +1,12 @@
+/**
+ * Content Domain — Product V2 内容域统一导出
+ *
+ * 注意: 此模块独立于现有 WishItem/PurchaseRecord/WardrobeItem
+ * 不复用旧实体冒充 Product/ContentPost
+ */
+
+export * from './brand'
+export * from './product'
+export * from './series'
+export * from './content-post'
+export * from './outfit'

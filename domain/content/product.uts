@@ -1,0 +1,66 @@
+/**
+ * Product — 三坑商品
+ * 独立于 WishItem，代表商品本身（非用户心愿）
+ * WishItem.purchaseId 可关联此实体
+ */
+
+// ====== 商品状态 ======
+
+export const PRODUCT_UPCOMING = 'UPCOMING'     // 即将发售
+export const PRODUCT_ON_SALE = 'ON_SALE'        // 在售
+export const PRODUCT_PRE_ORDER = 'PRE_ORDER'    // 预售中
+export const PRODUCT_SOLD_OUT = 'SOLD_OUT'      // 已售罄
+export const PRODUCT_ENDED = 'ENDED'            // 已下架
+
+export class ProductStatusLabels {
+  static readonly UPCOMING = '即将发售'
+  static readonly ON_SALE = '在售'
+  static readonly PRE_ORDER = '预售中'
+  static readonly SOLD_OUT = '已售罄'
+  static readonly ENDED = '已下架'
+}
+
+export const PRODUCT_STATUS_COLORS = {
+  UPCOMING: '#8B5CF6',
+  ON_SALE: '#22C55E',
+  PRE_ORDER: '#F59E0B',
+  SOLD_OUT: '#9CA3AF',
+  ENDED: '#9CA3AF',
+} as any
+
+// ====== 数据模型 ======
+
+export class Product {
+  id: string = ''
+  name: string = ''
+  brandId: string = ''
+  brandName: string = ''      // 冗余，列表展示用
+  seriesId: string = ''
+  category: string = ''       // JK / LOLITA / HANFU / OTHER
+  subCategory: string = ''    // 格裙 / 衬衫 / KC / 发带 / 鞋 / 包
+  status: string = 'UPCOMING'
+  coverImage: string = ''
+  images: string[] = []
+  price: number = 0           // 当前价格 (分)
+  originalPrice: number = 0   // 原价 (分)
+  currency: string = 'CNY'
+  description: string = ''
+  tags: string[] = []
+  releaseDate: string = ''    // 发售日期
+  shopUrl: string = ''        // 购买链接
+  viewCount: number = 0
+  favoriteCount: number = 0
+  isFavorited: boolean = false // 当前用户是否收藏
+  createdAt: string = ''
+  updatedAt: string = ''
+}
+
+// ====== 价格快照 (用于价格追踪) ======
+
+export class PriceSnapshot {
+  id: string = ''
+  productId: string = ''
+  price: number = 0
+  source: string = ''         // 官方店 / 闲鱼 / 代购
+  recordedAt: string = ''
+}
