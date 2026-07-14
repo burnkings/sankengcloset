@@ -2,31 +2,17 @@
  * Product — 三坑商品
  * 独立于 WishItem，代表商品本身（非用户心愿）
  * WishItem.purchaseId 可关联此实体
+ *
+ * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
  */
 
-// ====== 商品状态 ======
+// ====== 商品状态 (纯值) ======
 
 export const PRODUCT_UPCOMING = 'UPCOMING'     // 即将发售
 export const PRODUCT_ON_SALE = 'ON_SALE'        // 在售
 export const PRODUCT_PRE_ORDER = 'PRE_ORDER'    // 预售中
 export const PRODUCT_SOLD_OUT = 'SOLD_OUT'      // 已售罄
 export const PRODUCT_ENDED = 'ENDED'            // 已下架
-
-export class ProductStatusLabels {
-  static readonly UPCOMING = '即将发售'
-  static readonly ON_SALE = '在售'
-  static readonly PRE_ORDER = '预售中'
-  static readonly SOLD_OUT = '已售罄'
-  static readonly ENDED = '已下架'
-}
-
-export const PRODUCT_STATUS_COLORS = {
-  UPCOMING: '#8B5CF6',
-  ON_SALE: '#22C55E',
-  PRE_ORDER: '#F59E0B',
-  SOLD_OUT: '#9CA3AF',
-  ENDED: '#9CA3AF',
-} as any
 
 // ====== 数据模型 ======
 

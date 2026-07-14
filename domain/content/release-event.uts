@@ -1,9 +1,11 @@
 /**
  * ReleaseEvent — 发售事件
  * 商品生命周期中的关键节点：预览、预约、定金、尾款、发售、补货、降价
+ *
+ * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
  */
 
-// ====== 事件类型 ======
+// ====== 事件类型 (纯值) ======
 
 export const EVENT_PREVIEW = 'preview'
 export const EVENT_RESERVATION = 'reservation'
@@ -13,49 +15,12 @@ export const EVENT_RELEASE = 'release'
 export const EVENT_RESTOCK = 'restock'
 export const EVENT_PRICE_DROP = 'price_drop'
 
-export class EventTypeLabels {
-  static readonly preview = '预览'
-  static readonly reservation = '预约'
-  static readonly deposit = '定金'
-  static readonly final_payment = '尾款'
-  static readonly release = '发售'
-  static readonly restock = '补货'
-  static readonly price_drop = '降价'
-}
-
-export const EVENT_TYPE_COLORS = {
-  preview: '#8B5CF6',
-  reservation: '#6366F1',
-  deposit: '#F59E0B',
-  final_payment: '#FF4D7E',
-  release: '#22C55E',
-  restock: '#3B82F6',
-  price_drop: '#EF4444',
-} as any
-
-export const EVENT_TYPE_EMOJI = {
-  preview: '👀',
-  reservation: '📋',
-  deposit: '💰',
-  final_payment: '💳',
-  release: '🎉',
-  restock: '📦',
-  price_drop: '🏷️',
-} as any
-
-// ====== 事件状态 ======
+// ====== 事件状态 (纯值) ======
 
 export const EVENT_UPCOMING = 'upcoming'
 export const EVENT_ACTIVE = 'active'
 export const EVENT_ENDED = 'ended'
 export const EVENT_CANCELLED = 'cancelled'
-
-export class EventStatusLabels {
-  static readonly upcoming = '未开始'
-  static readonly active = '进行中'
-  static readonly ended = '已结束'
-  static readonly cancelled = '已取消'
-}
 
 // ====== 数据模型 ======
 

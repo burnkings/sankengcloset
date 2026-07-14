@@ -1,7 +1,18 @@
 /**
  * ProductVariant — 商品规格变体
  * 同一 Product 的不同颜色/尺码组合
+ *
+ * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
  */
+
+// ====== 库存状态 (纯值) ======
+
+export const STOCK_IN_STOCK = 'IN_STOCK'
+export const STOCK_LOW_STOCK = 'LOW_STOCK'
+export const STOCK_OUT_OF_STOCK = 'OUT_OF_STOCK'
+export const STOCK_PRE_ORDER = 'PRE_ORDER'
+
+// ====== 数据模型 ======
 
 export class ProductVariant {
   id: string = ''
@@ -11,22 +22,8 @@ export class ProductVariant {
   sizeName: string = ''       // S / M / L / 均码
   skuCode: string = ''
   price: number = 0           // 分
-  stockStatus: string = 'IN_STOCK' // IN_STOCK / LOW_STOCK / OUT_OF_STOCK / PRE_ORDER
+  stockStatus: string = 'IN_STOCK'
   imageUrl: string = ''
   createdAt: string = ''
   updatedAt: string = ''
 }
-
-export class StockStatusLabels {
-  static readonly IN_STOCK = '有货'
-  static readonly LOW_STOCK = '库存紧张'
-  static readonly OUT_OF_STOCK = '缺货'
-  static readonly PRE_ORDER = '预售'
-}
-
-export const STOCK_STATUS_COLORS = {
-  IN_STOCK: '#22C55E',
-  LOW_STOCK: '#F59E0B',
-  OUT_OF_STOCK: '#9CA3AF',
-  PRE_ORDER: '#8B5CF6',
-} as any

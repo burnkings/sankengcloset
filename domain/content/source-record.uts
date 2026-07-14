@@ -2,9 +2,11 @@
  * SourceRecord — 数据来源记录
  * 追踪商品/发售信息的原始来源，用于审核和可信度评估
  * 不保存账号密码、Cookie 或抓取密钥
+ *
+ * 展示层 Labels 见 presentation/content/feed-presenter.uts
  */
 
-// ====== 来源类型 ======
+// ====== 来源类型 (纯值) ======
 
 export const SOURCE_TAOBAO = 'taobao'
 export const SOURCE_WEIBO = 'weibo'
@@ -13,28 +15,12 @@ export const SOURCE_OFFICIAL = 'official'
 export const SOURCE_USER_SUBMIT = 'user_submit'
 export const SOURCE_AI_EXTRACT = 'ai_extract'
 
-export class SourceTypeLabels {
-  static readonly taobao = '淘宝'
-  static readonly weibo = '微博'
-  static readonly xiaohongshu = '小红书'
-  static readonly official = '官方'
-  static readonly user_submit = '用户提交'
-  static readonly ai_extract = 'AI提取'
-}
-
-// ====== 审核状态 ======
+// ====== 审核状态 (纯值) ======
 
 export const REVIEW_PENDING = 'pending'
 export const REVIEW_APPROVED = 'approved'
 export const REVIEW_REJECTED = 'rejected'
 export const REVIEW_CORRECTED = 'corrected'
-
-export class ReviewStatusLabels {
-  static readonly pending = '待审核'
-  static readonly approved = '已通过'
-  static readonly rejected = '已拒绝'
-  static readonly corrected = '已修正'
-}
 
 // ====== 数据模型 ======
 

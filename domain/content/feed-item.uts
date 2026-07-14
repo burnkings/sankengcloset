@@ -2,9 +2,11 @@
  * FeedItem — 首页统一展示协议
  * 不是数据库实体，是 Feed 流的展示契约
  * 将 Product / ReleaseEvent / ContentPost / Outfit 统一为可渲染单元
+ *
+ * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
  */
 
-// ====== Feed 类型 ======
+// ====== Feed 类型 (纯值) ======
 
 export const FEED_PRODUCT = 'product'
 export const FEED_RELEASE_EVENT = 'release_event'
@@ -13,25 +15,7 @@ export const FEED_OUTFIT = 'outfit'
 export const FEED_EDITORIAL = 'editorial'
 export const FEED_AI_RECOMMENDATION = 'ai_recommendation'
 
-export class FeedTypeLabels {
-  static readonly product = '商品'
-  static readonly release_event = '发售'
-  static readonly brand_post = '品牌动态'
-  static readonly outfit = '穿搭'
-  static readonly editorial = '编辑精选'
-  static readonly ai_recommendation = 'AI推荐'
-}
-
-export const FEED_TYPE_COLORS = {
-  product: '#FF4D7E',
-  release_event: '#8B5CF6',
-  brand_post: '#6366F1',
-  outfit: '#22C55E',
-  editorial: '#F59E0B',
-  ai_recommendation: '#3B82F6',
-} as any
-
-// ====== 展示模型 ======
+// ====== 数据模型 ======
 
 export class FeedItem {
   id: string = ''

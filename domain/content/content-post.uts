@@ -1,23 +1,17 @@
 /**
  * ContentPost — 内容帖子
  * Feed 流中的内容单元：穿搭分享、种草笔记、商品评测
+ *
+ * 展示层 Labels 见 presentation/content/feed-presenter.uts
  */
 
-// ====== 帖子类型 ======
+// ====== 帖子类型 (纯值) ======
 
 export const POST_OUTFIT = 'OUTFIT'       // 穿搭分享
 export const POST_REVIEW = 'REVIEW'       // 商品评测
 export const POST_WISHLIST = 'WISHLIST'   // 种草笔记
 export const POST_HAUL = 'HAUL'           // 开箱
 export const POST_TUTORIAL = 'TUTORIAL'   // 教程
-
-export class PostTypeLabels {
-  static readonly OUTFIT = '穿搭分享'
-  static readonly REVIEW = '商品评测'
-  static readonly WISHLIST = '种草笔记'
-  static readonly HAUL = '开箱'
-  static readonly TUTORIAL = '教程'
-}
 
 // ====== 数据模型 ======
 

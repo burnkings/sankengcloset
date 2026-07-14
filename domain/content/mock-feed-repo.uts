@@ -1,10 +1,11 @@
 /**
- * MockFeedRepo — Phase 1B Mock Feed 数据层
+ * MockFeedRepo — Phase 1B/1C Mock Feed 数据层
  * 纯本地 Mock，不连接后端，不使用外链图片
  * 稳定 ID，支持分页，多类型混合
  */
 
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_BRAND_POST, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
+import { getEventTypeLabel } from '@/presentation/content/feed-presenter'
 
 // ====== Mock 品牌数据 ======
 
@@ -77,13 +78,6 @@ const OUTFITS = [
   { id: 'outfit-05', title: '明制汉服 年会穿搭', category: 'HANFU', badge: '穿搭' },
 ]
 
-// ====== 占位图色板 ======
-
-const PLACEHOLDER_COLORS = [
-  '#FFE0E8', '#EDE9FE', '#FFF8E1', '#E8F5E9', '#E3F2FD',
-  '#FCE4EC', '#F3E5F5', '#FFF3E0', '#E0F7FA', '#F1F8E9',
-]
-
 // ====== 日期工具 ======
 
 function futureDate(days: number): string {
@@ -103,7 +97,7 @@ function makeProductFeed(idx: number): FeedItem {
   item.entityId = p.id
   item.title = p.title
   item.subtitle = b.name
-  item.coverUrl = ''  // 使用色块占位
+  item.coverUrl = ''
   item.brandId = b.id
   item.brandName = b.name
   item.price = p.price
@@ -126,7 +120,7 @@ function makeEventFeed(idx: number): FeedItem {
   item.feedType = FEED_RELEASE_EVENT
   item.entityId = e.id
   item.title = e.title
-  item.subtitle = `${EventTypeLabel(e.eventType)} · ${e.daysFromNow >= 0 ? e.daysFromNow + '天后' : Math.abs(e.daysFromNow) + '天前'}`
+  item.subtitle = `${getEventTypeLabel(e.eventType)} · ${e.daysFromNow >= 0 ? e.daysFromNow + '天后' : Math.abs(e.daysFromNow) + '天前'}`
   item.coverUrl = ''
   item.brandId = b.id
   item.brandName = b.name
@@ -137,21 +131,10 @@ function makeEventFeed(idx: number): FeedItem {
   item.liked = false
   item.saved = idx % 5 === 0
   item.sourceLabel = '官方'
-  item.rankingScore = 200 - e.daysFromNow // 临近的排前面
+  item.rankingScore = 200 - e.daysFromNow
   item.category = e.category
   item.createdAt = futureDate(-1)
   return item
-}
-
-function EventTypeLabel(t: string): string {
-  if (t === 'preview') return '预览'
-  if (t === 'reservation') return '预约'
-  if (t === 'deposit') return '定金'
-  if (t === 'final_payment') return '尾款'
-  if (t === 'release') return '发售'
-  if (t === 'restock') return '补货'
-  if (t === 'price_drop') return '降价'
-  return t
 }
 
 function makePostFeed(idx: number): FeedItem {
@@ -245,9 +228,4 @@ export function filterByChannel(items: FeedItem[], channel: string): FeedItem[] 
   if (channel === '穿搭') return items.filter((i) => i.feedType === FEED_OUTFIT)
   // 分类频道
   return items.filter((i) => i.category === channel)
-}
-
-/** 获取占位色 */
-export function getPlaceholderColor(index: number): string {
-  return PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.length]
 }
