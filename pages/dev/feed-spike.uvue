@@ -13,28 +13,17 @@
       <view :style="controlPanel">
         <text :style="controlTitle">数据量</text>
         <view :style="controlRow">
-          <view
-            v-for="opt in countOptions"
-            :key="opt"
-            :style="countBtn(opt)"
-            @tap="setItemCount(opt)"
-          >
+          <view v-for="opt in countOptions" :key="opt" :style="countBtn(opt)" @tap="setItemCount(opt)">
             <text :style="countBtnText(opt)">{{ opt }}</text>
           </view>
         </view>
 
         <text :style="controlTitle">布局</text>
         <view :style="controlRow">
-          <view
-            :style="layoutBtn('single')"
-            @tap="setLayout('single')"
-          >
+          <view :style="layoutBtn('single')" @tap="setLayout('single')">
             <text :style="layoutBtnText('single')">单列</text>
           </view>
-          <view
-            :style="layoutBtn('grid')"
-            @tap="setLayout('grid')"
-          >
+          <view :style="layoutBtn('grid')" @tap="setLayout('grid')">
             <text :style="layoutBtnText('grid')">双列</text>
           </view>
         </view>
@@ -46,80 +35,76 @@
             <text :style="metricLabel">渲染耗时</text>
           </view>
           <view :style="metricItem">
-            <text :style="metricValue">{{ scrollFPS }}</text>
-            <text :style="metricLabel">滑动FPS</text>
-          </view>
-          <view :style="metricItem">
             <text :style="metricValue">{{ imageLoadCount }}/{{ itemCount }}</text>
             <text :style="metricLabel">图片加载</text>
           </view>
         </view>
       </view>
 
-      <!-- 单列 Feed -->
-      <scroll-view
-        v-if="layout === 'single'"
-        scroll-y
-        :style="scrollStyle"
-        @scrolltolower="onScrollToLower"
-        @scroll="onScroll"
-      >
-        <view v-for="(item, index) in feedItems" :key="item.id" :style="singleCardStyle">
-          <!-- 图片区：固定 3:4 -->
-          <view :style="imageWrapStyle">
-            <view :style="imagePlaceholderStyle(item.color)">
-              <text :style="placeholderIndex">{{ index + 1 }}</text>
-            </view>
-          </view>
-          <!-- 信息区 -->
-          <view :style="infoStyle">
-            <text :style="cardTitleStyle">{{ item.title }}</text>
-            <text :style="cardBrandStyle">{{ item.brand }}</text>
-            <view :style="cardBottomRow">
-              <text :style="cardPriceStyle">¥{{ item.price }}</text>
-              <view :style="favBtnStyle">
-                <text :style="favBtnText">{{ item.liked ? '❤️' : '🤍' }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-        <!-- 底部加载状态 -->
-        <view :style="bottomStyle">
-          <text :style="bottomText">{{ isLoadingMore ? '加载中...' : '已加载全部' }}</text>
-        </view>
-      </scroll-view>
-
-      <!-- 双列网格 Feed -->
-      <scroll-view
-        v-else
-        scroll-y
-        :style="scrollStyle"
-        @scrolltolower="onScrollToLower"
-        @scroll="onScroll"
-      >
-        <view :style="gridContainerStyle">
-          <view
-            v-for="(item, index) in feedItems"
-            :key="item.id"
-            :style="gridCardStyle"
-          >
+      <!--
+        list-view: App 平台使用原生 recycle list (vapor)
+                   mp-weixin 自动转为 scroll-view
+        list-item: App 平台的回收单元
+      -->
+      <list-view :style="listStyle" @scrolltolower="onScrollToLower">
+        <!-- 单列模式 -->
+        <list-item v-if="layout === 'single'" v-for="(item, index) in feedItems" :key="item.id" :type="'single'">
+          <view :style="singleCardStyle">
             <!-- 图片区：固定 3:4 -->
-            <view :style="gridImageWrapStyle">
+            <view :style="imageWrapStyle">
               <view :style="imagePlaceholderStyle(item.color)">
                 <text :style="placeholderIndex">{{ index + 1 }}</text>
               </view>
             </view>
             <!-- 信息区 -->
-            <view :style="gridInfoStyle">
-              <text :style="gridTitleStyle">{{ item.title }}</text>
-              <text :style="gridPriceStyle">¥{{ item.price }}</text>
+            <view :style="infoStyle">
+              <text :style="cardTitleStyle">{{ item.title }}</text>
+              <text :style="cardBrandStyle">{{ item.brand }}</text>
+              <view :style="cardBottomRow">
+                <text :style="cardPriceStyle">¥{{ item.price }}</text>
+                <view :style="favBtnStyle">
+                  <text :style="favBtnText">{{ item.liked ? '❤️' : '🤍' }}</text>
+                </view>
+              </view>
             </view>
           </view>
-        </view>
-        <view :style="bottomStyle">
-          <text :style="bottomText">{{ isLoadingMore ? '加载中...' : '已加载全部' }}</text>
-        </view>
-      </scroll-view>
+        </list-item>
+
+        <!-- 双列网格模式 -->
+        <list-item v-if="layout === 'grid'" v-for="(pair, pIndex) in gridPairs" :key="'pair-' + pIndex" :type="'grid'">
+          <view :style="gridRowStyle">
+            <view :style="gridCardStyle">
+              <view :style="gridImageWrapStyle">
+                <view :style="imagePlaceholderStyle(pair[0].color)">
+                  <text :style="placeholderIndex">{{ pair[0].index }}</text>
+                </view>
+              </view>
+              <view :style="gridInfoStyle">
+                <text :style="gridTitleStyle">{{ pair[0].title }}</text>
+                <text :style="gridPriceStyle">¥{{ pair[0].price }}</text>
+              </view>
+            </view>
+            <view v-if="pair.length > 1" :style="gridCardStyle">
+              <view :style="gridImageWrapStyle">
+                <view :style="imagePlaceholderStyle(pair[1].color)">
+                  <text :style="placeholderIndex">{{ pair[1].index }}</text>
+                </view>
+              </view>
+              <view :style="gridInfoStyle">
+                <text :style="gridTitleStyle">{{ pair[1].title }}</text>
+                <text :style="gridPriceStyle">¥{{ pair[1].price }}</text>
+              </view>
+            </view>
+          </view>
+        </list-item>
+
+        <!-- 底部加载状态 -->
+        <list-item :type="'footer'">
+          <view :style="bottomStyle">
+            <text :style="bottomText">{{ isLoadingMore ? '加载中...' : '已加载全部' }}</text>
+          </view>
+        </list-item>
+      </list-view>
     </template>
   </MainLayout>
 </template>
@@ -132,12 +117,11 @@ import { radius, semanticRadius } from '@/theme/tokens/radius'
 import { shadow } from '@/theme/tokens/shadow'
 import { flexRow, flexRowBetween, flexColumnCenter, flexCenter, flexFill } from '@/theme/layout/flex'
 import { gap } from '@/theme/layout/spacing'
-import { grid2, grid2Item } from '@/theme/layout/grid'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 
-// ====== 测试数据生成 ======
+// ====== 数据模型 ======
 
 const BRANDS = ['兔缝缝', '星辰猫', '花筵', '仲夏物语', '摇篮曲', 'With Puji', '表面咒语', '婴梵塔']
 const TITLES = ['格裙 45cm', '衬衫 关西襟', 'KC 头饰', 'Lo裙 A型', '宋制旋裙', '马面裙', '发带 缎面', '皮鞋 玛丽珍']
@@ -150,18 +134,21 @@ class FeedItem {
   price: number = 0
   color: string = ''
   liked: boolean = false
+  index: number = 0
 }
 
-function generateItems(count: number): FeedItem[] {
+function generateItems(count: number, startIdx: number): FeedItem[] {
   const items: FeedItem[] = []
   for (let i = 0; i < count; i++) {
     const item = new FeedItem()
-    item.id = `feed-${i}`
-    item.title = TITLES[i % TITLES.length]
-    item.brand = BRANDS[i % BRANDS.length]
+    const idx = startIdx + i
+    item.id = `feed-${idx}`
+    item.title = TITLES[idx % TITLES.length]
+    item.brand = BRANDS[idx % BRANDS.length]
     item.price = Math.floor(Math.random() * 500) + 99
-    item.color = COLORS[i % COLORS.length]
-    item.liked = i % 5 === 0
+    item.color = COLORS[idx % COLORS.length]
+    item.liked = idx % 5 === 0
+    item.index = idx + 1
     items.push(item)
   }
   return items
@@ -174,13 +161,23 @@ const itemCount = ref(30)
 const layout = ref('single') // 'single' | 'grid'
 const feedItems = ref([]) as Ref<FeedItem[]>
 const renderTime = ref(0)
-const scrollFPS = ref('—')
 const imageLoadCount = ref(0)
 const isLoadingMore = ref(false)
 
-let scrollStartY = 0
-let scrollFrameCount = 0
-let scrollLastTime = 0
+// ====== 计算属性: 双列配对 ======
+
+const gridPairs = computed((): FeedItem[][] => {
+  const pairs: FeedItem[][] = []
+  const items = feedItems.value
+  for (let i = 0; i < items.length; i += 2) {
+    if (i + 1 < items.length) {
+      pairs.push([items[i], items[i + 1]])
+    } else {
+      pairs.push([items[i]])
+    }
+  }
+  return pairs
+})
 
 // ====== 操作 ======
 
@@ -191,56 +188,36 @@ function setItemCount(count: number) {
 
 function setLayout(mode: string) {
   layout.value = mode
-  rebuildFeed()
 }
 
 function rebuildFeed() {
   const start = Date.now()
-  feedItems.value = generateItems(itemCount.value)
-  imageLoadCount.value = itemCount.value // 色块模拟"加载完成"
-  // 延迟计算渲染时间
+  feedItems.value = generateItems(itemCount.value, 0)
+  imageLoadCount.value = itemCount.value
   setTimeout(() => {
     renderTime.value = Date.now() - start
   }, 100)
 }
 
 function onScrollToLower() {
-  // 模拟加载更多
   if (isLoadingMore.value) return
   isLoadingMore.value = true
   setTimeout(() => {
-    const newItems = generateItems(20)
-    for (let i = 0; i < newItems.length; i++) {
-      newItems[i].id = `feed-more-${Date.now()}-${i}`
-    }
+    const currentLen = feedItems.value.length
+    const newItems = generateItems(20, currentLen)
     feedItems.value = [...feedItems.value, ...newItems]
     itemCount.value = feedItems.value.length
+    imageLoadCount.value = feedItems.value.length
     isLoadingMore.value = false
   }, 300)
 }
 
-function onScroll() {
-  const now = Date.now()
-  if (scrollLastTime === 0) {
-    scrollLastTime = now
-    scrollFrameCount = 0
-  }
-  scrollFrameCount++
-  const elapsed = now - scrollLastTime
-  if (elapsed >= 1000) {
-    scrollFPS.value = `${Math.round(scrollFrameCount * 1000 / elapsed)}`
-    scrollFrameCount = 0
-    scrollLastTime = now
-  }
-}
-
 // ====== 初始化 ======
-
 rebuildFeed()
 
 // ====== 样式 ======
 
-const scrollStyle = {
+const listStyle = {
   ...flexFill,
 }
 
@@ -260,46 +237,39 @@ const controlTitle = computed((): any => ({
   fontWeight: fontWeight.medium,
 }))
 
-const controlRow = {
-  ...flexRow,
-  gap: spacing[2],
-}
+const controlRow = { ...flexRow, gap: spacing[2] }
 
 function countBtn(count: number) {
-  const active = itemCount.value === count
   return {
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
     borderRadius: radius.full,
-    backgroundColor: active ? brand[500] : neutralLight.bgTertiary,
+    backgroundColor: itemCount.value === count ? brand[500] : neutralLight.bgTertiary,
   }
 }
 
 function countBtnText(count: number) {
-  const active = itemCount.value === count
   return {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
-    color: active ? '#FFFFFF' : neutralLight.textSecondary,
+    color: itemCount.value === count ? '#FFFFFF' : neutralLight.textSecondary,
   }
 }
 
 function layoutBtn(mode: string) {
-  const active = layout.value === mode
   return {
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
     borderRadius: radius.full,
-    backgroundColor: active ? accent[500] : neutralLight.bgTertiary,
+    backgroundColor: layout.value === mode ? accent[500] : neutralLight.bgTertiary,
   }
 }
 
 function layoutBtnText(mode: string) {
-  const active = layout.value === mode
   return {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
-    color: active ? '#FFFFFF' : neutralLight.textSecondary,
+    color: layout.value === mode ? '#FFFFFF' : neutralLight.textSecondary,
   }
 }
 
@@ -312,22 +282,9 @@ const metricsRow = {
   borderRadius: radius.md,
 }
 
-const metricItem = {
-  ...flexColumnCenter,
-  gap: '2rpx',
-}
-
-const metricValue = {
-  fontSize: fontSize.base,
-  fontWeight: fontWeight.bold,
-  color: brand[500],
-}
-
-const metricLabel = {
-  fontSize: fontSize.xs,
-  color: neutralLight.textTertiary,
-}
-
+const metricItem = { ...flexColumnCenter, gap: '2rpx' }
+const metricValue = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] }
+const metricLabel = { fontSize: fontSize.xs, color: neutralLight.textTertiary }
 const badgeStyle = {
   fontSize: fontSize.xs,
   color: neutralLight.textTertiary,
@@ -350,8 +307,7 @@ const singleCardStyle = computed((): any => ({
 
 const imageWrapStyle = {
   width: '100%',
-  height: '0',
-  paddingBottom: '133.33%', // 3:4 比例
+  paddingBottom: '133.33%', // 3:4
   position: 'relative' as string,
   overflow: 'hidden',
 }
@@ -359,14 +315,9 @@ const imageWrapStyle = {
 function imagePlaceholderStyle(color: string) {
   return {
     position: 'absolute' as string,
-    top: '0',
-    left: '0',
-    right: '0',
-    bottom: '0',
+    top: '0', left: '0', right: '0', bottom: '0',
     backgroundColor: color,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   }
 }
 
@@ -376,56 +327,25 @@ const placeholderIndex = {
   color: 'rgba(0,0,0,0.15)',
 }
 
-const infoStyle = {
-  padding: spacing[3],
-  gap: spacing[1],
-}
-
-const cardTitleStyle = computed((): any => ({
-  fontSize: fontSize.base,
-  fontWeight: fontWeight.semibold,
-  color: n.value.text,
-}))
-
-const cardBrandStyle = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.textSecondary,
-}))
-
-const cardBottomRow = {
-  ...flexRowBetween,
-  alignItems: 'center',
-  marginTop: spacing[1],
-}
-
-const cardPriceStyle = {
-  fontSize: fontSize.lg,
-  fontWeight: fontWeight.bold,
-  color: brand[600],
-}
-
-const favBtnStyle = {
-  width: '56rpx',
-  height: '56rpx',
-  ...flexCenter,
-}
-
-const favBtnText = {
-  fontSize: '32rpx',
-}
+const infoStyle = { padding: spacing[3], gap: spacing[1] }
+const cardTitleStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const cardBrandStyle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
+const cardBottomRow = { ...flexRowBetween, alignItems: 'center', marginTop: spacing[1] }
+const cardPriceStyle = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[600] }
+const favBtnStyle = { width: '56rpx', height: '56rpx', ...flexCenter }
+const favBtnText = { fontSize: '32rpx' }
 
 // --- 双列网格 ---
 
-const gridContainerStyle = {
+const gridRowStyle = {
   ...flexRow,
-  flexWrap: 'wrap' as string,
   gap: spacing[2],
-  padding: spacing[2],
   paddingHorizontal: semanticSpacing.pageHorizontal,
+  marginTop: spacing[2],
 }
 
 const gridCardStyle = computed((): any => ({
-  width: '48.5%',
+  flex: 1,
   borderRadius: semanticRadius.card,
   backgroundColor: n.value.surface,
   boxShadow: shadow.sm,
@@ -434,17 +354,12 @@ const gridCardStyle = computed((): any => ({
 
 const gridImageWrapStyle = {
   width: '100%',
-  height: '0',
   paddingBottom: '133.33%',
   position: 'relative' as string,
   overflow: 'hidden',
 }
 
-const gridInfoStyle = {
-  padding: spacing[2],
-  gap: '2rpx',
-}
-
+const gridInfoStyle = { padding: spacing[2], gap: '2rpx' }
 const gridTitleStyle = computed((): any => ({
   fontSize: fontSize.sm,
   fontWeight: fontWeight.medium,
@@ -452,22 +367,10 @@ const gridTitleStyle = computed((): any => ({
   lines: 1,
   textOverflow: 'ellipsis',
 }))
-
-const gridPriceStyle = {
-  fontSize: fontSize.base,
-  fontWeight: fontWeight.bold,
-  color: brand[600],
-}
+const gridPriceStyle = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
 
 // --- 底部 ---
 
-const bottomStyle = {
-  ...flexCenter,
-  padding: spacing[4],
-}
-
-const bottomText = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.textTertiary,
-}))
+const bottomStyle = { ...flexCenter, padding: spacing[4] }
+const bottomText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 </script>
