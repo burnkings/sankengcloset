@@ -23,12 +23,6 @@ const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
 
 function applySystemChrome() {
   const palette = _isDark.value ? neutralDark : neutralLight
-  uni.setTabBarStyle({
-    color: _isDark.value ? neutralDark.textTertiary : neutralLight.textTertiary,
-    selectedColor: brand[500],
-    backgroundColor: _isDark.value ? neutralDark.surface : neutralLight.surface,
-    borderStyle: _isDark.value ? 'white' : 'black',
-  })
   uni.setNavigationBarColor({
     frontColor: _isDark.value ? '#ffffff' : '#000000',
     backgroundColor: palette.bg,
@@ -40,6 +34,19 @@ function applySystemChrome() {
   })
 }
 
+/** Only call from actual native tab pages. Secondary pages must not call setTabBarStyle. */
+export function syncTabBarChrome() {
+  // #ifdef MP-WEIXIN
+  uni.setTabBarStyle({
+    color: _isDark.value ? neutralDark.textTertiary : neutralLight.textTertiary,
+    selectedColor: brand[500],
+    backgroundColor: _isDark.value ? neutralDark.surface : neutralLight.surface,
+    borderStyle: _isDark.value ? 'white' : 'black',
+    fail: () => {},
+  })
+  // #endif
+}
+
 export function initializeTheme() {
   applySystemChrome()
 }
@@ -49,8 +56,8 @@ export function syncSystemChrome() {
 }
 
 export function setDarkMode(enabled: boolean) {
-  _isDark.value = enabled
   uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
+  _isDark.value = enabled
   applySystemChrome()
 }
 
