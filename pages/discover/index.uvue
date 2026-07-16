@@ -3,64 +3,39 @@
     <template #navbar><V2PageHeader title="发现" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view :style="searchBox" @tap="onSearch">
-          <AppIcon name="search" :size="36" />
-          <text :style="searchPlaceholder">搜索商品、品牌、穿搭</text>
-        </view>
+        <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
 
-        <V2SectionHeader title="逛分类" subtitle="按坑向发现内容" :compact="true" />
-        <view :style="categoryRow">
-          <view v-for="(cat, idx) in categories" :key="cat.id" :style="categoryCard(idx)" @tap="goCategory(cat.id)">
-            <view :style="categoryIconWrap(cat.id)"><AppIcon :name="cat.icon" :size="48" :active="true" /></view>
-            <text :style="categoryName">{{ cat.name }}</text>
-            <text :style="categoryCount">{{ cat.count }}</text>
-          </view>
-        </view>
-
-        <V2SectionHeader title="晒搭广场" subtitle="真实用户的今日穿搭" action-text="发布美照" @action="goCreateLook" />
-        <scroll-view scroll-x :style="lookScroll">
-          <view :style="lookRow">
-            <view v-if="localLookImage !== ''" :style="lookCard" @tap="goCreateLook">
-              <view :style="lookImage"><AppImage :src="localLookImage" width="100%" height="100%" mode="aspectFill" /></view>
-              <view :style="lookCopy">
-                <text :style="lookTitle">{{ localLookCaption !== '' ? localLookCaption : '我的今日穿搭' }}</text>
-                <text :style="lookMeta">刚刚 · 本地预览</text>
-              </view>
+        <V2SectionHeader title="编辑精选" subtitle="值得关注的品牌故事与趋势" action-text="查看更多" />
+        <scroll-view scroll-x :style="featureScroll">
+          <view :style="featureRow">
+            <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="search(item.keyword)">
+              <view :style="featureImage"><AppImage :src="item.image" width="100%" height="100%" mode="aspectFill" /></view>
+              <view :style="featureCopy"><text :style="featureTitle">{{ item.title }}</text><text :style="featureDesc">{{ item.desc }}</text></view>
             </view>
-            <view v-for="look in communityLooks" :key="look.id" :style="lookCard">
-              <view :style="lookImage"><AppImage :src="look.img" width="100%" height="100%" mode="aspectFill" /></view>
-              <view :style="lookCopy">
-                <text :style="lookTitle">{{ look.title }}</text>
-                <text :style="lookMeta">{{ look.author }} · {{ look.likes }} 人喜欢</text>
-              </view>
-            </view>
-            <view :style="lookEndPad" />
+            <view :style="endPad" />
           </view>
         </scroll-view>
 
-        <V2SectionHeader title="热门品牌" subtitle="大家最近在关注" />
+        <V2SectionHeader title="品牌目录" subtitle="关注品牌后优先获得官方动态" action-text="全部品牌" />
         <view :style="brandGrid">
-          <view v-for="(brandItem, idx) in visibleBrands" :key="brandItem.name" :style="brandChip(idx)" @tap="searchBrand(brandItem.name)">
-            <text :style="brandChipText">{{ brandItem.name }}</text>
+          <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="search(item.name)">
+            <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
+            <view :style="brandCopy"><text :style="brandName">{{ item.name }}</text><text :style="brandMeta">{{ item.meta }}</text></view>
+            <text :style="followText">关注</text>
           </view>
         </view>
 
-        <V2SectionHeader title="发售日历" subtitle="官方节点按时间整理" />
+        <V2SectionHeader title="发售日历" subtitle="图透、定金、尾款与现货节点" action-text="完整日历" />
         <V2ListGroup>
-          <view v-for="(evt, idx) in mockCalendar" :key="evt.id" :style="calendarRow" @tap="searchBrand(evt.brand)">
-            <view :style="calendarDate"><text :style="calendarDay">{{ evt.day }}</text><text :style="calendarMonth">{{ evt.month }}</text></view>
-            <view :style="calendarMain(idx)">
-              <view :style="calendarCopy"><text :style="calendarTitle">{{ evt.title }}</text><text :style="calendarBrand">{{ evt.brand }}</text></view>
-              <view :style="calendarState"><view :style="calendarDot" /><text :style="calendarStateText">{{ evt.tag }}</text></view>
-            </view>
+          <view v-for="(evt, idx) in calendar" :key="evt.id" :style="calendarRow" @tap="search(evt.brand)">
+            <view :style="calendarDate"><text :style="calendarDay">{{ evt.day }}</text><text :style="calendarMonth">7月</text></view>
+            <view :style="calendarMain(idx)"><view :style="calendarCopy"><text :style="calendarTitle">{{ evt.title }}</text><text :style="calendarBrand">{{ evt.brand }}</text></view><text :style="calendarTag">{{ evt.tag }}</text></view>
           </view>
         </V2ListGroup>
 
-        <V2SectionHeader title="趋势话题" subtitle="正在被讨论的灵感" />
-        <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="searchBrand(topic.keyword)">
-          <view :style="topicRank"><text :style="topicRankText">{{ idx + 1 }}</text></view>
-          <view :style="topicCopy"><text :style="topicTitle">{{ topic.title }}</text><text :style="topicMeta">{{ topic.meta }}</text></view>
-          <AppIcon name="chevron-right" :size="32" />
+        <V2SectionHeader title="趋势话题" subtitle="来自晒搭发布者选择的话题" />
+        <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic.name)">
+          <text :style="topicName"># {{ topic.name }}</text><text :style="topicMeta">{{ topic.meta }}</text><AppIcon name="chevron-right" :size="30" />
         </view>
       </view>
     </template>
@@ -68,13 +43,11 @@
 </template>
 
 <script setup lang="uts">
-import { brand, categoryColors } from '@/theme/tokens/colors'
-import { radius } from '@/theme/tokens/radius'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING_SM, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
-import { useHomeFeedStore } from '@/stores/home-feed-store'
+import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
@@ -82,104 +55,64 @@ import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 
-const homeStore = useHomeFeedStore()
-const localLookImage = ref('')
-const localLookCaption = ref('')
-
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
-function goCreateLook() { uni.navigateTo({ url: '/pages/share/create' }) }
-function goCategory(cat: string) {
-  if (cat === 'jk') homeStore.setCategory('JK')
-  if (cat === 'lolita') homeStore.setCategory('Lolita')
-  if (cat === 'hanfu') homeStore.setCategory('汉服')
-  uni.switchTab({ url: '/pages/home/index' })
-}
-function searchBrand(keyword: string) {
-  uni.setStorageSync('pending_search_keyword', keyword)
-  uni.navigateTo({ url: '/pages/search/index' })
-}
+function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
+function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); uni.switchTab({ url: '/pages/community/index' }) }
 
-onShow(() => {
-  try {
-    localLookImage.value = uni.getStorageSync('local_outfit_image') as string
-    localLookCaption.value = uni.getStorageSync('local_outfit_caption') as string
-  } catch (e) {
-    localLookImage.value = ''
-    localLookCaption.value = ''
-  }
-})
+const features = [
+  { id: 'f1', image: '/static/demo/outfit-editorial-01.jpg', title: '夏日三坑轻量化指南', desc: '从面料到版型的编辑选择', keyword: '夏日穿搭' },
+  { id: 'f2', image: '/static/demo/prod-editorial-01.jpg', title: '本周值得蹲的预约', desc: '官方节点与时间一次看清', keyword: '预约' },
+]
+const brands = [
+  { name: '兔缝缝', initial: '兔', meta: 'JK · 格裙' },
+  { name: '星辰猫', initial: '星', meta: 'Lolita · 甜美' },
+  { name: '花筵', initial: '花', meta: '汉服 · 宋制' },
+  { name: '仲夏物语', initial: '夏', meta: 'Lolita · 田园' },
+]
+const calendar = [
+  { id: 'c1', day: '18', title: '月光曲 JSK 定金开售', brand: '星辰猫', tag: '定金' },
+  { id: 'c2', day: '20', title: '新色格裙开放预览', brand: '兔缝缝', tag: '图透' },
+  { id: 'c3', day: '22', title: '宋制套装尾款截止', brand: '花筵', tag: '尾款' },
+]
+const topics = [
+  { id: 't1', name: '今日穿搭', meta: '1,286 篇晒搭' },
+  { id: 't2', name: '茶会搭配', meta: '863 篇晒搭' },
+  { id: 't3', name: '通勤三坑', meta: '742 篇晒搭' },
+]
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
-const searchBox = computed((): any => ({ width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: n.value.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '20rpx', paddingRight: '20rpx' }))
-const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '10rpx' }))
-
-const categories = [
-  { id: 'jk', name: 'JK', count: '128 件', icon: 'jk-collar' },
-  { id: 'lolita', name: 'Lolita', count: '256 件', icon: 'lolita-dress' },
-  { id: 'hanfu', name: '汉服', count: '192 件', icon: 'hanfu-collar' },
-]
-const categoryRow = { ...flexRow }
-function categoryCard(idx: number) { return { width: '212rpx', height: '190rpx', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx < 2 ? '16rpx' : '0' } }
-function categoryIconWrap(id: string) {
-  const color = id === 'jk' ? categoryColors.jk.bg : id === 'lolita' ? categoryColors.lolita.bg : categoryColors.hanfu.bg
-  return { width: '76rpx', height: '76rpx', borderRadius: '20rpx', backgroundColor: color, alignItems: 'center', justifyContent: 'center' }
-}
-const categoryName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
-const categoryCount = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
-
-const communityLooks = [
-  { id: 'look-1', img: '/static/demo/outfit-editorial-01.jpg', title: '春日茶会穿搭', author: '小梨', likes: '286' },
-  { id: 'look-2', img: '/static/demo/prod-editorial-03.jpg', title: '宋制通勤也可以很轻盈', author: '青禾', likes: '173' },
-  { id: 'look-3', img: '/static/demo/prod-editorial-01.jpg', title: '深蓝格裙的一周搭配', author: 'Momo', likes: '142' },
-]
-const lookScroll = { width: '670rpx' }
-const lookRow = { ...flexRow }
-const lookCard = computed((): any => ({ width: '300rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden', marginRight: '16rpx' }))
-const lookImage = { width: '300rpx', height: '360rpx', overflow: 'hidden' }
-const lookCopy = { padding: CARD_PADDING_SM }
-const lookTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, lines: 2, textOverflow: 'ellipsis' }))
-const lookMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))
-const lookEndPad = { width: '24rpx', flexShrink: 0 }
-
-const visibleBrands = [
-  { name: '兔缝缝' }, { name: '星辰猫' }, { name: '花筵' },
-  { name: '仲夏物语' }, { name: 'With Puji' }, { name: '十三余' },
-]
+const searchBox = computed((): any => ({ width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: n.value.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
+const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
+const featureScroll = { width: '710rpx', marginRight: '-40rpx' }
+const featureRow = { ...flexRow }
+function featureCard(idx: number) { return { width: '500rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.length - 1 ? '20rpx' : '0' } }
+const featureImage = { width: '500rpx', height: '280rpx' }
+const featureCopy = { padding: '20rpx' }
+const featureTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const featureDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+const endPad = { width: '40rpx', flexShrink: 0 }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
-function brandChip(idx: number) { return { width: '210rpx', height: '68rpx', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, marginRight: idx % 3 < 2 ? '20rpx' : '0', marginBottom: idx < 3 ? '16rpx' : '0' } }
-const brandChipText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
-
-const mockCalendar = [
-  { id: 'c1', day: '18', month: '7月', title: '月光曲 JSK 定金开售', brand: '星辰猫', tag: '定金' },
-  { id: 'c2', day: '20', month: '7月', title: '新色格裙预览', brand: '兔缝缝', tag: '预览' },
-  { id: 'c3', day: '22', month: '7月', title: '宋制套装尾款', brand: '花筵', tag: '尾款' },
-]
-const calendarRow = { ...flexRow, height: LIST_ROW_HEIGHT, alignItems: 'center' }
+function brandCard(idx: number) { return { width: '325rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '20rpx' : '0', marginBottom: '20rpx' } }
+const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const brandCopy = { ...flexFill }
+const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+const followText = { fontSize: fontSize.xs, color: brand[600] }
+const calendarRow = { ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center' }
 const calendarDate = { width: '96rpx', alignItems: 'center', flexShrink: 0 }
 const calendarDay = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
 const calendarMonth = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary }))
-function calendarMain(idx: number) { return { ...flexFill, ...flexRow, height: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '20rpx', borderBottomWidth: idx < mockCalendar.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+function calendarMain(idx: number) { return { ...flexFill, ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '20rpx', borderBottomWidth: idx < calendar.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
 const calendarCopy = { ...flexFill }
-const calendarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
-const calendarBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '2rpx' }))
-const calendarState = { ...flexRow, alignItems: 'center', marginLeft: '12rpx' }
-const calendarDot = { width: '8rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[500], marginRight: '8rpx' }
-const calendarStateText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: brand[600] }
-
-const topics = [
-  { id: 'topic-1', title: '# 夏日轻量化Lolita', meta: '1,286 次浏览', keyword: '夏日 Lolita' },
-  { id: 'topic-2', title: '# JK雨天怎么搭', meta: '863 次浏览', keyword: 'JK 雨天穿搭' },
-  { id: 'topic-3', title: '# 汉服通勤改良', meta: '742 次浏览', keyword: '汉服 通勤' },
-]
-function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.length - 1 ? '12rpx' : '0' } }
-const topicRank = { width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
-const topicRankText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }
-const topicCopy = { ...flexFill }
-const topicTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
+const calendarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const calendarBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
+const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[600], marginLeft: '12rpx' }))
+function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.length - 1 ? '12rpx' : '0' } }
+const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
 </script>
 
 <style>
 .page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
 </style>
-
