@@ -37,6 +37,8 @@ const layoutStyle = computed((): any => ({
 
 const bodyStyle = computed((): any => ({
   ...flexFill,
+  height: '0',
+  minHeight: '0',
 }))
 
 const statusSpacerStyle = { height: `${statusBarHeight}px`, flexShrink: 0 }
