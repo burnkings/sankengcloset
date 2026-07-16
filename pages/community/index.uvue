@@ -1,0 +1,93 @@
+<template>
+  <MainLayout>
+    <template #navbar><V2PageHeader title="晒搭" action-text="发布" @action="goCreate" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
+        <V2FilterChips :items="topics" :active="activeTopic" @change="activeTopic = $event" />
+
+        <view v-if="localImage !== '' && topicVisible(localTopic)" :style="lookCard" @tap="goCreate">
+          <view :style="heroImage"><AppImage :src="localImage" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="lookBody">
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的晒搭</text><text :style="timeText">刚刚</text></view>
+            <text :style="lookCaption">{{ localCaption !== '' ? localCaption : '今天也认真搭配了' }}</text>
+            <text :style="topicText">#{{ localTopic }}</text>
+          </view>
+        </view>
+
+        <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="lookBody">
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.author }}</text><text :style="timeText">{{ look.time }}</text></view>
+            <text :style="lookCaption">{{ look.caption }}</text>
+            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="likeText">♡ {{ look.likes }}</text></view>
+          </view>
+        </view>
+
+        <view :style="createCard" @tap="goCreate"><AppIcon name="camera" :size="42" :active="true" /><view :style="createCopy"><text :style="createTitle">发布我的第一条晒搭</text><text :style="createDesc">选择照片、坑向和话题即可预览</text></view><AppIcon name="chevron-right" :size="32" /></view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+
+const activeTopic = ref('全部')
+const localImage = ref('')
+const localCaption = ref('')
+const localTopic = ref('今日穿搭')
+const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
+const looks = [
+  { id: 'l1', image: '/static/demo/outfit-editorial-01.jpg', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', likes: 126 },
+  { id: 'l2', image: '/static/demo/prod-jk-navy.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', likes: 89 },
+]
+const visibleLooks = computed(() => activeTopic.value === '全部' ? looks : looks.filter((item) => item.topic === activeTopic.value))
+function topicVisible(topic: string): boolean { return activeTopic.value === '全部' || activeTopic.value === topic }
+function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
+onShow(() => {
+  try {
+    const pendingTopic = uni.getStorageSync('community_topic') as string
+    if (pendingTopic !== '') {
+      activeTopic.value = pendingTopic
+      uni.removeStorageSync('community_topic')
+    }
+    localImage.value = uni.getStorageSync('local_outfit_image') as string
+    localCaption.value = uni.getStorageSync('local_outfit_caption') as string
+    const savedTopic = uni.getStorageSync('local_outfit_topic') as string
+    if (savedTopic !== '') localTopic.value = savedTopic
+  } catch (e) {}
+})
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
+const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface }))
+const heroImage = { width: '670rpx', height: '760rpx' }
+const lookBody = { padding: CARD_PADDING }
+const authorRow = { ...flexRow, alignItems: 'center' }
+const avatar = computed((): any => ({ width: '52rpx', height: '52rpx', borderRadius: '26rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const avatarText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }
+const authorName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const timeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const lookCaption = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
+const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx' }
+const topicText = { fontSize: fontSize.xs, color: brand[600], marginTop: '10rpx' }
+const likeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const createCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '22rpx', marginBottom: '24rpx' }))
+const createCopy = { ...flexFill, marginLeft: '16rpx' }
+const createTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const createDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>
