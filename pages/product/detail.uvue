@@ -1,0 +1,94 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="商品详情" :show-back="true" /></template>
+    <template #default>
+      <view v-if="item !== null" :style="pageWrap">
+        <view :style="hero"><AppImage :src="item!.coverUrl" width="100%" height="100%" mode="aspectFill" /></view>
+        <view class="page-canvas">
+          <view :style="summaryCard">
+            <view :style="priceRow"><text :style="priceText">{{ formatPrice(item!.price) }}</text><text v-if="item!.originalPrice > item!.price" :style="oldPrice">{{ formatPrice(item!.originalPrice) }}</text></view>
+            <text :style="titleText">{{ item!.title }}</text>
+            <text :style="brandText">{{ item!.brandName }}</text>
+            <view :style="statusRow"><view :style="statusDot" /><text :style="statusText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text><text v-if="formatDeadline(item!.eventEndAt) !== ''" :style="deadlineText">{{ formatDeadline(item!.eventEndAt) }}</text></view>
+          </view>
+
+          <V2SectionHeader title="发售进度" subtitle="以官方渠道最终信息为准" />
+          <view :style="timelineCard">
+            <view v-for="(stage, idx) in stages" :key="stage" :style="stageItem(idx)"><view :style="stageDot(idx)" /><text :style="stageText(idx)">{{ stage }}</text></view>
+          </view>
+
+          <V2SectionHeader title="商品说明" />
+          <view :style="detailCard"><text :style="detailText">{{ item!.subtitle !== '' ? item!.subtitle : '收录品牌公开商品信息与发售节点，便于收藏、比较和设置提醒。' }}</text></view>
+        </view>
+      </view>
+      <view v-else :style="emptyWrap"><text :style="emptyText">商品信息不存在</text></view>
+    </template>
+  </MainLayout>
+  <view v-if="item !== null" :style="actionBar">
+    <view :style="minorButton" @tap="saveItem"><AppIcon name="wardrobe" :size="36" /><text :style="minorText">收藏</text></view>
+    <view :style="minorButton" @tap="askAI"><AppIcon name="sparkles" :size="36" /><text :style="minorText">问绮灵</text></view>
+    <view :style="officialButton" @tap="openOfficial"><text :style="officialText">前往官方渠道</text></view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { FeedItem } from '@/domain/content/feed-item'
+import { getFirstPage } from '@/domain/content/mock-feed-repo'
+import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_BOTTOM_SAFE_SPACER } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+
+const itemId = ref('')
+const sourceItems = getFirstPage()
+const item = computed((): FeedItem | null => {
+  const found = sourceItems.find((entry) => entry.entityId === itemId.value || entry.id === itemId.value)
+  return found ?? null
+})
+const stages = ['图透', '定金', '尾款', '现货']
+function saveItem() { uni.showToast({ title: '已加入收藏', icon: 'success' }) }
+function askAI() { uni.switchTab({ url: '/pages/ai/index' }) }
+function openOfficial() { uni.showToast({ title: '正式数据接入后跳转品牌官方渠道', icon: 'none' }) }
+onMounted(() => {
+  const pages = getCurrentPages()
+  const current = pages[pages.length - 1]
+  itemId.value = (current as any).options?.id ?? ''
+})
+
+const pageWrap = { paddingBottom: '160rpx' }
+const hero = { width: '750rpx', height: '820rpx' }
+const summaryCard = computed((): any => ({ marginTop: '-40rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, position: 'relative' }))
+const priceRow = { ...flexRow, alignItems: 'flex-end' }
+const priceText = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[600] }
+const oldPrice = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }))
+const titleText = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '48rpx', marginTop: '14rpx' }))
+const brandText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '8rpx' }))
+const statusRow = { ...flexRow, alignItems: 'center', marginTop: '18rpx' }
+const statusDot = { width: '10rpx', height: '10rpx', borderRadius: '5rpx', backgroundColor: brand[500], marginRight: '8rpx' }
+const statusText = { fontSize: fontSize.xs, color: brand[600] }
+const deadlineText = { fontSize: fontSize.xs, color: brand[600], marginLeft: '16rpx' }
+const timelineCard = computed((): any => ({ ...flexRow, padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+function stageItem(idx: number) { return { ...flexFill, alignItems: 'center' } }
+function stageDot(idx: number) { return { width: '22rpx', height: '22rpx', borderRadius: '11rpx', backgroundColor: idx < 2 ? brand[500] : n.value.divider, borderWidth: idx === 2 ? '4rpx' : '0', borderStyle: 'solid', borderColor: brand[200] } }
+function stageText(idx: number) { return { fontSize: fontSize.xs, color: idx < 2 ? brand[600] : n.value.textTertiary, marginTop: '12rpx' } }
+const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
+const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
+const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+const actionBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', height: '112rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingBottom: PAGE_BOTTOM_SAFE_SPACER, ...flexRow, alignItems: 'center', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))
+const minorButton = { width: '112rpx', alignItems: 'center', justifyContent: 'center' }
+const minorText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textSecondary, marginTop: '4rpx' }))
+const officialButton = { ...flexFill, height: '76rpx', borderRadius: '38rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
+const officialText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>
