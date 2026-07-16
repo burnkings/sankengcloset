@@ -8,7 +8,6 @@
           <view :style="profileCopy">
             <text :style="userName">三坑女孩</text>
             <text :style="accountId">ID: sk_0001</text>
-            <view :style="statusRow"><view :style="statusDot" /><text :style="statusText">本地衣橱已就绪</text></view>
           </view>
           <view :style="editButton" @tap="onEdit"><text :style="editText">编辑</text></view>
         </view>
@@ -56,15 +55,18 @@
       </view>
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="profile" />
+  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
-import { brand, semantic } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n, isDark, setDarkMode } from '@/theme/use-theme'
+import { n, isDark, setDarkMode, syncTabBarChrome } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -72,6 +74,9 @@ import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
 
 const selectedTastes = ref(['JK', 'Lolita', '汉服'])
 const isLoggedIn = ref(false)
@@ -95,6 +100,8 @@ function onManageTap(id: string) {
 function onSettingTap(id: string) {
   if (id === 'dark') {
     setDarkMode(!isDark.value)
+    // Recreate cached tab pages once so they never flash the previous palette on first visit.
+    uni.reLaunch({ url: '/pages/profile/index' })
     return
   }
   if (id === 'cache') {
@@ -129,6 +136,7 @@ onMounted(() => {
     if (saved !== '') selectedTastes.value = saved.split(',')
   } catch (e) {}
 })
+onShow(() => { syncTabBarChrome() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
@@ -141,9 +149,6 @@ const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, colo
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const accountId = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
-const statusRow = { ...flexRow, alignItems: 'center', marginTop: '8rpx' }
-const statusDot = { width: '10rpx', height: '10rpx', borderRadius: radius.full, backgroundColor: semantic.success, marginRight: '8rpx' }
-const statusText = { fontSize: fontSize.xs, color: semantic.success }
 const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
 const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
 
