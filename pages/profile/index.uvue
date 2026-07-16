@@ -18,7 +18,7 @@
             <text :style="userName">登录三坑绮橱</text>
             <text :style="guestDesc">同步收藏、晒搭、衣橱与提醒</text>
           </view>
-          <view :style="loginButton"><text :style="loginText">微信登录</text></view>
+          <view :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
 
         <V2SectionHeader title="管理中心" subtitle="你的三坑日常" />
