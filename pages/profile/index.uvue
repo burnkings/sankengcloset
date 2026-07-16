@@ -3,7 +3,7 @@
     <template #navbar><V2PageHeader title="我的" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view :style="profileCard">
+        <view v-if="isLoggedIn" :style="profileCard">
           <view :style="avatarWrap"><text :style="avatarText">SK</text></view>
           <view :style="profileCopy">
             <text :style="userName">三坑女孩</text>
@@ -11,6 +11,14 @@
             <view :style="statusRow"><view :style="statusDot" /><text :style="statusText">本地衣橱已就绪</text></view>
           </view>
           <view :style="editButton" @tap="onEdit"><text :style="editText">编辑</text></view>
+        </view>
+        <view v-else :style="profileCard" @tap="loginPreview">
+          <view :style="guestAvatar"><AppIcon name="profile" :size="44" /></view>
+          <view :style="profileCopy">
+            <text :style="userName">登录三坑绮橱</text>
+            <text :style="guestDesc">同步收藏、晒搭、衣橱与提醒</text>
+          </view>
+          <view :style="loginButton"><text :style="loginText">微信登录</text></view>
         </view>
 
         <V2SectionHeader title="管理中心" subtitle="你的三坑日常" />
@@ -66,10 +74,20 @@ import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 
 const selectedTastes = ref(['JK', 'Lolita', '汉服'])
+const isLoggedIn = ref(false)
 
 function onEdit() { uni.showToast({ title: '编辑资料', icon: 'none' }) }
+function loginPreview() {
+  isLoggedIn.value = true
+  uni.setStorageSync('sk_login_preview', 'logged_in')
+}
+function logoutPreview() {
+  isLoggedIn.value = false
+  uni.setStorageSync('sk_login_preview', 'logged_out')
+}
 function goPage(url: string) { uni.navigateTo({ url }) }
 function onManageTap(id: string) {
+  if (id === 'favorites') goPage('/pages/favorites/index')
   if (id === 'orders') goPage('/pages/purchase/index')
   if (id === 'reminders') goPage('/pages/reminder/index')
   if (id === 'budget') uni.showToast({ title: '预算功能准备中', icon: 'none' })
@@ -77,7 +95,6 @@ function onManageTap(id: string) {
 function onSettingTap(id: string) {
   if (id === 'dark') {
     setDarkMode(!isDark.value)
-    uni.showToast({ title: isDark.value ? '已开启深色模式' : '已关闭深色模式', icon: 'none' })
     return
   }
   if (id === 'cache') {
@@ -87,6 +104,7 @@ function onSettingTap(id: string) {
     uni.showToast({ title: '缓存已清理', icon: 'success' })
     return
   }
+  if (id === 'logout') { logoutPreview(); return }
   uni.showToast({ title: '功能准备中', icon: 'none' })
 }
 function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
@@ -106,6 +124,7 @@ function toggleTaste(name: string) {
 
 onMounted(() => {
   try {
+    isLoggedIn.value = (uni.getStorageSync('sk_login_preview') as string) === 'logged_in'
     const saved = uni.getStorageSync('content_preferences') as string
     if (saved !== '') selectedTastes.value = saved.split(',')
   } catch (e) {}
@@ -115,6 +134,10 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
+const guestAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
+const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const loginButton = { minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
+const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const accountId = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
@@ -133,12 +156,13 @@ const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.
 const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
 const manageItems = [
+  { id: 'favorites', icon: 'wardrobe', label: '收藏', value: '心动内容' },
   { id: 'orders', icon: 'order', label: '购买记录', value: '3 笔' },
   { id: 'reminders', icon: 'reminder', label: '提醒', value: '5 条' },
   { id: 'budget', icon: 'budget', label: '预算', value: '¥2,400' },
 ]
-const manageRow = { ...flexRow, marginTop: '16rpx' }
-function manageCard(idx: number) { return { width: '210rpx', height: '156rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx < 2 ? GROUP_GAP : '0' } }
+const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '16rpx' }
+function manageCard(idx: number) { return { width: '325rpx', height: '142rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
 const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
 const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
 
@@ -159,14 +183,18 @@ function tasteChip(idx: number, name: string) {
 }
 function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isTasteSelected(name) ? brand[700] : n.value.textSecondary, marginLeft: '10rpx' } }
 
-const settingsItems = computed(() => [
-  { id: 'notification', icon: 'notification', label: '通知', value: '' },
-  { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭' },
-  { id: 'ai', icon: 'sparkles', label: 'AI 设置', value: '' },
-  { id: 'cache', icon: 'database', label: '清理缓存', value: '' },
-  { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '' },
-  { id: 'about', icon: 'info', label: '关于', value: '' },
-])
+const settingsItems = computed(() => {
+  const items = [
+    { id: 'notification', icon: 'notification', label: '通知', value: '' },
+    { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭' },
+    { id: 'ai', icon: 'sparkles', label: 'AI 设置', value: '' },
+    { id: 'cache', icon: 'database', label: '清理缓存', value: '' },
+    { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '' },
+    { id: 'about', icon: 'info', label: '关于', value: '' },
+  ]
+  if (isLoggedIn.value) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '' })
+  return items
+})
 function settingShell(idx: number) { return { borderBottomWidth: idx < settingsItems.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
 
