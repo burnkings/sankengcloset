@@ -5,10 +5,41 @@
  * UTS→Kotlin 编译器不支持对象解构
  */
 
-import { neutralLight, neutralDark } from './tokens/colors'
+import { neutralLight, neutralDark, brand } from './tokens/colors'
 
 const _isDark = ref(false)
 const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
+const THEME_STORAGE_KEY = 'sk_theme_mode'
+
+function applySystemChrome() {
+  uni.setTabBarStyle({
+    color: _isDark.value ? neutralDark.textTertiary : neutralLight.textTertiary,
+    selectedColor: brand[500],
+    backgroundColor: _isDark.value ? neutralDark.surface : neutralLight.surface,
+    borderStyle: _isDark.value ? 'white' : 'black',
+  })
+}
+
+export function initializeTheme() {
+  try {
+    const saved = uni.getStorageSync(THEME_STORAGE_KEY) as string
+    _isDark.value = saved === 'dark'
+  } catch (e) {
+    _isDark.value = false
+  }
+  applySystemChrome()
+}
+
+export function setDarkMode(enabled: boolean) {
+  _isDark.value = enabled
+  uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
+  applySystemChrome()
+}
+
+export function toggleDarkMode(): boolean {
+  setDarkMode(!_isDark.value)
+  return _isDark.value
+}
 
 export function useTheme() {
   return {
