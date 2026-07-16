@@ -12,32 +12,43 @@
           </view>
         </view>
 
-        <V2SectionHeader title="AI 功能" />
-        <view :style="taskGrid">
-          <view v-for="(task, idx) in tasks" :key="task.id" :style="taskCard(idx)" @tap="onTaskTap(task.id)">
-            <view :style="taskIconWrap"><AppIcon :name="task.icon" :size="46" :active="true" /></view>
-            <text :style="taskName">{{ task.name }}</text>
-            <text :style="taskDesc">{{ task.desc }}</text>
-          </view>
-        </view>
-
         <V2SectionHeader title="最近使用" action-text="查看全部" />
         <V2ListGroup>
           <view v-for="(item, idx) in recent" :key="item.id" :style="recentShell(idx)">
             <V2ListRow :icon="item.icon" :label="item.title" :value="item.time" :show-arrow="false" />
           </view>
         </V2ListGroup>
+
+        <V2SectionHeader title="核心能力" />
+        <view :style="primaryTaskRow">
+          <view v-for="(task, idx) in primaryTasks" :key="task.id" :style="primaryTaskCard(idx)" @tap="onTaskTap(task.id)">
+            <view :style="primaryIconWrap"><AppIcon :name="task.icon" :size="48" :active="true" /></view>
+            <text :style="primaryTaskName">{{ task.name }}</text>
+            <text :style="primaryTaskDesc">{{ task.desc }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="更多能力" :compact="true" />
+        <view :style="secondaryTaskGrid">
+          <view v-for="(task, idx) in secondaryTasks" :key="task.id" :style="secondaryTaskCard(idx)" @tap="onTaskTap(task.id)">
+            <view :style="secondaryIconWrap"><AppIcon :name="task.icon" :size="38" :active="true" /></view>
+            <view :style="secondaryTaskCopy">
+              <text :style="secondaryTaskName">{{ task.name }}</text>
+              <text :style="secondaryTaskDesc">{{ task.desc }}</text>
+            </view>
+          </view>
+        </view>
       </view>
     </template>
   </MainLayout>
 </template>
 
 <script setup lang="uts">
-import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
-import { radius } from '@/theme/tokens/radius'
+import { brand, accent, neutralLight } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
@@ -50,23 +61,32 @@ const welcomeCard = { padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgrou
 const welcomeTitle = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[700] }
 const welcomeDesc = { fontSize: fontSize.sm, color: brand[500], marginTop: '8rpx' }
 const inputRow = { ...flexRow, marginTop: '24rpx' }
-const inputBox = { ...flexFill, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center', paddingLeft: '20rpx', paddingRight: '20rpx', marginRight: '12rpx' }
+const inputBox = computed((): any => ({ ...flexFill, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', paddingLeft: '20rpx', paddingRight: '20rpx', marginRight: '12rpx' }))
 const inputPlaceholder = { fontSize: fontSize.sm, color: neutralLight.textTertiary, lines: 1, textOverflow: 'ellipsis' }
 const sendButton = { width: SEARCH_HEIGHT, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 
-const tasks = [
+const primaryTasks = [
   { id: 't1', icon: 'camera', name: '商品识别', desc: '拍照识别同款' },
-  { id: 't2', icon: 'search', name: '相似商品', desc: '找到类似好物' },
   { id: 't3', icon: 'wand', name: 'AI 穿搭', desc: '智能搭配推荐' },
+]
+const secondaryTasks = [
+  { id: 't2', icon: 'search', name: '相似商品', desc: '找到类似好物' },
   { id: 't4', icon: 'grid', name: '收藏分析', desc: '风格偏好洞察' },
   { id: 't5', icon: 'budget', name: '预算建议', desc: '理性消费助手' },
   { id: 't6', icon: 'notification', name: '发售提醒', desc: '不错过开售' },
 ]
-const taskGrid = { ...flexRow, flexWrap: 'wrap' as string }
-function taskCard(idx: number) { return { width: '325rpx', height: '192rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: baseColors.white, alignItems: 'center', justifyContent: 'center', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: idx < 4 ? GROUP_GAP : '0' } }
-const taskIconWrap = { width: '72rpx', height: '72rpx', borderRadius: '18rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center' }
-const taskName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: 'center', marginTop: '12rpx' }
-const taskDesc = { fontSize: fontSize.xs, color: neutralLight.textTertiary, textAlign: 'center', marginTop: '4rpx' }
+const primaryTaskRow = { ...flexRow }
+function primaryTaskCard(idx: number) { return { width: '325rpx', height: '192rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: idx === 0 ? brand[50] : accent[50], padding: CARD_PADDING, justifyContent: 'center', marginRight: idx === 0 ? GROUP_GAP : '0' } }
+const primaryIconWrap = computed((): any => ({ width: '68rpx', height: '68rpx', borderRadius: '18rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
+const primaryTaskName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginTop: '12rpx' }
+const primaryTaskDesc = { fontSize: fontSize.xs, color: neutralLight.textSecondary, marginTop: '4rpx' }
+
+const secondaryTaskGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function secondaryTaskCard(idx: number) { return { width: '325rpx', height: '140rpx', ...flexRow, alignItems: 'center', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, padding: '20rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
+const secondaryIconWrap = { width: '64rpx', height: '64rpx', borderRadius: '16rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
+const secondaryTaskCopy = { ...flexFill }
+const secondaryTaskName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold }
+const secondaryTaskDesc = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '4rpx', lines: 1, textOverflow: 'ellipsis' }
 function onTaskTap(id: string) {}
 
 const recent = [
