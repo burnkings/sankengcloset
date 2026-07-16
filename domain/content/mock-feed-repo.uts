@@ -103,6 +103,10 @@ function makeProductFeed(idx: number): FeedItem {
   item.price = p.price
   item.originalPrice = p.badge === '降价' ? Math.floor(p.price * 1.3) : p.price
   item.badgeText = p.badge
+  if (p.badge === '预售') {
+    item.eventStartAt = futureDate(0)
+    item.eventEndAt = futureDate(4 + (idx % 4))
+  }
   item.liked = idx % 7 === 0
   item.saved = idx % 11 === 0
   item.sourceLabel = '官方'
