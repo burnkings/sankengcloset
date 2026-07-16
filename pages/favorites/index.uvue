@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="uts">
-import { brand, neutralLight } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
@@ -42,14 +42,17 @@ const activeTab = ref('商品')
 const tabs = ['商品', '穿搭', '品牌', '合集']
 function onTabTap(tab: string) { activeTab.value = tab }
 function goDiscover() { uni.switchTab({ url: '/pages/discover/index' }) }
-function onRecTap(item: any) {}
+function onRecTap(item: any) {
+  uni.setStorageSync('pending_search_keyword', item.title)
+  uni.navigateTo({ url: '/pages/search/index' })
+}
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
 const emptyContainer = { alignItems: 'center', paddingTop: '40rpx', paddingBottom: '24rpx' }
-const emptyIconWrap = { width: '112rpx', height: '112rpx', borderRadius: radius.full, backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center' }
+const emptyIconWrap = computed((): any => ({ width: '112rpx', height: '112rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
 const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
 const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, textAlign: 'center', marginTop: '8rpx' }))
-const emptyAction = { height: '68rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
+const emptyAction = computed((): any => ({ height: '68rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }))
 const emptyActionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 
 const mockRecommend = [
