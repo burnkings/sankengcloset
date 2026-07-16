@@ -31,17 +31,18 @@
           </view>
         </view>
 
-        <V2SectionHeader title="偏好" subtitle="持续更新" />
+        <V2SectionHeader title="内容偏好" subtitle="影响首页推荐，可多选" />
         <view :style="tasteRow">
-          <view v-for="(item, idx) in tasteItems" :key="item.name" :style="tasteChip(idx)">
-            <AppIcon :name="item.icon" :size="36" :active="true" /><text :style="tasteName">{{ item.name }}</text>
+          <view v-for="(item, idx) in tasteItems" :key="item.name" :style="tasteChip(idx, item.name)" @tap="toggleTaste(item.name)">
+            <AppIcon :name="item.icon" :size="38" :active="isTasteSelected(item.name)" />
+            <text :style="tasteName(item.name)">{{ item.name }}</text>
           </view>
         </view>
 
         <V2SectionHeader title="设置" />
         <V2ListGroup>
-          <view v-for="(item, idx) in settingsItems" :key="item.label" :style="settingShell(idx)" @tap="onSettingTap(item.label)">
-            <V2ListRow :icon="item.icon" :label="item.label" />
+          <view v-for="(item, idx) in settingsItems" :key="item.id" :style="settingShell(idx)" @tap="onSettingTap(item.id)">
+            <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
           </view>
         </V2ListGroup>
       </view>
@@ -50,12 +51,12 @@
 </template>
 
 <script setup lang="uts">
-import { brand, neutralLight, semantic } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, isDark, setDarkMode } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -64,34 +65,71 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 
+const selectedTastes = ref(['JK', 'Lolita', '汉服'])
+
 function onEdit() { uni.showToast({ title: '编辑资料', icon: 'none' }) }
 function goPage(url: string) { uni.navigateTo({ url }) }
 function onManageTap(id: string) {
-  if (id === 'orders') { goPage('/pages/purchase/index') }
-  if (id === 'reminders') { goPage('/pages/reminder/index') }
-  if (id === 'budget') { uni.showToast({ title: '预算功能准备中', icon: 'none' }) }
+  if (id === 'orders') goPage('/pages/purchase/index')
+  if (id === 'reminders') goPage('/pages/reminder/index')
+  if (id === 'budget') uni.showToast({ title: '预算功能准备中', icon: 'none' })
 }
-function onSettingTap(label: string) { uni.showToast({ title: label, icon: 'none' }) }
+function onSettingTap(id: string) {
+  if (id === 'dark') {
+    setDarkMode(!isDark.value)
+    uni.showToast({ title: isDark.value ? '已开启深色模式' : '已关闭深色模式', icon: 'none' })
+    return
+  }
+  if (id === 'cache') {
+    uni.removeStorageSync('home_feed_cache')
+    uni.removeStorageSync('content_cache')
+    uni.removeStorageSync('image_cache')
+    uni.showToast({ title: '缓存已清理', icon: 'success' })
+    return
+  }
+  uni.showToast({ title: '功能准备中', icon: 'none' })
+}
+function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
+function toggleTaste(name: string) {
+  const idx = selectedTastes.value.indexOf(name)
+  if (idx >= 0) {
+    if (selectedTastes.value.length === 1) {
+      uni.showToast({ title: '至少保留一个偏好', icon: 'none' })
+      return
+    }
+    selectedTastes.value.splice(idx, 1)
+  } else {
+    selectedTastes.value.push(name)
+  }
+  uni.setStorageSync('content_preferences', selectedTastes.value.join(','))
+}
+
+onMounted(() => {
+  try {
+    const saved = uni.getStorageSync('content_preferences') as string
+    if (saved !== '') selectedTastes.value = saved.split(',')
+  } catch (e) {}
+})
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
-const profileCard = { ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }
-const avatarWrap = { width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }
+const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
-const userName = { fontSize: fontSize.base, fontWeight: fontWeight.semibold }
-const accountId = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '4rpx' }
+const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const accountId = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 const statusRow = { ...flexRow, alignItems: 'center', marginTop: '8rpx' }
 const statusDot = { width: '10rpx', height: '10rpx', borderRadius: radius.full, backgroundColor: semantic.success, marginRight: '8rpx' }
 const statusText = { fontSize: fontSize.xs, color: semantic.success }
 const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
 const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
 
-const closetCard = { ...flexRow, alignItems: 'center', height: '208rpx', paddingLeft: CARD_PADDING, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: brand[50] }
+const closetCard = computed((): any => ({ ...flexRow, alignItems: 'center', height: '208rpx', paddingLeft: CARD_PADDING, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
 const closetCopy = { ...flexFill }
 const closetTop = { ...flexRow, alignItems: 'center' }
 const closetLabel = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[700], marginLeft: '12rpx' }
-const closetValue = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, marginTop: '14rpx' }
-const closetDesc = { fontSize: fontSize.xs, color: neutralLight.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }
+const closetValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, marginTop: '14rpx' }))
+const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
 const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
 const manageItems = [
@@ -101,25 +139,35 @@ const manageItems = [
 ]
 const manageRow = { ...flexRow, marginTop: '16rpx' }
 function manageCard(idx: number) { return { width: '210rpx', height: '156rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx < 2 ? GROUP_GAP : '0' } }
-const manageLabel = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginTop: '12rpx' }
-const manageValue = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '10rpx' }
+const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
+const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
 
 const tasteItems = [
-  { name: 'JK', icon: 'shirt' }, { name: 'Lolita', icon: 'bow' }, { name: '汉服', icon: 'fan' },
+  { name: 'JK', icon: 'jk-collar' },
+  { name: 'Lolita', icon: 'lolita-dress' },
+  { name: '汉服', icon: 'hanfu-collar' },
 ]
 const tasteRow = { ...flexRow }
-function tasteChip(idx: number) { return { width: '210rpx', height: '88rpx', ...flexRow, alignItems: 'center', justifyContent: 'center', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx < 2 ? GROUP_GAP : '0' } }
-const tasteName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginLeft: '10rpx' }
+function tasteChip(idx: number, name: string) {
+  const selected = isTasteSelected(name)
+  return {
+    width: '210rpx', height: '88rpx', ...flexRow, alignItems: 'center', justifyContent: 'center',
+    borderRadius: CARD_RADIUS, backgroundColor: selected ? (isDark.value ? n.value.surfaceRaised : brand[50]) : n.value.surface,
+    borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: selected ? brand[200] : 'transparent',
+    marginRight: idx < 2 ? GROUP_GAP : '0',
+  }
+}
+function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isTasteSelected(name) ? brand[700] : n.value.textSecondary, marginLeft: '10rpx' } }
 
-const settingsItems = [
-  { icon: 'notification', label: '通知' },
-  { icon: 'moon', label: '深色模式' },
-  { icon: 'sparkles', label: 'AI 设置' },
-  { icon: 'database', label: '缓存' },
-  { icon: 'help-circle', label: '帮助与反馈' },
-  { icon: 'info', label: '关于' },
-]
-function settingShell(idx: number) { return { borderBottomWidth: idx < settingsItems.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: neutralLight.divider } }
+const settingsItems = computed(() => [
+  { id: 'notification', icon: 'notification', label: '通知', value: '' },
+  { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭' },
+  { id: 'ai', icon: 'sparkles', label: 'AI 设置', value: '' },
+  { id: 'cache', icon: 'database', label: '清理缓存', value: '' },
+  { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '' },
+  { id: 'about', icon: 'info', label: '关于', value: '' },
+])
+function settingShell(idx: number) { return { borderBottomWidth: idx < settingsItems.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
 
 <style>
