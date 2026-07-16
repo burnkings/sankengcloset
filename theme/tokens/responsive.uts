@@ -97,6 +97,20 @@ export const CHANNEL_INDICATOR_WIDTH = '32rpx'
 export const SEARCH_HEIGHT = '76rpx'
 export const SEARCH_RADIUS = '24rpx'
 
+// ====== 商品卡与筛选 (rpx) ======
+
+/** 750rpx 画布下，40rpx 页面边距 + 20rpx 卡间距对应的双列卡宽 */
+export const PRODUCT_CARD_WIDTH = '325rpx'
+/** 服饰卡图片保持接近 3:4 的纵向展示比例 */
+export const PRODUCT_CARD_IMAGE_HEIGHT = '420rpx'
+/** 统一商品卡信息区高度，避免同一行因倒计时出现而底部错位 */
+export const PRODUCT_CARD_INFO_MIN_HEIGHT = '188rpx'
+
+/** 二级品类筛选 */
+export const FILTER_CHIP_HEIGHT = '56rpx'
+export const FILTER_CHIP_PADDING_X = '22rpx'
+export const FILTER_CHIP_GAP = '12rpx'
+
 // ====== 比例 (paddingBottom %) ======
 
 export const RATIO_3_4 = '133.33%'
