@@ -44,11 +44,11 @@
 </template>
 
 <script setup lang="uts">
-import { brand, accent, neutralLight } from '@/theme/tokens/colors'
+import { brand, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, isDark } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
@@ -57,13 +57,13 @@ import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
-const welcomeCard = { padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: brand[50] }
-const welcomeTitle = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[700] }
-const welcomeDesc = { fontSize: fontSize.sm, color: brand[500], marginTop: '8rpx' }
+const welcomeCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const welcomeTitle = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: isDark.value ? brand[200] : brand[700] }))
+const welcomeDesc = computed((): any => ({ fontSize: fontSize.sm, color: isDark.value ? brand[200] : brand[500], marginTop: '8rpx' }))
 const inputRow = { ...flexRow, marginTop: '24rpx' }
 const inputBox = computed((): any => ({ ...flexFill, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', paddingLeft: '20rpx', paddingRight: '20rpx', marginRight: '12rpx' }))
-const inputPlaceholder = { fontSize: fontSize.sm, color: neutralLight.textTertiary, lines: 1, textOverflow: 'ellipsis' }
-const sendButton = { width: SEARCH_HEIGHT, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+const inputPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, lines: 1, textOverflow: 'ellipsis' }))
+const sendButton = computed((): any => ({ width: SEARCH_HEIGHT, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 
 const primaryTasks = [
   { id: 't1', icon: 'camera', name: '商品识别', desc: '拍照识别同款' },
@@ -76,24 +76,30 @@ const secondaryTasks = [
   { id: 't6', icon: 'notification', name: '发售提醒', desc: '不错过开售' },
 ]
 const primaryTaskRow = { ...flexRow }
-function primaryTaskCard(idx: number) { return { width: '325rpx', height: '192rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: idx === 0 ? brand[50] : accent[50], padding: CARD_PADDING, justifyContent: 'center', marginRight: idx === 0 ? GROUP_GAP : '0' } }
+function primaryTaskCard(idx: number) { return { width: '325rpx', height: '192rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surface : (idx === 0 ? brand[50] : accent[50]), padding: CARD_PADDING, justifyContent: 'center', marginRight: idx === 0 ? GROUP_GAP : '0' } }
 const primaryIconWrap = computed((): any => ({ width: '68rpx', height: '68rpx', borderRadius: '18rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
-const primaryTaskName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginTop: '12rpx' }
-const primaryTaskDesc = { fontSize: fontSize.xs, color: neutralLight.textSecondary, marginTop: '4rpx' }
+const primaryTaskName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
+const primaryTaskDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx' }))
 
 const secondaryTaskGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function secondaryTaskCard(idx: number) { return { width: '325rpx', height: '140rpx', ...flexRow, alignItems: 'center', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, padding: '20rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
 const secondaryIconWrap = { width: '64rpx', height: '64rpx', borderRadius: '16rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
 const secondaryTaskCopy = { ...flexFill }
-const secondaryTaskName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold }
-const secondaryTaskDesc = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '4rpx', lines: 1, textOverflow: 'ellipsis' }
-function onTaskTap(id: string) {}
+const secondaryTaskName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const secondaryTaskDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx', lines: 1, textOverflow: 'ellipsis' }))
+function onTaskTap(id: string) {
+  if (id === 't2') { uni.navigateTo({ url: '/pages/search/index' }); return }
+  if (id === 't4') { uni.switchTab({ url: '/pages/favorites/index' }); return }
+  if (id === 't5') { uni.switchTab({ url: '/pages/profile/index' }); return }
+  if (id === 't6') { uni.navigateTo({ url: '/pages/reminder/index' }); return }
+  uni.showToast({ title: id === 't1' ? '请选择商品图片' : '输入风格开始搭配', icon: 'none' })
+}
 
 const recent = [
   { id: 'r1', icon: 'camera', title: '商品识别 — 蓝色格裙', time: '2小时前' },
   { id: 'r2', icon: 'wand', title: 'AI 穿搭 — 茶会风格', time: '昨天' },
 ]
-function recentShell(idx: number) { return { borderBottomWidth: idx < recent.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: neutralLight.divider } }
+function recentShell(idx: number) { return { borderBottomWidth: idx < recent.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
 
 <style>
