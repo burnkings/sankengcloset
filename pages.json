@@ -31,6 +31,18 @@
       }
     },
     {
+      "path": "pages/search/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/share/create",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/wardrobe/index",
       "style": {
         "navigationStyle": "custom"
@@ -87,7 +99,7 @@
   ],
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#FF4D7E",
+    "selectedColor": "#D65378",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [
