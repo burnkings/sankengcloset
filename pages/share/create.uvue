@@ -25,6 +25,13 @@
           </view>
         </view>
 
+        <V2SectionHeader title="选择话题" subtitle="话题来自发布者选择，不自动生成" :compact="true" />
+        <view :style="topicWrap">
+          <view v-for="(item, idx) in topics" :key="item" :style="topicChip(idx, item)" @tap="topic = item">
+            <text :style="topicText(item)">#{{ item }}</text>
+          </view>
+        </view>
+
         <view :style="publishButton" @tap="publishLook">
           <text :style="publishText">发布到晒搭广场</text>
         </view>
@@ -51,7 +58,9 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 const selectedImage = ref('')
 const caption = ref('')
 const category = ref('JK')
+const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服']
+const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 
 function choosePhoto() {
   uni.chooseImage({
@@ -72,7 +81,8 @@ function publishLook() {
   uni.setStorageSync('local_outfit_image', selectedImage.value)
   uni.setStorageSync('local_outfit_caption', caption.value)
   uni.setStorageSync('local_outfit_category', category.value)
-  uni.navigateBack()
+  uni.setStorageSync('local_outfit_topic', topic.value)
+  uni.switchTab({ url: '/pages/community/index' })
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
@@ -87,6 +97,9 @@ const uploadDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.
 const categoryRow = { ...flexRow }
 function categoryChip(idx: number, item: string) { return { width: '210rpx', height: '72rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? brand[600] : n.value.surface, marginRight: idx < 2 ? '20rpx' : '0' } }
 function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? baseColors.white : n.value.textSecondary } }
+const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
+function topicChip(idx: number, item: string) { return { minHeight: '64rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value === item ? brand[50] : n.value.surface, borderWidth: topic.value === item ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200], marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
+function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: topic.value === item ? brand[700] : n.value.textSecondary } }
 const publishButton = { width: '670rpx', height: '88rpx', borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
@@ -95,4 +108,3 @@ const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value
 <style>
 .page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
 </style>
-
