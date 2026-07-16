@@ -4,6 +4,11 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
+        <view :style="composerCard" @tap="goCreate">
+          <view :style="composerIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
+          <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
+          <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
+        </view>
         <V2FilterChips :items="topics" :active="activeTopic" @change="onTopicChange" />
 
         <view v-if="localImage !== '' && topicVisible(localTopic)" :style="lookCard" @tap="goCreate">
@@ -24,10 +29,12 @@
           </view>
         </view>
 
-        <view :style="createCard" @tap="goCreate"><AppIcon name="camera" :size="42" :active="true" /><view :style="createCopy"><text :style="createTitle">发布我的第一条晒搭</text><text :style="createDesc">选择照片、坑向和话题即可预览</text></view><AppIcon name="chevron-right" :size="32" /></view>
       </view>
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="community" />
+  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -35,12 +42,15 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n, isDark } from '@/theme/use-theme'
+import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
 
 const activeTopic = ref('全部')
 const localImage = ref('')
@@ -56,6 +66,7 @@ function topicVisible(topic: string): boolean { return activeTopic.value === '�
 function onTopicChange(topic: string) { activeTopic.value = topic }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 onShow(() => {
+  syncTabBarChrome()
   try {
     const pendingTopic = uni.getStorageSync('community_topic') as string
     if (pendingTopic !== '') {
@@ -71,6 +82,13 @@ onShow(() => {
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
+const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '116rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '8rpx' }))
+const composerIcon = computed((): any => ({ width: '68rpx', height: '68rpx', borderRadius: '22rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const composerCopy = { ...flexFill }
+const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const composerDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '5rpx' }))
+const composerButton = { minWidth: '104rpx', height: '58rpx', borderRadius: '29rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }
+const composerButtonText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface }))
 const heroImage = { width: '670rpx', height: '760rpx' }
 const lookBody = { padding: CARD_PADDING }
@@ -83,10 +101,6 @@ const lookCaption = computed((): any => ({ fontSize: fontSize.sm, color: n.value
 const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx' }
 const topicText = { fontSize: fontSize.xs, color: brand[600], marginTop: '10rpx' }
 const likeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
-const createCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '22rpx', marginBottom: '24rpx' }))
-const createCopy = { ...flexFill, marginLeft: '16rpx' }
-const createTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const createDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 </script>
 
 <style>
