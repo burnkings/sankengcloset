@@ -40,6 +40,9 @@
       </view>
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="discover" />
+  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -47,17 +50,21 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
-import { n, isDark } from '@/theme/use-theme'
+import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
+import { openPrimaryTab } from '@/utils/tab-navigation'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
 
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
-function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); uni.switchTab({ url: '/pages/community/index' }) }
+function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); openPrimaryTab('/pages/community/index') }
 
 const features = [
   { id: 'f1', image: '/static/demo/outfit-editorial-01.jpg', title: '夏日三坑轻量化指南', desc: '从面料到版型的编辑选择', keyword: '夏日穿搭' },
@@ -84,8 +91,8 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const searchBox = computed((): any => ({ width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: n.value.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
 const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
 const featureScroll = { width: '710rpx', marginRight: '-40rpx' }
-const featureRow = { ...flexRow }
-function featureCard(idx: number) { return { width: '500rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.length - 1 ? '20rpx' : '0' } }
+const featureRow = { ...flexRow, width: '1060rpx' }
+function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.length - 1 ? '20rpx' : '0' } }
 const featureImage = { width: '500rpx', height: '280rpx' }
 const featureCopy = { padding: '20rpx' }
 const featureTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -111,6 +118,7 @@ const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[6
 function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.length - 1 ? '12rpx' : '0' } }
 const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
+onShow(() => { syncTabBarChrome() })
 </script>
 
 <style>
