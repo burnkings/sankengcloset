@@ -1,5 +1,8 @@
 <script setup lang="uts">
+import { initializeTheme } from '@/theme/use-theme'
+
 onLaunch(() => {
+  initializeTheme()
   console.log('App Launch')
 })
 
