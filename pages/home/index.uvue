@@ -33,7 +33,7 @@
         </view>
       </view>
 
-      <list-view v-else :style="listViewStyle" @scrolltolower="onLoadMore">
+      <list-view v-else scroll-y :style="listViewStyle" @scrolltolower="onLoadMore">
         <!-- Secondary category filter: scrolls away with content -->
         <list-item :type="'categoryFilters'">
           <view :style="categoryFilterWrap">
@@ -122,12 +122,11 @@
 
 <script setup lang="uts">
 import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline } from '@/stores/home-feed-store'
-import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST } from '@/domain/content/feed-item'
+import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
-import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { spacing } from '@/theme/tokens/spacing'
 import { radius } from '@/theme/tokens/radius'
-import { shadow } from '@/theme/tokens/shadow'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexCenter, flexFill } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
@@ -160,10 +159,16 @@ try {
 // #endif
 
 function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
-function onSearch() {}
+function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function onChannelTap(ch: string) { store.setChannel(ch) }
 function onCategoryTap(category: string) { store.setCategory(category) }
-function onTap(item: FeedItem) {}
+function onTap(item: FeedItem) {
+  if (item.feedType === FEED_OUTFIT) {
+    uni.switchTab({ url: '/pages/discover/index' })
+    return
+  }
+  uni.showToast({ title: '详情能力即将接入', icon: 'none' })
+}
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
 onMounted(() => { store.loadFirstPage() })
@@ -190,17 +195,17 @@ const capsuleSpacer = { width: `${capsuleW}px` }
 
 const wordmarkSearchSpacer = { height: '16rpx' }
 const layer2Wrap = {}
-const searchBox = {
+const searchBox = computed((): any => ({
   height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS,
-  backgroundColor: neutralLight.bgTertiary,
+  backgroundColor: n.value.bgTertiary,
   ...flexRow, alignItems: 'center',
   paddingHorizontal: spacing[3],
-}
-const searchPlaceholder = { fontSize: fontSize.sm, color: neutralLight.textTertiary, marginLeft: spacing[1] }
+}))
+const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: spacing[1] }))
 const searchTabsSpacer = { height: '12rpx' }
 
 // --- Styles ---
-const listViewStyle = { ...flexFill }
+const listViewStyle = { ...flexFill, width: '750rpx', height: '0', minHeight: '0' }
 const categoryFilterWrap = computed((): any => ({ paddingTop: '6rpx', paddingBottom: '2rpx', backgroundColor: n.value.bg }))
 
 // Error
@@ -225,11 +230,10 @@ const imgWrap169 = { width: '670rpx', height: '360rpx', position: 'relative' as 
 const imgWrap45 = { width: '670rpx', height: '760rpx', position: 'relative' as string, overflow: 'hidden' }
 
 // Event card
-const EVENT_GAP = '8rpx'
 const eventCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
 const eventOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: CARD_PADDING, paddingTop: '60rpx', backgroundColor: 'rgba(0,0,0,0.4)' }
 const eventTagRow = { ...flexRow, alignItems: 'center', marginBottom: spacing[1] }
-const eventTagBg = { paddingHorizontal: BADGE_PADDING_X, paddingVertical: BADGE_PADDING_Y, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.25)', minHeight: '36rpx', alignItems: 'center', marginRight: spacing[2] }
+const eventTagBg = { paddingRight: spacing[2], minHeight: '36rpx', alignItems: 'center', justifyContent: 'center', marginRight: spacing[2] }
 const eventTagTxt = { fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.semibold, color: baseColors.white }
 const eventTimeTxt = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)' }
 const eventTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white, lines: 2, textOverflow: 'ellipsis' }
@@ -245,7 +249,7 @@ const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', margi
 const postCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
 const postInfo = { padding: CARD_PADDING }
 const postTopRow = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '4rpx' }
-const postTagBg = { paddingHorizontal: BADGE_PADDING_X, paddingVertical: BADGE_PADDING_Y, borderRadius: radius.full, backgroundColor: brand[50] }
+const postTagBg = computed((): any => ({ paddingHorizontal: BADGE_PADDING_X, paddingVertical: BADGE_PADDING_Y, borderRadius: radius.full, backgroundColor: n.value.bgSecondary }))
 const postTagTxt = { fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.medium, color: brand[500] }
 const postSource = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
 const postTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 2, textOverflow: 'ellipsis', marginTop: spacing[1] }))
