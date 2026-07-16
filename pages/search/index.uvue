@@ -3,7 +3,7 @@
     <template #navbar><AppNavbar title="搜索" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit">
+        <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit" @clear="onClear">
           <template #prefix><AppIcon name="search" :size="34" /></template>
         </AppInput>
 
@@ -77,8 +77,11 @@ const results = computed((): FeedItem[] => {
 })
 
 function onSubmit() { inputFocused.value = false }
+function onClear() { keyword.value = ''; inputFocused.value = true }
 function selectKeyword(value: string) { keyword.value = value }
-function onResultTap(item: FeedItem) { uni.showToast({ title: item.title, icon: 'none' }) }
+function onResultTap(item: FeedItem) {
+  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+}
 
 onMounted(() => {
   try {
