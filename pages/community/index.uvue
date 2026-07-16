@@ -49,7 +49,7 @@ const localTopic = ref('今日穿搭')
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const looks = [
   { id: 'l1', image: '/static/demo/outfit-editorial-01.jpg', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', likes: 126 },
-  { id: 'l2', image: '/static/demo/prod-jk-navy.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', likes: 89 },
+  { id: 'l2', image: '/static/demo/prod-editorial-01.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', likes: 89 },
 ]
 const visibleLooks = computed(() => activeTopic.value === '全部' ? looks : looks.filter((item) => item.topic === activeTopic.value))
 function topicVisible(topic: string): boolean { return activeTopic.value === '全部' || activeTopic.value === topic }
