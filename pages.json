@@ -25,6 +25,12 @@
       }
     },
     {
+      "path": "pages/community/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationStyle": "custom"
@@ -38,6 +44,12 @@
     },
     {
       "path": "pages/share/create",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/product/detail",
       "style": {
         "navigationStyle": "custom"
       }
@@ -97,6 +109,12 @@
       }
     }
   ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#FAF9F8",
+    "backgroundColor": "#FAF9F8",
+    "backgroundTextStyle": "dark"
+  },
   "tabBar": {
     "color": "#999999",
     "selectedColor": "#D65378",
@@ -122,10 +140,10 @@
         "selectedIconPath": "static/tabbar/tab-ai-active.png"
       },
       {
-        "pagePath": "pages/favorites/index",
-        "text": "收藏",
-        "iconPath": "static/tabbar/tab-fav.png",
-        "selectedIconPath": "static/tabbar/tab-fav-active.png"
+        "pagePath": "pages/community/index",
+        "text": "晒搭",
+        "iconPath": "static/tabbar/tab-community.png",
+        "selectedIconPath": "static/tabbar/tab-community-active.png"
       },
       {
         "pagePath": "pages/profile/index",
