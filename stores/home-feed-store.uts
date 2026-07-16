@@ -12,6 +12,12 @@ import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel } 
 export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭']
 export const CATEGORY_FILTERS = ['全部', 'JK', 'Lolita', '汉服']
 
+function categoryCode(category: string): string {
+  if (category === 'Lolita') return 'LOLITA'
+  if (category === '汉服') return 'HANFU'
+  return category
+}
+
 // ====== 调试常量 ======
 // Mock 阶段可通过调试常量触发失败和空状态
 // 正式用户界面不暴露这些入口
@@ -121,7 +127,8 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     const channelItems = filterByChannel(allItems.value, ch)
     const category = currentCategory.value
     if (category === '' || category === '全部') return channelItems
-    return channelItems.filter((item) => item.category === category)
+    const code = categoryCode(category)
+    return channelItems.filter((item) => item.category === code)
   })
 
   const isEmpty = computed((): boolean => {
