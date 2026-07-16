@@ -17,7 +17,7 @@
         @blur="emit('blur')"
         @confirm="emit('confirm')"
       />
-      <view v-if="clearable && modelValue !== ''" :style="clearStyle" @tap.stop="onClear">
+      <view v-if="clearable && modelValue !== ''" :style="clearStyle" @tap="onClear">
         <text :style="clearIconStyle">×</text>
       </view>
       <view v-if="$slots.suffix" :style="suffixStyle"><slot name="suffix" /></view>
@@ -60,7 +60,7 @@ const wrapperStyle = computed((): any => ({
   ...flexRowCenter,
   height: '80rpx',
   paddingLeft: '28rpx',
-  paddingRight: '16rpx',
+  paddingRight: '24rpx',
   borderRadius: semanticRadius.input,
   backgroundColor: n.value.bgTertiary,
 }))
@@ -69,7 +69,7 @@ const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
 const prefixStyle = { width: '40rpx', height: '56rpx', alignItems: 'flex-start', justifyContent: 'center', marginRight: '14rpx', flexShrink: 0 }
 const suffixStyle = { marginLeft: '12rpx', flexShrink: 0 }
 // 56rpx 的独立点击热区，避免叉号边缘难点或事件落到 input。
-const clearStyle = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '8rpx', flexShrink: 0 }
+const clearStyle = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '8rpx', flexShrink: 0, zIndex: 2 }
 const clearIconStyle = computed((): any => ({ fontSize: fontSize.base, color: n.value.iconLight, textAlign: 'center' }))
 const errorTextStyle = { fontSize: fontSize.xs, color: semantic.error, marginTop: '4rpx', paddingLeft: '8rpx' }
 
