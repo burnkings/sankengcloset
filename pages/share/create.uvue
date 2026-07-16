@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="uts">
+import { openPrimaryTab } from '@/utils/tab-navigation'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -82,7 +83,7 @@ function publishLook() {
   uni.setStorageSync('local_outfit_caption', caption.value)
   uni.setStorageSync('local_outfit_category', category.value)
   uni.setStorageSync('local_outfit_topic', topic.value)
-  uni.switchTab({ url: '/pages/community/index' })
+  openPrimaryTab('/pages/community/index')
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
