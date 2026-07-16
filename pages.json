@@ -114,7 +114,9 @@
     "navigationBarBackgroundColor": "#FAF9F8",
     "backgroundColor": "#FAF9F8",
     "backgroundTextStyle": "dark"
-  },
+  }
+  // #ifndef APP
+  ,
   "tabBar": {
     "color": "#999999",
     "selectedColor": "#D65378",
@@ -153,4 +155,5 @@
       }
     ]
   }
+  // #endif
 }
