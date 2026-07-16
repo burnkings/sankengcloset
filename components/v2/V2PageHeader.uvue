@@ -15,10 +15,11 @@ import { PAGE_HEADER_HEIGHT } from '@/theme/tokens/responsive'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
 import { n } from '@/theme/use-theme'
+import { getStatusBarHeight } from '@/utils/window-info'
 
 const props = withDefaults(defineProps<{ title?: string; actionText?: string }>(), { title: '', actionText: '' })
 const emit = defineEmits<{ action: [] }>()
-const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+const statusBarHeight = getStatusBarHeight()
 const rootStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg }))
 const statusSpacer = { height: `${statusBarHeight}px` }
 const headerRow = { height: PAGE_HEADER_HEIGHT, ...flexRow, alignItems: 'center' }
