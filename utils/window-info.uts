@@ -1,0 +1,38 @@
+/** Cross-platform window metrics. Avoids deprecated wx.getSystemInfoSync output. */
+export function getStatusBarHeight(): number {
+  try {
+    const info = uni.getWindowInfo()
+    return info.statusBarHeight ?? 20
+  } catch (e) {
+    return 20
+  }
+}
+
+export function getWindowHeight(): number {
+  try {
+    const info = uni.getWindowInfo()
+    return info.windowHeight
+  } catch (e) {
+    return 667
+  }
+}
+
+export function getWindowWidth(): number {
+  try {
+    const info = uni.getWindowInfo()
+    return info.windowWidth
+  } catch (e) {
+    return 375
+  }
+}
+
+export function getSafeBottomInset(): number {
+  try {
+    const info = uni.getWindowInfo()
+    const safe = info.safeArea
+    if (safe == null) return 0
+    return Math.max(info.windowHeight - safe.bottom, 0)
+  } catch (e) {
+    return 0
+  }
+}
