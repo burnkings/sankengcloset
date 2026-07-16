@@ -31,8 +31,8 @@ const rowStyle = { ...flexRow, height: MIN_TOUCH_SIZE, alignItems: 'center' }
 const leftPadStyle = { width: PAGE_GUTTER_REGULAR, height: MIN_TOUCH_SIZE, flexShrink: 0 }
 const rightPadStyle = { width: PAGE_GUTTER_REGULAR, height: MIN_TOUCH_SIZE, flexShrink: 0 }
 const itemShellStyle = { ...flexRow, alignItems: 'center', flexShrink: 0 }
-const itemStyle = { width: '92rpx', height: MIN_TOUCH_SIZE, alignItems: 'center', justifyContent: 'center', position: 'relative' }
-const itemSpacerStyle = { width: '8rpx', height: MIN_TOUCH_SIZE, flexShrink: 0 }
+const itemStyle = { minWidth: '96rpx', height: MIN_TOUCH_SIZE, paddingLeft: '12rpx', paddingRight: '12rpx', alignItems: 'center', justifyContent: 'center', position: 'relative' }
+const itemSpacerStyle = { width: '12rpx', height: MIN_TOUCH_SIZE, flexShrink: 0 }
 function textStyle(item: string) {
   return { fontSize: fontSize.sm, fontWeight: item === props.active ? fontWeight.semibold : fontWeight.medium, color: item === props.active ? brand[500] : n.value.textSecondary }
 }
