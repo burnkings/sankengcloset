@@ -1,0 +1,98 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="发布美照" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="photoCard" @tap="choosePhoto">
+          <view v-if="selectedImage !== ''" :style="previewWrap">
+            <AppImage :src="selectedImage" width="100%" height="100%" mode="aspectFill" />
+            <view :style="replaceAction"><AppIcon name="camera" :size="30" :active="true" /><text :style="replaceText">重新选择</text></view>
+          </view>
+          <view v-else :style="uploadEmpty">
+            <view :style="uploadIcon"><AppIcon name="camera" :size="52" :active="true" /></view>
+            <text :style="uploadTitle">选择一张穿搭美照</text>
+            <text :style="uploadDesc">支持从相册选择或直接拍摄</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="穿搭说明" subtitle="说说搭配灵感" :compact="true" />
+        <AppInput v-model="caption" placeholder="例如：第一次尝试茶会风 Lolita" :maxlength="60" :clearable="true" />
+
+        <V2SectionHeader title="选择坑向" subtitle="帮助同好发现" :compact="true" />
+        <view :style="categoryRow">
+          <view v-for="(item, idx) in categories" :key="item" :style="categoryChip(idx, item)" @tap="category = item">
+            <text :style="categoryText(item)">{{ item }}</text>
+          </view>
+        </view>
+
+        <view :style="publishButton" @tap="publishLook">
+          <text :style="publishText">发布到晒搭广场</text>
+        </view>
+        <text :style="privacyNote">当前版本保存为本地预览；接入内容服务后将支持公开分享、点赞与评论。</text>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+
+const selectedImage = ref('')
+const caption = ref('')
+const category = ref('JK')
+const categories = ['JK', 'Lolita', '汉服']
+
+function choosePhoto() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      if (res.tempFilePaths.length > 0) selectedImage.value = res.tempFilePaths[0]
+    },
+  })
+}
+
+function publishLook() {
+  if (selectedImage.value === '') {
+    uni.showToast({ title: '请先选择一张美照', icon: 'none' })
+    return
+  }
+  uni.setStorageSync('local_outfit_image', selectedImage.value)
+  uni.setStorageSync('local_outfit_caption', caption.value)
+  uni.setStorageSync('local_outfit_category', category.value)
+  uni.navigateBack()
+}
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const photoCard = computed((): any => ({ width: '670rpx', height: '760rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden' }))
+const previewWrap = { width: '670rpx', height: '760rpx', position: 'relative' as string }
+const replaceAction = computed((): any => ({ position: 'absolute', right: '20rpx', bottom: '20rpx', height: '64rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: radius.full, backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
+const replaceText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '8rpx' }))
+const uploadEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
+const uploadIcon = { width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center' }
+const uploadTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx' }))
+const uploadDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
+const categoryRow = { ...flexRow }
+function categoryChip(idx: number, item: string) { return { width: '210rpx', height: '72rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? brand[600] : n.value.surface, marginRight: idx < 2 ? '20rpx' : '0' } }
+function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? baseColors.white : n.value.textSecondary } }
+const publishButton = { width: '670rpx', height: '88rpx', borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }
+const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>
+
