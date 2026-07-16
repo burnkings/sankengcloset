@@ -29,15 +29,12 @@
           </view>
         </view>
 
-        <V2SectionHeader title="最近使用" />
-        <V2ListGroup>
-          <view v-for="(item, idx) in recent" :key="item.id" :style="recentShell(idx)">
-            <V2ListRow :icon="item.icon" :label="item.title" :value="item.time" :show-arrow="false" />
-          </view>
-        </V2ListGroup>
       </view>
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="ai" />
+  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
@@ -45,14 +42,16 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n, isDark } from '@/theme/use-theme'
+import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
+import { openPrimaryTab } from '@/utils/tab-navigation'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
-import V2ListRow from '@/components/v2/V2ListRow.uvue'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
 
 const aiQuery = ref('')
 const answer = ref('')
@@ -78,16 +77,13 @@ function onTaskTap(id: string) {
   if (id === 'identify') { uni.showToast({ title: '请选择一张待识别图片', icon: 'none' }); return }
   if (id === 'release') { uni.navigateTo({ url: '/pages/reminder/index' }); return }
   if (id === 'collection') { uni.navigateTo({ url: '/pages/favorites/index' }); return }
-  if (id === 'budget') { uni.switchTab({ url: '/pages/profile/index' }); return }
+  if (id === 'budget') { openPrimaryTab('/pages/profile/index'); return }
   const preset = id === 'outfit' ? '用我的衣橱搭配周末茶会造型' : '为月光曲 JSK 寻找更低价的相似款'
   aiQuery.value = preset
   runAssistant()
 }
 
-const recent = [
-  { id: 'r1', icon: 'camera', title: '图片识款 · 蓝色格裙', time: '2小时前' },
-  { id: 'r2', icon: 'wand', title: '衣橱搭配 · 茶会风格', time: '昨天' },
-]
+onShow(() => { syncTabBarChrome() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const welcomeCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
@@ -106,7 +102,6 @@ function taskCard(idx: number) { return { width: '325rpx', minHeight: '178rpx', 
 const taskIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center' }))
 const taskName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
 const taskDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx', lineHeight: '32rpx' }))
-function recentShell(idx: number) { return { borderBottomWidth: idx < recent.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
 
 <style>
