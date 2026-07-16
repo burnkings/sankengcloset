@@ -2,13 +2,16 @@
   <view :style="cardStyle" @tap="emit('click')">
     <view :style="imageStyle">
       <AppImage :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-      <view v-if="badge !== ''" :style="badgeStyle"><text :style="badgeTextStyle">{{ badge }}</text></view>
     </view>
     <view :style="infoStyle">
       <text :style="brandStyle">{{ brandName }}</text>
       <text :style="titleStyle">{{ title }}</text>
-      <view v-if="deadlineText !== ''" :style="deadlineStyle">
-        <text :style="deadlineTextStyle">{{ deadlineText }}</text>
+      <view v-if="badge !== '' || deadlineText !== ''" :style="metaRowStyle">
+        <view v-if="badge !== ''" :style="statusStyle">
+          <view :style="statusDotStyle" />
+          <text :style="statusTextStyle">{{ badge }}</text>
+        </view>
+        <text v-if="deadlineText !== ''" :style="deadlineTextStyle">{{ deadlineText }}</text>
       </view>
       <view :style="infoSpacerStyle" />
       <view :style="priceRowStyle">
@@ -22,8 +25,7 @@
 <script setup lang="uts">
 import { brand, accent, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { CARD_PADDING, CARD_RADIUS, BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_FONT_SIZE, PRODUCT_CARD_WIDTH, PRODUCT_CARD_IMAGE_HEIGHT, PRODUCT_CARD_INFO_MIN_HEIGHT } from '@/theme/tokens/responsive'
-import { radius } from '@/theme/tokens/radius'
+import { CARD_PADDING, CARD_RADIUS, PRODUCT_CARD_WIDTH, PRODUCT_CARD_IMAGE_HEIGHT, PRODUCT_CARD_INFO_MIN_HEIGHT } from '@/theme/tokens/responsive'
 import { flexRow } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -41,27 +43,21 @@ const emit = defineEmits<{ click: [] }>()
 
 const cardStyle = computed((): any => ({ width: PRODUCT_CARD_WIDTH, flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden' }))
 const imageStyle = { width: PRODUCT_CARD_WIDTH, height: PRODUCT_CARD_IMAGE_HEIGHT, position: 'relative', overflow: 'hidden' }
-function badgeBackground(): string {
-  if (props.badge === '现货' || props.badge === '新品') return semantic.successLight
-  if (props.badge === '预览' || props.badge === '图透') return accent[50]
-  if (props.badge === '尾款') return semantic.warningLight
-  if (props.badge === '降价') return semantic.errorLight
-  return brand[50]
-}
-function badgeForeground(): string {
+function statusColor(): string {
   if (props.badge === '现货' || props.badge === '新品') return semantic.success
   if (props.badge === '预览' || props.badge === '图透') return accent[600]
   if (props.badge === '尾款') return semantic.warning
   if (props.badge === '降价') return semantic.error
   return brand[700]
 }
-const badgeStyle = computed((): any => ({ position: 'absolute', top: '16rpx', right: '16rpx', paddingHorizontal: BADGE_PADDING_X, paddingVertical: BADGE_PADDING_Y, borderRadius: radius.full, backgroundColor: badgeBackground(), minHeight: '36rpx', alignItems: 'center', justifyContent: 'center' }))
-const badgeTextStyle = computed((): any => ({ fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.semibold, color: badgeForeground() }))
 const infoStyle = { padding: CARD_PADDING, minHeight: PRODUCT_CARD_INFO_MIN_HEIGHT }
 const brandStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
 const titleStyle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, lines: 2, textOverflow: 'ellipsis', marginTop: '8rpx' }))
-const deadlineStyle = { alignSelf: 'flex-start', minHeight: '36rpx', paddingLeft: '10rpx', paddingRight: '10rpx', borderRadius: radius.sm, backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginTop: '10rpx' }
-const deadlineTextStyle = { fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: brand[700] }
+const metaRowStyle = { ...flexRow, alignItems: 'center', minHeight: '32rpx', marginTop: '10rpx' }
+const statusStyle = { ...flexRow, alignItems: 'center', marginRight: '12rpx' }
+const statusDotStyle = computed((): any => ({ width: '8rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: statusColor(), marginRight: '8rpx' }))
+const statusTextStyle = computed((): any => ({ fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: statusColor() }))
+const deadlineTextStyle = computed((): any => ({ fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 const infoSpacerStyle = { flex: 1, minHeight: '12rpx' }
 const priceRowStyle = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
 const priceStyle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: brand[600] }
