@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="uts">
+import { openPrimaryTab } from '@/utils/tab-navigation'
 import { brand } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -41,7 +42,7 @@ import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 const activeTab = ref('商品')
 const tabs = ['商品', '穿搭', '品牌', '合集']
 function onTabTap(tab: string) { activeTab.value = tab }
-function goDiscover() { uni.switchTab({ url: '/pages/discover/index' }) }
+function goDiscover() { openPrimaryTab('/pages/discover/index') }
 function onRecTap(item: any) {
   uni.setStorageSync('pending_search_keyword', item.title)
   uni.navigateTo({ url: '/pages/search/index' })
