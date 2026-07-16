@@ -64,15 +64,25 @@ const inputFocused = ref(true)
 const sourceItems = getFirstPage()
 const hotKeywords = ['月光曲', '格裙', '宋制', '新品预约', 'Lolita 茶会', '汉服通勤']
 
+function normalizedQuery(value: string): string {
+  let q = value.trim().toLowerCase()
+  q = q.replace('洛丽塔', 'lolita').replace('洛莉塔', 'lolita').replace('lo裙', 'lolita')
+  q = q.replace('水手服', 'jk').replace('格裙', 'jk').replace('制服', 'jk')
+  q = q.replace('华服', '汉服').replace('汉元素', '汉服')
+  return q
+}
+
+function itemSearchText(item: FeedItem): string {
+  const categoryLabel = item.category === 'HANFU' ? '汉服 华服 汉元素' : (item.category === 'LOLITA' ? 'lolita 洛丽塔 洛莉塔 lo裙' : 'jk 制服 水手服 格裙')
+  return `${item.title} ${item.brandName} ${item.subtitle} ${categoryLabel}`.toLowerCase()
+}
+
 const results = computed((): FeedItem[] => {
-  const q = keyword.value.trim().toLowerCase()
+  const q = normalizedQuery(keyword.value)
   if (q === '') return []
   return sourceItems.filter((item) => {
     if (item.feedType !== FEED_PRODUCT) return false
-    const categoryLabel = item.category === 'HANFU' ? '汉服' : (item.category === 'LOLITA' ? 'lolita' : item.category)
-    return item.title.toLowerCase().includes(q)
-      || item.brandName.toLowerCase().includes(q)
-      || categoryLabel.toLowerCase().includes(q)
+    return itemSearchText(item).includes(q)
   })
 })
 
