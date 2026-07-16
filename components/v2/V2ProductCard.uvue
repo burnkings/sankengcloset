@@ -1,0 +1,47 @@
+<template>
+  <view :style="cardStyle" @tap="emit('click')">
+    <view :style="imageStyle">
+      <AppImage :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+      <view v-if="badge !== ''" :style="badgeStyle"><text :style="badgeTextStyle">{{ badge }}</text></view>
+    </view>
+    <view :style="infoStyle">
+      <text :style="brandStyle">{{ brandName }}</text>
+      <text :style="titleStyle">{{ title }}</text>
+      <view :style="priceRowStyle">
+        <text :style="priceStyle">{{ priceText }}</text>
+        <text v-if="originalPriceText !== ''" :style="originalPriceStyle">{{ originalPriceText }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { CARD_PADDING, CARD_RADIUS, BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_FONT_SIZE } from '@/theme/tokens/responsive'
+import { radius } from '@/theme/tokens/radius'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+import AppImage from '@/components/base/AppImage.uvue'
+
+const props = withDefaults(defineProps<{
+  image?: string
+  brandName?: string
+  title?: string
+  priceText?: string
+  originalPriceText?: string
+  badge?: string
+}>(), { image: '', brandName: '', title: '', priceText: '', originalPriceText: '', badge: '' })
+const emit = defineEmits<{ click: [] }>()
+
+const cardStyle = computed((): any => ({ width: '325rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden' }))
+const imageStyle = { width: '325rpx', height: '420rpx', position: 'relative', overflow: 'hidden' }
+const badgeStyle = { position: 'absolute', top: '16rpx', right: '16rpx', paddingHorizontal: BADGE_PADDING_X, paddingVertical: BADGE_PADDING_Y, borderRadius: radius.full, backgroundColor: 'rgba(45,39,41,0.58)', minHeight: '36rpx', alignItems: 'center', justifyContent: 'center' }
+const badgeTextStyle = { fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.semibold, color: baseColors.white }
+const infoStyle = { padding: CARD_PADDING }
+const brandStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const titleStyle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, lines: 2, textOverflow: 'ellipsis', marginTop: '8rpx' }))
+const priceRowStyle = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
+const priceStyle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: brand[600] }
+const originalPriceStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textDecoration: 'line-through', marginLeft: '8rpx' }))
+</script>

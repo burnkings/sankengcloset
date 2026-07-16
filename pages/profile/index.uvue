@@ -1,43 +1,127 @@
 <template>
   <MainLayout>
-    <template #navbar>
-      <AppNavbar title="我的" :show-back="false" />
-    </template>
+    <template #navbar><V2PageHeader title="我的" /></template>
     <template #default>
-      <view :style="sectionWrap">
-        <view :style="cardStyle" @tap="goManage">
-          <text :style="cardTitle">管理中心</text>
-          <text :style="cardDesc">衣橱、订单、提醒、预算</text>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="profileCard">
+          <view :style="avatarWrap"><text :style="avatarText">SK</text></view>
+          <view :style="profileCopy">
+            <text :style="userName">三坑女孩</text>
+            <text :style="accountId">ID: sk_0001</text>
+            <view :style="statusRow"><view :style="statusDot" /><text :style="statusText">本地衣橱已就绪</text></view>
+          </view>
+          <view :style="editButton" @tap="onEdit"><text :style="editText">编辑</text></view>
         </view>
-        <view :style="cardStyle">
-          <text :style="cardTitle">设置</text>
-          <text :style="cardDesc">主题、通知、关于</text>
+
+        <V2SectionHeader title="管理中心" subtitle="你的三坑日常" />
+        <view :style="closetCard" @tap="goPage('/pages/wardrobe/index')">
+          <view :style="closetCopy">
+            <view :style="closetTop"><AppIcon name="wardrobe" :size="44" :active="true" /><text :style="closetLabel">衣橱</text></view>
+            <text :style="closetValue">12 件心爱单品</text>
+            <text :style="closetDesc">JK、Lolita 与汉服正在等你搭配</text>
+          </view>
+          <view :style="closetImage"><AppImage src="/static/demo/prod-editorial-01.jpg" width="100%" height="100%" mode="aspectFill" /></view>
         </view>
+
+        <view :style="manageRow">
+          <view v-for="(item, idx) in manageItems" :key="item.id" :style="manageCard(idx)" @tap="onManageTap(item.id)">
+            <AppIcon :name="item.icon" :size="40" :active="item.id === 'budget'" />
+            <text :style="manageLabel">{{ item.label }}</text>
+            <text :style="manageValue">{{ item.value }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="偏好" subtitle="持续更新" />
+        <view :style="tasteRow">
+          <view v-for="(item, idx) in tasteItems" :key="item.name" :style="tasteChip(idx)">
+            <AppIcon :name="item.icon" :size="36" :active="true" /><text :style="tasteName">{{ item.name }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="设置" />
+        <V2ListGroup>
+          <view v-for="(item, idx) in settingsItems" :key="item.label" :style="settingShell(idx)" @tap="onSettingTap(item.label)">
+            <V2ListRow :icon="item.icon" :label="item.label" />
+          </view>
+        </V2ListGroup>
       </view>
     </template>
   </MainLayout>
 </template>
+
 <script setup lang="uts">
-import { brand, neutralLight } from '@/theme/tokens/colors'
-import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
-import { radius, semanticRadius } from '@/theme/tokens/radius'
-import { shadow } from '@/theme/tokens/shadow'
+import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import V2ListRow from '@/components/v2/V2ListRow.uvue'
 
-const sectionWrap = { padding: semanticSpacing.pageHorizontal, paddingTop: spacing[3], gap: spacing[3] }
-const cardStyle = computed((): any => ({
-  padding: spacing[4],
-  borderRadius: semanticRadius.card,
-  backgroundColor: n.value.surface,
-  boxShadow: shadow.sm,
-}))
-const cardTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const cardDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: spacing[0.5] }))
-
-function goManage() {
-  // Phase 2: navigate to management center
+function onEdit() { uni.showToast({ title: '编辑资料', icon: 'none' }) }
+function goPage(url: string) { uni.navigateTo({ url }) }
+function onManageTap(id: string) {
+  if (id === 'orders') { goPage('/pages/purchase/index') }
+  if (id === 'reminders') { goPage('/pages/reminder/index') }
+  if (id === 'budget') { uni.showToast({ title: '预算功能准备中', icon: 'none' }) }
 }
+function onSettingTap(label: string) { uni.showToast({ title: label, icon: 'none' }) }
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const profileCard = { ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }
+const avatarWrap = { width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }
+const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
+const profileCopy = { ...flexFill, justifyContent: 'center' }
+const userName = { fontSize: fontSize.base, fontWeight: fontWeight.semibold }
+const accountId = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '4rpx' }
+const statusRow = { ...flexRow, alignItems: 'center', marginTop: '8rpx' }
+const statusDot = { width: '10rpx', height: '10rpx', borderRadius: radius.full, backgroundColor: '#5B9A6E', marginRight: '8rpx' }
+const statusText = { fontSize: fontSize.xs, color: '#5B9A6E' }
+const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
+const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+
+const closetCard = { ...flexRow, alignItems: 'center', height: '208rpx', paddingLeft: CARD_PADDING, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: brand[50] }
+const closetCopy = { ...flexFill }
+const closetTop = { ...flexRow, alignItems: 'center' }
+const closetLabel = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[700], marginLeft: '12rpx' }
+const closetValue = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, marginTop: '14rpx' }
+const closetDesc = { fontSize: fontSize.xs, color: neutralLight.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }
+const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
+
+const manageItems = [
+  { id: 'orders', icon: 'order', label: '订单', value: '3 笔' },
+  { id: 'reminders', icon: 'reminder', label: '提醒', value: '5 条' },
+  { id: 'budget', icon: 'budget', label: '预算', value: '¥2,400' },
+]
+const manageRow = { ...flexRow, marginTop: '16rpx' }
+function manageCard(idx: number) { return { width: '210rpx', height: '156rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx < 2 ? GROUP_GAP : '0' } }
+const manageLabel = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginTop: '12rpx' }
+const manageValue = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '10rpx' }
+
+const tasteItems = [
+  { name: 'JK', icon: 'shirt' }, { name: 'Lolita', icon: 'bow' }, { name: '汉服', icon: 'fan' },
+]
+const tasteRow = { ...flexRow }
+function tasteChip(idx: number) { return { width: '210rpx', height: '88rpx', ...flexRow, alignItems: 'center', justifyContent: 'center', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx < 2 ? GROUP_GAP : '0' } }
+const tasteName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginLeft: '10rpx' }
+
+const settingsItems = [
+  { icon: 'notification', label: '通知' },
+  { icon: 'moon', label: '深色模式' },
+  { icon: 'sparkles', label: 'AI 设置' },
+  { icon: 'database', label: '缓存' },
+  { icon: 'help-circle', label: '帮助与反馈' },
+  { icon: 'info', label: '关于' },
+]
+function settingShell(idx: number) { return { borderBottomWidth: idx < settingsItems.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: neutralLight.divider } }
 </script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

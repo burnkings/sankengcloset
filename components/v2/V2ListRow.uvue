@@ -1,0 +1,36 @@
+<template>
+  <view :style="rowStyle">
+    <view v-if="icon !== ''" :style="iconWrapStyle"><AppIcon :name="icon" :size="40" :active="iconActive" /></view>
+    <view :style="copyStyle">
+      <text :style="labelStyle">{{ label }}</text>
+      <text v-if="subtitle !== ''" :style="subtitleStyle">{{ subtitle }}</text>
+    </view>
+    <text v-if="value !== ''" :style="valueStyle">{{ value }}</text>
+    <AppIcon v-if="showArrow" name="chevron-right" :size="34" />
+  </view>
+</template>
+
+<script setup lang="uts">
+import { baseColors, neutralLight } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+import AppIcon from '@/components/base/AppIcon.uvue'
+
+const props = withDefaults(defineProps<{
+  icon?: string
+  label?: string
+  subtitle?: string
+  value?: string
+  iconActive?: boolean
+  showArrow?: boolean
+}>(), { icon: '', label: '', subtitle: '', value: '', iconActive: false, showArrow: true })
+
+const rowStyle = { ...flexRow, alignItems: 'center', height: LIST_ROW_HEIGHT, paddingLeft: '20rpx', paddingRight: '20rpx' }
+const iconWrapStyle = { width: '64rpx', height: '64rpx', borderRadius: '16rpx', backgroundColor: neutralLight.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
+const copyStyle = { ...flexFill }
+const labelStyle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const subtitleStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '2rpx' }))
+const valueStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '8rpx' }))
+</script>

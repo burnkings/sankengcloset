@@ -1,0 +1,31 @@
+<template>
+  <view :style="rootStyle">
+    <view :style="statusSpacer" />
+    <view class="v2-page-header-canvas" :style="headerRow">
+      <text :style="titleStyle">{{ title }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { neutralLight } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { PAGE_HEADER_HEIGHT } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { zIndex } from '@/theme/tokens/z-index'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{ title?: string }>(), { title: '' })
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+const rootStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg }))
+const statusSpacer = { height: `${statusBarHeight}px` }
+const headerRow = { height: PAGE_HEADER_HEIGHT, ...flexRow, alignItems: 'center' }
+const titleStyle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
+</script>
+
+<style>
+.v2-page-header-canvas {
+  padding-left: 40rpx;
+  padding-right: 40rpx;
+}
+</style>

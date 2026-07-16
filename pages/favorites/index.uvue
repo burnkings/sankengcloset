@@ -1,25 +1,67 @@
 <template>
   <MainLayout>
-    <template #navbar>
-      <AppNavbar title="收藏" :show-back="false" />
-    </template>
+    <template #navbar><V2PageHeader title="收藏" /></template>
     <template #default>
-      <view :style="emptyWrap">
-        <text :style="emptyTitle">收藏</text>
-        <text :style="emptyMsg">你收藏的商品、穿搭和品牌动态将在这里展示</text>
+      <view :style="tabsTopSpacer" />
+      <V2HorizontalTabs :items="tabs" :active="activeTab" @change="onTabTap" />
+
+      <view class="page-canvas">
+        <view :style="emptyContainer">
+          <view :style="emptyIconWrap"><AppIcon name="heart" :size="60" /></view>
+          <text :style="emptyTitle">还没有收藏内容</text>
+          <text :style="emptyDesc">浏览发现页，找到你心仪的三坑好物</text>
+          <view :style="emptyAction" @tap="goDiscover"><text :style="emptyActionText">去发现</text></view>
+        </view>
+
+        <V2SectionHeader title="为你推荐" />
+        <view :style="recommendGrid">
+          <view v-for="(item, idx) in mockRecommend" :key="item.id" :style="productShell(idx)">
+            <V2ProductCard :image="item.img" :brand-name="item.brand" :title="item.title" :price-text="item.price" @click="onRecTap(item)" />
+          </view>
+        </view>
       </view>
     </template>
   </MainLayout>
 </template>
+
 <script setup lang="uts">
-import { spacing } from '@/theme/tokens/spacing'
+import { brand, neutralLight } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexColumnCenter } from '@/theme/layout/flex'
+import { flexRow } from '@/theme/layout/flex'
+import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
+import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 
-const emptyWrap = { ...flexColumnCenter, justifyContent: 'center', flex: 1, padding: spacing[8], gap: spacing[3] }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: n.value.text }))
-const emptyMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
+const activeTab = ref('商品')
+const tabs = ['商品', '穿搭', '品牌', '合集']
+function onTabTap(tab: string) { activeTab.value = tab }
+function goDiscover() { uni.switchTab({ url: '/pages/discover/index' }) }
+function onRecTap(item: any) {}
+
+const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
+const emptyContainer = { alignItems: 'center', paddingTop: '40rpx', paddingBottom: '24rpx' }
+const emptyIconWrap = { width: '112rpx', height: '112rpx', borderRadius: radius.full, backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center' }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, textAlign: 'center', marginTop: '8rpx' }))
+const emptyAction = { height: '68rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
+const emptyActionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+
+const mockRecommend = [
+  { id: 'rec1', img: '/static/demo/prod-editorial-01.jpg', brand: '兔缝缝', title: '深蓝格裙 45cm', price: '¥128' },
+  { id: 'rec2', img: '/static/demo/prod-editorial-02.jpg', brand: '星辰猫', title: '月光曲 JSK', price: '¥368' },
+  { id: 'rec3', img: '/static/demo/prod-editorial-03.jpg', brand: '花筵', title: '宋制旋裙套装', price: '¥258' },
+  { id: 'rec4', img: '/static/demo/outfit-editorial-01.jpg', brand: '兔缝缝', title: '春日三坑穿搭', price: '¥289' },
+]
+const recommendGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 </script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

@@ -30,7 +30,7 @@ if not os.path.exists(VENDOR):
     print(f"[FAIL] vendor.js not found: {VENDOR}")
     sys.exit(1)
 
-with open(VENDOR) as f:
+with open(VENDOR, encoding="utf-8") as f:
     v = f.read()
 
 changes = 0
@@ -168,13 +168,13 @@ if missing:
     for e in missing:
         print(f"[PATCH] export {e.partition('=')[0].strip()}")
 
-with open(VENDOR, "w") as f:
+with open(VENDOR, "w", encoding="utf-8", newline="\n") as f:
     f.write(v)
 print(f"[OK] vendor.js: {changes} change(s)")
 
 # 5. Fix app.js bare references
 if os.path.exists(APP_JS):
-    with open(APP_JS) as f:
+    with open(APP_JS, encoding="utf-8") as f:
         a = f.read()
     fx = 0
     if "const app = createSSRApp(" in a:
@@ -186,7 +186,7 @@ if os.path.exists(APP_JS):
         fx += 1
         print("[FIX] app.js: createPinia")
     if fx:
-        with open(APP_JS, "w") as f:
+        with open(APP_JS, "w", encoding="utf-8", newline="\n") as f:
             f.write(a)
 
 # 6. Patch Store files: bind defineStore from vendor import
@@ -199,7 +199,7 @@ BIND_MARKER = "/* patch-vendor: defineStore bound */"
 store_patched = 0
 if os.path.isdir(STORES_DIR):
     for js_path in glob.glob(os.path.join(STORES_DIR, "*.js")):
-        with open(js_path) as f:
+        with open(js_path, encoding="utf-8") as f:
             content = f.read()
         if BIND_MARKER in content:
             continue  # already patched
@@ -230,7 +230,7 @@ if os.path.isdir(STORES_DIR):
                 count=1  # only first occurrence (the store creation)
             )
             if new_content != content:
-                with open(js_path, "w") as f:
+                with open(js_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(new_content)
                 store_patched += 1
                 print(f"[FIX] {os.path.basename(js_path)}: defineStore -> {vendor_var}.defineStore (minified)")
@@ -245,7 +245,7 @@ if os.path.isdir(STORES_DIR):
             if inject_idx >= 0:
                 inject = f'{BIND_MARKER}\nvar defineStore = {vendor_var}.defineStore;'
                 lines.insert(inject_idx + 1, inject)
-                with open(js_path, "w") as f:
+                with open(js_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write("\n".join(lines))
                 store_patched += 1
                 print(f"[FIX] {os.path.basename(js_path)}: defineStore bound from {vendor_var}.defineStore")

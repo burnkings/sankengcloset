@@ -97,7 +97,7 @@ function makeProductFeed(idx: number): FeedItem {
   item.entityId = p.id
   item.title = p.title
   item.subtitle = b.name
-  item.coverUrl = '/static/demo/prod-' + String((idx % 6) + 1).padStart(2, '0') + '.png'
+  item.coverUrl = '/static/demo/prod-editorial-' + String((idx % 3) + 1).padStart(2, '0') + '.jpg'
   item.brandId = b.id
   item.brandName = b.name
   item.price = p.price
@@ -121,7 +121,7 @@ function makeEventFeed(idx: number): FeedItem {
   item.entityId = e.id
   item.title = e.title
   item.subtitle = `${getEventTypeLabel(e.eventType)} · ${e.daysFromNow >= 0 ? e.daysFromNow + '天后' : Math.abs(e.daysFromNow) + '天前'}`
-  item.coverUrl = '/static/demo/event-' + String((idx % 2) + 1).padStart(2, '0') + '.png'
+  item.coverUrl = idx % 2 == 0 ? '/static/demo/outfit-editorial-01.jpg' : '/static/demo/prod-editorial-02.jpg'
   item.brandId = b.id
   item.brandName = b.name
   item.price = e.price
@@ -146,7 +146,7 @@ function makePostFeed(idx: number): FeedItem {
   item.entityId = p.id
   item.title = p.title
   item.subtitle = b.name
-  item.coverUrl = '/static/demo/event-' + String((idx % 2) + 1).padStart(2, '0') + '.png'
+  item.coverUrl = idx % 2 == 0 ? '/static/demo/outfit-editorial-01.jpg' : '/static/demo/prod-editorial-03.jpg'
   item.brandId = b.id
   item.brandName = b.name
   item.badgeText = p.badge
@@ -166,7 +166,7 @@ function makeOutfitFeed(idx: number): FeedItem {
   item.entityId = o.id
   item.title = o.title
   item.subtitle = '用户投稿'
-  item.coverUrl = '/static/demo/outfit-' + String((idx % 2) + 1).padStart(2, '0') + '.png'
+  item.coverUrl = '/static/demo/outfit-editorial-01.jpg'
   item.badgeText = o.badge
   item.liked = idx % 6 === 0
   item.sourceLabel = '用户'

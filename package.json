@@ -1,9 +1,11 @@
 {
   "name": "sankengcloset",
-  "version": "1.0.0",
+  "version": "1.6.2",
   "description": "三坑绮橱 AppX",
   "scripts": {
-    "build:mp-weixin": "uni build -p mp-weixin"
+    "build:mp-weixin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-mp-weixin.ps1",
+    "patch:mp-weixin": "python scripts/patch-vendor.py unpackage/dist/dev/mp-weixin",
+    "check:mp-weixin": "node scripts/check-uts-compile.js unpackage/dist/dev/mp-weixin"
   },
   "dependencies": {
     "@dcloudio/uni-components": "^3.0.0-alpha-5010220260604001",

@@ -1,0 +1,16 @@
+{
+  "description": "Sankeng Closet Product V2 mini program development entry",
+  "miniprogramRoot": "unpackage/dist/dev/mp-weixin/",
+  "compileType": "miniprogram",
+  "appid": "wx976f673896c8b565",
+  "projectname": "sankengcloset-v2",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": false,
+    "minified": false,
+    "newFeature": true,
+    "bigPackageSizeSupport": true
+  },
+  "condition": {}
+}

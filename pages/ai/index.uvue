@@ -1,25 +1,81 @@
 <template>
   <MainLayout>
-    <template #navbar>
-      <AppNavbar title="绮灵AI" :show-back="false" />
-    </template>
+    <template #navbar><V2PageHeader title="绮灵AI" /></template>
     <template #default>
-      <view :style="emptyWrap">
-        <text :style="emptyTitle">绮灵AI</text>
-        <text :style="emptyMsg">智能穿搭推荐和商品决策助手即将上线</text>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="welcomeCard">
+          <text :style="welcomeTitle">你好，三坑女孩</text>
+          <text :style="welcomeDesc">让我帮你发现心动好物、搭配灵感</text>
+          <view :style="inputRow">
+            <view :style="inputBox"><text :style="inputPlaceholder">描述你想要的风格或单品...</text></view>
+            <view :style="sendButton"><AppIcon name="arrow-right" :size="40" :active="true" /></view>
+          </view>
+        </view>
+
+        <V2SectionHeader title="AI 功能" />
+        <view :style="taskGrid">
+          <view v-for="(task, idx) in tasks" :key="task.id" :style="taskCard(idx)" @tap="onTaskTap(task.id)">
+            <view :style="taskIconWrap"><AppIcon :name="task.icon" :size="46" :active="true" /></view>
+            <text :style="taskName">{{ task.name }}</text>
+            <text :style="taskDesc">{{ task.desc }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="最近使用" action-text="查看全部" />
+        <V2ListGroup>
+          <view v-for="(item, idx) in recent" :key="item.id" :style="recentShell(idx)">
+            <V2ListRow :icon="item.icon" :label="item.title" :value="item.time" :show-arrow="false" />
+          </view>
+        </V2ListGroup>
       </view>
     </template>
   </MainLayout>
 </template>
-<script setup lang="uts">
-import { spacing } from '@/theme/tokens/spacing'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexColumnCenter } from '@/theme/layout/flex'
-import { n } from '@/theme/use-theme'
-import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
 
-const emptyWrap = { ...flexColumnCenter, justifyContent: 'center', flex: 1, padding: spacing[8], gap: spacing[3] }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: n.value.text }))
-const emptyMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
+<script setup lang="uts">
+import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT } from '@/theme/tokens/responsive'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import V2ListRow from '@/components/v2/V2ListRow.uvue'
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const welcomeCard = { padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: brand[50] }
+const welcomeTitle = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[700] }
+const welcomeDesc = { fontSize: fontSize.sm, color: brand[500], marginTop: '8rpx' }
+const inputRow = { ...flexRow, marginTop: '24rpx' }
+const inputBox = { ...flexFill, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center', paddingLeft: '20rpx', paddingRight: '20rpx', marginRight: '12rpx' }
+const inputPlaceholder = { fontSize: fontSize.sm, color: neutralLight.textTertiary, lines: 1, textOverflow: 'ellipsis' }
+const sendButton = { width: SEARCH_HEIGHT, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+
+const tasks = [
+  { id: 't1', icon: 'camera', name: '商品识别', desc: '拍照识别同款' },
+  { id: 't2', icon: 'search', name: '相似商品', desc: '找到类似好物' },
+  { id: 't3', icon: 'wand', name: 'AI 穿搭', desc: '智能搭配推荐' },
+  { id: 't4', icon: 'grid', name: '收藏分析', desc: '风格偏好洞察' },
+  { id: 't5', icon: 'budget', name: '预算建议', desc: '理性消费助手' },
+  { id: 't6', icon: 'notification', name: '发售提醒', desc: '不错过开售' },
+]
+const taskGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function taskCard(idx: number) { return { width: '325rpx', height: '192rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: baseColors.white, alignItems: 'center', justifyContent: 'center', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: idx < 4 ? GROUP_GAP : '0' } }
+const taskIconWrap = { width: '72rpx', height: '72rpx', borderRadius: '18rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center' }
+const taskName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, textAlign: 'center', marginTop: '12rpx' }
+const taskDesc = { fontSize: fontSize.xs, color: neutralLight.textTertiary, textAlign: 'center', marginTop: '4rpx' }
+function onTaskTap(id: string) {}
+
+const recent = [
+  { id: 'r1', icon: 'camera', title: '商品识别 — 蓝色格裙', time: '2小时前' },
+  { id: 'r2', icon: 'wand', title: 'AI 穿搭 — 茶会风格', time: '昨天' },
+]
+function recentShell(idx: number) { return { borderBottomWidth: idx < recent.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: neutralLight.divider } }
 </script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

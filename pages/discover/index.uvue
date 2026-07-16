@@ -1,43 +1,160 @@
 <template>
   <MainLayout>
-    <template #navbar>
-      <AppNavbar :show-back="false">
-        <template #default>
-          <view :style="searchBox">
-            <text :style="searchText">搜索商品、品牌、穿搭</text>
-          </view>
-        </template>
-      </AppNavbar>
-    </template>
+    <template #navbar><V2PageHeader title="发现" /></template>
     <template #default>
-      <view :style="emptyWrap">
-        <text :style="emptyTitle">发现</text>
-        <text :style="emptyMsg">搜索、分类浏览和趋势日历即将上线</text>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="searchBox" @tap="onSearch">
+          <AppIcon name="search" :size="36" />
+          <text :style="searchPlaceholder">搜索商品、品牌、穿搭</text>
+        </view>
+
+        <V2SectionHeader title="分类浏览" :compact="true" />
+        <view :style="categoryRow">
+          <view v-for="(cat, idx) in categories" :key="cat.id" :style="categoryCard(idx)" @tap="goCategory(cat.id)">
+            <view :style="categoryIconWrap(cat.id)"><AppIcon :name="cat.icon" :size="44" :active="true" /></view>
+            <text :style="categoryName">{{ cat.name }}</text>
+            <text :style="categoryCount">{{ cat.count }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="本周预约" action-text="查看日历" />
+        <scroll-view scroll-x :style="reserveScroll">
+          <view :style="reserveRow">
+            <view v-for="item in mockReserve" :key="item.id" :style="reserveCard">
+              <view :style="reserveImage"><AppImage :src="item.img" width="100%" height="100%" mode="aspectFill" /></view>
+              <view :style="reserveInfo">
+                <text :style="reserveTitle">{{ item.title }}</text>
+                <text :style="reserveBrand">{{ item.brand }}</text>
+                <text :style="reserveTime">{{ item.time }}</text>
+              </view>
+            </view>
+            <view :style="reserveEndPad" />
+          </view>
+        </scroll-view>
+
+        <V2SectionHeader title="热门品牌" action-text="全部品牌" />
+        <view :style="brandGrid">
+          <view v-for="(brandItem, idx) in visibleBrands" :key="brandItem.name" :style="brandChip(idx)">
+            <text :style="brandChipText">{{ brandItem.name }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="发售日历" action-text="完整日历" />
+        <V2ListGroup>
+          <view v-for="(evt, idx) in mockCalendar" :key="evt.id" :style="calendarRow">
+            <view :style="calendarDate"><text :style="calendarDay">{{ evt.day }}</text><text :style="calendarMonth">{{ evt.month }}</text></view>
+            <view :style="calendarMain(idx)">
+              <view :style="calendarCopy"><text :style="calendarTitle">{{ evt.title }}</text><text :style="calendarBrand">{{ evt.brand }}</text></view>
+              <view :style="calendarBadge"><text :style="calendarBadgeText">{{ evt.tag }}</text></view>
+            </view>
+          </view>
+        </V2ListGroup>
+
+        <V2SectionHeader title="最近降价" />
+        <view v-for="(item, idx) in mockPriceDrops" :key="item.id" :style="priceCard(idx)">
+          <view :style="priceImage"><AppImage :src="item.img" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="priceCopy">
+            <text :style="priceTitle">{{ item.title }}</text>
+            <text :style="priceBrand">{{ item.brand }}</text>
+            <view :style="priceRow"><text :style="currentPrice">{{ item.price }}</text><text :style="originalPrice">{{ item.origPrice }}</text></view>
+          </view>
+          <view :style="discountBadge"><text :style="discountText">{{ item.discount }}</text></view>
+        </view>
       </view>
     </template>
   </MainLayout>
 </template>
+
 <script setup lang="uts">
-import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
-import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { brand, neutralLight, categoryColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexColumnCenter } from '@/theme/layout/flex'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING_SM, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 
-const searchBox = {
-  flex: 1,
-  height: '64rpx',
-  borderRadius: radius.full,
-  backgroundColor: neutralLight.bgTertiary,
-  display: 'flex',
-  alignItems: 'center',
-  paddingHorizontal: spacing[3],
+function onSearch() {}
+function goCategory(cat: string) {}
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const searchBox = { width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: neutralLight.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '20rpx', paddingRight: '20rpx' }
+const searchPlaceholder = { fontSize: fontSize.sm, color: neutralLight.textTertiary, marginLeft: '10rpx' }
+
+const categories = [
+  { id: 'jk', name: 'JK', count: '128 件', icon: 'shirt' },
+  { id: 'lolita', name: 'Lolita', count: '256 件', icon: 'bow' },
+  { id: 'hanfu', name: '汉服', count: '192 件', icon: 'fan' },
+]
+const categoryRow = { ...flexRow }
+function categoryCard(idx: number) { return { width: '212rpx', height: '190rpx', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx < 2 ? '16rpx' : '0' } }
+function categoryIconWrap(id: string) {
+  const color = id === 'jk' ? categoryColors.jk.bg : id === 'lolita' ? categoryColors.lolita.bg : categoryColors.hanfu.bg
+  return { width: '72rpx', height: '72rpx', borderRadius: '18rpx', backgroundColor: color, alignItems: 'center', justifyContent: 'center' }
 }
-const searchText = { fontSize: fontSize.sm, color: neutralLight.textTertiary }
-const emptyWrap = { ...flexColumnCenter, justifyContent: 'center', flex: 1, padding: spacing[8], gap: spacing[3] }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: n.value.text }))
-const emptyMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
+const categoryName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginTop: '12rpx' }
+const categoryCount = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '4rpx' }
+
+const mockReserve = [
+  { id: 'r1', img: '/static/demo/prod-editorial-02.jpg', title: '月光曲 JSK 定金', brand: '星辰猫', time: '7月18日' },
+  { id: 'r2', img: '/static/demo/prod-editorial-01.jpg', title: '新色格裙预览', brand: '兔缝缝', time: '7月20日' },
+  { id: 'r3', img: '/static/demo/prod-editorial-03.jpg', title: '宋制套装尾款', brand: '花筵', time: '7月22日' },
+]
+const reserveScroll = { width: '670rpx' }
+const reserveRow = { ...flexRow }
+const reserveCard = { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden', marginRight: '16rpx' }
+const reserveImage = { width: '500rpx', height: '282rpx', overflow: 'hidden' }
+const reserveInfo = { padding: CARD_PADDING_SM }
+const reserveTitle = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, lines: 2, textOverflow: 'ellipsis' }
+const reserveBrand = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '6rpx' }
+const reserveTime = { fontSize: fontSize.xs, color: brand[500], marginTop: '10rpx' }
+const reserveEndPad = { width: '24rpx', flexShrink: 0 }
+
+const visibleBrands = [
+  { name: '兔缝缝' }, { name: '星辰猫' }, { name: '花筵' },
+  { name: '仲夏物语' }, { name: 'With Puji' }, { name: '十三余' },
+]
+const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function brandChip(idx: number) { return { width: '210rpx', height: '68rpx', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: radius.full, backgroundColor: neutralLight.bgSecondary, marginRight: idx % 3 < 2 ? '20rpx' : '0', marginBottom: idx < 3 ? '16rpx' : '0' } }
+const brandChipText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, lines: 1, textOverflow: 'ellipsis' }
+
+const mockCalendar = [
+  { id: 'c1', day: '18', month: '7月', title: '月光曲 JSK 定金开售', brand: '星辰猫', tag: '定金' },
+  { id: 'c2', day: '20', month: '7月', title: '新色格裙预览', brand: '兔缝缝', tag: '预览' },
+  { id: 'c3', day: '22', month: '7月', title: '宋制套装尾款', brand: '花筵', tag: '尾款' },
+]
+const calendarRow = { ...flexRow, height: LIST_ROW_HEIGHT, alignItems: 'center' }
+const calendarDate = { width: '96rpx', alignItems: 'center', flexShrink: 0 }
+const calendarDay = { fontSize: fontSize.lg, fontWeight: fontWeight.semibold }
+const calendarMonth = { fontSize: fontSize['2xs'], color: neutralLight.textTertiary }
+function calendarMain(idx: number) { return { ...flexFill, ...flexRow, height: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '20rpx', borderBottomWidth: idx < mockCalendar.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: neutralLight.divider } }
+const calendarCopy = { ...flexFill }
+const calendarTitle = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, lines: 1, textOverflow: 'ellipsis' }
+const calendarBrand = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '2rpx' }
+const calendarBadge = { minWidth: '72rpx', height: '40rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: radius.full, backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx' }
+const calendarBadgeText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: brand[600] }
+
+const mockPriceDrops = [
+  { id: 'pd1', img: '/static/demo/prod-editorial-02.jpg', title: '田园碎花 OP', brand: '仲夏物语', price: '¥298', origPrice: '¥388', discount: '-23%' },
+  { id: 'pd2', img: '/static/demo/prod-editorial-01.jpg', title: '深蓝格裙', brand: '兔缝缝', price: '¥188', origPrice: '¥248', discount: '-24%' },
+]
+function priceCard(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '176rpx', padding: CARD_PADDING_SM, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < mockPriceDrops.length - 1 ? GROUP_GAP : '0' } }
+const priceImage = { width: '128rpx', height: '128rpx', borderRadius: '16rpx', overflow: 'hidden', marginRight: '20rpx', flexShrink: 0 }
+const priceCopy = { ...flexFill }
+const priceTitle = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, lines: 1, textOverflow: 'ellipsis' }
+const priceBrand = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '4rpx' }
+const priceRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
+const currentPrice = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: brand[600] }
+const originalPrice = { fontSize: fontSize.xs, color: neutralLight.textTertiary, textDecoration: 'line-through', marginLeft: '8rpx' }
+const discountBadge = { height: '40rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: radius.full, backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx' }
+const discountText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: brand[600] }
 </script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

@@ -1,162 +1,150 @@
 /**
- * Colors — 设计令牌 v2.0
- * 三坑绮橱品牌色系 — 年轻女性消费 App 风格
- * 参考: 得物/小红书/衣橱管理类 App
+ * Colors — V2 柔和蔷薇配色
+ * 三坑绮橱品牌色系
+ * Phase 2A.2 — Visual Foundation Gate
  */
 
-/** 品牌主色 — 蔷薇粉 (更温暖柔和) */
+/** 品牌主色 — 柔和蔷薇 */
 export const brand = {
-  50: '#FFF5F7',
-  100: '#FFE0E8',
-  200: '#FFC2D4',
-  300: '#FF9BB8',
-  400: '#FF6D96',
-  500: '#FF4D7E', // 主色
-  600: '#E6366A',
-  700: '#BF2755',
-  800: '#991F45',
-  900: '#7A1937',
+  50: '#F7E7EC',
+  100: '#F0D0D9',
+  200: '#E2A1B3',
+  300: '#D4728D',
+  400: '#D65378',
+  500: '#D65378', // 主色 — 柔和蔷薇
+  600: '#BD3F65',
+  700: '#A83254',
+  800: '#8C2745',
+  900: '#6E1D36',
 }
 
-/** 辅助色 — 薰衣草紫 */
+/** 辅助色 — 灰紫 (低饱和) */
 export const accent = {
-  50: '#F5F3FF',
-  100: '#EDE9FE',
-  200: '#DDD6FE',
-  300: '#C4B5FD',
-  400: '#A78BFA',
-  500: '#8B5CF6',
-  600: '#7C3AED',
-  700: '#6D28D9',
-  800: '#5B21B6',
-  900: '#4C1D95',
+  50: '#F3F0F7',
+  100: '#E6E1EF',
+  200: '#CDC3DF',
+  300: '#B4A5CF',
+  400: '#9B87BF',
+  500: '#8269AF',
+  600: '#6B5299',
+  700: '#553F7D',
+  800: '#412F60',
+  900: '#2E1F45',
 }
 
-/** 暖色系 — 三坑文化常见配色 */
-export const warm = {
-  peach: '#FFAB91',     // 蜜桃橙
-  coral: '#FF8A80',     // 珊瑚红
-  rose: '#F48FB1',      // 玫瑰粉
-  gold: '#FFD54F',      // 金色 (高级感)
-  champagne: '#F5E6CC', // 香槟色
-  cream: '#FFF8E1',     // 奶油色
-  blush: '#FCE4EC',     // 腮红粉
-  lavender: '#E8DEF8',  // 薰衣草
-}
-
-/** 渐变色 — 卡片/按钮/背景 */
-export const gradient = {
-  brand: ['#FF6D96', '#FF4D7E', '#E6366A'],       // 品牌渐变
-  soft: ['#FFF5F7', '#FCE4EC'],                     // 柔粉渐变
-  lavender: ['#EDE9FE', '#F5F3FF'],                 // 薰衣草渐变
-  peach: ['#FFF3E0', '#FFF8E1'],                    // 蜜桃渐变
-  sunset: ['#FF8A80', '#FFAB91'],                   // 日落渐变
-  gold: ['#FFD54F', '#FFAB91'],                     // 金色渐变
-  card: ['#FFFFFF', '#FAFAFA'],                     // 卡片渐变
-}
-
-/** 语义色 (更柔和) */
+/** 语义色 (低饱和) */
 export const semantic = {
-  success: '#4CAF50',
-  successLight: '#E8F5E9',
-  successBg: '#F1F8E9',
-  warning: '#FFA726',
-  warningLight: '#FFF3E0',
-  warningBg: '#FFFDE7',
-  error: '#EF5350',
-  errorLight: '#FFEBEE',
-  errorBg: '#FCE4EC',
-  info: '#42A5F5',
-  infoLight: '#E3F2FD',
-  infoBg: '#E8F4FD',
+  success: '#5B9A6E',
+  successLight: '#E8F2EA',
+  warning: '#C4924A',
+  warningLight: '#FBF2E8',
+  error: '#C4666B',
+  errorLight: '#F9ECED',
+  info: '#6B8AAA',
+  infoLight: '#ECF1F5',
 }
 
 /** 基础色 */
 export const baseColors = {
   white: '#FFFFFF',
   black: '#000000',
-  overlay: 'rgba(0,0,0,0.45)',
-  overlayHeavy: 'rgba(0,0,0,0.85)',
-  overlayLight: 'rgba(0,0,0,0.25)',
-  shadow: 'rgba(0,0,0,0.06)',
-  shadowLight: 'rgba(255,255,255,0.3)',
+  overlay: 'rgba(63,45,51,0.40)',
+  overlayHeavy: 'rgba(63,45,51,0.80)',
+  overlayLight: 'rgba(63,45,51,0.20)',
 }
 
-/** 中性色 (Light) — 更温暖的灰阶 */
+/** 中性色 (V2 柔和灰) */
 export const neutralLight = {
-  bg: '#FAFAFA',
-  bgSecondary: '#F5F5F5',
-  bgTertiary: '#EEEEEE',
+  bg: '#FAF8F7',
+  bgSecondary: '#F7F1F3',
+  bgTertiary: '#EDE8E9',
   surface: '#FFFFFF',
   surfaceRaised: '#FFFFFF',
-  surfaceWarm: '#FFFAF8',
-  border: '#E0E0E0',
-  borderLight: '#EEEEEE',
-  borderFocus: '#FF4D7E',
-  text: '#1A1A1A',
-  textSecondary: '#757575',
-  textTertiary: '#9E9E9E',
-  textDisabled: '#BDBDBD',
+  surfaceWarm: '#FDFAF9',
+  border: '#E0DCDC',
+  borderLight: '#EDE8E9',
+  borderFocus: '#D65378',
+  text: '#2D2729',
+  textSecondary: '#756D70',
+  textTertiary: '#A0989B',
+  textDisabled: '#C4BFC1',
   textInverse: '#FFFFFF',
-  placeholder: '#BDBDBD',
-  icon: '#757575',
-  iconLight: '#9E9E9E',
-  iconActive: '#FF4D7E',
-  divider: '#EEEEEE',
-  overlay: 'rgba(0,0,0,0.45)',
+  placeholder: '#C4BFC1',
+  icon: '#756D70',
+  iconLight: '#A0989B',
+  iconActive: '#D65378',
+  divider: 'rgba(63,45,51,0.08)',
+  overlay: 'rgba(63,45,51,0.40)',
 }
 
 /** 中性色 (Dark) */
 export const neutralDark = {
-  bg: '#121212',
-  bgSecondary: '#1E1E1E',
-  bgTertiary: '#2A2A2A',
-  surface: '#1E1E1E',
-  surfaceRaised: '#2A2A2A',
-  surfaceWarm: '#2A2020',
-  border: '#333333',
-  borderLight: '#2A2A2A',
-  borderFocus: '#FF6D96',
-  text: '#FAFAFA',
-  textSecondary: '#AAAAAA',
-  textTertiary: '#777777',
-  textDisabled: '#555555',
-  textInverse: '#1A1A1A',
-  placeholder: '#666666',
-  icon: '#AAAAAA',
-  iconLight: '#777777',
-  iconActive: '#FF6D96',
-  divider: '#2A2A2A',
-  overlay: 'rgba(0,0,0,0.7)',
+  bg: '#1A1617',
+  bgSecondary: '#241F20',
+  bgTertiary: '#302A2C',
+  surface: '#241F20',
+  surfaceRaised: '#302A2C',
+  surfaceWarm: '#2A2022',
+  border: '#3D3638',
+  borderLight: '#302A2C',
+  borderFocus: '#D65378',
+  text: '#F5F2F3',
+  textSecondary: '#B8AEB1',
+  textTertiary: '#8A8184',
+  textDisabled: '#60595B',
+  textInverse: '#2D2729',
+  placeholder: '#60595B',
+  icon: '#B8AEB1',
+  iconLight: '#8A8184',
+  iconActive: '#D65378',
+  divider: 'rgba(255,255,255,0.08)',
+  overlay: 'rgba(0,0,0,0.60)',
 }
 
-/** JK 专属色 */
+/** 三坑类别色 (低饱和) */
 export const jkColors = {
-  primary: '#FF4D7E',
-  secondary: '#FF9BB8',
-  bg: '#FFF5F7',
-  accent: '#E6366A',
+  primary: '#D65378',
+  secondary: '#E2A1B3',
+  bg: '#F7E7EC',
+  accent: '#BD3F65',
 }
 
-/** Lolita 专属色 */
 export const lolitaColors = {
-  primary: '#8B5CF6',
-  secondary: '#C4B5FD',
-  bg: '#F5F3FF',
-  accent: '#7C3AED',
+  primary: '#8269AF',
+  secondary: '#B4A5CF',
+  bg: '#F3F0F7',
+  accent: '#6B5299',
 }
 
-/** 汉服专属色 */
 export const hanfuColors = {
-  primary: '#D97706',
-  secondary: '#FCD34D',
-  bg: '#FFFBEB',
-  accent: '#B45309',
+  primary: '#C4924A',
+  secondary: '#DDC7A0',
+  bg: '#FBF2E8',
+  accent: '#AA7830',
 }
 
-/** 类别色映射 */
 export const categoryColors = {
   jk: jkColors,
   lolita: lolitaColors,
   hanfu: hanfuColors,
+}
+
+/** 暖色系 — V2 低饱和 */
+export const warm = {
+  peach: '#D4A88C',
+  coral: '#C4867A',
+  rose: '#D65378',
+  gold: '#C4A86A',
+  champagne: '#E8DFD4',
+  cream: '#FDFAF9',
+  blush: '#F0D0D9',
+  lavender: '#E6E1EF',
+}
+
+/** 渐变色 */
+export const gradient = {
+  brand: ['#D65378', '#BD3F65'],
+  soft: ['#FDFAF9', '#F7E7EC'],
+  lavender: ['#F3F0F7', '#E6E1EF'],
+  peach: ['#FBF2E8', '#FDFAF9'],
 }

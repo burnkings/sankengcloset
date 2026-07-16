@@ -1,0 +1,37 @@
+<template>
+  <view :style="rootStyle">
+    <view :style="copyStyle">
+      <text :style="titleStyle">{{ title }}</text>
+      <text v-if="subtitle !== ''" :style="subtitleStyle">{{ subtitle }}</text>
+    </view>
+    <view v-if="actionText !== '' || actionIcon !== ''" :style="actionStyle" @tap="emit('action')">
+      <text v-if="actionText !== ''" :style="actionTextStyle">{{ actionText }}</text>
+      <AppIcon v-if="actionIcon !== ''" :name="actionIcon" :size="32" :active="true" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { SECTION_GAP, SECTION_HEADER_GAP } from '@/theme/tokens/responsive'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+import AppIcon from '@/components/base/AppIcon.uvue'
+
+const props = withDefaults(defineProps<{
+  title?: string
+  subtitle?: string
+  actionText?: string
+  actionIcon?: string
+  compact?: boolean
+}>(), { title: '', subtitle: '', actionText: '', actionIcon: '', compact: false })
+const emit = defineEmits<{ action: [] }>()
+
+const rootStyle = computed((): any => ({ ...flexRow, alignItems: 'center', marginTop: props.compact ? '40rpx' : SECTION_GAP, marginBottom: SECTION_HEADER_GAP }))
+const copyStyle = { ...flexFill, ...flexRow, alignItems: 'center' }
+const titleStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const subtitleStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginLeft: '12rpx' }))
+const actionStyle = { ...flexRow, alignItems: 'center', minHeight: '64rpx' }
+const actionTextStyle = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500], marginRight: '6rpx' }
+</script>

@@ -1,0 +1,40 @@
+<template>
+  <scroll-view scroll-x :style="scrollStyle">
+    <view :style="rowStyle">
+      <view :style="leftPadStyle" />
+      <view v-for="item in items" :key="item" :style="itemShellStyle">
+        <view :style="itemStyle" @tap="onTap(item)">
+          <text :style="textStyle(item)">{{ item }}</text>
+          <view v-if="item === active" :style="indicatorStyle" />
+        </view>
+        <view :style="itemSpacerStyle" />
+      </view>
+      <view :style="rightPadStyle" />
+    </view>
+  </scroll-view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { CHANNEL_INDICATOR_HEIGHT, CHANNEL_INDICATOR_WIDTH, MIN_TOUCH_SIZE, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{ items?: Array<string>; active?: string }>(), { items: () => [], active: '' })
+const emit = defineEmits<{ change: [value: string] }>()
+function onTap(item: string) { emit('change', item) }
+
+const scrollStyle = { width: '750rpx' }
+const rowStyle = { ...flexRow, height: MIN_TOUCH_SIZE, alignItems: 'center' }
+const leftPadStyle = { width: PAGE_GUTTER_REGULAR, height: MIN_TOUCH_SIZE, flexShrink: 0 }
+const rightPadStyle = { width: PAGE_GUTTER_REGULAR, height: MIN_TOUCH_SIZE, flexShrink: 0 }
+const itemShellStyle = { ...flexRow, alignItems: 'center', flexShrink: 0 }
+const itemStyle = { width: '92rpx', height: MIN_TOUCH_SIZE, alignItems: 'center', justifyContent: 'center', position: 'relative' }
+const itemSpacerStyle = { width: '8rpx', height: MIN_TOUCH_SIZE, flexShrink: 0 }
+function textStyle(item: string) {
+  return { fontSize: fontSize.sm, fontWeight: item === props.active ? fontWeight.semibold : fontWeight.medium, color: item === props.active ? brand[500] : n.value.textSecondary }
+}
+const indicatorStyle = { position: 'absolute', bottom: '0', width: CHANNEL_INDICATOR_WIDTH, height: CHANNEL_INDICATOR_HEIGHT, borderRadius: radius.full, backgroundColor: brand[500] }
+</script>

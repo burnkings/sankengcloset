@@ -83,24 +83,6 @@
       "style": {
         "navigationStyle": "custom"
       }
-    },
-    {
-      "path": "pages/dev/ui-playground",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/dev/page-playground",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/dev/feed-spike",
-      "style": {
-        "navigationStyle": "custom"
-      }
     }
   ],
   "tabBar": {
@@ -111,23 +93,33 @@
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "static/tabbar/tab-home.png",
+        "selectedIconPath": "static/tabbar/tab-home-active.png"
       },
       {
         "pagePath": "pages/discover/index",
-        "text": "发现"
+        "text": "发现",
+        "iconPath": "static/tabbar/tab-discover.png",
+        "selectedIconPath": "static/tabbar/tab-discover-active.png"
       },
       {
         "pagePath": "pages/ai/index",
-        "text": "绮灵AI"
+        "text": "绮灵AI",
+        "iconPath": "static/tabbar/tab-ai.png",
+        "selectedIconPath": "static/tabbar/tab-ai-active.png"
       },
       {
         "pagePath": "pages/favorites/index",
-        "text": "收藏"
+        "text": "收藏",
+        "iconPath": "static/tabbar/tab-fav.png",
+        "selectedIconPath": "static/tabbar/tab-fav-active.png"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "static/tabbar/tab-profile.png",
+        "selectedIconPath": "static/tabbar/tab-profile-active.png"
       }
     ]
   }
