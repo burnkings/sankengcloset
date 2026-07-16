@@ -17,7 +17,7 @@
           </view>
         </view>
 
-        <V2SectionHeader title="本周预约" action-text="查看日历" />
+        <V2SectionHeader title="精选发售" subtitle="本周值得关注" action-text="查看日历" />
         <scroll-view scroll-x :style="reserveScroll">
           <view :style="reserveRow">
             <view v-for="item in mockReserve" :key="item.id" :style="reserveCard">
