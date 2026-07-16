@@ -146,6 +146,8 @@ const categories = CATEGORY_FILTERS
 
 const sysInfo = uni.getSystemInfoSync()
 const statusBarH = sysInfo.statusBarHeight ?? 20
+const homeNavbarPx = uni.upx2px(288)
+const homeViewportPx = Math.max(sysInfo.windowHeight - statusBarH - homeNavbarPx, 240)
 
 // Capsule spacer
 let capsuleW = 0
@@ -164,10 +166,15 @@ function onChannelTap(ch: string) { store.setChannel(ch) }
 function onCategoryTap(category: string) { store.setCategory(category) }
 function onTap(item: FeedItem) {
   if (item.feedType === FEED_OUTFIT) {
-    uni.switchTab({ url: '/pages/discover/index' })
+    uni.switchTab({ url: '/pages/community/index' })
     return
   }
-  uni.showToast({ title: '详情能力即将接入', icon: 'none' })
+  if (item.feedType === 'product' || item.feedType === 'release_event') {
+    uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+    return
+  }
+  uni.setStorageSync('pending_search_keyword', item.brandName !== '' ? item.brandName : item.title)
+  uni.navigateTo({ url: '/pages/search/index' })
 }
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
@@ -205,7 +212,8 @@ const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n
 const searchTabsSpacer = { height: '12rpx' }
 
 // --- Styles ---
-const listViewStyle = { ...flexFill, width: '750rpx', height: '0', minHeight: '0' }
+// 真机 list-view 必须拿到明确高度；height:0 + flex 在微信 VDOM 下会失效。
+const listViewStyle = { width: '750rpx', height: `${homeViewportPx}px`, minHeight: `${homeViewportPx}px` }
 const categoryFilterWrap = computed((): any => ({ paddingTop: '6rpx', paddingBottom: '2rpx', backgroundColor: n.value.bg }))
 
 // Error
