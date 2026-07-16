@@ -4,7 +4,7 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
-        <V2FilterChips :items="topics" :active="activeTopic" @change="activeTopic = $event" />
+        <V2FilterChips :items="topics" :active="activeTopic" @change="onTopicChange" />
 
         <view v-if="localImage !== '' && topicVisible(localTopic)" :style="lookCard" @tap="goCreate">
           <view :style="heroImage"><AppImage :src="localImage" width="100%" height="100%" mode="aspectFill" /></view>
@@ -53,6 +53,7 @@ const looks = [
 ]
 const visibleLooks = computed(() => activeTopic.value === '全部' ? looks : looks.filter((item) => item.topic === activeTopic.value))
 function topicVisible(topic: string): boolean { return activeTopic.value === '全部' || activeTopic.value === topic }
+function onTopicChange(topic: string) { activeTopic.value = topic }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 onShow(() => {
   try {
