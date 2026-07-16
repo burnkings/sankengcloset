@@ -7,13 +7,13 @@
 
       <view class="page-canvas">
         <view :style="emptyContainer">
-          <view :style="emptyIconWrap"><AppIcon name="heart" :size="60" /></view>
-          <text :style="emptyTitle">还没有收藏内容</text>
-          <text :style="emptyDesc">浏览发现页，找到你心仪的三坑好物</text>
+          <view :style="emptyIconWrap"><AppIcon name="wardrobe" :size="60" /></view>
+          <text :style="emptyTitle">还没有收藏心动小裙子</text>
+          <text :style="emptyDesc">从新品、穿搭和品牌动态里慢慢挑选</text>
           <view :style="emptyAction" @tap="goDiscover"><text :style="emptyActionText">去发现</text></view>
         </view>
 
-        <V2SectionHeader title="为你推荐" />
+        <V2SectionHeader title="可能喜欢" subtitle="根据你的品类偏好" />
         <view :style="recommendGrid">
           <view v-for="(item, idx) in mockRecommend" :key="item.id" :style="productShell(idx)">
             <V2ProductCard :image="item.img" :brand-name="item.brand" :title="item.title" :price-text="item.price" @click="onRecTap(item)" />
