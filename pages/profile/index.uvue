@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="uts">
-import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
+import { brand, neutralLight, semantic } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -81,8 +81,8 @@ const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = { fontSize: fontSize.base, fontWeight: fontWeight.semibold }
 const accountId = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginTop: '4rpx' }
 const statusRow = { ...flexRow, alignItems: 'center', marginTop: '8rpx' }
-const statusDot = { width: '10rpx', height: '10rpx', borderRadius: radius.full, backgroundColor: '#5B9A6E', marginRight: '8rpx' }
-const statusText = { fontSize: fontSize.xs, color: '#5B9A6E' }
+const statusDot = { width: '10rpx', height: '10rpx', borderRadius: radius.full, backgroundColor: semantic.success, marginRight: '8rpx' }
+const statusText = { fontSize: fontSize.xs, color: semantic.success }
 const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
 const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
 
@@ -95,7 +95,7 @@ const closetDesc = { fontSize: fontSize.xs, color: neutralLight.textSecondary, m
 const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
 const manageItems = [
-  { id: 'orders', icon: 'order', label: '订单', value: '3 笔' },
+  { id: 'orders', icon: 'order', label: '购买记录', value: '3 笔' },
   { id: 'reminders', icon: 'reminder', label: '提醒', value: '5 条' },
   { id: 'budget', icon: 'budget', label: '预算', value: '¥2,400' },
 ]
