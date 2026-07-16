@@ -2,23 +2,9 @@
   <view :style="navbarStyle">
     <view :style="statusBarStyle" />
     <view :style="contentStyle">
-      <!-- Left: brand wordmark -->
-      <view :style="leftStyle">
-        <slot name="left">
-          <text v-if="showBack" :style="backStyle" @tap="onBack">←</text>
-          <text v-else :style="brandStyle">三坑绮橱</text>
-        </slot>
-      </view>
-      <!-- Center: search / title -->
-      <view :style="centerStyle">
-        <slot>
-          <text :style="titleStyle">{{ title }}</text>
-        </slot>
-      </view>
-      <!-- Right: safe area避开微信胶囊 -->
-      <view :style="rightStyle">
-        <slot name="right" />
-      </view>
+      <view :style="leftStyle"><slot name="left"><text v-if="showBack" :style="backStyle" @tap="onBack">←</text><text v-else :style="brandStyle">三坑绮橱</text></slot></view>
+      <view :style="centerStyle"><slot><text :style="titleStyle">{{ title }}</text></slot></view>
+      <view :style="rightStyle"><slot name="right" /></view>
     </view>
   </view>
 </template>
@@ -30,112 +16,20 @@ import { zIndex } from '@/theme/tokens/z-index'
 import { shadow } from '@/theme/tokens/shadow'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
-import { spacing } from '@/theme/tokens/spacing'
 import { brand } from '@/theme/tokens/colors'
+import { getStatusBarHeight } from '@/utils/window-info'
 
-const props = withDefaults(defineProps<{
-  title?: string
-  showBack?: boolean
-  transparent?: boolean
-}>(), {
-  title: '',
-  showBack: true,
-  transparent: false })
-
-const emit = defineEmits<{
-  back: []
-}>()
-
-// 安全区：兼容新旧 API
-const sysInfo = uni.getSystemInfoSync()
-const statusBarH = sysInfo.statusBarHeight ?? 20
-
-// 微信胶囊位置（小程序端）
-let capsuleRight = 0
-let capsuleWidth = 0
-// #ifdef MP-WEIXIN
-try {
-  const capsule = uni.getMenuButtonBoundingClientRect()
-  capsuleRight = capsule.right
-  capsuleWidth = capsule.width
-} catch (e) {
-  capsuleRight = 0
-  capsuleWidth = 0
-}
-// #endif
-
-// 右侧安全间距：小程序端避开胶囊
-const rightSafeGap = capsuleRight > 0
-  ? `${capsuleRight - sysInfo.windowWidth + capsuleWidth + 8}px`
-  : '0px'
-
-const navbarHeight = '88rpx'
-
-const navbarStyle = computed((): any => ({
-  position: 'fixed',
-  top: '0',
-  left: '0',
-  right: '0',
-  zIndex: zIndex.navbar,
-  backgroundColor: props.transparent ? 'transparent' : n.value.bg,
-  boxShadow: props.transparent ? shadow.none : shadow.navbar,
-}))
-
-const statusBarStyle = computed((): any => ({
-  height: `${statusBarH}px`,
-}))
-
-const contentStyle = {
-  height: navbarHeight,
-  ...flexRow,
-  alignItems: 'center',
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-}
-
-const leftStyle = {
-  flexShrink: 0,
-  flexDirection: 'row',
-  alignItems: 'center',
-  width: '200rpx',
-}
-
-const centerStyle = {
-  ...flexFill,
-  alignItems: 'center',
-  justifyContent: 'center',
-  overflow: 'hidden',
-}
-
-const rightStyle = {
-  flexShrink: 0,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  width: '200rpx',
-  paddingRight: rightSafeGap,
-}
-
-const backStyle = computed((): any => ({
-  fontSize: fontSize.lg,
-  color: n.value.text,
-}))
-
-const brandStyle = computed((): any => ({
-  fontSize: fontSize.base,
-  fontWeight: fontWeight.bold,
-  color: brand[500],
-}))
-
-const titleStyle = computed((): any => ({
-  fontSize: fontSize.base,
-  fontWeight: fontWeight.semibold,
-  color: n.value.text,
-  lines: 1,
-  textOverflow: 'ellipsis',
-}))
-
-function onBack() {
-  emit('back')
-  uni.navigateBack()
-}
+const props = withDefaults(defineProps<{ title?: string; showBack?: boolean; transparent?: boolean }>(), { title: '', showBack: true, transparent: false })
+const emit = defineEmits<{ back: [] }>()
+const statusBarH = getStatusBarHeight()
+const navbarStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: props.transparent ? 'transparent' : n.value.bg, boxShadow: props.transparent ? shadow.none : shadow.navbar }))
+const statusBarStyle = { height: `${statusBarH}px` }
+const contentStyle = { height: '88rpx', ...flexRow, alignItems: 'center', paddingHorizontal: semanticSpacing.pageHorizontal }
+const leftStyle = { flexShrink: 0, ...flexRow, alignItems: 'center', width: '180rpx' }
+const centerStyle = { ...flexFill, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
+const rightStyle = { flexShrink: 0, ...flexRow, alignItems: 'center', justifyContent: 'flex-end', width: '180rpx' }
+const backStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
+const brandStyle = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] }
+const titleStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+function onBack() { emit('back'); uni.navigateBack() }
 </script>
