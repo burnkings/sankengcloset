@@ -4,101 +4,108 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="welcomeCard">
-          <text :style="welcomeTitle">你好，三坑女孩</text>
-          <text :style="welcomeDesc">让我帮你发现心动好物、搭配灵感</text>
+          <text :style="welcomeTitle">今天想找什么灵感？</text>
+          <text :style="welcomeDesc">描述场合、预算和风格，绮灵会给出可执行建议</text>
           <view :style="inputRow">
-            <view :style="inputBox"><text :style="inputPlaceholder">描述你想要的风格或单品...</text></view>
-            <view :style="sendButton"><AppIcon name="arrow-right" :size="40" :active="true" /></view>
+            <view :style="inputShell">
+              <AppInput v-model="aiQuery" placeholder="例如：800元内的夏日茶会搭配" confirm-type="search" :clearable="true" @confirm="runAssistant" />
+            </view>
+            <view :style="sendButton" @tap="runAssistant"><AppIcon name="arrow-right" :size="38" :active="true" /></view>
           </view>
         </view>
 
-        <V2SectionHeader title="最近使用" action-text="查看全部" />
+        <view v-if="answer !== ''" :style="answerCard">
+          <view :style="answerTop"><AppIcon name="sparkles" :size="34" :active="true" /><text :style="answerTitle">绮灵建议</text></view>
+          <text :style="answerText">{{ answer }}</text>
+          <text :style="answerNote">当前为本地体验结果，接入 AI 服务后会结合衣橱、收藏和发售数据。</text>
+        </view>
+
+        <V2SectionHeader title="六项专属能力" subtitle="每项解决不同的三坑决策" />
+        <view :style="taskGrid">
+          <view v-for="(task, idx) in tasks" :key="task.id" :style="taskCard(idx)" @tap="onTaskTap(task.id)">
+            <view :style="taskIcon"><AppIcon :name="task.icon" :size="42" :active="true" /></view>
+            <text :style="taskName">{{ task.name }}</text>
+            <text :style="taskDesc">{{ task.desc }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="最近使用" />
         <V2ListGroup>
           <view v-for="(item, idx) in recent" :key="item.id" :style="recentShell(idx)">
             <V2ListRow :icon="item.icon" :label="item.title" :value="item.time" :show-arrow="false" />
           </view>
         </V2ListGroup>
-
-        <V2SectionHeader title="核心能力" />
-        <view :style="primaryTaskRow">
-          <view v-for="(task, idx) in primaryTasks" :key="task.id" :style="primaryTaskCard(idx)" @tap="onTaskTap(task.id)">
-            <view :style="primaryIconWrap"><AppIcon :name="task.icon" :size="48" :active="true" /></view>
-            <text :style="primaryTaskName">{{ task.name }}</text>
-            <text :style="primaryTaskDesc">{{ task.desc }}</text>
-          </view>
-        </view>
-
-        <V2SectionHeader title="更多能力" :compact="true" />
-        <view :style="secondaryTaskGrid">
-          <view v-for="(task, idx) in secondaryTasks" :key="task.id" :style="secondaryTaskCard(idx)" @tap="onTaskTap(task.id)">
-            <view :style="secondaryIconWrap"><AppIcon :name="task.icon" :size="38" :active="true" /></view>
-            <view :style="secondaryTaskCopy">
-              <text :style="secondaryTaskName">{{ task.name }}</text>
-              <text :style="secondaryTaskDesc">{{ task.desc }}</text>
-            </view>
-          </view>
-        </view>
       </view>
     </template>
   </MainLayout>
 </template>
 
 <script setup lang="uts">
-import { brand, accent } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
-const welcomeCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
-const welcomeTitle = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: isDark.value ? brand[200] : brand[700] }))
-const welcomeDesc = computed((): any => ({ fontSize: fontSize.sm, color: isDark.value ? brand[200] : brand[500], marginTop: '8rpx' }))
-const inputRow = { ...flexRow, marginTop: '24rpx' }
-const inputBox = computed((): any => ({ ...flexFill, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', paddingLeft: '20rpx', paddingRight: '20rpx', marginRight: '12rpx' }))
-const inputPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, lines: 1, textOverflow: 'ellipsis' }))
-const sendButton = computed((): any => ({ width: SEARCH_HEIGHT, height: SEARCH_HEIGHT, borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const aiQuery = ref('')
+const answer = ref('')
 
-const primaryTasks = [
-  { id: 't1', icon: 'camera', name: '商品识别', desc: '拍照识别同款' },
-  { id: 't3', icon: 'wand', name: 'AI 穿搭', desc: '智能搭配推荐' },
+const tasks = [
+  { id: 'identify', icon: 'camera', name: '图片识款', desc: '从照片识别品牌、款名与版型' },
+  { id: 'outfit', icon: 'wand', name: '衣橱搭配', desc: '按场合、天气组合已有单品' },
+  { id: 'alternative', icon: 'search', name: '平替雷达', desc: '针对已知款寻找相近低价选择' },
+  { id: 'collection', icon: 'grid', name: '收藏画像', desc: '分析偏好、重复款和风格缺口' },
+  { id: 'budget', icon: 'budget', name: '预算守门', desc: '评估本次购买对月预算的影响' },
+  { id: 'release', icon: 'notification', name: '发售雷达', desc: '跟踪图透、定金、尾款与现货' },
 ]
-const secondaryTasks = [
-  { id: 't2', icon: 'search', name: '相似商品', desc: '找到类似好物' },
-  { id: 't4', icon: 'grid', name: '收藏分析', desc: '风格偏好洞察' },
-  { id: 't5', icon: 'budget', name: '预算建议', desc: '理性消费助手' },
-  { id: 't6', icon: 'notification', name: '发售提醒', desc: '不错过开售' },
-]
-const primaryTaskRow = { ...flexRow }
-function primaryTaskCard(idx: number) { return { width: '325rpx', height: '192rpx', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surface : (idx === 0 ? brand[50] : accent[50]), padding: CARD_PADDING, justifyContent: 'center', marginRight: idx === 0 ? GROUP_GAP : '0' } }
-const primaryIconWrap = computed((): any => ({ width: '68rpx', height: '68rpx', borderRadius: '18rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
-const primaryTaskName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
-const primaryTaskDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx' }))
 
-const secondaryTaskGrid = { ...flexRow, flexWrap: 'wrap' as string }
-function secondaryTaskCard(idx: number) { return { width: '325rpx', height: '140rpx', ...flexRow, alignItems: 'center', flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, padding: '20rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
-const secondaryIconWrap = { width: '64rpx', height: '64rpx', borderRadius: '16rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
-const secondaryTaskCopy = { ...flexFill }
-const secondaryTaskName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const secondaryTaskDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx', lines: 1, textOverflow: 'ellipsis' }))
+function runAssistant() {
+  const q = aiQuery.value.trim()
+  if (q === '') {
+    uni.showToast({ title: '先描述你的需求', icon: 'none' })
+    return
+  }
+  answer.value = `已按「${q}」拆成风格、预算与使用场景。建议先从衣橱已有单品匹配，再检查近期发售节点，避免重复购买。`
+}
 function onTaskTap(id: string) {
-  if (id === 't2') { uni.navigateTo({ url: '/pages/search/index' }); return }
-  if (id === 't4') { uni.switchTab({ url: '/pages/favorites/index' }); return }
-  if (id === 't5') { uni.switchTab({ url: '/pages/profile/index' }); return }
-  if (id === 't6') { uni.navigateTo({ url: '/pages/reminder/index' }); return }
-  uni.showToast({ title: id === 't1' ? '请选择商品图片' : '输入风格开始搭配', icon: 'none' })
+  if (id === 'identify') { uni.showToast({ title: '请选择一张待识别图片', icon: 'none' }); return }
+  if (id === 'release') { uni.navigateTo({ url: '/pages/reminder/index' }); return }
+  if (id === 'collection') { uni.navigateTo({ url: '/pages/favorites/index' }); return }
+  if (id === 'budget') { uni.switchTab({ url: '/pages/profile/index' }); return }
+  const preset = id === 'outfit' ? '用我的衣橱搭配周末茶会造型' : '为月光曲 JSK 寻找更低价的相似款'
+  aiQuery.value = preset
+  runAssistant()
 }
 
 const recent = [
-  { id: 'r1', icon: 'camera', title: '商品识别 — 蓝色格裙', time: '2小时前' },
-  { id: 'r2', icon: 'wand', title: 'AI 穿搭 — 茶会风格', time: '昨天' },
+  { id: 'r1', icon: 'camera', title: '图片识款 · 蓝色格裙', time: '2小时前' },
+  { id: 'r2', icon: 'wand', title: '衣橱搭配 · 茶会风格', time: '昨天' },
 ]
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const welcomeCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const welcomeTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: isDark.value ? brand[200] : brand[700] }))
+const welcomeDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '8rpx', lineHeight: '38rpx' }))
+const inputRow = { ...flexRow, marginTop: '22rpx' }
+const inputShell = { width: '534rpx', flexShrink: 0, marginRight: '12rpx' }
+const sendButton = computed((): any => ({ width: '84rpx', height: '80rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const answerCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: isDark.value ? n.value.divider : brand[100] }))
+const answerTop = { ...flexRow, alignItems: 'center' }
+const answerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '10rpx' }))
+const answerText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx', marginTop: '14rpx' }))
+const answerNote = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, lineHeight: '34rpx', marginTop: '12rpx' }))
+const taskGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function taskCard(idx: number) { return { width: '325rpx', minHeight: '178rpx', padding: '22rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+const taskIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center' }))
+const taskName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
+const taskDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx', lineHeight: '32rpx' }))
 function recentShell(idx: number) { return { borderBottomWidth: idx < recent.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
 
