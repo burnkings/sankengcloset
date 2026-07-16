@@ -7,26 +7,44 @@
 
 import { neutralLight, neutralDark, brand } from './tokens/colors'
 
-const _isDark = ref(false)
-const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
 const THEME_STORAGE_KEY = 'sk_theme_mode'
 
+function readInitialDarkMode(): boolean {
+  try {
+    return (uni.getStorageSync(THEME_STORAGE_KEY) as string) === 'dark'
+  } catch (e) {
+    return false
+  }
+}
+
+// 在模块第一次求值时就确定主题，避免首个页面先浅色渲染再跳成深色。
+const _isDark = ref(readInitialDarkMode())
+const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
+
 function applySystemChrome() {
+  const palette = _isDark.value ? neutralDark : neutralLight
   uni.setTabBarStyle({
     color: _isDark.value ? neutralDark.textTertiary : neutralLight.textTertiary,
     selectedColor: brand[500],
     backgroundColor: _isDark.value ? neutralDark.surface : neutralLight.surface,
     borderStyle: _isDark.value ? 'white' : 'black',
   })
+  uni.setNavigationBarColor({
+    frontColor: _isDark.value ? '#ffffff' : '#000000',
+    backgroundColor: palette.bg,
+  })
+  uni.setBackgroundColor({
+    backgroundColor: palette.bg,
+    backgroundColorTop: palette.bg,
+    backgroundColorBottom: palette.bg,
+  })
 }
 
 export function initializeTheme() {
-  try {
-    const saved = uni.getStorageSync(THEME_STORAGE_KEY) as string
-    _isDark.value = saved === 'dark'
-  } catch (e) {
-    _isDark.value = false
-  }
+  applySystemChrome()
+}
+
+export function syncSystemChrome() {
   applySystemChrome()
 }
 
