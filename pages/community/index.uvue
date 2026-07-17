@@ -14,7 +14,7 @@
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
           <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
           <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的晒搭</text><text :style="timeText">刚刚</text></view>
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的晒搭</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
             <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view>
           </view>
@@ -25,7 +25,7 @@
           <view :style="lookBody">
             <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.author }}</text><text :style="timeText">{{ look.time }}</text></view>
             <text :style="lookCaption">{{ look.caption }}</text>
-            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="likeText">♡ {{ look.likes }}</text></view>
+            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ likeCount(look.id, look.likes) }}</text></view></view>
           </view>
         </view>
 
@@ -49,11 +49,13 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
+import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const activeTopic = ref('全部')
+const pendingDeleteId = ref('')
 const library = useContentLibraryStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const looks = [
@@ -64,6 +66,14 @@ const visibleLooks = computed(() => activeTopic.value === '全部' ? looks : loo
 const visibleUserLooks = computed((): SavedOutfitPost[] => activeTopic.value === '全部' ? library.outfitPosts : library.outfitPosts.filter((item) => item.topic === activeTopic.value))
 function onTopicChange(topic: string) { activeTopic.value = topic }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
+function toggleLike(id: string) { library.togglePostLike(id) }
+function likeCount(id: string, baseCount: number): number { return baseCount + (library.isPostLiked(id) ? 1 : 0) }
+function deleteOwnPost(id: string) {
+  if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
+  library.removeOutfit(id)
+  pendingDeleteId.value = ''
+  showFeedback('晒搭已删除')
+}
 onShow(() => {
   syncTabBarChrome()
   library.reload()
@@ -96,8 +106,10 @@ const timeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.te
 const lookCaption = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
 const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx' }
 const topicText = { fontSize: fontSize.xs, color: brand[600], marginTop: '10rpx' }
-const likeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const likeAction = { ...flexRow, alignItems: 'center', minWidth: '76rpx', height: '52rpx', justifyContent: 'flex-end' }
+function likeText(id: string) { return { fontSize: fontSize.xs, color: library.isPostLiked(id) ? brand[600] : n.value.textTertiary, marginLeft: '6rpx' } }
 const categoryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
+function deleteOwnText(id: string) { return { fontSize: fontSize['2xs'], color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 </script>
 
 <style>
