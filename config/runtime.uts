@@ -1,0 +1,49 @@
+/** V2.1 数据运行模式。Remote 未配置时必须回退到 Mock，不发出伪请求。 */
+
+export const DATA_MODE_LOCAL = 'local'
+export const DATA_MODE_MOCK = 'mock'
+export const DATA_MODE_REMOTE = 'remote'
+
+const MODE_KEY = 'v21_runtime_data_mode'
+const ONLINE_KEY = 'v21_runtime_mock_online'
+const LATENCY_KEY = 'v21_runtime_mock_latency'
+
+export class RuntimeConfig {
+  mode: string = DATA_MODE_MOCK
+  apiBaseUrl: string = ''
+  mockOnline: boolean = true
+  mockLatencyMs: number = 240
+}
+
+function readString(key: string): string {
+  try {
+    const value = uni.getStorageSync(key)
+    return value == null ? '' : String(value)
+  } catch (e) {
+    return ''
+  }
+}
+
+export function getRuntimeConfig(): RuntimeConfig {
+  const config = new RuntimeConfig()
+  const savedMode = readString(MODE_KEY)
+  if (savedMode === DATA_MODE_LOCAL || savedMode === DATA_MODE_MOCK || savedMode === DATA_MODE_REMOTE) config.mode = savedMode
+  config.mockOnline = readString(ONLINE_KEY) !== 'offline'
+  const latency = parseInt(readString(LATENCY_KEY))
+  if (!isNaN(latency) && latency >= 0) config.mockLatencyMs = Math.min(latency, 3000)
+  if (config.mode === DATA_MODE_REMOTE && config.apiBaseUrl === '') config.mode = DATA_MODE_MOCK
+  return config
+}
+
+export function setRuntimeMode(mode: string) {
+  if (mode !== DATA_MODE_LOCAL && mode !== DATA_MODE_MOCK && mode !== DATA_MODE_REMOTE) return
+  uni.setStorageSync(MODE_KEY, mode)
+}
+
+export function setMockOnline(online: boolean) {
+  uni.setStorageSync(ONLINE_KEY, online ? 'online' : 'offline')
+}
+
+export function setMockLatency(latencyMs: number) {
+  uni.setStorageSync(LATENCY_KEY, String(Math.max(0, Math.min(latencyMs, 3000))))
+}
