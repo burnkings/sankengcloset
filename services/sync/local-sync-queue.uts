@@ -59,6 +59,11 @@ function removeOperation(id: string) {
   for (let i = 0; i < fields.length; i++) uni.removeStorageSync(key(id, fields[i]))
 }
 
+export function getCurrentSyncUserId(): string {
+  const saved = readString('v21_session_user_id')
+  return saved !== '' ? saved : 'guest_local'
+}
+
 export function getOrCreateDeviceId(): string {
   const saved = readString(DEVICE_KEY)
   if (saved !== '') return saved
