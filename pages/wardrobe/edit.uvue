@@ -1,0 +1,128 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar :title="isEdit ? '编辑衣橱单品' : '添加衣橱单品'" :show-back="true"><template #right><text :style="saveText" @tap="save">保存</text></template></AppNavbar></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="photoCard" @tap="choosePhoto">
+          <AppImage v-if="imagePath !== ''" :src="imagePath" width="100%" height="100%" mode="aspectFill" />
+          <view v-else :style="photoEmpty"><AppIcon name="camera" :size="52" :active="true" /><text :style="photoText">添加单品照片</text></view>
+        </view>
+
+        <text :style="fieldLabel">单品名称</text><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
+        <text :style="fieldLabel">坑向</text><V2FilterChips :items="categories" :active="activeCategory" @change="onCategory" />
+
+        <view :style="twoColumnRow">
+          <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
+          <view :style="halfFieldLast"><text :style="fieldLabelCompact">购买价格</text><AppInput v-model="form.price" placeholder="0" type="digit" /></view>
+        </view>
+        <view :style="twoColumnRow">
+          <view :style="halfField"><text :style="fieldLabelCompact">颜色</text><AppInput v-model="form.color" placeholder="主色" /></view>
+          <view :style="halfFieldLast"><text :style="fieldLabelCompact">尺码</text><AppInput v-model="form.size" placeholder="尺码" /></view>
+        </view>
+
+        <text :style="fieldLabel">穿着状态</text><V2FilterChips :items="wearLabels" :active="activeWearLabel" @change="onWear" />
+        <text :style="fieldLabel">备注</text><view :style="noteShell"><textarea :value="form.note" placeholder="搭配想法、版型或养护信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
+
+        <view v-if="isEdit" :style="deleteArea">
+          <view v-if="!showDeleteConfirm" :style="deleteButton" @tap="showDeleteConfirm = true"><text :style="deleteText">从衣橱删除</text></view>
+          <view v-else :style="confirmRow"><text :style="confirmText">确认删除？</text><view :style="cancelDelete" @tap="showDeleteConfirm = false"><text :style="cancelDeleteText">取消</text></view><view :style="confirmDelete" @tap="deleteItem"><text :style="confirmDeleteText">删除</text></view></view>
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { brand, semantic } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+
+const store = useWardrobeStore()
+const isEdit = ref(false)
+const editId = ref('')
+const imagePath = ref('')
+const showDeleteConfirm = ref(false)
+const form = ref({ name: '', category: 'JK', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
+const categories = ['JK', 'Lolita', '汉服', '其他']
+const wearLabels = ['未穿', '已穿', '常穿']
+const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'OTHER' ? '其他' : 'JK')))
+const activeWearLabel = computed((): string => form.value.wearStatus === 'WORN' ? '已穿' : (form.value.wearStatus === 'FREQUENT' ? '常穿' : '未穿'))
+
+function onCategory(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK')) }
+function onWear(label: string) { form.value.wearStatus = label === '已穿' ? 'WORN' : (label === '常穿' ? 'FREQUENT' : 'UNWORN') }
+function onNoteInput(e: any) { form.value.note = (e.detail as any).value ?? '' }
+function choosePhoto() {
+  uni.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'], success: (res) => {
+    const temporary = res.tempFilePaths.length > 0 ? res.tempFilePaths[0] : ''
+    if (temporary === '') return
+    uni.saveFile({ tempFilePath: temporary, success: (saved) => { imagePath.value = saved.savedFilePath }, fail: () => { imagePath.value = temporary } })
+  } })
+}
+function save() {
+  if (form.value.name.trim() === '') { showFeedback('请填写单品名称'); return }
+  const price = form.value.price.trim() === '' ? 0 : parseFloat(form.value.price)
+  if (isNaN(price) || price < 0) { showFeedback('请填写正确的价格'); return }
+  if (isEdit.value) {
+    const data = new WardrobeUpdateData()
+    data.name = form.value.name.trim(); data.category = form.value.category; data.brand = form.value.brand.trim(); data.purchasePrice = price
+    data.color = form.value.color.trim(); data.size = form.value.size.trim(); data.wearStatus = form.value.wearStatus; data.note = form.value.note.trim()
+    data.images = imagePath.value === '' ? [] : [imagePath.value]
+    if (!store.updateItem(editId.value, data)) { showFeedback('保存失败，请重试'); return }
+  } else {
+    const item = new WardrobeItem()
+    item.name = form.value.name.trim(); item.category = form.value.category; item.brand = form.value.brand.trim(); item.purchasePrice = price
+    item.color = form.value.color.trim(); item.size = form.value.size.trim(); item.wearStatus = form.value.wearStatus; item.note = form.value.note.trim()
+    item.images = imagePath.value === '' ? [] : [imagePath.value]
+    if (store.addItem(item) === null) { showFeedback('保存失败，请重试'); return }
+  }
+  showFeedback(isEdit.value ? '衣橱单品已更新' : '已加入衣橱')
+  setTimeout(() => { uni.navigateBack() }, 240)
+}
+function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); setTimeout(() => { uni.navigateBack() }, 220) } }
+onMounted(() => {
+  store.fetchItems()
+  const pages = getCurrentPages(); const current = pages[pages.length - 1]; const id = (current as any).options?.id ?? ''
+  if (id === '') return
+  editId.value = id; isEdit.value = true
+  const item = store.getById(id)
+  if (item == null) return
+  form.value.name = item.name; form.value.category = item.category; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? String(item.purchasePrice) : ''
+  form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = item.coverImage
+})
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const photoCard = computed((): any => ({ width: '670rpx', height: '460rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
+const photoEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
+const photoText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '16rpx' }))
+const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
+const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
+const twoColumnRow = { ...flexRow, marginTop: '30rpx' }
+const halfField = { width: '327rpx', marginRight: '16rpx' }
+const halfFieldLast = { ...flexFill }
+const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgTertiary }))
+const noteInput = computed((): any => ({ width: '100%', minHeight: '150rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
+const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
+const deleteArea = { marginTop: '56rpx' }
+const deleteButton = { height: '76rpx', alignItems: 'center', justifyContent: 'center' }
+const deleteText = { fontSize: fontSize.sm, color: semantic.error }
+const confirmRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '88rpx', paddingLeft: '20rpx', paddingRight: '12rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const confirmText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, color: n.value.text }))
+const cancelDelete = computed((): any => ({ height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
+const cancelDeleteText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
+const confirmDelete = { height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center' }
+const confirmDeleteText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+</script>
+
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>

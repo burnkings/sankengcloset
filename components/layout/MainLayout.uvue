@@ -1,33 +1,51 @@
 <template>
   <view :style="layoutStyle">
     <slot name="navbar" />
-    <scroll-view scroll-y :style="bodyStyle">
+    <scroll-view v-if="scrollable" scroll-y :style="bodyStyle">
+      <view :style="statusSpacerStyle" />
       <view :style="navbarSpacerStyle" />
       <slot />
       <view :style="safeBottomStyle" />
     </scroll-view>
+    <view v-else :style="bodyStyle">
+      <view :style="statusSpacerStyle" />
+      <view :style="navbarSpacerStyle" />
+      <slot />
+    </view>
+    <AppFeedbackToast />
   </view>
 </template>
 
 <script setup lang="uts">
-import { semanticSpacing } from '@/theme/tokens/spacing'
 import { flexFill } from '@/theme/layout/flex'
+import { PAGE_BOTTOM_SAFE_SPACER, PAGE_HEADER_HEIGHT } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
+import { getStatusBarHeight } from '@/utils/window-info'
+import AppFeedbackToast from '@/components/base/AppFeedbackToast.uvue'
 
+const props = withDefaults(defineProps<{
+  navbarContentHeight?: string
+  scrollable?: boolean
+}>(), {
+  navbarContentHeight: PAGE_HEADER_HEIGHT,
+  scrollable: true,
+})
 
-const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+const statusBarHeight = getStatusBarHeight()
 
 const layoutStyle = computed((): any => ({
   height: '100vh',
-  backgroundColor: n.value.bg }))
+  backgroundColor: n.value.bg,
+}))
 
 const bodyStyle = computed((): any => ({
-  ...flexFill }))
+  ...flexFill,
+  height: '0',
+  minHeight: '0',
+}))
 
-// Navbar 固定定位占位 — statusBar + 44px 内容区
-const navbarSpacerStyle = computed((): any => ({
-  height: `${statusBarHeight + 44}px` }))
+const statusSpacerStyle = { height: `${statusBarHeight}px`, flexShrink: 0 }
+const navbarSpacerStyle = computed((): any => ({ height: props.navbarContentHeight, flexShrink: 0 }))
 
-const safeBottomStyle = computed((): any => ({
-  height: semanticSpacing.safeBottom }))
+const safeBottomStyle = { height: PAGE_BOTTOM_SAFE_SPACER, flexShrink: 0 }
 </script>

@@ -1,0 +1,364 @@
+<template>
+  <view :style="pageStyle">
+    <AppNavbar :show-back="false">
+      <template #default>
+        <text :style="titleStyle">设备诊断</text>
+      </template>
+    </AppNavbar>
+
+    <scroll-view scroll-y :style="scrollStyle">
+      <view :style="spacerStyle" />
+
+      <!-- 设备信息 -->
+      <view :style="sectionStyle">
+        <text :style="sectionTitle">设备信息</text>
+        <view v-for="item in deviceInfo" :key="item.key" :style="rowStyle">
+          <text :style="labelStyle">{{ item.key }}</text>
+          <text :style="valueStyle">{{ item.value }}</text>
+        </view>
+      </view>
+
+      <!-- 测试按钮 -->
+      <view :style="sectionStyle">
+        <text :style="sectionTitle">诊断测试</text>
+        <view :style="btnStyle" @tap="testMockFeed">
+          <text :style="btnText">1. 测试本地 Mock Feed</text>
+        </view>
+        <view :style="btnStyle" @tap="testImages">
+          <text :style="btnText">2. 测试所有首页图片</text>
+        </view>
+        <view :style="btnStyle" @tap="testPagination">
+          <text :style="btnText">3. 测试分页加载</text>
+        </view>
+        <view :style="btnStyle" @tap="exportResults">
+          <text :style="btnText">4. 导出诊断结果</text>
+        </view>
+      </view>
+
+      <!-- 测试结果 -->
+      <view v-if="results.length > 0" :style="sectionStyle">
+        <text :style="sectionTitle">测试结果</text>
+        <view v-for="(r, idx) in results" :key="String(idx)" :style="resultRowStyle(r.status)">
+          <text :style="resultIcon">{{ r.status === 'pass' ? '✓' : r.status === 'fail' ? '✗' : '…' }}</text>
+          <text :style="resultText">{{ r.message }}</text>
+        </view>
+      </view>
+
+      <!-- 导出 -->
+      <view v-if="exportText !== ''" :style="sectionStyle">
+        <text :style="sectionTitle">诊断报告（长按复制）</text>
+        <text :style="exportBoxStyle" :selectable="true">{{ exportText }}</text>
+      </view>
+
+      <view :style="{ height: '120rpx' }" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, computed } from 'vue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import { useHomeFeedStore } from '@/stores/home-feed-store'
+import { getFirstPage, getFeedPage, getMaxItems } from '@/domain/content/mock-feed-repo'
+import { FeedItem } from '@/domain/content/feed-item'
+import { n } from '@/theme/use-theme'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { spacing } from '@/theme/tokens/spacing'
+import { brand, baseColors, neutralLight } from '@/theme/tokens/colors'
+import { flexFill, flexRow } from '@/theme/layout/flex'
+
+interface TestResult {
+  status: string // 'pass' | 'fail' | 'running'
+  message: string
+}
+
+const results = ref<TestResult[]>([]) as Ref<TestResult[]>
+const exportText = ref('')
+const deviceInfo = ref<{ key: string, value: string }[]>([]) as Ref<{ key: string, value: string }[]>
+
+// 初始化设备信息
+function initDeviceInfo() {
+  const sys = uni.getSystemInfoSync()
+  const info: { key: string, value: string }[] = []
+  info.push({ key: '平台', value: sys.uniPlatform ?? 'unknown' })
+  info.push({ key: '系统', value: sys.platform ?? 'unknown' })
+  info.push({ key: '品牌', value: sys.brand ?? 'unknown' })
+  info.push({ key: '型号', value: sys.model ?? 'unknown' })
+  info.push({ key: '系统版本', value: sys.system ?? 'unknown' })
+  info.push({ key: '微信版本', value: sys.version ?? 'unknown' })
+  info.push({ key: 'SDK版本', value: sys.SDKVersion ?? 'unknown' })
+  info.push({ key: '屏幕宽度', value: String(sys.windowWidth ?? 0) })
+  info.push({ key: '屏幕高度', value: String(sys.windowHeight ?? 0) })
+  info.push({ key: '像素比', value: String(sys.pixelRatio ?? 0) })
+  // safeArea
+  const sa = sys.safeArea
+  if (sa != null) {
+    info.push({ key: '安全区 top', value: String(sa.top) })
+    info.push({ key: '安全区 bottom', value: String(sa.bottom) })
+  }
+  deviceInfo.value = info
+}
+
+initDeviceInfo()
+
+// 测试 Mock Feed
+function testMockFeed() {
+  results.value = []
+  addResult('running', '正在测试 Mock Feed...')
+
+  try {
+    const page = getFirstPage()
+    if (page.length === 0) {
+      addResult('fail', 'getFirstPage() 返回空数组')
+      return
+    }
+    addResult('pass', `getFirstPage() 返回 ${page.length} 条`)
+
+    // 检查字段完整性
+    let missingCover = 0
+    let missingTitle = 0
+    for (let i = 0; i < page.length; i++) {
+      const item = page[i]
+      if (item.coverUrl === '') missingCover++
+      if (item.title === '') missingTitle++
+    }
+    addResult(missingCover === 0 ? 'pass' : 'fail', `coverUrl 空值: ${missingCover}/${page.length}`)
+    addResult(missingTitle === 0 ? 'pass' : 'fail', `title 空值: ${missingTitle}/${page.length}`)
+
+    // 测试第二页
+    const page2 = getFeedPage(1)
+    addResult(page2.length > 0 ? 'pass' : 'fail', `getFeedPage(1) 返回 ${page2.length} 条`)
+
+    updateLastResult('pass', 'Mock Feed 测试完成')
+  } catch (e) {
+    updateLastResult('fail', `Mock Feed 异常: ${String(e)}`)
+  }
+}
+
+// 测试图片
+function testImages() {
+  results.value = []
+  addResult('running', '正在测试图片...')
+
+  const page = getFirstPage()
+  const urls: string[] = []
+  for (let i = 0; i < page.length; i++) {
+    const url = page[i].coverUrl
+    if (url !== '' && urls.indexOf(url) < 0) {
+      urls.push(url)
+    }
+  }
+
+  addResult('pass', `发现 ${urls.length} 个唯一图片路径`)
+
+  let tested = 0
+  let passed = 0
+  let failed = 0
+  const failedUrls: string[] = []
+
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i]
+    try {
+      uni.getImageInfo({
+        src: url,
+        success: () => {
+          tested++
+          passed++
+          addResult('pass', `图片加载成功: ${url}`)
+          if (tested === urls.length) {
+            updateLastResult('pass', `图片测试完成: ${passed}/${urls.length} 通过`)
+          }
+        },
+        fail: (err: any) => {
+          tested++
+          failed++
+          failedUrls.push(url)
+          addResult('fail', `图片加载失败: ${url} — ${String(err)}`)
+          if (tested === urls.length) {
+            updateLastResult('fail', `图片测试完成: ${failed}/${urls.length} 失败`)
+          }
+        }
+      })
+    } catch (e) {
+      tested++
+      failed++
+      failedUrls.push(url)
+      addResult('fail', `图片测试异常: ${url} — ${String(e)}`)
+    }
+  }
+}
+
+// 测试分页
+function testPagination() {
+  results.value = []
+  addResult('running', '正在测试分页...')
+
+  try {
+    const max = getMaxItems()
+    addResult('pass', `最大条目数: ${max}`)
+
+    let total = 0
+    let page = 0
+    while (true) {
+      const items = getFeedPage(page)
+      if (items.length === 0) break
+      total += items.length
+      page++
+    }
+    addResult('pass', `分页加载完成: ${page} 页, ${total} 条`)
+    addResult(total === max ? 'pass' : 'fail', total === max ? '总数一致' : `总数不一致: 期望 ${max}, 实际 ${total}`)
+  } catch (e) {
+    addResult('fail', `分页异常: ${String(e)}`)
+  }
+}
+
+// 导出结果
+function exportResults() {
+  const lines: string[] = []
+  lines.push('=== 三坑绮橱 设备诊断报告 ===')
+  lines.push(`时间: ${new Date().toISOString()}`)
+  lines.push('')
+
+  lines.push('--- 设备信息 ---')
+  for (let i = 0; i < deviceInfo.value.length; i++) {
+    const d = deviceInfo.value[i]
+    lines.push(`${d.key}: ${d.value}`)
+  }
+  lines.push('')
+
+  lines.push('--- 测试结果 ---')
+  for (let i = 0; i < results.value.length; i++) {
+    const r = results.value[i]
+    const icon = r.status === 'pass' ? '[PASS]' : r.status === 'fail' ? '[FAIL]' : '[....]'
+    lines.push(`${icon} ${r.message}`)
+  }
+  lines.push('')
+  lines.push('--- 构建信息 ---')
+  lines.push('版本: 1.4.0')
+  lines.push('环境: production (build)')
+
+  exportText.value = lines.join('\n')
+
+  // 复制到剪贴板
+  uni.setClipboardData({
+    data: exportText.value,
+    success: () => {
+      uni.showToast({ title: '已复制到剪贴板', icon: 'success' })
+    }
+  })
+}
+
+function addResult(status: string, message: string) {
+  const list = results.value.slice()
+  list.push({ status, message } as TestResult)
+  results.value = list
+}
+
+function updateLastResult(status: string, message: string) {
+  const list = results.value.slice()
+  if (list.length > 0) {
+    list[list.length - 1] = { status, message } as TestResult
+    results.value = list
+  }
+}
+
+// Styles
+const pageStyle = computed((): any => ({
+  height: '100vh',
+  backgroundColor: n.value.bg,
+}))
+
+const scrollStyle = { ...flexFill }
+
+const spacerStyle = { height: '132px' }
+
+const titleStyle = {
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: baseColors.white,
+}
+
+const sectionStyle = {
+  paddingHorizontal: spacing[4],
+  paddingTop: spacing[4],
+}
+
+const sectionTitle = {
+  fontSize: fontSize.lg,
+  fontWeight: fontWeight.bold,
+  color: neutralLight.text,
+  marginBottom: spacing[3],
+}
+
+const rowStyle = {
+  ...flexRow,
+  justifyContent: 'space-between',
+  paddingVertical: spacing[2],
+  borderBottomWidth: '1rpx',
+  borderBottomStyle: 'solid' as string,
+  borderBottomColor: neutralLight.divider,
+}
+
+const labelStyle = {
+  fontSize: fontSize.sm,
+  color: neutralLight.textSecondary,
+  flexShrink: 0,
+}
+
+const valueStyle = {
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: neutralLight.text,
+  textAlign: 'right' as string,
+  flex: 1,
+  marginLeft: spacing[3],
+}
+
+const btnStyle = {
+  backgroundColor: brand[500],
+  borderRadius: '12rpx',
+  paddingVertical: spacing[3],
+  paddingHorizontal: spacing[4],
+  marginBottom: spacing[2],
+  alignItems: 'center' as string,
+}
+
+const btnText = {
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: baseColors.white,
+}
+
+function resultRowStyle(status: string) {
+  return {
+    ...flexRow,
+    alignItems: 'center' as string,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    borderRadius: '8rpx',
+    marginBottom: '4rpx',
+    backgroundColor: status === 'pass' ? '#E8F5E9' : status === 'fail' ? '#FFEBEE' : '#FFF3E0',
+  }
+}
+
+const resultIcon = {
+  fontSize: fontSize.base,
+  marginRight: spacing[2],
+  width: '40rpx',
+}
+
+const resultText = {
+  fontSize: fontSize.sm,
+  color: neutralLight.text,
+  flex: 1,
+}
+
+const exportBoxStyle = {
+  fontSize: fontSize.xs,
+  color: neutralLight.text,
+  backgroundColor: neutralLight.bgTertiary,
+  padding: spacing[3],
+  borderRadius: '8rpx',
+  lineHeight: '1.6',
+}
+</script>

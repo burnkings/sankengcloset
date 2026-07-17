@@ -1,329 +1,75 @@
 <template>
-  <MainLayout>
-    <template #navbar>
-      <AppNavbar title="我的衣橱" :show-back="false">
-        <template #right>
-          <text :style="countBadgeStyle">{{ store.itemCount }}件</text>
-        </template>
-      </AppNavbar>
-    </template>
-
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="我的衣橱" :show-back="true"><template #right><text :style="addText" @tap="goAdd">添加</text></template></AppNavbar></template>
     <template #default>
-      <!-- 分类统计条 -->
-      <view :style="statsBarStyle">
-        <view :style="statsBarItem" @tap="onCategoryTap('')">
-          <text :style="statsBarNum(store.itemCount)">{{ store.itemCount }}</text>
-          <text :style="statsBarLabel">全部</text>
-        </view>
-        <view :style="statsBarDivider" />
-        <view :style="statsBarItem" @tap="onCategoryTap('JK')">
-          <text :style="statsBarNum(categoryCounts['JK'] ?? 0)">{{ categoryCounts['JK'] ?? 0 }}</text>
-          <text :style="statsBarLabel">JK制服</text>
-        </view>
-        <view :style="statsBarDivider" />
-        <view :style="statsBarItem" @tap="onCategoryTap('LOLITA')">
-          <text :style="statsBarNum(categoryCounts['LOLITA'] ?? 0)">{{ categoryCounts['LOLITA'] ?? 0 }}</text>
-          <text :style="statsBarLabel">Lolita</text>
-        </view>
-        <view :style="statsBarDivider" />
-        <view :style="statsBarItem" @tap="onCategoryTap('HANFU')">
-          <text :style="statsBarNum(categoryCounts['HANFU'] ?? 0)">{{ categoryCounts['HANFU'] ?? 0 }}</text>
-          <text :style="statsBarLabel">汉服</text>
-        </view>
-      </view>
+      <view class="page-canvas" :style="pageWrap">
+        <AppInput v-model="searchValue" placeholder="搜索衣物名称或品牌" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
+        <view :style="summaryRow"><text :style="summaryTitle">{{ store.itemCount }} 件单品</text><text :style="summaryMeta">按加入时间排列</text></view>
+        <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
-      <!-- 分类筛选 + 排序 + 视图切换 -->
-      <view :style="toolbarStyle">
-        <scroll-view scroll-x :show-scrollbar="false" :style="chipScrollStyle">
-          <view :style="chipRowStyle">
-            <AppTag
-              v-for="cat in categories"
-              :key="cat.value"
-              :label="cat.label"
-              :variant="TAG_CHIP"
-              :active="cat.value === store.currentCategory"
-              @tap="onCategoryTap(cat.value)"
-            />
-          </view>
-        </scroll-view>
-
-        <view :style="toolbarRightStyle">
-          <view :style="sortBtnStyle" @tap="onSortTap">
-            <text :style="sortLabelStyle">{{ currentSortLabel }}</text>
-          </view>
-          <view :style="viewToggleStyle" @tap="store.toggleViewMode()">
-            <text :style="viewIconStyle">{{ store.viewMode === 'grid' ? '☰' : '▦' }}</text>
+        <AppLoading v-if="store.loading" />
+        <view v-else-if="visibleItems.length === 0" :style="emptyWrap"><AppIcon name="wardrobe" :size="64" /><text :style="emptyTitle">衣橱里还没有匹配单品</text><text :style="emptyDesc">添加单品后可用于绮灵 AI 搭配</text></view>
+        <view v-else :style="grid">
+          <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
+            <view :style="imageWrap"><AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" /></view>
+            <view :style="cardBody"><text :style="brandText">{{ item.brand !== '' ? item.brand : categoryLabel(item.category) }}</text><text :style="itemName">{{ item.name }}</text><view :style="bottomRow"><text :style="priceText">{{ item.purchasePrice > 0 ? '¥' + String(item.purchasePrice) : '未记录价格' }}</text><text :style="wearText">{{ wearLabel(item.wearStatus) }}</text></view></view>
           </view>
         </view>
-      </view>
-
-      <!-- 搜索栏 -->
-      <view :style="searchBarStyle">
-        <input
-          :value="store.searchKeyword"
-          placeholder="搜索衣物名称、品牌..."
-          :placeholder-style="placeholderStyleStr"
-          :style="searchInputStyle"
-          @input="onSearchInput"
-        />
-      </view>
-
-      <!-- Loading -->
-      <AppLoading v-if="store.loading" />
-
-      <!-- Empty -->
-      <AppEmptyState
-        v-else-if="store.sortedItems.length === 0"
-        icon="👗"
-        :title="store.searchKeyword ? '没有找到匹配的衣物' : '衣橱还是空的'"
-        :description="store.searchKeyword ? '换个关键词试试' : '开始收藏你的第一件三坑宝贝吧~'"
-      />
-
-      <!-- Grid 模式 -->
-      <view v-else-if="store.viewMode === 'grid'" :style="gridListStyle">
-        <view
-          v-for="item in store.sortedItems"
-          :key="item.id"
-          :style="gridCellSize"
-        >
-          <WardrobeCard :item="item" mode="grid" @click="onItemTap(item)" />
-        </view>
-      </view>
-
-      <!-- List 模式 -->
-      <view v-else :style="listStyle">
-        <WardrobeCard
-          v-for="item in store.sortedItems"
-          :key="item.id"
-          :item="item"
-          mode="list"
-          @click="onItemTap(item)"
-        />
       </view>
     </template>
   </MainLayout>
-
-  <!-- 排序选择弹窗 -->
-  <AppDialog
-    v-model:visible="sortSheetVisible"
-    title="排序方式"
-    :show-cancel="false"
-    confirm-text="关闭"
-  >
-    <view :style="sortListStyle">
-      <view
-        v-for="opt in sortOptions"
-        :key="opt.value"
-        :style="sortItemStyle(opt.value === store.currentSort)"
-        @tap="onSortSelect(opt.value)"
-      >
-        <text :style="sortItemText(opt.value === store.currentSort)">{{ opt.label }}</text>
-        <text v-if="opt.value === store.currentSort" :style="checkStyle">✓</text>
-      </view>
-    </view>
-  </AppDialog>
 </template>
 
 <script setup lang="uts">
 import { useWardrobeStore } from '@/stores/wardrobe-store'
-import { WardrobeItem } from '@/domain/wardrobe-item'
-import { ALL_CATEGORIES } from '@/domain/clothing-category'
-import { SORT_OPTIONS, getSortLabel } from '@/types/sort'
-import { brand, categoryColors, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
-import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { radius, semanticRadius } from '@/theme/tokens/radius'
-import { shadow } from '@/theme/tokens/shadow'
-import { flexRow, flexCenter, flexColumnCenter, flexRowBetween } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
-import { grid2, grid2Item } from '@/theme/layout/grid'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import AppTag from '@/components/base/AppTag.uvue'
-import { TAG_CHIP } from '@/components/base/app-tag-types'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
-import AppDialog from '@/components/base/AppDialog.uvue'
-import WardrobeCard from '@/components/business/WardrobeCard.uvue'
-
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import { showFeedback } from '@/utils/feedback'
 
 const store = useWardrobeStore()
-
-const sortSheetVisible = ref(false)
-const sortOptions = SORT_OPTIONS
-const categories = ALL_CATEGORIES
-const currentSortLabel = computed(() => getSortLabel(store.currentSort))
-
-const categoryCounts = computed(() => store.categoryCounts as any)
-
-function onCategoryTap(category: string) {
-  store.setCategory(category)
-}
-
-function onSearchInput(e: any) {
-  store.setSearch(e.detail?.value ?? '')
-}
-
-function onSortTap() {
-  sortSheetVisible.value = true
-}
-
-function onSortSelect(sort: string) {
-  store.setSort(sort)
-  sortSheetVisible.value = false
-}
-
-function onItemTap(item: WardrobeItem) {
-  uni.navigateTo({ url: `/pages/wardrobe/detail?id=${item.id}` })
-}
-
-// ====== 样式 ======
-
-const countBadgeStyle = {
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-  backgroundColor: n.value.bgTertiary,
-  paddingHorizontal: spacing[2],
-  paddingVertical: spacing[1],
-  borderRadius: radius.sm }
-
-// --- 分类统计条 ---
-const statsBarStyle = computed((): any => ({
-  ...flexRow,
-  justifyContent: 'space-around',
-  alignItems: 'center',
-  marginHorizontal: semanticSpacing.pageHorizontal,
-  marginTop: spacing[3],
-  padding: spacing[3],
-  backgroundColor: n.value.surface,
-  borderRadius: semanticRadius.card,
-  boxShadow: shadow.card,
-}))
-
-const statsBarItem = {
-  ...flexColumnCenter,
-  gap: spacing[0.5],
-}
-
-function statsBarNum(count: number) {
-  return {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: count > 0 ? brand[500] : n.value.textTertiary,
-    lineHeight: 1,
-  }
-}
-
-const statsBarLabel = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-}))
-
-const statsBarDivider = {
-  width: '1rpx',
-  height: '48rpx',
-  backgroundColor: neutralLight.divider,
-  alignSelf: 'center',
-}
-
-// --- 工具栏 ---
-const toolbarStyle = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[2],
-  padding: `${spacing[3]} ${spacing[4]}` }
-
-const chipScrollStyle = {
-  flex: 1,
-  overflow: 'hidden' }
-
-const chipRowStyle = {
-  ...flexRow,
-  gap: spacing[2] }
-
-const toolbarRightStyle = {
-  ...flexRow,
-  gap: spacing[1],
-  flexShrink: 0 }
-
-const sortBtnStyle = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[1],
-  paddingHorizontal: spacing[2],
-  paddingVertical: spacing[1],
-  borderRadius: radius.sm,
-  backgroundColor: n.value.bgTertiary }
-
-const sortLabelStyle = {
-  fontSize: fontSize.xs,
-  color: n.value.textSecondary }
-
-const viewToggleStyle = {
-  ...flexCenter,
-  width: '56rpx',
-  height: '56rpx',
-  borderRadius: radius.sm,
-  backgroundColor: n.value.bgTertiary }
-
-const viewIconStyle = {
-  fontSize: fontSize.lg,
-  color: n.value.textSecondary }
-
-// --- 搜索栏 ---
-const searchBarStyle = {
-  paddingHorizontal: spacing[4],
-  paddingBottom: spacing[3] }
-
-const placeholderStyleStr = `color: ${n.value.placeholder}`
-
-const searchInputStyle = computed((): any => ({
-  height: '72rpx',
-  paddingHorizontal: spacing[3],
-  backgroundColor: n.value.bgTertiary,
-  borderRadius: radius.md,
-  fontSize: fontSize.sm,
-  color: n.value.text }))
-
-// --- 列表样式 ---
-const listStyle = {
-  ...gap.sm,
-  padding: `0 ${spacing[4]} ${spacing[4]}` }
-
-const gridListStyle = {
-  ...grid2,
-  padding: `0 ${spacing[4]} ${spacing[4]}` }
-
-const gridCellSize = {
-  ...grid2Item }
-
-// --- 排序弹窗 ---
-const sortListStyle = {
-  ...gap.xs }
-
-function sortItemStyle(active: boolean) {
-  return {
-    ...flexRow,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing[3],
-    borderRadius: radius.md,
-    backgroundColor: active ? n.value.bgTertiary : 'transparent' }
-}
-
-function sortItemText(active: boolean) {
-  return {
-    fontSize: fontSize.base,
-    color: active ? brand[500] : n.value.text,
-    fontWeight: active ? fontWeight.medium : fontWeight.regular }
-}
-
-const checkStyle = {
-  fontSize: fontSize.base,
-  color: brand[500] }
-
-onMounted(() => {
-  store.fetchItems()
+const searchValue = ref('')
+const activeFilter = ref('全部')
+const filters = ['全部', 'JK', 'Lolita', '汉服']
+function applySearch() { store.setSearch(searchValue.value) }
+function onFilter(label: string) { activeFilter.value = label; store.setCategory(label === '全部' ? '' : (label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : 'JK'))) }
+const visibleItems = computed(() => {
+  const code = activeFilter.value === '全部' ? '' : (activeFilter.value === 'Lolita' ? 'LOLITA' : (activeFilter.value === '汉服' ? 'HANFU' : 'JK'))
+  if (code === '') return store.sortedItems
+  return store.sortedItems.filter((item) => item.category === code)
 })
+function categoryLabel(value: string): string { return value === 'LOLITA' ? 'Lolita' : (value === 'HANFU' ? '汉服' : (value === 'JK' ? 'JK' : '其他')) }
+function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿' : (value === 'WORN' ? '已穿' : (value === 'FREQUENT' ? '常穿' : '')) }
+function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
+function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
+onShow(() => { store.fetchItems() })
+watch(searchValue, (value) => { store.setSearch(value) })
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const summaryRow = { ...flexRow, alignItems: 'center', marginTop: '24rpx', marginBottom: '16rpx' }
+const summaryTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const summaryMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const grid = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '22rpx' }
+function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+const imageWrap = { width: '325rpx', height: '390rpx' }
+const cardBody = { padding: '18rpx' }
+const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const itemName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '5rpx', lines: 1, textOverflow: 'ellipsis' }))
+const bottomRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
+const priceText = { ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const wearText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary }))
+const emptyWrap = { alignItems: 'center', paddingTop: '180rpx', paddingBottom: '120rpx' }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
 </script>
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>

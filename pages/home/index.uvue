@@ -1,576 +1,348 @@
 <template>
-  <MainLayout>
+  <MainLayout :scrollable="false" navbar-content-height="288rpx">
     <template #navbar>
-      <AppNavbar title="三坑绮橱" :show-back="false" />
+      <view :style="navbarStyle">
+        <view :style="statusBarPad" />
+        <!-- Layer 1: Brand + Capsule -->
+        <view class="nav-canvas" :style="layer1">
+          <text :style="brandText">三坑绮橱</text>
+          <view :style="capsuleSpacer" />
+        </view>
+        <view :style="wordmarkSearchSpacer" />
+        <!-- Layer 2: Search -->
+        <view class="nav-canvas" :style="layer2Wrap">
+          <view :style="searchBox" @tap="onSearch">
+            <AppIcon name="search" :size="36" />
+            <text :style="searchPlaceholder">搜索商品、品牌、穿搭</text>
+          </view>
+        </view>
+        <view :style="searchTabsSpacer" />
+        <!-- Layer 3: Channels -->
+        <V2HorizontalTabs :items="channels" :active="store.currentChannel" @change="onChannelTap" />
+      </view>
     </template>
 
     <template #default>
       <AppLoading v-if="store.loading" />
 
-      <scroll-view v-else scroll-y :style="scrollStyle">
-        <!-- Hero 区域 -->
-        <view :style="heroSection">
-          <view :style="heroInner">
-            <text :style="heroGreeting">{{ store.greeting }} 👋</text>
-            <text :style="heroSub">今天也要美美的~</text>
-          </view>
-          <!-- 数据概览条 -->
-          <view :style="heroStatBar">
-            <view :style="heroStatItem" @tap="navigateTo('/pages/wardrobe/index')">
-              <text :style="heroStatNum">{{ store.wardrobeSummary.itemCount }}</text>
-              <text :style="heroStatLabel">衣物</text>
-            </view>
-            <view :style="heroStatDivider" />
-            <view :style="heroStatItem" @tap="navigateTo('/pages/wishlist/index')">
-              <text :style="heroStatNum">{{ store.wishlistSummary.wishCount + store.wishlistSummary.watchingCount + store.wishlistSummary.decidedCount }}</text>
-              <text :style="heroStatLabel">种草</text>
-            </view>
-            <view :style="heroStatDivider" />
-            <view :style="heroStatItem" @tap="navigateTo('/pages/purchase/index')">
-              <text :style="heroStatNum">{{ store.purchaseSummary.activeCount }}</text>
-              <text :style="heroStatLabel">进行中</text>
-            </view>
-          </view>
+      <view v-else-if="store.state === 'error'" :style="errorWrap">
+        <text :style="errorTitle">加载失败</text>
+        <text :style="errorMsg">{{ store.errorMessage }}</text>
+        <view :style="retryBtn" @tap="onRetry">
+          <text :style="retryBtnText">点击重试</text>
         </view>
+      </view>
 
-        <!-- 消费概览 -->
-        <view :style="sectionWrap">
-          <view :style="summaryCard">
-            <view :style="summaryTop">
-              <text :style="summaryTitle">本月消费</text>
-              <text :style="summaryLink" @tap="navigateTo('/pages/purchase/index')">查看全部 ›</text>
-            </view>
-            <view :style="summaryAmountRow">
-              <text :style="summaryAmount">¥{{ store.purchaseSummary.monthSpent }}</text>
-              <view :style="summaryBadge">
-                <text :style="summaryBadgeText">{{ store.purchaseSummary.activeCount }} 笔进行中</text>
-              </view>
-            </view>
-            <view :style="summaryDivider" />
-            <view :style="summaryBottom">
-              <view :style="summaryBottomItem">
-                <text :style="summaryBottomLabel">待付款</text>
-                <text :style="summaryBottomNum">{{ store.purchaseSummary.pendingAmount }}</text>
-              </view>
-              <view :style="summaryBottomDivider" />
-              <view :style="summaryBottomItem">
-                <text :style="summaryBottomLabel">衣物总数</text>
-                <text :style="summaryBottomNum">{{ store.wardrobeSummary.itemCount }}</text>
-              </view>
-              <view :style="summaryBottomDivider" />
-              <view :style="summaryBottomItem">
-                <text :style="summaryBottomLabel">收藏</text>
-                <text :style="summaryBottomNum">{{ store.wardrobeSummary.favoriteCount }}</text>
-              </view>
-            </view>
+      <!-- #ifdef MP-WEIXIN -->
+      <scroll-view v-else scroll-y :style="listViewStyle" @scrolltolower="onLoadMore">
+      <!-- #endif -->
+      <!-- #ifndef MP-WEIXIN -->
+      <list-view v-else scroll-y :style="listViewStyle" @scrolltolower="onLoadMore">
+      <!-- #endif -->
+        <!-- Secondary category filter: scrolls away with content -->
+        <!-- #ifdef MP-WEIXIN -->
+        <view>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <list-item :type="'categoryFilters'">
+        <!-- #endif -->
+          <view :style="categoryFilterWrap">
+            <V2FilterChips :items="categories" :active="store.currentCategory" :edge-inset="true" @change="onCategoryTap" />
           </view>
+        <!-- #ifdef MP-WEIXIN -->
         </view>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        </list-item>
+        <!-- #endif -->
 
-        <!-- 快捷入口 -->
-        <view :style="sectionWrap">
-          <text :style="sectionLabel">快捷入口</text>
-          <view :style="quickGrid">
-            <view :style="quickItem" @tap="navigateTo('/pages/wardrobe/index')">
-              <view :style="quickIconBg(brand[50])">
-                <text :style="quickIcon">👗</text>
-              </view>
-              <text :style="quickLabel">我的衣橱</text>
-            </view>
-            <view :style="quickItem" @tap="navigateTo('/pages/wishlist/index')">
-              <view :style="quickIconBg(accent[50])">
-                <text :style="quickIcon">💖</text>
-              </view>
-              <text :style="quickLabel">种草清单</text>
-            </view>
-            <view :style="quickItem" @tap="navigateTo('/pages/purchase/index')">
-              <view :style="quickIconBg(warm.cream)">
-                <text :style="quickIcon">🛍️</text>
-              </view>
-              <text :style="quickLabel">消费记录</text>
-            </view>
-            <view :style="quickItem" @tap="navigateTo('/pages/reminder/index')">
-              <view :style="quickIconBg(warm.lavender)">
-                <text :style="quickIcon">⏰</text>
-              </view>
-              <text :style="quickLabel">提醒</text>
-            </view>
+        <!-- Empty channel -->
+        <!-- #ifdef MP-WEIXIN -->
+        <view v-if="store.isEmpty">
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <list-item v-if="store.isEmpty" :type="'empty'">
+        <!-- #endif -->
+          <view :style="emptyWrap">
+            <text :style="emptyTitle">暂无内容</text>
+            <text :style="emptyMsg">切换其他频道看看</text>
           </view>
+        <!-- #ifdef MP-WEIXIN -->
         </view>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        </list-item>
+        <!-- #endif -->
 
-        <!-- 种草计划 -->
-        <view :style="sectionWrap">
-          <view :style="sectionHeader">
-            <text :style="sectionLabel">种草计划</text>
-            <text :style="sectionLink" @tap="navigateTo('/pages/wishlist/index')">查看全部 ›</text>
+        <!-- Feed rows -->
+        <!-- #ifdef MP-WEIXIN -->
+        <view v-for="row in store.feedRows" :key="row.id">
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <list-item v-for="row in store.feedRows" :key="row.id" :type="row.rowType">
+        <!-- #endif -->
+          <!-- Product pair -->
+          <view v-if="row.rowType === 'pair'" class="feed-pair-row" :style="pairRow">
+            <view v-if="row.left !== null" :style="productShellLeft">
+              <V2ProductCard :image="row.left!.coverUrl" :brand-name="row.left!.brandName" :title="row.left!.title" :price-text="formatPrice(row.left!.price)" :original-price-text="row.left!.originalPrice > row.left!.price ? formatPrice(row.left!.originalPrice) : ''" :badge="row.left!.badgeText" :deadline-text="formatDeadline(row.left!.eventEndAt)" @click="onTap(row.left!)" />
+            </view>
+            <view v-if="row.right !== null" :style="productShellRight">
+              <V2ProductCard :image="row.right!.coverUrl" :brand-name="row.right!.brandName" :title="row.right!.title" :price-text="formatPrice(row.right!.price)" :original-price-text="row.right!.originalPrice > row.right!.price ? formatPrice(row.right!.originalPrice) : ''" :badge="row.right!.badgeText" :deadline-text="formatDeadline(row.right!.eventEndAt)" @click="onTap(row.right!)" />
+            </view>
+            <!-- Filler when one side is null -->
+            <view v-if="row.right === null" :style="cardFiller" />
           </view>
-          <view :style="wishCard">
-            <view :style="wishRow">
-              <view :style="wishStat">
-                <text :style="wishStatEmoji">🌱</text>
-                <text :style="wishStatNum">{{ store.wishlistSummary.wishCount }}</text>
-                <text :style="wishStatLabel">种草</text>
-              </view>
-              <view :style="wishDivider" />
-              <view :style="wishStat">
-                <text :style="wishStatEmoji">👀</text>
-                <text :style="wishStatNum">{{ store.wishlistSummary.watchingCount }}</text>
-                <text :style="wishStatLabel">观望</text>
-              </view>
-              <view :style="wishDivider" />
-              <view :style="wishStat">
-                <text :style="wishStatEmoji">✅</text>
-                <text :style="wishStatNum">{{ store.wishlistSummary.decidedCount }}</text>
-                <text :style="wishStatLabel">决定买</text>
+
+          <!-- ReleaseEvent single -->
+          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" :style="eventCard" @tap="onTap(row.single!)">
+            <view :style="imgWrap169">
+              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+              <view :style="eventOverlay">
+                <view :style="eventTagRow">
+                  <view :style="eventTagBg">
+                    <text :style="eventTagTxt">{{ row.single!.badgeText }}</text>
+                  </view>
+                  <text :style="eventTimeTxt">{{ formatRelativeTime(row.single!.eventStartAt) }}</text>
+                </view>
+                <text :style="eventTitle">{{ row.single!.title }}</text>
+                <text :style="eventBrand">{{ row.single!.brandName }}</text>
               </view>
             </view>
           </view>
-        </view>
 
-        <!-- 我的提醒 -->
-        <view :style="sectionWrap">
-          <view :style="sectionHeader">
-            <text :style="sectionLabel">我的提醒</text>
-            <text :style="sectionLink" @tap="navigateTo('/pages/reminder/index')">查看全部 ›</text>
-          </view>
-          <view :style="reminderCard" @tap="navigateTo('/pages/reminder/index')">
-            <view :style="reminderRow">
-              <view :style="reminderIconBg">
-                <text :style="reminderIcon">⏰</text>
-              </view>
-              <view :style="reminderInfo">
-                <text :style="reminderTitle">提醒管理</text>
-                <text :style="reminderDesc">不错过尾款、发售、到货每个重要时刻</text>
-              </view>
-              <text :style="reminderArrow">›</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 衣橱收藏 -->
-        <view :style="sectionWrap">
-          <view :style="sectionHeader">
-            <text :style="sectionLabel">衣橱收藏</text>
-            <text :style="sectionLink" @tap="navigateTo('/pages/wardrobe/index')">查看全部 ›</text>
-          </view>
-          <view :style="favCard">
-            <view :style="favRow">
-              <view :style="favIconBg">
-                <text :style="favIcon">❤️</text>
-              </view>
-              <view :style="favInfo">
-                <text :style="favCount">{{ store.wardrobeSummary.favoriteCount }}</text>
-                <text :style="favLabel">件收藏衣物</text>
-              </view>
-              <view v-if="store.wardrobeSummary.favoriteCount > 0" :style="favHint">
-                <text :style="favHintText">持续收集美好~</text>
+          <!-- Outfit single 4:5 -->
+          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType === 'outfit'" class="feed-single-card" :style="outfitCard" @tap="onTap(row.single!)">
+            <view :style="imgWrap45">
+              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+              <view :style="outfitInfoOverlay">
+                <text :style="outfitTitle">{{ row.single!.title }}</text>
+                <text :style="outfitSub">{{ row.single!.subtitle }}</text>
               </view>
             </view>
           </view>
-        </view>
 
-        <!-- 底部留白 -->
-        <view :style="bottomSpacer" />
+          <!-- Brand post / other -->
+          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType !== 'release_event' && row.single!.feedType !== 'outfit' && row.single!.feedType !== 'product'" class="feed-single-card" :style="postCard" @tap="onTap(row.single!)">
+            <view :style="imgWrap169">
+              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+            </view>
+            <view :style="postInfo">
+              <view :style="postTopRow">
+                <view :style="postTagBg">
+                  <text :style="postTagTxt">{{ row.single!.badgeText !== '' ? row.single!.badgeText : feedLabel(row.single!.feedType) }}</text>
+                </view>
+                <text :style="postSource">{{ row.single!.sourceLabel }}</text>
+              </view>
+              <text :style="postTitle">{{ row.single!.title }}</text>
+              <text :style="postBrand">{{ row.single!.brandName }}</text>
+            </view>
+          </view>
+        <!-- #ifdef MP-WEIXIN -->
+        </view>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        </list-item>
+        <!-- #endif -->
+
+        <!-- Footer -->
+        <!-- #ifdef MP-WEIXIN -->
+        <view v-if="showFeedFooter">
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <list-item v-if="showFeedFooter" :type="'footer'">
+        <!-- #endif -->
+          <view :style="footerWrap">
+            <text :style="footerTxt">{{ store.isLoadingMore ? '加载中...' : (store.hasMore ? '上拉加载更多' : '已显示全部') }}</text>
+          </view>
+        <!-- #ifdef MP-WEIXIN -->
+        </view>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        </list-item>
+        <!-- #endif -->
+      <!-- #ifdef MP-WEIXIN -->
       </scroll-view>
+      <!-- #endif -->
+      <!-- #ifndef MP-WEIXIN -->
+      </list-view>
+      <!-- #endif -->
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="home" />
+  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
-import { useHomeStore } from '@/stores/home-store'
-import { brand, accent, warm, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
-import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
-import { radius, semanticRadius } from '@/theme/tokens/radius'
-import { shadow, shadowDark } from '@/theme/tokens/shadow'
+import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline } from '@/stores/home-feed-store'
+import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
+import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexRowBetween, flexColumnCenter, flexFill } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
-import { n } from '@/theme/use-theme'
+import { flexRow, flexCenter, flexFill } from '@/theme/layout/flex'
+import { zIndex } from '@/theme/tokens/z-index'
+import { n, syncTabBarChrome } from '@/theme/use-theme'
+import { getStatusBarHeight, getWindowHeight } from '@/utils/window-info'
+import { openPrimaryTab } from '@/utils/tab-navigation'
+import { CARD_PADDING, CARD_RADIUS, BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_FONT_SIZE, SEARCH_HEIGHT, SEARCH_RADIUS, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH } from '@/theme/tokens/responsive'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
 
+const store = useHomeFeedStore()
+const channels = CHANNELS
+const categories = CATEGORY_FILTERS
 
-const store = useHomeStore()
+const statusBarH = getStatusBarHeight()
+const homeNavbarPx = uni.upx2px(288)
+let appTabBarPx = 0
+// #ifdef APP
+appTabBarPx = uni.upx2px(110)
+// #endif
+const homeViewportPx = ref(Math.max(getWindowHeight() - statusBarH - homeNavbarPx - appTabBarPx, 240))
+function refreshViewport() { homeViewportPx.value = Math.max(getWindowHeight() - statusBarH - homeNavbarPx - appTabBarPx, 240) }
 
-const TAB_PAGES = [
-  '/pages/home/index',
-  '/pages/wardrobe/index',
-  '/pages/purchase/index',
-  '/pages/profile/index',
-]
+// Capsule spacer
+let capsuleW = 0
+// #ifdef MP-WEIXIN
+try {
+  const cap = uni.getMenuButtonBoundingClientRect()
+  capsuleW = cap.width + 16
+} catch (e) {
+  capsuleW = 0
+}
+// #endif
 
-function navigateTo(path: string) {
-  if (TAB_PAGES.indexOf(path) >= 0) {
-    uni.switchTab({ url: path })
-  } else {
-    uni.navigateTo({ url: path })
+function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
+function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
+function onChannelTap(ch: string) { store.setChannel(ch) }
+function onCategoryTap(category: string) { store.setCategory(category) }
+function onTap(item: FeedItem) {
+  if (item.feedType === FEED_OUTFIT) {
+    openPrimaryTab('/pages/community/index')
+    return
   }
+  if (item.feedType === 'product' || item.feedType === 'release_event') {
+    uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+    return
+  }
+  uni.setStorageSync('pending_search_keyword', item.brandName !== '' ? item.brandName : item.title)
+  uni.navigateTo({ url: '/pages/search/index' })
 }
+function onLoadMore() { store.loadMore() }
+function onRetry() { store.retry() }
+// 筛选后内容不足一屏时不展示“上拉加载更多/已显示全部”，避免制造虚假操作预期。
+const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
+onMounted(() => { store.loadFirstPage() })
+onReady(() => { refreshViewport() })
+onShow(() => { syncTabBarChrome() })
 
-// ====== 样式 ======
+// --- Spacing tokens (no gap) ---
+const CARD_PAIR_GAP = '20rpx'  // between two product cards
+const CARD_V_GAP = '24rpx'     // vertical gap between card rows
 
-const scrollStyle = {
-  flex: 1,
-  backgroundColor: neutralLight.bg,
-}
-
-// --- Hero ---
-const heroSection = {
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  paddingTop: spacing[3],
-  paddingBottom: spacing[4],
-  backgroundColor: brand[500],
-}
-
-const heroInner = {
-  paddingLeft: spacing[1],
-  marginBottom: spacing[3],
-}
-
-const heroGreeting = {
-  fontSize: fontSize['2xl'],
-  fontWeight: fontWeight.bold,
-  color: baseColors.white,
-  marginBottom: spacing[0.5],
-}
-
-const heroSub = {
-  fontSize: fontSize.sm,
-  color: 'rgba(255,255,255,0.8)',
-}
-
-const heroStatBar = {
-  ...flexRow,
-  backgroundColor: 'rgba(255,255,255,0.15)',
-  borderRadius: semanticRadius.card,
-  padding: spacing[3],
-  justifyContent: 'space-around',
-}
-
-const heroStatItem = {
-  ...flexColumnCenter,
-  gap: spacing[0.5],
-}
-
-const heroStatNum = {
-  fontSize: fontSize.xl,
-  fontWeight: fontWeight.bold,
-  color: baseColors.white,
-  lineHeight: 1,
-}
-
-const heroStatLabel = {
-  fontSize: fontSize.xs,
-  color: 'rgba(255,255,255,0.7)',
-}
-
-const heroStatDivider = {
-  width: '1rpx',
-  height: '48rpx',
-  backgroundColor: 'rgba(255,255,255,0.2)',
-  alignSelf: 'center',
-}
-
-// --- Section ---
-const sectionWrap = {
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  marginTop: spacing[3],
-}
-
-const sectionHeader = {
-  ...flexRowBetween,
-  alignItems: 'center',
-  marginBottom: spacing[2],
-}
-
-const sectionLabel = computed((): any => ({
-  fontSize: fontSize.lg,
-  fontWeight: fontWeight.semibold,
-  color: n.value.text,
-  marginBottom: spacing[2],
+// --- Navbar ---
+const navbarStyle = computed((): any => ({
+  position: 'fixed', top: '0', left: '0', right: '0',
+  zIndex: zIndex.navbar,
+  backgroundColor: n.value.bg,
 }))
-
-const sectionLink = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: brand[500],
-  fontWeight: fontWeight.medium,
-}))
-
-// --- 消费概览卡片 ---
-const summaryCard = computed((): any => ({
-  backgroundColor: n.value.surface,
-  borderRadius: semanticRadius.card,
-  padding: spacing[4],
-  boxShadow: shadow.card,
-}))
-
-const summaryTop = {
-  ...flexRowBetween,
-  alignItems: 'center',
-  marginBottom: spacing[3],
-}
-
-const summaryTitle = computed((): any => ({
-  fontSize: fontSize.sm,
-  fontWeight: fontWeight.medium,
-  color: n.value.textSecondary,
-}))
-
-const summaryLink = {
-  fontSize: fontSize.xs,
-  color: brand[500],
-}
-
-const summaryAmountRow = {
-  ...flexRow,
-  alignItems: 'flex-end',
-  gap: spacing[2],
-  marginBottom: spacing[3],
-}
-
-const summaryAmount = {
-  fontSize: fontSize['3xl'],
-  fontWeight: fontWeight.extrabold,
-  color: brand[600],
-  lineHeight: 1,
-}
-
-const summaryBadge = {
-  backgroundColor: brand[50],
-  borderRadius: semanticRadius.tag,
-  paddingHorizontal: spacing[2],
-  paddingVertical: spacing[0.5],
-  marginBottom: spacing[0.5],
-}
-
-const summaryBadgeText = {
-  fontSize: fontSize.xs,
-  fontWeight: fontWeight.medium,
-  color: brand[500],
-}
-
-const summaryDivider = {
-  height: '1rpx',
-  backgroundColor: neutralLight.divider,
-  marginBottom: spacing[3],
-}
-
-const summaryBottom = {
-  ...flexRow,
-  justifyContent: 'space-around',
-}
-
-const summaryBottomItem = {
-  ...flexColumnCenter,
-  gap: spacing[0.5],
-}
-
-const summaryBottomLabel = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-}))
-
-const summaryBottomNum = computed((): any => ({
-  fontSize: fontSize.xl,
-  fontWeight: fontWeight.bold,
-  color: n.value.text,
-}))
-
-const summaryBottomDivider = {
-  width: '1rpx',
-  height: '48rpx',
-  backgroundColor: neutralLight.divider,
-  alignSelf: 'center',
-}
-
-// --- 快捷入口 ---
-const quickGrid = {
-  ...flexRow,
+const statusBarPad = computed((): any => ({ height: `${statusBarH}px` }))
+const layer1 = {
+  height: '96rpx', ...flexRow, alignItems: 'center',
   justifyContent: 'space-between',
 }
-
-const quickItem = {
-  ...flexColumnCenter,
-  gap: spacing[1],
-  width: '22%',
-}
-
-function quickIconBg(bgColor: string) {
-  return {
-    width: '96rpx',
-    height: '96rpx',
-    borderRadius: semanticRadius.cardLg,
-    backgroundColor: bgColor,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }
-}
-
-const quickIcon = {
-  fontSize: '44rpx',
-}
-
-const quickLabel = computed((): any => ({
-  fontSize: fontSize.xs,
-  fontWeight: fontWeight.medium,
-  color: n.value.textSecondary,
+const brandText = computed((): any => ({
+  fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[500],
 }))
+const capsuleSpacer = { width: `${capsuleW}px` }
 
-// --- 种草计划 ---
-const wishCard = computed((): any => ({
-  backgroundColor: n.value.surface,
-  borderRadius: semanticRadius.card,
-  padding: spacing[4],
-  boxShadow: shadow.card,
+const wordmarkSearchSpacer = { height: '16rpx' }
+const layer2Wrap = {}
+const searchBox = computed((): any => ({
+  height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS,
+  backgroundColor: n.value.bgTertiary,
+  ...flexRow, alignItems: 'center',
+  paddingLeft: '28rpx', paddingRight: '24rpx',
 }))
+const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
+const searchTabsSpacer = { height: '12rpx' }
 
-const wishRow = {
-  ...flexRow,
-  justifyContent: 'space-around',
-}
+// --- Styles ---
+// 真机 list-view 必须拿到明确高度；height:0 + flex 在微信 VDOM 下会失效。
+const listViewStyle = computed((): any => ({ width: '750rpx', height: `${homeViewportPx.value}px`, minHeight: `${homeViewportPx.value}px` }))
+const categoryFilterWrap = computed((): any => ({ paddingTop: '6rpx', paddingBottom: '2rpx', backgroundColor: n.value.bg }))
 
-const wishStat = {
-  ...flexColumnCenter,
-  gap: spacing[0.5],
-}
+// Error
+const errorWrap = { ...flexFill, alignItems: 'center', justifyContent: 'center', padding: spacing[8] }
+const errorTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
+const errorMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center', marginTop: spacing[3] }))
+const retryBtn = { paddingHorizontal: spacing[5], paddingVertical: spacing[2], borderRadius: radius.full, backgroundColor: brand[500], marginTop: spacing[2] }
+const retryBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 
-const wishStatEmoji = {
-  fontSize: '28rpx',
-}
+// Empty
+const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: spacing[8] }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textSecondary }))
+const emptyMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: spacing[2] }))
 
-const wishStatNum = {
-  fontSize: fontSize['2xl'],
-  fontWeight: fontWeight.bold,
-  color: accent[500],
-  lineHeight: 1,
-}
+// Product card pair — no gap, use margin on left card
+const pairRow = { ...flexRow, marginTop: CARD_V_GAP }
+const productShellLeft = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginRight: CARD_PAIR_GAP }
+const productShellRight = { width: PRODUCT_CARD_WIDTH, flexShrink: 0 }
+const cardFiller = { width: PRODUCT_CARD_WIDTH, flexShrink: 0 }
 
-const wishStatLabel = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-}))
+const imgWrap169 = { width: '670rpx', height: '360rpx', position: 'relative' as string, overflow: 'hidden' }
+const imgWrap45 = { width: '670rpx', height: '760rpx', position: 'relative' as string, overflow: 'hidden' }
 
-const wishDivider = {
-  width: '1rpx',
-  height: '80rpx',
-  backgroundColor: neutralLight.divider,
-  alignSelf: 'center',
-}
+// Event card
+const eventCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
+const eventOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: CARD_PADDING, paddingTop: '60rpx', backgroundColor: 'rgba(0,0,0,0.4)' }
+const eventTagRow = { ...flexRow, alignItems: 'center', marginBottom: spacing[1] }
+const eventTagBg = { paddingRight: spacing[2], minHeight: '36rpx', alignItems: 'center', justifyContent: 'center', marginRight: spacing[2] }
+const eventTagTxt = { fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.semibold, color: baseColors.white }
+const eventTimeTxt = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)' }
+const eventTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white, lines: 2, textOverflow: 'ellipsis' }
+const eventBrand = { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', marginTop: '4rpx' }
 
-// --- 衣橱收藏 ---
-const favCard = computed((): any => ({
-  backgroundColor: n.value.surface,
-  borderRadius: semanticRadius.card,
-  padding: spacing[4],
-  boxShadow: shadow.card,
-}))
+// Outfit card
+const outfitCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
+const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: CARD_PADDING, paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
+const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }
 
-const favRow = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[3],
-}
+// Post card
+const postCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
+const postInfo = { padding: CARD_PADDING }
+const postTopRow = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '4rpx' }
+const postTagBg = computed((): any => ({ paddingHorizontal: BADGE_PADDING_X, paddingVertical: BADGE_PADDING_Y, borderRadius: radius.full, backgroundColor: n.value.bgSecondary }))
+const postTagTxt = { fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.medium, color: brand[500] }
+const postSource = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const postTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 2, textOverflow: 'ellipsis', marginTop: spacing[1] }))
+const postBrand = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: spacing[1] }))
 
-const favIconBg = {
-  width: '72rpx',
-  height: '72rpx',
-  borderRadius: radius.full,
-  backgroundColor: brand[50],
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const favIcon = {
-  fontSize: '32rpx',
-}
-
-const favInfo = {
-  ...flexColumnCenter,
-  alignItems: 'flex-start',
-  gap: spacing[0.5],
-}
-
-const favCount = {
-  fontSize: fontSize['2xl'],
-  fontWeight: fontWeight.bold,
-  color: brand[500],
-  lineHeight: 1,
-}
-
-const favLabel = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.textSecondary,
-}))
-
-const favHint = {
-  marginLeft: 'auto',
-}
-
-const favHintText = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-  fontStyle: 'italic',
-}))
-
-// --- 提醒卡片 ---
-const reminderCard = computed((): any => ({
-  backgroundColor: n.value.surface,
-  borderRadius: semanticRadius.card,
-  padding: spacing[4],
-  boxShadow: shadow.card,
-}))
-
-const reminderRow = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[3],
-}
-
-const reminderIconBg = {
-  width: '72rpx',
-  height: '72rpx',
-  borderRadius: radius.full,
-  backgroundColor: warm.lavender,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const reminderIcon = {
-  fontSize: '32rpx',
-}
-
-const reminderInfo = {
-  ...flexColumnCenter,
-  alignItems: 'flex-start',
-  gap: spacing[0.5],
-  ...flexFill,
-}
-
-const reminderTitle = computed((): any => ({
-  fontSize: fontSize.base,
-  fontWeight: fontWeight.semibold,
-  color: n.value.text,
-}))
-
-const reminderDesc = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-}))
-
-const reminderArrow = computed((): any => ({
-  fontSize: fontSize.xl,
-  color: n.value.textTertiary,
-}))
-
-// --- 底部留白 ---
-const bottomSpacer = {
-  height: spacing[6],
-}
-
-onMounted(() => {
-  store.fetchDashboard()
-})
+// Footer
+const footerWrap = { ...flexCenter, paddingTop: '32rpx', paddingBottom: PAGE_BOTTOM_SAFE_SPACER }
+const footerTxt = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 </script>
+
+<style>
+.nav-canvas,
+.feed-pair-row {
+  padding-left: 40rpx;
+  padding-right: 40rpx;
+}
+
+.feed-single-card {
+  margin-left: 40rpx;
+  margin-right: 40rpx;
+}
+</style>

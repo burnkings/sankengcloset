@@ -1,0 +1,164 @@
+/**
+ * FeedPresenter — 内容 Feed 展示层元数据
+ * 从 domain 层提取的 Labels / Colors / Badge 样式
+ * Domain 只保留状态值和数据字段；展示文案和颜色在这里
+ *
+ * 颜色值引用 theme tokens，不硬编码
+ */
+
+import { brand, accent, semantic, jkColors, lolitaColors, hanfuColors } from '@/theme/tokens/colors'
+
+// ====== FeedType 展示 ======
+
+export const FeedTypeLabels: Record<string, string> = {
+  product: '商品',
+  release_event: '发售',
+  brand_post: '品牌动态',
+  outfit: '穿搭',
+  editorial: '编辑精选',
+  ai_recommendation: 'AI推荐',
+}
+
+export function getFeedTypeLabel(feedType: string): string {
+  const label = FeedTypeLabels[feedType]
+  return label !== undefined ? label : '内容'
+}
+
+export function getFeedTypeColor(feedType: string): string {
+  if (feedType === 'product') return brand[500]
+  if (feedType === 'release_event') return accent[500]
+  if (feedType === 'brand_post') return '#6366F1'
+  if (feedType === 'outfit') return semantic.success
+  if (feedType === 'editorial') return semantic.warning
+  if (feedType === 'ai_recommendation') return semantic.info
+  return brand[500]
+}
+
+// ====== EventType 展示 ======
+
+export const EventTypeLabels: Record<string, string> = {
+  preview: '预览',
+  reservation: '预约',
+  deposit: '定金',
+  final_payment: '尾款',
+  release: '发售',
+  restock: '补货',
+  price_drop: '降价',
+}
+
+export function getEventTypeLabel(eventType: string): string {
+  const label = EventTypeLabels[eventType]
+  return label !== undefined ? label : eventType
+}
+
+export function getEventTypeColor(eventType: string): string {
+  if (eventType === 'preview') return accent[500]
+  if (eventType === 'reservation') return '#6366F1'
+  if (eventType === 'deposit') return semantic.warning
+  if (eventType === 'final_payment') return brand[500]
+  if (eventType === 'release') return semantic.success
+  if (eventType === 'restock') return semantic.info
+  if (eventType === 'price_drop') return semantic.error
+  return brand[500]
+}
+
+// ====== EventStatus 展示 ======
+
+export const EventStatusLabels: Record<string, string> = {
+  upcoming: '未开始',
+  active: '进行中',
+  ended: '已结束',
+  cancelled: '已取消',
+}
+
+// ====== ProductStatus 展示 ======
+
+export const ProductStatusLabels: Record<string, string> = {
+  UPCOMING: '即将发售',
+  ON_SALE: '在售',
+  PRE_ORDER: '预售中',
+  SOLD_OUT: '已售罄',
+  ENDED: '已下架',
+}
+
+export function getProductStatusColor(status: string): string {
+  if (status === 'UPCOMING') return accent[500]
+  if (status === 'ON_SALE') return semantic.success
+  if (status === 'PRE_ORDER') return semantic.warning
+  return '#9CA3AF'
+}
+
+// ====== StockStatus 展示 ======
+
+export const StockStatusLabels: Record<string, string> = {
+  IN_STOCK: '有货',
+  LOW_STOCK: '库存紧张',
+  OUT_OF_STOCK: '缺货',
+  PRE_ORDER: '预售',
+}
+
+export function getStockStatusColor(status: string): string {
+  if (status === 'IN_STOCK') return semantic.success
+  if (status === 'LOW_STOCK') return semantic.warning
+  if (status === 'PRE_ORDER') return accent[500]
+  return '#9CA3AF'
+}
+
+// ====== SourceType 展示 ======
+
+export const SourceTypeLabels: Record<string, string> = {
+  taobao: '淘宝',
+  weibo: '微博',
+  xiaohongshu: '小红书',
+  official: '官方',
+  user_submit: '用户提交',
+  ai_extract: 'AI提取',
+}
+
+// ====== ReviewStatus 展示 ======
+
+export const ReviewStatusLabels: Record<string, string> = {
+  pending: '待审核',
+  approved: '已通过',
+  rejected: '已拒绝',
+  corrected: '已修正',
+}
+
+// ====== PostType 展示 ======
+
+export const PostTypeLabels: Record<string, string> = {
+  OUTFIT: '穿搭分享',
+  REVIEW: '商品评测',
+  WISHLIST: '种草笔记',
+  HAUL: '开箱',
+  TUTORIAL: '教程',
+}
+
+// ====== Badge 颜色 ======
+
+/** 角标颜色：新品/预售/降价/联名/限定 */
+export function getBadgeColor(badge: string): string {
+  if (badge === '新品') return semantic.success
+  if (badge === '预售') return accent[500]
+  if (badge === '降价') return semantic.error
+  if (badge === '联名') return '#6366F1'
+  if (badge === '限定') return semantic.warning
+  if (badge === '动态') return brand[500]
+  return brand[500]
+}
+
+/** 分类占位图背景色 */
+export function getCategoryPlaceholderBg(category: string): string {
+  if (category === 'JK') return jkColors.bg
+  if (category === 'LOLITA') return lolitaColors.bg
+  if (category === 'HANFU') return hanfuColors.bg
+  return '#FFF8E1'
+}
+
+/** 分类主色 */
+export function getCategoryAccent(category: string): string {
+  if (category === 'JK') return jkColors.primary
+  if (category === 'LOLITA') return lolitaColors.primary
+  if (category === 'HANFU') return hanfuColors.primary
+  return brand[500]
+}

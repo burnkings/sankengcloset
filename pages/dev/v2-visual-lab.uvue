@@ -1,0 +1,216 @@
+<template>
+  <view :style="page">
+    <view :style="header">
+      <text :style="title">V2 Visual Lab</text>
+      <text :style="subtitle">Phase 2A.2 — Visual Foundation Gate</text>
+    </view>
+
+    <!-- Color Palette -->
+    <view :style="section">
+      <text :style="sectionTitle">Color Palette</text>
+      <view :style="colorGrid">
+        <view v-for="sw in swatches" :key="sw.name" :style="swatchBox(sw.color)">
+          <text :style="swatchLabel">{{ sw.name }}</text>
+          <text :style="swatchHex">{{ sw.color }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Typography -->
+    <view :style="section">
+      <text :style="sectionTitle">Typography</text>
+      <text :style="textPrimary">textPrimary — 页面标题 / 卡片标题</text>
+      <text :style="textSecondary">textSecondary — 副标题 / 说明文字</text>
+      <text :style="textTertiary">textTertiary — 品牌 / 时间 / 辅助信息</text>
+    </view>
+
+    <!-- Icons -->
+    <view :style="section">
+      <text :style="sectionTitle">Icon System (24px, 2px stroke)</text>
+      <view :style="iconGrid">
+        <view v-for="ic in icons" :key="ic" :style="iconCell">
+          <AppIcon :name="ic" :size="48" />
+          <text :style="iconLabel">{{ ic }}</text>
+        </view>
+        <view v-for="ic in icons" :key="ic + '-active'" :style="iconCell">
+          <AppIcon :name="ic" :size="48" :active="true" />
+          <text :style="iconLabelActive">{{ ic }} (active)</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Cards -->
+    <view :style="section">
+      <text :style="sectionTitle">Product Card (3:4)</text>
+      <view :style="cardDemoRow">
+        <view :style="cardDemo">
+          <view :style="imgWrap34">
+            <AppImage src="/static/demo/prod-01.png" width="100%" height="100%" mode="aspectFill" />
+            <view :style="badgePos">
+              <text :style="badgeTxt">新品</text>
+            </view>
+          </view>
+          <view :style="cardInfo">
+            <text :style="cardBrand">兔缝缝</text>
+            <text :style="cardTitle">深蓝格裙 45cm</text>
+            <view :style="priceRow">
+              <text :style="priceTxt">¥128</text>
+            </view>
+          </view>
+        </view>
+        <view :style="cardDemo">
+          <view :style="imgWrap34">
+            <AppImage src="/static/demo/prod-02.png" width="100%" height="100%" mode="aspectFill" />
+            <view :style="badgePos">
+              <text :style="badgeTxt">降价</text>
+            </view>
+          </view>
+          <view :style="cardInfo">
+            <text :style="cardBrand">星辰猫</text>
+            <text :style="cardTitle">月光曲 JSK</text>
+            <view :style="priceRow">
+              <text :style="priceTxt">¥368</text>
+              <text :style="origPrice">¥428</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 2x2 Grid -->
+    <view :style="section">
+      <text :style="sectionTitle">2×2 Management Grid</text>
+      <view :style="grid2x2">
+        <view :style="gridCard">
+          <AppIcon name="wardrobe" :size="48" />
+          <text :style="gridCardName">衣橱</text>
+          <text :style="gridCardCount">12 件</text>
+        </view>
+        <view :style="gridCard">
+          <AppIcon name="order" :size="48" />
+          <text :style="gridCardName">订单</text>
+          <text :style="gridCardCount">3 笔</text>
+        </view>
+        <view :style="gridCard">
+          <AppIcon name="reminder" :size="48" />
+          <text :style="gridCardName">提醒</text>
+          <text :style="gridCardCount">5 条</text>
+        </view>
+        <view :style="gridCard">
+          <AppIcon name="budget" :size="48" />
+          <text :style="gridCardName">预算</text>
+          <text :style="gridCardCount">¥2,400</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Settings List -->
+    <view :style="section">
+      <text :style="sectionTitle">Settings List</text>
+      <view :style="settingsCard">
+        <view :style="settingsRow">
+          <AppIcon name="notification" :size="44" />
+          <text :style="settingsLabel">通知</text>
+          <AppIcon name="chevron-right" :size="40" />
+        </view>
+        <view :style="settingsRow">
+          <AppIcon name="moon" :size="44" />
+          <text :style="settingsLabel">Dark Mode</text>
+          <AppIcon name="chevron-right" :size="40" />
+        </view>
+        <view :style="settingsRowLast">
+          <AppIcon name="info" :size="44" />
+          <text :style="settingsLabel">关于</text>
+          <AppIcon name="chevron-right" :size="40" />
+        </view>
+      </view>
+    </view>
+
+    <view :style="footerPad" />
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand, neutralLight, baseColors } from '@/theme/tokens/colors'
+import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { PAGE_GUTTER_REGULAR, CARD_PADDING, CARD_RADIUS, RATIO_3_4, GRID_GAP_REGULAR } from '@/theme/tokens/responsive'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+
+const page = computed((): any => ({ backgroundColor: neutralLight.bg, paddingHorizontal: PAGE_GUTTER_REGULAR, paddingTop: '40rpx' }))
+const header = { alignItems: 'center', paddingVertical: '40rpx' }
+const title = { fontSize: '44rpx', fontWeight: fontWeight.bold, color: neutralLight.text }
+const subtitle = { fontSize: fontSize.sm, color: neutralLight.textTertiary, marginTop: '8rpx' }
+
+const section = { marginTop: '48rpx' }
+const sectionTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: neutralLight.text, marginBottom: spacing[3] }
+
+// Color swatches
+const swatches = [
+  { name: 'brandPrimary', color: brand[500] },
+  { name: 'brandPressed', color: brand[600] },
+  { name: 'brandSoft', color: brand[50] },
+  { name: 'pageBg', color: neutralLight.bg },
+  { name: 'surfacePrimary', color: neutralLight.surface },
+  { name: 'surfaceSecondary', color: neutralLight.bgSecondary },
+  { name: 'textPrimary', color: neutralLight.text },
+  { name: 'textSecondary', color: neutralLight.textSecondary },
+  { name: 'textTertiary', color: neutralLight.textTertiary },
+  { name: 'divider', color: 'rgba(63,45,51,0.08)' },
+]
+const colorGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function swatchBox(color: string) {
+  return {
+    width: '96rpx', height: '96rpx', borderRadius: radius.md,
+    backgroundColor: color,
+    marginRight: '16rpx', marginBottom: '16rpx',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: color === '#FFFFFF' || color === neutralLight.surface ? '1rpx' : '0',
+    borderStyle: 'solid' as string, borderColor: neutralLight.divider,
+  }
+}
+const swatchLabel = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: neutralLight.text }
+const swatchHex = { fontSize: '16rpx', color: neutralLight.textTertiary, marginTop: '2rpx' }
+
+// Typography
+const textPrimary = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: neutralLight.text, marginTop: spacing[2] }
+const textSecondary = { fontSize: fontSize.base, color: neutralLight.textSecondary, marginTop: spacing[2] }
+const textTertiary = { fontSize: fontSize.sm, color: neutralLight.textTertiary, marginTop: spacing[2] }
+
+// Icons
+const icons = ['wardrobe', 'order', 'reminder', 'budget', 'notification', 'sync', 'import', 'moon', 'sparkles', 'database', 'help-circle', 'info', 'heart', 'search', 'chevron-right', 'camera', 'wand', 'grid', 'shirt', 'bow', 'fan', 'arrow-right']
+const iconGrid = { ...flexRow, flexWrap: 'wrap' as string }
+const iconCell = { width: '96rpx', alignItems: 'center', marginRight: '16rpx', marginBottom: '16rpx' }
+const iconLabel = { fontSize: fontSize['2xs'], color: neutralLight.textTertiary, marginTop: '4rpx', textAlign: 'center' }
+const iconLabelActive = { fontSize: fontSize['2xs'], color: brand[500], marginTop: '4rpx', textAlign: 'center' }
+
+// Product card demo
+const cardDemoRow = { ...flexRow }
+const cardDemo = { flex: 1, borderRadius: CARD_RADIUS, backgroundColor: neutralLight.surface, overflow: 'hidden', marginRight: '12rpx' }
+const imgWrap34 = { width: '100%', paddingBottom: RATIO_3_4, position: 'relative' as string, overflow: 'hidden' }
+const badgePos = { position: 'absolute' as string, top: '16rpx', right: '16rpx', paddingHorizontal: '12rpx', paddingVertical: '6rpx', borderRadius: radius.full, backgroundColor: 'rgba(0,0,0,0.45)', minHeight: '36rpx', alignItems: 'center', justifyContent: 'center' }
+const badgeTxt = { fontSize: '20rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
+const cardInfo = { padding: CARD_PADDING }
+const cardBrand = { fontSize: fontSize.xs, color: neutralLight.textTertiary }
+const cardTitle = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: neutralLight.text, marginTop: '4rpx', lines: 2, textOverflow: 'ellipsis' }
+const priceRow = { ...flexRow, alignItems: 'center', marginTop: '4rpx' }
+const priceTxt = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
+const origPrice = { fontSize: fontSize.xs, color: neutralLight.textTertiary, textDecoration: 'line-through', marginLeft: spacing[1] }
+
+// 2x2 Grid
+const grid2x2 = { ...flexRow, flexWrap: 'wrap' as string }
+const gridCard = { width: '50%', ...flexRow, alignItems: 'center', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: neutralLight.bgSecondary }
+const gridCardName = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginLeft: CARD_PADDING }
+const gridCardCount = { fontSize: fontSize.xs, color: neutralLight.textTertiary, marginLeft: CARD_PADDING }
+
+// Settings
+const settingsCard = { borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: neutralLight.bgSecondary }
+const settingsRow = { ...flexRow, alignItems: 'center', paddingVertical: CARD_PADDING, paddingHorizontal: CARD_PADDING, borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: neutralLight.divider }
+const settingsRowLast = { ...flexRow, alignItems: 'center', paddingVertical: CARD_PADDING, paddingHorizontal: CARD_PADDING }
+const settingsLabel = { ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: neutralLight.text, marginLeft: CARD_PADDING }
+
+const footerPad = { height: '80rpx' }
+</script>

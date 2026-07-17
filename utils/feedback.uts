@@ -1,0 +1,21 @@
+const _feedbackVisible = ref(false)
+const _feedbackMessage = ref('')
+let feedbackSequence = 0
+
+export function showFeedback(message: string) {
+  feedbackSequence += 1
+  const currentSequence = feedbackSequence
+  _feedbackMessage.value = message
+  _feedbackVisible.value = true
+  setTimeout(() => {
+    if (currentSequence === feedbackSequence) _feedbackVisible.value = false
+  }, 1800)
+}
+
+export function hideFeedback() {
+  feedbackSequence += 1
+  _feedbackVisible.value = false
+}
+
+export const feedbackVisible = _feedbackVisible
+export const feedbackMessage = _feedbackMessage

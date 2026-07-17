@@ -1,0 +1,40 @@
+<template>
+  <view :style="containerStyle">
+    <view :style="contentStyle">
+      <slot />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+/**
+ * AppPageContainer — 统一响应式内容容器
+ * 
+ * 要求：
+ * 1. 手机端使用响应式水平 gutter
+ * 2. 平板/大窗/横屏不无限拉伸内容
+ * 3. 大屏内容达到最大宽度后水平居中
+ * 4. 所有一级页面使用同一条视觉对齐线
+ */
+import { PAGE_GUTTER_REGULAR, CONTENT_MAX_WIDTH } from '@/theme/tokens/responsive'
+
+const props = withDefaults(defineProps<{
+  noPadding?: boolean
+  padded?: boolean
+}>(), {
+  noPadding: false,
+  padded: true })
+
+const containerStyle = computed((): any => ({
+  width: '100%',
+  maxWidth: CONTENT_MAX_WIDTH,
+  alignSelf: 'center',
+  ...(props.padded && !props.noPadding ? {
+    paddingHorizontal: PAGE_GUTTER_REGULAR,
+  } : {}),
+}))
+
+const contentStyle = {
+  width: '100%',
+}
+</script>

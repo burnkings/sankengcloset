@@ -1,0 +1,121 @@
+/**
+ * 绮灵本地决策引擎。
+ *
+ * 不冒充云端生成式 AI：只使用用户输入和本机内容资产输出可解释建议。
+ * 接入模型服务后可保留相同结果契约，由远端适配器替换规则实现。
+ */
+
+export class AiDecisionResult {
+  intent: string = 'general'
+  title: string = ''
+  summary: string = ''
+  evidence: string[] = []
+  actionLabel: string = ''
+  actionTarget: string = ''
+}
+
+function includesAny(text: string, words: string[]): boolean {
+  for (let i = 0; i < words.length; i++) {
+    if (text.indexOf(words[i]) >= 0) return true
+  }
+  return false
+}
+
+function extractBudget(text: string): number {
+  let digits = ''
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charAt(i)
+    if (char >= '0' && char <= '9') digits += char
+    else if (digits !== '') break
+  }
+  return digits === '' ? 0 : parseInt(digits)
+}
+
+function assetEvidence(favoriteCount: number, followedBrandCount: number, outfitCount: number): string[] {
+  return [
+    `已收藏 ${favoriteCount} 件商品`,
+    `已关注 ${followedBrandCount} 个品牌`,
+    `已有 ${outfitCount} 条晒搭记录`,
+  ]
+}
+
+export function buildLocalDecision(query: string, favoriteCount: number, followedBrandCount: number, outfitCount: number): AiDecisionResult {
+  const result = new AiDecisionResult()
+  const text = query.trim().toLowerCase()
+  const budget = extractBudget(text)
+
+  if (includesAny(text, ['预算', '元内', '买不买', '值得买', '超支'])) {
+    result.intent = 'budget'
+    result.title = budget > 0 ? `${budget} 元预算检查` : '购买预算检查'
+    result.summary = favoriteCount > 0
+      ? '先把候选款按“必须、喜欢、可替代”分层，再为尾款保留缓冲，不建议只看当前定金。'
+      : '当前收藏样本不足，先收藏候选款再比较总价、尾款日期和已有相似单品。'
+    result.evidence = assetEvidence(favoriteCount, followedBrandCount, outfitCount)
+    result.actionLabel = '查看购买记录'
+    result.actionTarget = 'purchase'
+    return result
+  }
+
+  if (includesAny(text, ['发售', '预约', '定金', '尾款', '现货', '补款', '开售'])) {
+    result.intent = 'release'
+    result.title = '发售节点梳理'
+    result.summary = '把图透、定金、尾款和现货拆成独立节点；优先为不可错过的截止时间建立提醒。'
+    result.evidence = ['同一商品可能存在多个付款节点', '本机提醒不会替代品牌官方通知', `当前关注品牌 ${followedBrandCount} 个`]
+    result.actionLabel = '管理发售提醒'
+    result.actionTarget = 'reminder'
+    return result
+  }
+
+  if (includesAny(text, ['平替', '相似', '低价', '便宜', '替代'])) {
+    result.intent = 'alternative'
+    result.title = '平替筛选策略'
+    result.summary = '先锁定版型、配色和使用场景，再比较总价与发售状态；外观相近不等于穿着体验相同。'
+    result.evidence = ['版型与尺码优先于单张宣传图', '比较时应包含定金与尾款总额', `可从 ${favoriteCount} 件收藏中建立对照`]
+    result.actionLabel = '去发现候选款'
+    result.actionTarget = 'discover'
+    return result
+  }
+
+  if (includesAny(text, ['衣橱', '搭配', '茶会', '通勤', '出片', '约会', '造型'])) {
+    result.intent = 'outfit'
+    result.title = '场景搭配建议'
+    result.summary = outfitCount > 0
+      ? '优先复用已有主单品，用鞋包、头饰和外搭调整场景感，减少只为一次活动购买整套。'
+      : '先确定主单品和场合约束，再从衣橱补齐鞋包、外搭与头饰；完成后可发布晒搭沉淀模板。'
+    result.evidence = [`已有 ${outfitCount} 条晒搭可复用`, '先检查活动时长、天气和行动便利性', '同色系配件比堆叠装饰更稳定']
+    result.actionLabel = outfitCount > 0 ? '查看晒搭' : '打开衣橱'
+    result.actionTarget = outfitCount > 0 ? 'community' : 'wardrobe'
+    return result
+  }
+
+  if (includesAny(text, ['收藏', '偏好', '风格', '画像', '重复'])) {
+    result.intent = 'collection'
+    result.title = '收藏偏好快照'
+    result.summary = favoriteCount >= 3
+      ? '已有足够的初步样本，可以从品牌集中度、坑向分布和相似款重复度开始整理。'
+      : '样本仍少，暂不下风格结论；继续收藏真正想买的款，比随意点赞更能形成有效偏好。'
+    result.evidence = assetEvidence(favoriteCount, followedBrandCount, outfitCount)
+    result.actionLabel = '查看内容资产'
+    result.actionTarget = 'favorites'
+    return result
+  }
+
+  result.intent = 'general'
+  result.title = '先补充三个条件'
+  result.summary = '请补充场合、预算上限和希望保留的风格特征，绮灵才能把建议变成可执行选择。'
+  result.evidence = ['场合：通勤、茶会、拍照或日常', '预算：包含定金与尾款总额', '偏好：坑向、颜色、版型或品牌']
+  result.actionLabel = '浏览发现'
+  result.actionTarget = 'discover'
+  return result
+}
+
+export function buildImageBoundaryResult(): AiDecisionResult {
+  const result = new AiDecisionResult()
+  result.intent = 'identify'
+  result.title = '图片已读取'
+  result.summary = '本机已取得图片，但品牌、款名和相似度需要视觉模型判断；当前版本不会编造识别结果。'
+  result.evidence = ['图片尚未公开发布', '接入视觉模型后再返回品牌与款名置信度', '可先从发现页按坑向缩小范围']
+  result.actionLabel = '去发现筛选'
+  result.actionTarget = 'discover'
+  return result
+}

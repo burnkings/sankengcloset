@@ -1,0 +1,14 @@
+/**
+ * UserBrandRelation — 用户品牌关系
+ * 独立于 Brand 实体，不污染公共数据
+ */
+
+export class UserBrandRelation {
+  userId: string = ''
+  brandId: string = ''
+  followed: boolean = false
+  followedAt: string = ''
+  notifyNewRelease: boolean = false // 新发售提醒
+  createdAt: string = ''
+  updatedAt: string = ''
+}

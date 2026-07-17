@@ -1,66 +1,242 @@
 <template>
   <MainLayout>
-    <template #navbar>
-      <AppNavbar title="我的" :show-back="false" />
-    </template>
+    <template #navbar><V2PageHeader title="我的" /></template>
     <template #default>
-      <view :style="pageStyle">
-        <view :style="userCardStyle">
-          <view :style="avatarStyle">
-            <text :style="avatarTextStyle">🎀</text>
+      <view class="page-canvas" :style="pageWrap">
+        <view v-if="isLoggedIn" :style="profileCard">
+          <view :style="avatarWrap"><text :style="avatarText">SK</text></view>
+          <view :style="profileCopy">
+            <text :style="userName">三坑女孩</text>
+            <text :style="accountId">ID: sk_0001</text>
           </view>
-          <view :style="userInfoStyle">
-            <text :style="userNameStyle">三坑小主</text>
-            <text :style="userTagStyle">本地账户 · 游客模式</text>
+          <view :style="editButton" @tap="onEdit"><text :style="editText">编辑</text></view>
+        </view>
+        <view v-else :style="profileCard" @tap="loginPreview">
+          <view :style="guestAvatar"><AppIcon name="profile" :size="44" /></view>
+          <view :style="profileCopy">
+            <text :style="userName">登录三坑绮橱</text>
+            <text :style="guestDesc">同步收藏、晒搭、衣橱与提醒</text>
+          </view>
+          <view :style="loginButton"><text :style="loginText">登录</text></view>
+        </view>
+
+        <V2SectionHeader title="管理中心" />
+        <view :style="closetCard" @tap="goPage('/pages/wardrobe/index')">
+          <view :style="closetCopy">
+            <view :style="closetTop"><AppIcon name="wardrobe" :size="44" :active="true" /><text :style="closetLabel">衣橱</text></view>
+            <text :style="closetValue">{{ wardrobe.itemCount }} 件心爱单品</text>
+            <text :style="closetDesc">JK、Lolita 与汉服正在等你搭配</text>
+          </view>
+          <view :style="closetImage"><AppImage src="/static/demo/prod-editorial-01.jpg" width="100%" height="100%" mode="aspectFill" /></view>
+        </view>
+
+        <view :style="manageRow">
+          <view v-for="(item, idx) in manageItems" :key="item.id" :style="manageCard(idx)" @tap="onManageTap(item.id)">
+            <AppIcon :name="item.icon" :size="40" :active="item.id === 'budget'" />
+            <text :style="manageLabel">{{ item.label }}</text>
+            <text :style="manageValue">{{ item.value }}</text>
           </view>
         </view>
+
+        <view :style="outfitAssetCard" @tap="openCommunity">
+          <view :style="outfitAssetIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
+          <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的晒搭</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
+          <AppIcon name="chevron-right" :size="32" />
+        </view>
+
+        <V2SectionHeader title="推荐偏好" />
+        <view :style="tasteRow">
+          <view v-for="(item, idx) in tasteItems" :key="item.name" :style="tasteChip(idx, item.name)" @tap="toggleTaste(item.name)">
+            <AppIcon :name="item.icon" :size="38" :active="isTasteSelected(item.name)" />
+            <text :style="tasteName(item.name)">{{ item.name }}</text>
+          </view>
+        </view>
+
+        <V2SectionHeader title="设置" />
+        <V2ListGroup>
+          <view v-for="(item, idx) in settingsItems" :key="item.id" :style="settingShell(idx)" @tap="onSettingTap(item.id)">
+            <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
+          </view>
+        </V2ListGroup>
       </view>
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="profile" />
+  <!-- #endif -->
 </template>
 
 <script setup lang="uts">
 import { brand } from '@/theme/tokens/colors'
-import { spacing } from '@/theme/tokens/spacing'
+import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRowCenter, flexCenter } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
-import { n } from '@/theme/use-theme'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark, setDarkMode, syncTabBarChrome } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import V2ListRow from '@/components/v2/V2ListRow.uvue'
+import { showFeedback } from '@/utils/feedback'
+import { openPrimaryTab } from '@/utils/tab-navigation'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { useReminderStore } from '@/stores/reminder-store'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { useBudgetStore } from '@/stores/budget-store'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
 
+const selectedTastes = ref(['JK', 'Lolita', '汉服'])
+const isLoggedIn = ref(false)
+const library = useContentLibraryStore()
+const purchases = usePurchaseStore()
+const reminders = useReminderStore()
+const wardrobe = useWardrobeStore()
+const budget = useBudgetStore()
 
-const pageStyle = computed((): any => ({
-  ...gap.lg,
-  padding: spacing[4] }))
+function onEdit() { showFeedback('当前为本地体验账号') }
+function loginPreview() {
+  isLoggedIn.value = true
+  uni.setStorageSync('sk_login_preview', 'logged_in')
+}
+function logoutPreview() {
+  isLoggedIn.value = false
+  uni.setStorageSync('sk_login_preview', 'logged_out')
+}
+function goPage(url: string) { uni.navigateTo({ url }) }
+function openCommunity() { openPrimaryTab('/pages/community/index') }
+function onManageTap(id: string) {
+  if (id === 'favorites') goPage('/pages/favorites/index')
+  if (id === 'orders') goPage('/pages/purchase/index')
+  if (id === 'reminders') goPage('/pages/reminder/index')
+  if (id === 'budget') goPage('/pages/budget/index')
+}
+function onSettingTap(id: string) {
+  if (id === 'dark') {
+    setDarkMode(!isDark.value)
+    nextTick(() => { syncTabBarChrome() })
+    return
+  }
+  if (id === 'cache') {
+    uni.removeStorageSync('home_feed_cache')
+    uni.removeStorageSync('content_cache')
+    uni.removeStorageSync('image_cache')
+    showFeedback('缓存已清理')
+    return
+  }
+  if (id === 'notification') {
+    // #ifdef MP-WEIXIN
+    uni.openSetting({})
+    // #endif
+    // #ifdef APP
+    showFeedback('请在系统设置中管理通知权限')
+    // #endif
+    return
+  }
+  if (id === 'ai') { openPrimaryTab('/pages/ai/index'); return }
+  if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
+  if (id === 'about') { showFeedback('三坑绮橱 V2.0 内容闭环版'); return }
+  if (id === 'logout') { logoutPreview(); return }
+}
+function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
+function toggleTaste(name: string) {
+  const idx = selectedTastes.value.indexOf(name)
+  if (idx >= 0) {
+    if (selectedTastes.value.length === 1) {
+      showFeedback('至少保留一个推荐偏好')
+      return
+    }
+    selectedTastes.value.splice(idx, 1)
+  } else {
+    selectedTastes.value.push(name)
+  }
+  uni.setStorageSync('content_preferences', selectedTastes.value.join(','))
+}
 
-const userCardStyle = computed((): any => ({
-  ...flexRowCenter,
-  gap: spacing[4],
-  padding: spacing[4],
-  backgroundColor: n.value.surface,
-  borderRadius: '24rpx' }))
+onMounted(() => {
+  try {
+    isLoggedIn.value = (uni.getStorageSync('sk_login_preview') as string) === 'logged_in'
+    const saved = uni.getStorageSync('content_preferences') as string
+    if (saved !== '') selectedTastes.value = saved.split(',')
+  } catch (e) {}
+})
+onShow(() => { library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems(); syncTabBarChrome() })
 
-const avatarStyle = computed((): any => ({
-  width: '100rpx',
-  height: '100rpx',
-  borderRadius: '50%',
-  backgroundColor: brand[500] + '15',
-  ...flexCenter }))
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
+const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
+const guestAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
+const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const loginButton = { minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
+const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const profileCopy = { ...flexFill, justifyContent: 'center' }
+const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const accountId = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
+const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
+const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
 
-const avatarTextStyle = computed((): any => ({
-  fontSize: '48rpx' }))
+const closetCard = computed((): any => ({ ...flexRow, alignItems: 'center', height: '208rpx', paddingLeft: CARD_PADDING, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const closetCopy = { ...flexFill }
+const closetTop = { ...flexRow, alignItems: 'center' }
+const closetLabel = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[700], marginLeft: '12rpx' }
+const closetValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, marginTop: '14rpx' }))
+const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
+const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
-const userInfoStyle = computed((): any => ({
-  flex: 1 }))
+const manageItems = computed(() => [
+  { id: 'favorites', icon: 'wardrobe', label: '收藏', value: `${library.favoriteCount} 件` },
+  { id: 'orders', icon: 'order', label: '购买记录', value: `${purchases.itemCount} 笔` },
+  { id: 'reminders', icon: 'reminder', label: '提醒', value: `${reminders.pendingCount} 条待办` },
+  { id: 'budget', icon: 'budget', label: '预算', value: budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置' },
+])
+const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '16rpx' }
+function manageCard(idx: number) { return { width: '325rpx', height: '142rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
+const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
+const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
+const outfitAssetCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '108rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '4rpx' }))
+const outfitAssetIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const outfitAssetCopy = { ...flexFill }
+const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 
-const userNameStyle = computed((): any => ({
-  fontSize: fontSize.lg,
-  fontWeight: fontWeight.semibold,
-  color: n.value.text }))
+const tasteItems = [
+  { name: 'JK', icon: 'jk-collar' },
+  { name: 'Lolita', icon: 'lolita-dress' },
+  { name: '汉服', icon: 'hanfu-collar' },
+]
+const tasteRow = { ...flexRow }
+function tasteChip(idx: number, name: string) {
+  const selected = isTasteSelected(name)
+  return {
+    width: '210rpx', height: '88rpx', ...flexRow, alignItems: 'center', justifyContent: 'center',
+    borderRadius: CARD_RADIUS, backgroundColor: selected ? (isDark.value ? n.value.surfaceRaised : brand[50]) : n.value.surface,
+    borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: selected ? brand[200] : 'transparent',
+    marginRight: idx < 2 ? GROUP_GAP : '0',
+  }
+}
+function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isTasteSelected(name) ? brand[700] : n.value.textSecondary, marginLeft: '10rpx' } }
 
-const userTagStyle = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.textTertiary,
-  marginTop: spacing[1] }))
+const settingsItems = computed(() => {
+  const items = [
+    { id: 'notification', icon: 'notification', label: '通知', value: '' },
+    { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭' },
+    { id: 'ai', icon: 'sparkles', label: 'AI 设置', value: '' },
+    { id: 'cache', icon: 'database', label: '清理缓存', value: '' },
+    { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '' },
+    { id: 'about', icon: 'info', label: '关于', value: '' },
+  ]
+  if (isLoggedIn.value) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '' })
+  return items
+})
+function settingShell(idx: number) { return { borderBottomWidth: idx < settingsItems.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

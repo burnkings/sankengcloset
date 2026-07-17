@@ -1,0 +1,51 @@
+<template>
+  <view :style="badgeStyle">
+    <text :style="textStyle">{{ text }}</text>
+  </view>
+</template>
+
+<script setup lang="uts">
+/**
+ * AppBadge — 统一状态角标
+ * 新品/预售/降价/图透等
+ * 
+ * 设计规范：
+ * - padding H: 12-16rpx
+ * - padding V: 6-8rpx
+ * - min-height: 36-40rpx
+ * - border-radius: 999rpx
+ * - font-size: 20-22rpx
+ * - 低饱和背景色
+ */
+import { BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_MIN_HEIGHT, BADGE_RADIUS, BADGE_FONT_SIZE } from '@/theme/tokens/responsive'
+import { fontWeight } from '@/theme/tokens/typography'
+import { baseColors } from '@/theme/tokens/colors'
+
+const props = withDefaults(defineProps<{
+  text?: string
+  color?: string
+  bgColor?: string
+}>(), {
+  text: '',
+  color: '',
+  bgColor: '' })
+
+const badgeStyle = computed((): any => ({
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingHorizontal: BADGE_PADDING_X,
+  paddingVertical: BADGE_PADDING_Y,
+  minHeight: BADGE_MIN_HEIGHT,
+  borderRadius: BADGE_RADIUS,
+  backgroundColor: props.bgColor !== '' ? props.bgColor : 'rgba(0,0,0,0.45)',
+}))
+
+const textStyle = computed((): any => ({
+  fontSize: BADGE_FONT_SIZE,
+  fontWeight: fontWeight.semibold,
+  color: props.color !== '' ? props.color : baseColors.white,
+  lines: 1,
+  textOverflow: 'ellipsis',
+}))
+</script>

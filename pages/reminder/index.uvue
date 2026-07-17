@@ -1,507 +1,66 @@
 <template>
-  <MainLayout>
-    <template #navbar>
-      <AppNavbar title="我的提醒" :show-back="false">
-        <template #right>
-          <text :style="addBtnStyle" @tap="onAddTap">+ 新提醒</text>
-        </template>
-      </AppNavbar>
-    </template>
-
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="提醒" :show-back="true"><template #right><text :style="addText" @tap="goAdd">添加</text></template></AppNavbar></template>
     <template #default>
-      <AppLoading v-if="store.loading" />
-
-      <scroll-view v-else scroll-y :style="scrollStyle">
-
-        <!-- 今日焦点区 -->
-        <view :style="heroSection">
-          <view :style="heroTop">
-            <text :style="heroTitle">{{ heroTitleText }}</text>
-            <text :style="heroSub">{{ heroSubText }}</text>
-          </view>
-          <!-- 统计胶囊 -->
-          <view :style="heroStatsRow">
-            <view :style="heroStatChip(brand[500])" @tap="store.setFilterStatus('PENDING')">
-              <text :style="heroStatNum">{{ store.todayCount }}</text>
-              <text :style="heroStatLabel">今日</text>
-            </view>
-            <view :style="heroStatChip(warm.gold)" @tap="onFilterUpcoming">
-              <text :style="heroStatNum">{{ store.upcomingCount }}</text>
-              <text :style="heroStatLabel">本周</text>
-            </view>
-            <view :style="heroStatChip(semantic.error)" @tap="onFilterOverdue">
-              <text :style="heroStatNum">{{ store.overdueCount }}</text>
-              <text :style="heroStatLabel">逾期</text>
-            </view>
-            <view :style="heroStatChip(semantic.success)">
-              <text :style="heroStatNum">{{ store.doneItems.length }}</text>
-              <text :style="heroStatLabel">完成</text>
-            </view>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="focusCard"><view :style="focusCopy"><text :style="focusLabel">近期需要关注</text><text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text></view><view :style="focusStats"><text :style="focusMeta">今天 {{ store.todayCount }}</text><text :style="focusMeta">逾期 {{ store.overdueCount }}</text></view></view>
+        <V2SectionHeader title="提醒列表" :compact="true" />
+        <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
+        <AppLoading v-if="store.loading" />
+        <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
+        <view v-else :style="listWrap">
+          <view v-for="item in store.displayItems" :key="item.id" :style="reminderCard" @tap="openItem(item.id)">
+            <view :style="dateBlock(item.isToday, item.isOverdue)"><text :style="dateMain">{{ item.dateText.length >= 10 ? item.dateText.substring(8, 10) : '--' }}</text><text :style="dateSub">{{ item.timeText !== '' ? item.timeText : '全天' }}</text></view>
+            <view :style="reminderCopy"><view :style="titleRow"><text :style="reminderTitle">{{ item.title }}</text><text :style="statusText(item.statusColor)">{{ item.statusText }}</text></view><text :style="typeText">{{ item.typeText }} · {{ item.dateText }}</text><text v-if="item.note !== ''" :style="noteText">{{ item.note }}</text></view>
           </view>
         </view>
-
-        <!-- 筛选 + 搜索 合并栏 -->
-        <view :style="toolbarSection">
-          <scroll-view scroll-x :show-scrollbar="false" :style="chipScrollStyle">
-            <view :style="chipRowStyle">
-              <AppTag
-                v-for="opt in filterOptions"
-                :key="opt.value"
-                :label="opt.label"
-                :variant="TAG_CHIP"
-                :active="opt.value === store.filterStatus"
-                @tap="store.setFilterStatus(opt.value)"
-              />
-            </view>
-          </scroll-view>
-          <view :style="sortBtnStyle" @tap="onSortTap">
-            <text :style="sortIconStyle">↕</text>
-          </view>
-        </view>
-
-        <!-- Empty -->
-        <AppEmptyState
-          v-if="!store.loading && store.displayItems.length === 0"
-          icon="🔔"
-          :title="store.searchKeyword ? '没有匹配的提醒' : (store.filterStatus ? '该状态下没有提醒' : '还没有提醒')"
-          :description="store.searchKeyword ? '换个关键词试试' : '添加一个提醒，不错过每个重要时刻~'"
-          :action-text="store.searchKeyword || store.filterStatus ? '' : '添加提醒'"
-          @action="onAddTap"
-        />
-
-        <!-- 提醒列表 -->
-        <view v-if="store.displayItems.length > 0" :style="listSection">
-          <view
-            v-for="item in store.displayItems"
-            :key="item.id"
-            :style="cardStyle"
-            @tap="onItemTap(item.id)"
-          >
-            <!-- 左侧类型色条 -->
-            <view :style="accentBarStyle(item.typeColor)" />
-
-            <view :style="cardContentStyle">
-              <!-- 顶部：emoji + 标题 + 状态 -->
-              <view :style="cardTopRow">
-                <text :style="cardEmojiStyle">{{ item.typeEmoji }}</text>
-                <view :style="cardTitleArea">
-                  <text :style="cardTitleStyle">{{ item.title }}</text>
-                  <text :style="cardTypeLabel">{{ item.typeText }}</text>
-                </view>
-                <view :style="statusPillStyle(item.statusColor)">
-                  <text :style="statusPillText">{{ item.statusText }}</text>
-                </view>
-              </view>
-
-              <!-- 日期行 -->
-              <view :style="cardDateRow">
-                <text :style="cardDateIcon">📅</text>
-                <text :style="cardDateText">{{ item.dateText }}</text>
-                <text v-if="item.timeText !== ''" :style="cardTimeText">{{ item.timeText }}</text>
-                <!-- 时间标签 -->
-                <view v-if="item.isToday" :style="timeBadge(brand[500])">
-                  <text :style="timeBadgeText">今天</text>
-                </view>
-                <view v-else-if="item.isOverdue" :style="timeBadge(semantic.error)">
-                  <text :style="timeBadgeText">已逾期</text>
-                </view>
-                <view v-else-if="item.isUpcoming" :style="timeBadge(semantic.warning)">
-                  <text :style="timeBadgeText">即将</text>
-                </view>
-              </view>
-
-              <!-- 备注 -->
-              <text v-if="item.note !== ''" :style="cardNoteStyle">{{ item.note }}</text>
-
-              <!-- 操作行 -->
-              <view v-if="item.status === 'PENDING'" :style="cardActionRow">
-                <view :style="doneBtnStyle" @tap.stop="onDoneTap(item.id)">
-                  <text :style="doneBtnIcon">✓</text>
-                  <text :style="doneBtnText">标记完成</text>
-                </view>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 底部留白 -->
-        <view :style="bottomSpacer" />
-      </scroll-view>
+      </view>
     </template>
   </MainLayout>
-
-  <!-- 排序弹窗 -->
-  <AppDialog
-    v-model:visible="sortSheetVisible"
-    title="排序方式"
-    :show-cancel="false"
-    confirm-text="关闭"
-  >
-    <view :style="sortListStyle">
-      <view
-        v-for="opt in sortOptions"
-        :key="opt.value"
-        :style="sortItemStyle(opt.value === store.currentSort)"
-        @tap="onSortSelect(opt.value)"
-      >
-        <text :style="sortItemText(opt.value === store.currentSort)">{{ opt.label }}</text>
-        <text v-if="opt.value === store.currentSort" :style="checkStyle">✓</text>
-      </view>
-    </view>
-  </AppDialog>
 </template>
 
 <script setup lang="uts">
 import { useReminderStore } from '@/stores/reminder-store'
-import { REMINDER_FILTER_OPTIONS } from '@/domain/reminder'
-import { brand, warm, semantic, neutralLight, baseColors } from '@/theme/tokens/colors'
-import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { radius, semanticRadius } from '@/theme/tokens/radius'
-import { shadow } from '@/theme/tokens/shadow'
-import { flexRow, flexRowBetween, flexCenter, flexColumnCenter, flexFill } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
-import { n } from '@/theme/use-theme'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import AppTag from '@/components/base/AppTag.uvue'
-import { TAG_CHIP } from '@/components/base/app-tag-types'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
-import AppDialog from '@/components/base/AppDialog.uvue'
-
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 
 const store = useReminderStore()
+const activeFilter = ref('全部')
+const filters = ['全部', '待提醒', '已完成']
+function onFilter(label: string) { activeFilter.value = label; store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : 'DONE')) }
+function goAdd() { uni.navigateTo({ url: '/pages/reminder/edit' }) }
+function openItem(id: string) { uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` }) }
+onMounted(() => { store.fetchItems() })
 
-const filterOptions = REMINDER_FILTER_OPTIONS
-const sortSheetVisible = ref(false)
-
-const sortOptions = [
-  { label: '日期 ↑', value: 'date-asc' },
-  { label: '日期 ↓', value: 'date-desc' },
-  { label: '按类型', value: 'type' },
-]
-
-const currentSortLabel = computed((): string => {
-  const found = sortOptions.find((o) => o.value == store.currentSort)
-  return found ? found.label : '排序'
-})
-
-// Hero 文案
-const heroTitleText = computed((): string => {
-  if (store.todayCount > 0) return `今天有 ${store.todayCount} 件事要关注`
-  if (store.upcomingCount > 0) return `本周还有 ${store.upcomingCount} 件待办`
-  if (store.overdueCount > 0) return `有 ${store.overdueCount} 件已逾期`
-  return '一切尽在掌控 ✨'
-})
-
-const heroSubText = computed((): string => {
-  if (store.overdueCount > 0) return '有逾期提醒需要处理哦'
-  if (store.todayCount > 0) return '别忘了处理今天的提醒~'
-  return '暂无紧急事项，今天也要美美的'
-})
-
-function onFilterUpcoming() {
-  // 切换到待提醒筛选
-  store.setFilterStatus('PENDING')
-}
-
-function onFilterOverdue() {
-  store.setFilterStatus('PENDING')
-}
-
-function onItemTap(id: string) {
-  uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` })
-}
-
-function onAddTap() {
-  uni.navigateTo({ url: '/pages/reminder/edit' })
-}
-
-function onSortTap() {
-  sortSheetVisible.value = true
-}
-
-function onSortSelect(sort: string) {
-  store.setSort(sort)
-  sortSheetVisible.value = false
-}
-
-function onDoneTap(id: string) {
-  store.markDone(id)
-}
-
-onMounted(() => {
-  store.fetchItems()
-})
-
-// ====== 样式 ======
-
-const scrollStyle = {
-  flex: 1,
-  backgroundColor: neutralLight.bg,
-}
-
-const addBtnStyle = {
-  fontSize: fontSize.sm,
-  color: brand[500],
-  fontWeight: fontWeight.semibold,
-}
-
-// --- Hero 区域 ---
-const heroSection = {
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  paddingTop: spacing[4],
-  paddingBottom: spacing[4],
-  backgroundColor: brand[500],
-}
-
-const heroTop = {
-  marginBottom: spacing[3],
-}
-
-const heroTitle = {
-  fontSize: fontSize.xl,
-  fontWeight: fontWeight.bold,
-  color: baseColors.white,
-  marginBottom: spacing[0.5],
-}
-
-const heroSub = {
-  fontSize: fontSize.sm,
-  color: 'rgba(255,255,255,0.75)',
-}
-
-const heroStatsRow = {
-  ...flexRow,
-  gap: spacing[2],
-}
-
-function heroStatChip(bgColor: string) {
-  return {
-    ...flexColumnCenter,
-    flex: 1,
-    paddingVertical: spacing[2],
-    borderRadius: semanticRadius.card,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    gap: spacing[0.5],
-  }
-}
-
-const heroStatNum = {
-  fontSize: fontSize.xl,
-  fontWeight: fontWeight.bold,
-  color: baseColors.white,
-  lineHeight: 1,
-}
-
-const heroStatLabel = {
-  fontSize: fontSize.xs,
-  color: 'rgba(255,255,255,0.7)',
-}
-
-// --- 工具栏 ---
-const toolbarSection = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[2],
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  paddingVertical: spacing[3],
-}
-
-const chipScrollStyle = {
-  ...flexFill,
-  overflow: 'hidden',
-}
-
-const chipRowStyle = {
-  ...flexRow,
-  gap: spacing[2],
-}
-
-const sortBtnStyle = {
-  ...flexCenter,
-  width: '64rpx',
-  height: '64rpx',
-  borderRadius: radius.md,
-  backgroundColor: n.value.bgTertiary,
-  flexShrink: 0,
-}
-
-const sortIconStyle = {
-  fontSize: fontSize.lg,
-  color: n.value.textSecondary,
-}
-
-// --- 列表区域 ---
-const listSection = {
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  gap: spacing[3],
-}
-
-// --- 卡片 ---
-const cardStyle = computed((): any => ({
-  flexDirection: 'row',
-  backgroundColor: n.value.surface,
-  borderRadius: semanticRadius.card,
-  boxShadow: shadow.card,
-  overflow: 'hidden',
-}))
-
-function accentBarStyle(color: string) {
-  return {
-    width: '6rpx',
-    backgroundColor: color,
-    flexShrink: 0,
-  }
-}
-
-const cardContentStyle = {
-  ...flexFill,
-  padding: spacing[3],
-  paddingLeft: spacing[3],
-  gap: spacing[2],
-}
-
-const cardTopRow = {
-  ...flexRow,
-  alignItems: 'flex-start',
-  gap: spacing[2],
-}
-
-const cardEmojiStyle = {
-  fontSize: '32rpx',
-  flexShrink: 0,
-  marginTop: '2rpx',
-}
-
-const cardTitleArea = {
-  ...flexFill,
-  gap: spacing[0.5],
-}
-
-const cardTitleStyle = computed((): any => ({
-  fontSize: fontSize.base,
-  fontWeight: fontWeight.semibold,
-  color: n.value.text,
-  lines: 1,
-  overflow: 'hidden',
-}))
-
-const cardTypeLabel = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-}))
-
-const statusPillStyle = function(color: string) {
-  return {
-    paddingHorizontal: spacing[2],
-    paddingVertical: '4rpx',
-    borderRadius: radius.full,
-    backgroundColor: color + '15',
-    flexShrink: 0,
-  }
-}
-
-const statusPillText = computed((): any => ({
-  fontSize: fontSize.xs,
-  fontWeight: fontWeight.medium,
-}))
-
-const cardDateRow = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[1],
-}
-
-const cardDateIcon = {
-  fontSize: fontSize.xs,
-}
-
-const cardDateText = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.textSecondary,
-}))
-
-const cardTimeText = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.textTertiary,
-}))
-
-function timeBadge(color: string) {
-  return {
-    paddingHorizontal: spacing[2],
-    paddingVertical: '2rpx',
-    borderRadius: radius.full,
-    backgroundColor: color + '15',
-    marginLeft: spacing[1],
-  }
-}
-
-const timeBadgeText = {
-  fontSize: fontSize.xs,
-  fontWeight: fontWeight.medium,
-}
-
-const cardNoteStyle = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-  lineHeight: 1.5,
-}))
-
-const cardActionRow = {
-  ...flexRow,
-  justifyContent: 'flex-end',
-}
-
-const doneBtnStyle = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[0.5],
-  paddingHorizontal: spacing[3],
-  paddingVertical: spacing[1.5],
-  borderRadius: radius.full,
-  backgroundColor: semantic.success + '12',
-}
-
-const doneBtnIcon = {
-  fontSize: fontSize.xs,
-  color: semantic.success,
-  fontWeight: fontWeight.bold,
-}
-
-const doneBtnText = {
-  fontSize: fontSize.xs,
-  fontWeight: fontWeight.medium,
-  color: semantic.success,
-}
-
-// --- 底部留白 ---
-const bottomSpacer = {
-  height: spacing[8],
-}
-
-// --- 排序弹窗 ---
-const sortListStyle = {
-  ...gap.xs }
-
-function sortItemStyle(active: boolean) {
-  return {
-    ...flexRowBetween,
-    alignItems: 'center',
-    padding: spacing[3],
-    borderRadius: radius.md,
-    backgroundColor: active ? n.value.bgTertiary : 'transparent' }
-}
-
-function sortItemText(active: boolean) {
-  return {
-    fontSize: fontSize.base,
-    color: active ? brand[500] : n.value.text,
-    fontWeight: active ? fontWeight.medium : fontWeight.regular }
-}
-
-const checkStyle = {
-  fontSize: fontSize.base,
-  color: brand[500] }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const focusCopy = { ...flexFill }
+const focusLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
+const focusValue = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[700], marginTop: '8rpx' }
+const focusStats = { alignItems: 'flex-end' }
+const focusMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx' }))
+const listWrap = { marginTop: '22rpx' }
+const reminderCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '160rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '20rpx' }))
+function dateBlock(today: boolean, overdue: boolean) { return { width: '104rpx', borderRadius: '18rpx', backgroundColor: overdue ? '#FCEBEC' : (today ? brand[100] : n.value.bgTertiary), alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 } }
+const dateMain = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: n.value.text }))
+const dateSub = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+const reminderCopy = { ...flexFill, justifyContent: 'center' }
+const titleRow = { ...flexRow, alignItems: 'center' }
+const reminderTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+function statusText(color: string) { return { fontSize: fontSize.xs, color, marginLeft: '12rpx' } }
+const typeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
+const noteText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
+const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
 </script>
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>

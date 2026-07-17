@@ -1,0 +1,9 @@
+/** Open a primary destination with native tabBar on mini-programs and custom navigation on App. */
+export function openPrimaryTab(url: string) {
+  // #ifdef APP
+  uni.redirectTo({ url })
+  // #endif
+  // #ifndef APP
+  uni.switchTab({ url })
+  // #endif
+}

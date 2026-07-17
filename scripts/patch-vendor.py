@@ -4,15 +4,19 @@ HBuilderX 5.21 alpha does NOT bundle these when compiling UniApp X -> mp-weixin:
   - createSSRApp (from vue)
   - createPinia (from pinia)
   - defineStore (from pinia)
-Also fixes app.js bare function references -> common_vendor. prefix.
 
-CRITICAL: storeToRefs is NOT injected. No compiled files use it, and injecting
-it causes ReferenceError because WeChat's module system doesn't support function
-hoisting. See skill SKILL.md §18e for full explanation.
+HBuilderX 5.21 alpha 兼容措施 (临时):
+  WeChat 小程序模块系统中 globalThis 赋值不可靠。
+  patch 会同时：
+  1. 在 vendor.js 中定义 defineStore 并 exports
+  2. 在每个使用裸 defineStore 的 Store 文件中注入本地绑定
+     dev 格式: 在 require 行后插入 `var defineStore = common_vendor.defineStore;`
+     build 格式: 替换 `=defineStore(` 为 `=<var>.defineStore(`
+  3. 幂等：通过标记注释/替换检查防止重复插入
 
 Usage: python3 patch-vendor.py [dist-directory]
 """
-import sys, os
+import sys, os, re, glob
 
 DIST = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -20,12 +24,13 @@ DIST = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
 )
 VENDOR = os.path.join(DIST, "common", "vendor.js")
 APP_JS = os.path.join(DIST, "app.js")
+STORES_DIR = os.path.join(DIST, "stores")
 
 if not os.path.exists(VENDOR):
     print(f"[FAIL] vendor.js not found: {VENDOR}")
     sys.exit(1)
 
-with open(VENDOR) as f:
+with open(VENDOR, encoding="utf-8") as f:
     v = f.read()
 
 changes = 0
@@ -80,12 +85,6 @@ function createPinia() {
     v = _insert_before_exports(v, block)
     changes += 1
     print("[PATCH] createPinia")
-
-# 2b. storeToRefs — DISABLED
-# No compiled files use storeToRefs (source files use direct store.xxx access).
-# Injecting it causes ReferenceError because WeChat module system doesn't hoist
-# function declarations. Also toRef is missing from vendor.js.
-# See skill SKILL.md §18e for full explanation.
 
 # 3. defineStore
 if "function defineStore(" not in v:
@@ -143,41 +142,39 @@ function defineStore(idOrOptions, setup, setupOptions) {
 """
     v = _insert_before_exports(v, block)
     changes += 1
-    print("[PATCH] defineStore (+ globalThis fallback)")
+    print("[PATCH] defineStore")
 
 # 3b. Patch native createPinia to hook globalThis.__pinia
 if "function createPinia" in v and "globalThis.__pinia" not in v:
-    # Use flexible matching — the line may have varying indentation
     v = v.replace(
         "app.config.globalProperties.$pinia = pinia;",
         "app.config.globalProperties.$pinia = pinia;\n        globalThis.__pinia = pinia;",
-        1  # only first occurrence (inside createPinia)
+        1
     )
     changes += 1
     print("[PATCH] createPinia: globalThis.__pinia hook")
 
-# 4. Add missing exports (NO storeToRefs — not needed, causes ReferenceError)
+# 4. Add missing exports
 missing = []
 if "exports.createSSRApp" not in v:
     missing.append("exports.createSSRApp = createSSRApp;")
 if "exports.createPinia" not in v:
     missing.append("exports.createPinia = createPinia;")
-# storeToRefs export DISABLED — see §18e in SKILL.md
-# if "exports.storeToRefs" not in v and "function storeToRefs(" in v:
-#     missing.append("exports.storeToRefs = storeToRefs;")
+if "exports.defineStore" not in v:
+    missing.append("exports.defineStore = defineStore;")
 if missing:
     v = _insert_before_exports(v, "\n" + "\n".join(missing))
     changes += 1
     for e in missing:
         print(f"[PATCH] export {e.partition('=')[0].strip()}")
 
-with open(VENDOR, "w") as f:
+with open(VENDOR, "w", encoding="utf-8", newline="\n") as f:
     f.write(v)
 print(f"[OK] vendor.js: {changes} change(s)")
 
 # 5. Fix app.js bare references
 if os.path.exists(APP_JS):
-    with open(APP_JS) as f:
+    with open(APP_JS, encoding="utf-8") as f:
         a = f.read()
     fx = 0
     if "const app = createSSRApp(" in a:
@@ -189,6 +186,73 @@ if os.path.exists(APP_JS):
         fx += 1
         print("[FIX] app.js: createPinia")
     if fx:
-        with open(APP_JS, "w") as f:
+        with open(APP_JS, "w", encoding="utf-8", newline="\n") as f:
             f.write(a)
+
+# 6. Patch Store files: bind defineStore from vendor import
+#    HBuilderX 5.21 alpha 兼容：编译器输出裸 defineStore() 调用，
+#    但 WeChat 模块系统中 globalThis 赋值不可靠。
+#    两种策略：
+#    A. dev (多行): 在 require 行后插入 `var defineStore = <vendor>.defineStore;`
+#    B. build (单行压缩): 替换 `=defineStore(` 为 `=<vendor>.defineStore(`
+BIND_MARKER = "/* patch-vendor: defineStore bound */"
+store_patched = 0
+if os.path.isdir(STORES_DIR):
+    for js_path in glob.glob(os.path.join(STORES_DIR, "*.js")):
+        with open(js_path, encoding="utf-8") as f:
+            content = f.read()
+        if BIND_MARKER in content:
+            continue  # already patched
+        if "defineStore(" not in content:
+            continue  # doesn't use defineStore
+
+        # Find the vendor import variable name
+        m = re.search(r'const\s+(\w+)\s*=\s*require\("\.\./common/vendor\.js"\)', content)
+        if not m:
+            print(f"[WARN] {os.path.basename(js_path)}: cannot find vendor import, skipping")
+            continue
+        vendor_var = m.group(1)
+
+        # Check if already uses prefixed form (e.g. e.defineStore or common_vendor.defineStore)
+        if f"{vendor_var}.defineStore(" in content:
+            continue
+
+        line_count = content.count("\n") + 1
+        if line_count <= 2:
+            # Strategy B: single-line minified — replace bare defineStore( with <var>.defineStore(
+            # Only replace the store creation call, not exports.defineStore
+            # Pattern: =defineStore( (assignment context, not exports.)
+            # Use negative lookbehind to avoid matching exports.defineStore
+            new_content = re.sub(
+                r'(?<!exports\.)(?<!\w)defineStore\(',
+                f'{vendor_var}.defineStore(',
+                content,
+                count=1  # only first occurrence (the store creation)
+            )
+            if new_content != content:
+                with open(js_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(new_content)
+                store_patched += 1
+                print(f"[FIX] {os.path.basename(js_path)}: defineStore -> {vendor_var}.defineStore (minified)")
+        else:
+            # Strategy A: multi-line — insert binding after vendor require
+            lines = content.split("\n")
+            inject_idx = -1
+            for i, line in enumerate(lines):
+                if f'{vendor_var} = require("../common/vendor.js")' in line:
+                    inject_idx = i
+                    break
+            if inject_idx >= 0:
+                inject = f'{BIND_MARKER}\nvar defineStore = {vendor_var}.defineStore;'
+                lines.insert(inject_idx + 1, inject)
+                with open(js_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write("\n".join(lines))
+                store_patched += 1
+                print(f"[FIX] {os.path.basename(js_path)}: defineStore bound from {vendor_var}.defineStore")
+
+if store_patched:
+    print(f"[OK] {store_patched} store file(s) patched")
+else:
+    print("[OK] no store files need defineStore binding")
+
 print("[DONE]")

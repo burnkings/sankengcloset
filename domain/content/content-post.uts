@@ -1,0 +1,42 @@
+/**
+ * ContentPost — 内容帖子
+ * Feed 流中的内容单元：穿搭分享、种草笔记、商品评测
+ *
+ * 展示层 Labels 见 presentation/content/feed-presenter.uts
+ */
+
+// ====== 帖子类型 (纯值) ======
+
+export const POST_OUTFIT = 'OUTFIT'       // 穿搭分享
+export const POST_REVIEW = 'REVIEW'       // 商品评测
+export const POST_WISHLIST = 'WISHLIST'   // 种草笔记
+export const POST_HAUL = 'HAUL'           // 开箱
+export const POST_TUTORIAL = 'TUTORIAL'   // 教程
+
+// ====== 数据模型 ======
+
+export class ContentPost {
+  id: string = ''
+  authorId: string = ''
+  authorName: string = ''
+  authorAvatar: string = ''
+  type: string = 'OUTFIT'
+  title: string = ''
+  body: string = ''
+  images: string[] = []       // 图片列表
+  coverImage: string = ''     // 封面图 (Feed 展示用)
+  // 关联
+  productIds: string[] = []   // 关联商品
+  tagNames: string[] = []     // 标签 (#三坑 #Lolita #种草)
+  category: string = ''       // JK / LOLITA / HANFU
+  // 互动
+  likeCount: number = 0
+  commentCount: number = 0
+  shareCount: number = 0
+  isLiked: boolean = false
+  isBookmarked: boolean = false
+  // 时间
+  publishedAt: string = ''
+  createdAt: string = ''
+  updatedAt: string = ''
+}

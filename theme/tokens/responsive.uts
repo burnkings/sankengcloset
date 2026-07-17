@@ -1,0 +1,143 @@
+/**
+ * Responsive Layout Tokens — Phase 2A.1
+ * 统一响应式空间系统
+ * 所有页面必须使用这些 token，禁止硬编码页面边距
+ *
+ * 适配范围：
+ *   小屏 320/360px
+ *   常规 375/390px
+ *   大屏 414/430px
+ *   平板/横屏
+ */
+
+import { spacing } from './spacing'
+
+// ====== 页面边距 (rpx) ======
+
+/** 小屏页面边距 */
+export const PAGE_GUTTER_COMPACT = '32rpx'
+/** 常规页面边距 — 默认使用 */
+export const PAGE_GUTTER_REGULAR = '40rpx'
+/** 大屏页面边距 */
+export const PAGE_GUTTER_LARGE = '40rpx'
+
+// ====== 内容限制 ======
+
+/** 平板/大屏内容最大宽度 (px) */
+export const CONTENT_MAX_WIDTH = '720px'
+
+// ====== 网格间距 (rpx) ======
+
+/** 双列紧凑间距 */
+export const GRID_GAP_COMPACT = '20rpx'
+/** 双列常规间距 */
+export const GRID_GAP_REGULAR = '24rpx'
+
+/** Same-group card spacing */
+export const GROUP_GAP = '20rpx'
+
+// ====== Section 间距 (rpx) ======
+
+/** 区块间距 */
+export const SECTION_GAP = '48rpx'
+/** 小区块间距 */
+export const SECTION_GAP_SM = '32rpx'
+/** Section header to content */
+export const SECTION_HEADER_GAP = '20rpx'
+
+// ====== 卡片 (rpx) ======
+
+/** 卡片内边距 */
+export const CARD_PADDING = '24rpx'
+/** 卡片内边距 — 小 */
+export const CARD_PADDING_SM = '20rpx'
+/** 卡片内边距 — 大 */
+export const CARD_PADDING_LG = '24rpx'
+/** 卡片圆角 */
+export const CARD_RADIUS = '20rpx'
+
+// ====== Badge (rpx) ======
+
+export const BADGE_PADDING_X = '12rpx'
+export const BADGE_PADDING_Y = '6rpx'
+export const BADGE_MIN_HEIGHT = '36rpx'
+export const BADGE_RADIUS = '999rpx'
+export const BADGE_FONT_SIZE = '20rpx'
+
+// ====== 交互 (rpx) ======
+
+/** 最小点击区域 */
+export const MIN_TOUCH_SIZE = '88rpx'
+/** Standard grouped-list row height */
+export const LIST_ROW_HEIGHT = '96rpx'
+
+/** Fixed custom-navigation content height */
+export const PAGE_HEADER_HEIGHT = '96rpx'
+/** Header baseline to first body content */
+export const PAGE_HEADER_CONTENT_GAP = '24rpx'
+
+// ====== TabBar (rpx) ======
+
+export const TAB_BAR_SAFE_BOTTOM = '34rpx'
+export const TAB_BAR_HEIGHT = '110rpx'
+export const TAB_ICON_SIZE = '48rpx'
+export const TAB_LABEL_FONT = '20rpx'
+/** TabBar + safe area + 32rpx breathing room */
+export const PAGE_BOTTOM_SAFE_SPACER = '176rpx'
+
+// ====== 频道栏 (rpx) ======
+
+export const CHANNEL_ITEM_HEIGHT = '64rpx'
+export const CHANNEL_ITEM_PADDING_H = '16rpx'
+export const CHANNEL_INDICATOR_HEIGHT = '4rpx'
+export const CHANNEL_INDICATOR_WIDTH = '32rpx'
+
+// ====== 搜索框 (rpx) ======
+
+export const SEARCH_HEIGHT = '76rpx'
+export const SEARCH_RADIUS = '24rpx'
+
+// ====== 商品卡与筛选 (rpx) ======
+
+/** 750rpx 画布下，40rpx 页面边距 + 20rpx 卡间距对应的双列卡宽 */
+export const PRODUCT_CARD_WIDTH = '325rpx'
+/** 服饰卡图片保持接近 3:4 的纵向展示比例 */
+export const PRODUCT_CARD_IMAGE_HEIGHT = '420rpx'
+/** 统一商品卡信息区高度，避免同一行因倒计时出现而底部错位 */
+export const PRODUCT_CARD_INFO_MIN_HEIGHT = '188rpx'
+
+/** 二级品类筛选 */
+export const FILTER_CHIP_HEIGHT = '56rpx'
+export const FILTER_CHIP_PADDING_X = '22rpx'
+export const FILTER_CHIP_GAP = '12rpx'
+
+// ====== 比例 (paddingBottom %) ======
+
+export const RATIO_3_4 = '133.33%'
+export const RATIO_16_9 = '56.25%'
+export const RATIO_4_5 = '125%'
+export const RATIO_3_2 = '66.67%'
+
+// ====== 容器样式工具函数 ======
+
+/**
+ * 返回页面容器的水平 padding 样式
+ * 所有页面使用同一套边距
+ */
+export function pageGutterStyle(): any {
+  return {
+    paddingHorizontal: PAGE_GUTTER_REGULAR,
+  }
+}
+
+/**
+ * 返回内容区最大宽度 + 居中样式
+ * 平板/大屏时内容不会无限拉伸
+ */
+export function contentMaxWidthStyle(): any {
+  return {
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    width: '100%',
+  }
+}

@@ -1,0 +1,264 @@
+/**
+ * HomeFeedStore — 首页内容发现 Feed 状态管理
+ * Phase 1C: 状态完整性、分页防重、频道切换重置
+ * 使用 MockFeedRepo 提供数据
+ */
+
+import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
+import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel } from '@/domain/content/mock-feed-repo'
+
+// ====== 频道定义 ======
+
+export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭']
+export const CATEGORY_FILTERS = ['全部', 'JK', 'Lolita', '汉服']
+
+function categoryCode(category: string): string {
+  if (category === 'Lolita') return 'LOLITA'
+  if (category === '汉服') return 'HANFU'
+  return category
+}
+
+// ====== 调试常量 ======
+// Mock 阶段可通过调试常量触发失败和空状态
+// 正式用户界面不暴露这些入口
+
+/** 设为 true 模拟加载失败 */
+const DEBUG_FORCE_ERROR = false
+/** 设为 true 模拟空频道 */
+const DEBUG_FORCE_EMPTY = false
+/** 设为某个频道名模拟该频道为空 */
+const DEBUG_EMPTY_CHANNEL = ''
+
+// ====== 格式化工具 ======
+
+/** 价格格式化：分 → ¥xxx.xx */
+export function formatPrice(cents: number): string {
+  if (cents <= 0) return ''
+  const yuan = cents / 100
+  if (yuan >= 10000) return `¥${(yuan / 10000).toFixed(1)}万`
+  if (yuan === Math.floor(yuan)) return `¥${Math.floor(yuan)}`
+  return `¥${yuan.toFixed(2)}`
+}
+
+/** 相对时间格式化 */
+export function formatRelativeTime(isoStr: string): string {
+  if (isoStr === '') return ''
+  const now = Date.now()
+  const target = new Date(isoStr).getTime()
+  const diffMs = target - now
+  const diffMin = Math.floor(Math.abs(diffMs) / 60000)
+  const diffHour = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHour / 24)
+
+  if (diffMs > 0) {
+    if (diffDay > 0) return `${diffDay}天后`
+    if (diffHour > 0) return `${diffHour}小时后`
+    if (diffMin > 0) return `${diffMin}分钟后`
+    return '即将'
+  } else {
+    if (diffDay > 0) return `${diffDay}天前`
+    if (diffHour > 0) return `${diffHour}小时前`
+    if (diffMin > 0) return `${diffMin}分钟前`
+    return '刚刚'
+  }
+}
+
+/** 截止时间格式化：商品卡仅展示一条紧迫度信息 */
+export function formatDeadline(isoStr: string): string {
+  if (isoStr === '') return ''
+  const diffMs = new Date(isoStr).getTime() - Date.now()
+  if (diffMs <= 0) return '已结束'
+  const totalMin = Math.floor(diffMs / 60000)
+  const totalHour = Math.floor(totalMin / 60)
+  const day = Math.floor(totalHour / 24)
+  const hour = totalHour % 24
+  if (day > 0) return `距结束 ${day}天${hour}时`
+  if (totalHour > 0) return `距结束 ${totalHour}小时`
+  return `距结束 ${Math.max(totalMin, 1)}分钟`
+}
+
+// ====== Feed 行类型 ======
+
+export class FeedRow {
+  id: string = ''
+  rowType: string = 'single' // 'single' | 'pair'
+  single: FeedItem | null = null
+  left: FeedItem | null = null
+  right: FeedItem | null = null
+}
+
+function createSingleRow(item: FeedItem): FeedRow {
+  const row = new FeedRow()
+  row.id = `row-${item.id}`
+  row.rowType = 'single'
+  row.single = item
+  return row
+}
+
+function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
+  const row = new FeedRow()
+  row.id = right !== null ? `row-${left.id}-${right.id}` : `row-${left.id}`
+  row.rowType = 'pair'
+  row.left = left
+  row.right = right
+  return row
+}
+
+// ====== Store ======
+
+export const useHomeFeedStore = defineStore('homeFeed', () => {
+  // 状态: 'idle' | 'loading' | 'loaded' | 'error'
+  const state = ref('idle')
+  const currentChannel = ref('推荐')
+  const currentCategory = ref('全部')
+  const allItems = ref([]) as Ref<FeedItem[]>
+  const currentPage = ref(0)
+  const isLoadingMore = ref(false)
+  const hasMore = ref(true)
+  const errorMessage = ref('')
+
+  const loading = computed((): boolean => state.value === 'loading')
+
+  // 筛选后的展示列表
+  const displayItems = computed((): FeedItem[] => {
+    const ch = currentChannel.value
+    if (DEBUG_EMPTY_CHANNEL !== '' && ch === DEBUG_EMPTY_CHANNEL) return []
+    if (DEBUG_FORCE_EMPTY) return []
+    const channelItems = filterByChannel(allItems.value, ch)
+    const category = currentCategory.value
+    if (category === '' || category === '全部') return channelItems
+    const code = categoryCode(category)
+    return channelItems.filter((item) => item.category === code)
+  })
+
+  const isEmpty = computed((): boolean => {
+    return state.value === 'loaded' && displayItems.value.length === 0
+  })
+
+  // 混合流: product 双列合并，其他单列
+  const feedRows = computed((): FeedRow[] => {
+    const rows: FeedRow[] = []
+    const filtered = displayItems.value
+    let i = 0
+    while (i < filtered.length) {
+      const item = filtered[i]
+      if (item.feedType === FEED_PRODUCT) {
+        if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
+          rows.push(createPairRow(item, filtered[i + 1]))
+          i += 2
+        } else {
+          rows.push(createPairRow(item, null))
+          i += 1
+        }
+      } else {
+        rows.push(createSingleRow(item))
+        i += 1
+      }
+    }
+    return rows
+  })
+
+  // 首屏加载
+  async function loadFirstPage() {
+    state.value = 'loading'
+    errorMessage.value = ''
+    try {
+      await new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          if (DEBUG_FORCE_ERROR) {
+            reject(new Error('网络连接失败，请重试'))
+          } else {
+            resolve()
+          }
+        }, 300)
+      })
+      allItems.value = getFirstPage()
+      currentPage.value = 1
+      hasMore.value = allItems.value.length < getMaxItems()
+      state.value = 'loaded'
+    } catch (e) {
+      state.value = 'error'
+      errorMessage.value = e instanceof Error ? e.message : '加载失败'
+    }
+  }
+
+  // 加载更多（防重入）
+  async function loadMore() {
+    if (isLoadingMore.value || !hasMore.value || state.value !== 'loaded') return
+    isLoadingMore.value = true
+    try {
+      await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 200))
+      const newItems = getFeedPage(currentPage.value)
+      if (newItems.length === 0) {
+        hasMore.value = false
+      } else {
+        allItems.value = [...allItems.value, ...newItems]
+        currentPage.value++
+        if (allItems.value.length >= getMaxItems()) {
+          hasMore.value = false
+        }
+      }
+    } finally {
+      isLoadingMore.value = false
+    }
+  }
+
+  // 切换频道（重置分页状态，不重新加载数据）
+  function setChannel(ch: string) {
+    if (ch === currentChannel.value) return
+    currentChannel.value = ch
+    // displayItems computed 自动重算，hasMore 基于全量数据
+  }
+
+  function setCategory(category: string) {
+    if (category === currentCategory.value) return
+    currentCategory.value = category
+  }
+
+  // 重试
+  function retry() {
+    loadFirstPage()
+  }
+
+  // 切换收藏
+  function toggleLike(itemId: string) {
+    const items = allItems.value
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].id === itemId) {
+        items[i].liked = !items[i].liked
+        break
+      }
+    }
+  }
+
+  function toggleSave(itemId: string) {
+    const items = allItems.value
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].id === itemId) {
+        items[i].saved = !items[i].saved
+        break
+      }
+    }
+  }
+
+  return {
+    state,
+    loading,
+    isEmpty,
+    errorMessage,
+    currentChannel,
+    currentCategory,
+    allItems,
+    displayItems,
+    feedRows,
+    isLoadingMore,
+    hasMore,
+    loadFirstPage,
+    loadMore,
+    setChannel,
+    setCategory,
+    retry,
+    toggleLike,
+    toggleSave,
+  }
+})

@@ -1,0 +1,131 @@
+<template>
+  <MainLayout>
+    <template #navbar><V2PageHeader title="收藏" /></template>
+    <template #default>
+      <view :style="tabsTopSpacer" />
+      <V2HorizontalTabs :items="tabs" :active="activeTab" @change="onTabTap" />
+
+      <view class="page-canvas">
+        <view v-if="activeTab === '商品' && favoriteProducts.length > 0" :style="contentTop">
+          <view :style="productGrid">
+            <view v-for="(item, idx) in favoriteProducts" :key="item.id" :style="productShell(idx)">
+              <V2ProductCard
+                :image="item.coverUrl"
+                :brand-name="item.brandName"
+                :title="item.title"
+                :price-text="formatPrice(item.price)"
+                :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''"
+                :badge="item.badgeText"
+                :deadline-text="formatDeadline(item.eventEndAt)"
+                @click="openProduct(item)"
+              />
+            </view>
+          </view>
+        </view>
+
+        <view v-else-if="activeTab === '品牌' && library.followedBrands.length > 0" :style="contentTop">
+          <view v-for="(brandName, idx) in library.followedBrands" :key="brandName" :style="brandRow(idx)" @tap="openBrand(brandName)">
+            <view :style="brandAvatar"><text :style="brandInitial">{{ brandName.substring(0, 1) }}</text></view>
+            <text :style="brandNameText">{{ brandName }}</text>
+            <text :style="followedText">已关注</text>
+            <AppIcon name="chevron-right" :size="30" />
+          </view>
+        </view>
+
+        <view v-else :style="emptyContainer">
+          <view :style="emptyIconWrap"><AppIcon name="wardrobe" :size="60" /></view>
+          <text :style="emptyTitle">{{ emptyTitleText }}</text>
+          <text :style="emptyDesc">{{ emptyDescText }}</text>
+          <view :style="emptyAction" @tap="goDiscover"><text :style="emptyActionText">去发现</text></view>
+        </view>
+
+        <view v-if="activeTab === '商品'">
+          <V2SectionHeader title="可能喜欢" />
+          <view :style="productGrid">
+            <view v-for="(item, idx) in recommendationProducts" :key="item.id" :style="productShell(idx)">
+              <V2ProductCard
+                :image="item.coverUrl"
+                :brand-name="item.brandName"
+                :title="item.title"
+                :price-text="formatPrice(item.price)"
+                :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''"
+                :badge="item.badgeText"
+                :deadline-text="formatDeadline(item.eventEndAt)"
+                @click="openProduct(item)"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { openPrimaryTab } from '@/utils/tab-navigation'
+import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { getFirstPage } from '@/domain/content/mock-feed-repo'
+import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { brand } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, CARD_RADIUS } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
+import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
+
+const activeTab = ref('商品')
+const tabs = ['商品', '穿搭', '品牌', '合集']
+const library = useContentLibraryStore()
+const sourceItems = getFirstPage()
+
+const favoriteProducts = computed((): FeedItem[] => sourceItems.filter((item) => item.feedType === FEED_PRODUCT && library.isFavorite(item.entityId)))
+const recommendationProducts = computed((): FeedItem[] => sourceItems.filter((item) => item.feedType === FEED_PRODUCT && !library.isFavorite(item.entityId)).slice(0, 4))
+const emptyTitleText = computed((): string => {
+  if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
+  if (activeTab.value === '穿搭') return '还没有收藏穿搭灵感'
+  if (activeTab.value === '合集') return '还没有创建收藏合集'
+  return '还没有收藏心动小裙子'
+})
+const emptyDescText = computed((): string => {
+  if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
+  if (activeTab.value === '穿搭') return '从晒搭里收集想尝试的搭配'
+  if (activeTab.value === '合集') return '以后可以按场景整理心动内容'
+  return '从新品、预约和降价中慢慢挑选'
+})
+
+function onTabTap(tab: string) { activeTab.value = tab }
+function goDiscover() { openPrimaryTab('/pages/discover/index') }
+function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
+function openBrand(brandName: string) {
+  uni.setStorageSync('pending_search_keyword', brandName)
+  uni.navigateTo({ url: '/pages/search/index' })
+}
+onShow(() => { library.reload() })
+
+const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
+const contentTop = { paddingTop: '24rpx' }
+const emptyContainer = { alignItems: 'center', paddingTop: '48rpx', paddingBottom: '24rpx' }
+const emptyIconWrap = computed((): any => ({ width: '112rpx', height: '112rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, textAlign: 'center', marginTop: '8rpx' }))
+const emptyAction = computed((): any => ({ height: '68rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }))
+const emptyActionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const productGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+function brandRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < library.followedBrands.length - 1 ? '12rpx' : '0' } }
+const brandAvatar = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const brandNameText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const followedText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '8rpx' }))
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

@@ -1,31 +1,12 @@
-/**
- * WardrobeItem — 衣橱单品数据模型
- * 简化版：纯数据 class，无 DDD 重型抽象
- */
-
 export class WardrobeItem {
-  id: string = ''
-  name: string = ''
-  category: string = 'OTHER'
-  style: string = ''
-  brand: string = ''
-  color: string = ''
-  size: string = ''
-  wearStatus: string = 'UNWORN'
-  seasons: string[] = []
-  images: string[] = []
-  tags: string[] = []
-  purchaseDate: string = ''
-  purchasePrice: number = 0
-  purchaseSource: string = ''
-  note: string = ''
-  isFavorite: boolean = false
-  isDeleted: boolean = false
-  createdAt: string = ''
-  updatedAt: string = ''
+  id: string = ''; name: string = ''; category: string = 'OTHER'; style: string = ''; brand: string = ''; color: string = ''; size: string = ''
+  wearStatus: string = 'UNWORN'; seasons: string[] = []; images: string[] = []; tags: string[] = []; purchaseDate: string = ''
+  purchasePrice: number = 0; purchaseSource: string = ''; note: string = ''; isFavorite: boolean = false; isDeleted: boolean = false
+  createdAt: string = ''; updatedAt: string = ''
+  get coverImage(): string { return this.images.length > 0 ? this.images[0] : '' }
+}
 
-  /** 封面图（第一张或占位） */
-  get coverImage(): string {
-    return this.images.length > 0 ? this.images[0] : ''
-  }
+export class WardrobeUpdateData {
+  name: string = ''; category: string = ''; style: string = ''; brand: string = ''; color: string = ''; size: string = ''
+  wearStatus: string = ''; images: string[] = []; purchaseDate: string = ''; purchasePrice: number = -1; purchaseSource: string = ''; note: string = ''
 }

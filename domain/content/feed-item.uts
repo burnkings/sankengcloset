@@ -1,0 +1,41 @@
+/**
+ * FeedItem — 首页统一展示协议
+ * 不是数据库实体，是 Feed 流的展示契约
+ * 将 Product / ReleaseEvent / ContentPost / Outfit 统一为可渲染单元
+ *
+ * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
+ */
+
+// ====== Feed 类型 (纯值) ======
+
+export const FEED_PRODUCT = 'product'
+export const FEED_RELEASE_EVENT = 'release_event'
+export const FEED_BRAND_POST = 'brand_post'
+export const FEED_OUTFIT = 'outfit'
+export const FEED_EDITORIAL = 'editorial'
+export const FEED_AI_RECOMMENDATION = 'ai_recommendation'
+
+// ====== 数据模型 ======
+
+export class FeedItem {
+  id: string = ''
+  feedType: string = 'product'
+  entityId: string = ''         // 关联实体 ID (Product.id / ReleaseEvent.id 等)
+  title: string = ''
+  subtitle: string = ''
+  coverUrl: string = ''         // 主图 (3:4)
+  secondaryCoverUrl: string = '' // 副图 (可选)
+  brandId: string = ''
+  brandName: string = ''
+  price: number = 0             // 分
+  originalPrice: number = 0     // 分 (用于显示划线价)
+  badgeText: string = ''        // 角标文字 ("预售" / "降价" / "新品")
+  eventStartAt: string = ''     // 发售事件开始时间
+  eventEndAt: string = ''       // 发售事件结束时间
+  liked: boolean = false
+  saved: boolean = false
+  sourceLabel: string = ''      // 来源标签 ("淘宝" / "官方" / "用户投稿")
+  rankingScore: number = 0      // 排序分数
+  category: string = ''         // JK / LOLITA / HANFU (用于频道筛选)
+  createdAt: string = ''
+}

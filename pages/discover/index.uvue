@@ -1,0 +1,134 @@
+<template>
+  <MainLayout>
+    <template #navbar><V2PageHeader title="发现" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
+
+        <V2SectionHeader title="编辑精选" action-text="查看更多" />
+        <scroll-view scroll-x :style="featureScroll">
+          <view :style="featureRow">
+            <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="search(item.keyword)">
+              <view :style="featureImage"><AppImage :src="item.image" width="100%" height="100%" mode="aspectFill" /></view>
+              <view :style="featureCopy"><text :style="featureTitle">{{ item.title }}</text><text :style="featureDesc">{{ item.desc }}</text></view>
+            </view>
+            <view :style="endPad" />
+          </view>
+        </scroll-view>
+
+        <V2SectionHeader title="品牌目录" action-text="全部品牌" />
+        <view :style="brandGrid">
+          <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="search(item.name)">
+            <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
+            <view :style="brandCopy"><text :style="brandName">{{ item.name }}</text><text :style="brandMeta">{{ item.meta }}</text></view>
+            <view :style="followAction(item.name)" @tap.stop="toggleBrand(item.name)"><text :style="followText(item.name)">{{ library.isFollowingBrand(item.name) ? '已关注' : '关注' }}</text></view>
+          </view>
+        </view>
+
+        <V2SectionHeader title="发售日历" action-text="完整日历" />
+        <V2ListGroup>
+          <view v-for="(evt, idx) in calendar" :key="evt.id" :style="calendarRow" @tap="search(evt.brand)">
+            <view :style="calendarDate"><text :style="calendarDay">{{ evt.day }}</text><text :style="calendarMonth">7月</text></view>
+            <view :style="calendarMain(idx)"><view :style="calendarCopy"><text :style="calendarTitle">{{ evt.title }}</text><text :style="calendarBrand">{{ evt.brand }}</text></view><text :style="calendarTag">{{ evt.tag }}</text></view>
+          </view>
+        </V2ListGroup>
+
+        <V2SectionHeader title="趋势话题" />
+        <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic.name)">
+          <text :style="topicName"># {{ topic.name }}</text><text :style="topicMeta">{{ topic.meta }}</text><AppIcon name="chevron-right" :size="30" />
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="discover" />
+  <!-- #endif -->
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
+import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
+import { openPrimaryTab } from '@/utils/tab-navigation'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
+
+function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
+function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
+function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); openPrimaryTab('/pages/community/index') }
+const library = useContentLibraryStore()
+function toggleBrand(brandName: string) {
+  const followed = library.toggleBrandFollow(brandName)
+  showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
+}
+
+const features = [
+  { id: 'f1', image: '/static/demo/outfit-editorial-01.jpg', title: '夏日三坑轻量化指南', desc: '从面料到版型的编辑选择', keyword: '夏日穿搭' },
+  { id: 'f2', image: '/static/demo/prod-editorial-01.jpg', title: '本周值得蹲的预约', desc: '官方节点与时间一次看清', keyword: '预约' },
+]
+const brands = [
+  { name: '兔缝缝', initial: '兔', meta: 'JK · 格裙' },
+  { name: '星辰猫', initial: '星', meta: 'Lolita · 甜美' },
+  { name: '花筵', initial: '花', meta: '汉服 · 宋制' },
+  { name: '仲夏物语', initial: '夏', meta: 'Lolita · 田园' },
+]
+const calendar = [
+  { id: 'c1', day: '18', title: '月光曲 JSK 定金开售', brand: '星辰猫', tag: '定金' },
+  { id: 'c2', day: '20', title: '新色格裙开放预览', brand: '兔缝缝', tag: '图透' },
+  { id: 'c3', day: '22', title: '宋制套装尾款截止', brand: '花筵', tag: '尾款' },
+]
+const topics = [
+  { id: 't1', name: '今日穿搭', meta: '1,286 篇晒搭' },
+  { id: 't2', name: '茶会搭配', meta: '863 篇晒搭' },
+  { id: 't3', name: '通勤三坑', meta: '742 篇晒搭' },
+]
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const searchBox = computed((): any => ({ width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: n.value.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
+const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
+const featureScroll = { width: '710rpx', marginRight: '-40rpx' }
+const featureRow = { ...flexRow, width: '1060rpx' }
+function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.length - 1 ? '20rpx' : '0' } }
+const featureImage = { width: '500rpx', height: '280rpx' }
+const featureCopy = { padding: '20rpx' }
+const featureTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const featureDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+const endPad = { width: '40rpx', flexShrink: 0 }
+const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function brandCard(idx: number) { return { width: '325rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '20rpx' : '0', marginBottom: '20rpx' } }
+const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const brandCopy = { ...flexFill }
+const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+function followAction(brandName: string) { return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName) ? brand[600] : n.value.bgSecondary, marginLeft: '8rpx' } }
+function followText(brandName: string) { return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName) ? '#FFFFFF' : brand[600] } }
+const calendarRow = { ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center' }
+const calendarDate = { width: '96rpx', alignItems: 'center', flexShrink: 0 }
+const calendarDay = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
+const calendarMonth = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary }))
+function calendarMain(idx: number) { return { ...flexFill, ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '20rpx', borderBottomWidth: idx < calendar.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
+const calendarCopy = { ...flexFill }
+const calendarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const calendarBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
+const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[600], marginLeft: '12rpx' }))
+function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.length - 1 ? '12rpx' : '0' } }
+const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
+onShow(() => { library.reload(); syncTabBarChrome() })
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

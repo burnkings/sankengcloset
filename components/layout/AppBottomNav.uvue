@@ -1,0 +1,37 @@
+<template>
+  <view :style="barStyle">
+    <view v-for="item in items" :key="item.id" :style="itemStyle" @tap="open(item.id, item.url)">
+      <image :src="iconPath(item.id)" :style="iconStyle" mode="aspectFit" />
+      <text :style="labelStyle(item.id)">{{ item.label }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { zIndex } from '@/theme/tokens/z-index'
+import { n } from '@/theme/use-theme'
+import { getSafeBottomInset } from '@/utils/window-info'
+
+const props = withDefaults(defineProps<{ active?: string }>(), { active: 'home' })
+const items = [
+  { id: 'home', label: '首页', url: '/pages/home/index' },
+  { id: 'discover', label: '发现', url: '/pages/discover/index' },
+  { id: 'ai', label: '绮灵AI', url: '/pages/ai/index' },
+  { id: 'community', label: '晒搭', url: '/pages/community/index' },
+  { id: 'profile', label: '我的', url: '/pages/profile/index' },
+]
+const safeBottom = getSafeBottomInset()
+const barStyle = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.tabbar, height: '110rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'center', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))
+const itemStyle = { ...flexFill, height: '110rpx', alignItems: 'center', justifyContent: 'center' }
+const iconStyle = { width: '48rpx', height: '48rpx' }
+function iconPath(id: string): string { return `/static/tabbar/tab-${id}${id === props.active ? '-active' : ''}.png` }
+function labelStyle(id: string) { return { fontSize: fontSize['2xs'], color: id === props.active ? brand[500] : n.value.textTertiary, marginTop: '4rpx' } }
+function open(id: string, url: string) {
+  if (id === props.active) return
+  // App 一级导航页不是原生 tabBar 页面；替换当前页即可，无需重启整个页面栈。
+  uni.redirectTo({ url })
+}
+</script>

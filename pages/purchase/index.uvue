@@ -1,228 +1,81 @@
 <template>
-  <MainLayout>
-    <template #navbar>
-      <AppNavbar title="消费记录" :show-back="false">
-        <template #right>
-          <view :style="navRightStyle">
-            <text :style="addBtnStyle" @tap="onAddTap">+添加</text>
-            <text :style="countBadgeStyle">{{ store.itemCount }}笔</text>
-          </view>
-        </template>
-      </AppNavbar>
-    </template>
-
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="购买记录" :show-back="true"><template #right><text :style="addText" @tap="goAdd">添加</text></template></AppNavbar></template>
     <template #default>
-      <!-- 消费统计条 -->
-      <view :style="statsBarStyle">
-        <view :style="statsBarItem">
-          <text :style="statsLabel">累计消费</text>
-          <text :style="statsAmount">¥{{ store.totalSpent }}</text>
-        </view>
-        <view :style="statsDivider" />
-        <view :style="statsBarItem">
-          <text :style="statsLabel">待付款</text>
-          <text :style="statsNum(store.pendingPayments.length)">{{ store.pendingPayments.length }}</text>
-        </view>
-        <view :style="statsDivider" />
-        <view :style="statsBarItem">
-          <text :style="statsLabel">未结清</text>
-          <text :style="statsRemaining">¥{{ store.remainingTotal }}</text>
-        </view>
-      </view>
-
-      <!-- 状态筛选 -->
-      <view :style="filterStyle">
-        <scroll-view scroll-x :show-scrollbar="false" :style="chipScrollStyle">
-          <view :style="chipRowStyle">
-            <AppTag
-              v-for="opt in filterOptions"
-              :key="opt.value"
-              :label="opt.label"
-              :variant="TAG_CHIP"
-              :active="opt.value === store.filterStatus"
-              @tap="store.setFilterStatus(opt.value)"
-            />
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="summaryCard"><view :style="summaryPrimary"><text :style="summaryLabel">累计记录</text><text :style="summaryAmount">¥{{ store.totalSpent }}</text></view><view :style="summarySide"><text :style="sideValue">{{ store.itemCount }} 笔</text><text :style="sideLabel">待结清 ¥{{ store.remainingTotal }}</text></view></view>
+        <V2SectionHeader title="记录明细" :compact="true" />
+        <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
+        <AppLoading v-if="store.loading" />
+        <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="order" :size="64" /><text :style="emptyTitle">暂无符合条件的记录</text></view>
+        <view v-else :style="listWrap">
+          <view v-for="item in store.displayItems" :key="item.id" :style="recordCard" @tap="openItem(item.id)">
+            <view :style="recordTop"><view :style="recordCopy"><text :style="recordTitle">{{ item.name }}</text><text :style="recordBrand">{{ item.brand !== '' ? item.brand : item.shopName }}</text></view><text :style="statusText(item.statusColor)">{{ item.statusText }}</text></view>
+            <view :style="amountRow"><text :style="totalText">{{ item.totalText }}</text><text :style="remainingText">{{ item.remainingText }}</text></view>
+            <view :style="progressTrack"><view :style="progressFill(item.progressPercent, item.statusColor)" /></view>
+            <view :style="dateRow"><text :style="dateText">{{ item.purchaseDateText }}</text><text :style="dateText">{{ item.deadlineLabel }}</text></view>
           </view>
-        </scroll-view>
+        </view>
       </view>
-
-      <!-- Loading -->
-      <AppLoading v-if="store.loading" />
-
-      <!-- Empty -->
-      <AppEmptyState
-        v-else-if="store.displayItems.length === 0"
-        icon="🛒"
-        :title="store.filterStatus ? '没有该状态的购买记录' : '还没有购买记录'"
-        :description="store.filterStatus ? '换个筛选试试' : '记录你的第一笔三坑消费吧~'"
-        :action-text="store.filterStatus ? '' : '添加消费'"
-        @action="onAddTap"
-      />
-
-      <!-- 列表 -->
-      <view v-else :style="listStyle">
-        <PurchaseCard
-          v-for="item in store.displayItems"
-          :key="item.id"
-          :item="item"
-          @click="onItemTap(item.id)"
-        />
-      </view>
-
-      <!-- 底部留白 -->
-      <view :style="bottomSpacer" />
     </template>
   </MainLayout>
-
-  <!-- 删除确认 -->
-  <AppDialog
-    v-model:visible="deleteDialogVisible"
-    title="确认删除"
-    message="删除后无法恢复，确定要删除这条消费记录吗？"
-    @confirm="onConfirmDelete"
-  />
 </template>
 
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
-import { FILTER_OPTIONS } from '@/domain/purchase-record'
-import { brand, accent, neutralLight, neutralDark, semantic, baseColors } from '@/theme/tokens/colors'
-import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { radius, semanticRadius } from '@/theme/tokens/radius'
-import { shadow } from '@/theme/tokens/shadow'
-import { flexRow, flexCenter, flexColumnCenter, flexRowBetween } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import AppTag from '@/components/base/AppTag.uvue'
-import { TAG_CHIP } from '@/components/base/app-tag-types'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
-import AppDialog from '@/components/base/AppDialog.uvue'
-import PurchaseCard from '@/components/business/PurchaseCard.uvue'
-
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 
 const store = usePurchaseStore()
-
-const filterOptions = FILTER_OPTIONS
-const deleteDialogVisible = ref(false)
-const deleteTargetId = ref('')
-
-function onItemTap(id: string) {
-  uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` })
+const activeFilter = ref('全部')
+const filters = ['全部', '预售中', '已付定金', '待付款', '已完成', '已取消']
+function onFilter(label: string) {
+  activeFilter.value = label
+  let status = ''
+  if (label === '预售中') status = 'PREORDER'
+  if (label === '已付定金') status = 'DEPOSIT_PAID'
+  if (label === '待付款') status = 'PENDING_PAYMENT'
+  if (label === '已完成') status = 'COMPLETED'
+  if (label === '已取消') status = 'CANCELLED'
+  store.setFilterStatus(status)
 }
+function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
+function openItem(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
+onMounted(() => { store.fetchPurchases() })
 
-function onConfirmDelete() {
-  if (deleteTargetId.value) {
-    store.deletePurchase(deleteTargetId.value)
-    deleteTargetId.value = ''
-  }
-}
-
-function onAddTap() {
-  uni.navigateTo({ url: '/pages/purchase/edit' })
-}
-
-onMounted(() => {
-  store.fetchPurchases()
-})
-
-// ====== 样式 ======
-
-// --- 消费统计条 ---
-const statsBarStyle = computed((): any => ({
-  ...flexRow,
-  justifyContent: 'space-around',
-  alignItems: 'center',
-  marginHorizontal: semanticSpacing.pageHorizontal,
-  marginTop: spacing[3],
-  padding: spacing[3],
-  backgroundColor: n.value.surface,
-  borderRadius: semanticRadius.card,
-  boxShadow: shadow.card,
-}))
-
-const statsBarItem = {
-  ...flexColumnCenter,
-  gap: spacing[0.5],
-}
-
-const statsLabel = computed((): any => ({
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-}))
-
-const statsAmount = {
-  fontSize: fontSize.xl,
-  fontWeight: fontWeight.bold,
-  color: brand[500],
-  lineHeight: 1,
-}
-
-function statsNum(count: number) {
-  return {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: count > 0 ? semantic.warning : n.value.textTertiary,
-    lineHeight: 1,
-  }
-}
-
-const statsRemaining = computed((): any => ({
-  fontSize: fontSize.xl,
-  fontWeight: fontWeight.bold,
-  color: store.remainingTotal > 0 ? semantic.error : n.value.textTertiary,
-  lineHeight: 1,
-}))
-
-const statsDivider = {
-  width: '1rpx',
-  height: '48rpx',
-  backgroundColor: neutralLight.divider,
-  alignSelf: 'center',
-}
-
-// --- 筛选 ---
-const filterStyle = {
-  ...flexRow,
-  gap: spacing[2],
-  padding: `${spacing[3]} ${spacing[4]}` }
-
-const chipScrollStyle = {
-  flex: 1,
-  overflow: 'hidden' }
-
-const chipRowStyle = {
-  ...flexRow,
-  gap: spacing[2] }
-
-// --- 导航 ---
-const countBadgeStyle = {
-  fontSize: fontSize.xs,
-  color: n.value.textTertiary,
-  backgroundColor: n.value.bgTertiary,
-  paddingHorizontal: spacing[2],
-  paddingVertical: spacing[1],
-  borderRadius: radius.sm }
-
-const navRightStyle = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[2] }
-
-const addBtnStyle = {
-  fontSize: fontSize.sm,
-  color: brand[500],
-  fontWeight: fontWeight.medium }
-
-// --- 列表 ---
-const listStyle = {
-  ...gap.sm,
-  padding: `0 ${spacing[4]} ${spacing[4]}` }
-
-// --- 底部留白 ---
-const bottomSpacer = {
-  height: spacing[6] }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const summaryPrimary = { ...flexFill }
+const summaryLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const summaryAmount = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[600], marginTop: '8rpx' }
+const summarySide = { alignItems: 'flex-end' }
+const sideValue = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const sideLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const listWrap = { marginTop: '22rpx' }
+const recordCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '20rpx' }))
+const recordTop = { ...flexRow, alignItems: 'flex-start' }
+const recordCopy = { ...flexFill }
+const recordTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const recordBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+function statusText(color: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color, marginLeft: '12rpx' } }
+const amountRow = { ...flexRow, alignItems: 'center', marginTop: '22rpx' }
+const totalText = computed((): any => ({ ...flexFill, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text }))
+const remainingText = { fontSize: fontSize.sm, color: brand[600] }
+const progressTrack = computed((): any => ({ height: '8rpx', borderRadius: '4rpx', backgroundColor: n.value.bgTertiary, overflow: 'hidden', marginTop: '18rpx' }))
+function progressFill(percent: number, color: string) { return { width: `${percent}%`, height: '8rpx', borderRadius: '4rpx', backgroundColor: color } }
+const dateRow = { ...flexRow, justifyContent: 'space-between', marginTop: '14rpx' }
+const dateText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
 </script>
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>

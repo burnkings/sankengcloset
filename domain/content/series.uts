@@ -1,0 +1,18 @@
+/**
+ * Series — 商品系列
+ * 一个品牌下的系列 (如: 星辰猫 × 月光曲系列)
+ */
+
+export class Series {
+  id: string = ''
+  name: string = ''
+  brandId: string = ''
+  brandName: string = ''
+  category: string = ''       // JK / LOLITA / HANFU
+  coverImage: string = ''
+  description: string = ''
+  productCount: number = 0
+  releaseDate: string = ''
+  createdAt: string = ''
+  updatedAt: string = ''
+}

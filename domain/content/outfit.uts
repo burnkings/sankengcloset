@@ -1,0 +1,27 @@
+/**
+ * Outfit — 穿搭组合
+ * 用户创建的穿搭方案，关联多件衣物
+ */
+
+export class Outfit {
+  id: string = ''
+  userId: string = ''
+  name: string = ''           // "夏日甜系 JK 全套"
+  description: string = ''
+  coverImage: string = ''
+  images: string[] = []       // 全身图/细节图
+  // 关联
+  wardrobeItemIds: string[] = []  // 关联衣橱衣物
+  productIds: string[] = []       // 关联商品
+  category: string = ''           // JK / LOLITA / HANFU / MIXED
+  tags: string[] = []
+  // 场景
+  occasion: string = ''       // 日常 / 约会 / 茶会 / 漫展
+  season: string = ''         // 春 / 夏 / 秋 / 冬
+  // 互动
+  likeCount: number = 0
+  isLiked: boolean = false
+  // 时间
+  createdAt: string = ''
+  updatedAt: string = ''
+}

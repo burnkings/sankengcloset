@@ -1,8 +1,6 @@
 /**
- * PurchaseRecord — 消费记录数据模型
- * 简化版：纯数据 class
- *
- * ★★★★★ Android 规范：string union → class 常量；any → 具体类型
+ * PurchaseRecord — 外部购买决策与进度记录。
+ * 仅记录用户在官方渠道的消费计划，不代表应用内订单。
  */
 
 export const STATUS_PRE_ORDER = 'PRE_ORDER'
@@ -20,11 +18,11 @@ export const PAYMENT_STATUS_LABELS = {
 }
 
 export const PAYMENT_STATUS_COLORS = {
-  PRE_ORDER: '#8B5CF6',
-  DEPOSIT_PAID: '#FF4D7E',
-  BALANCE_PENDING: '#F59E0B',
-  COMPLETED: '#22C55E',
-  CANCELLED: '#9CA3AF',
+  PRE_ORDER: '#9B8AC4',
+  DEPOSIT_PAID: '#D98898',
+  BALANCE_PENDING: '#E8956A',
+  COMPLETED: '#7BB896',
+  CANCELLED: '#9C9698',
 }
 
 export class PurchaseRecord {
@@ -47,14 +45,19 @@ export class PurchaseRecord {
   updatedAt: string = ''
 }
 
-/** 更新数据 — 替代 updatePurchase(id, data: any) */
+/** 显式更新契约，避免页面向仓库透传 any。 */
 export class PurchaseUpdateData {
   name: string = ''
   brand: string = ''
+  shopName: string = ''
+  category: string = ''
   totalAmount: number = -1
+  depositAmount: number = -1
   paidAmount: number = -1
   paymentStatus: string = ''
+  purchaseDate: string = ''
   deadline: string = ''
+  note: string = ''
 }
 
 export class FilterOption {

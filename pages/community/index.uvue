@@ -1,0 +1,117 @@
+<template>
+  <MainLayout>
+    <template #navbar><V2PageHeader title="晒搭" action-text="发布" @action="goCreate" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
+        <view :style="composerCard" @tap="goCreate">
+          <view :style="composerIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
+          <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
+          <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
+        </view>
+        <V2FilterChips :items="topics" :active="activeTopic" @change="onTopicChange" />
+
+        <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="lookBody">
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的晒搭</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
+            <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
+            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view>
+          </view>
+        </view>
+
+        <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="lookBody">
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.author }}</text><text :style="timeText">{{ look.time }}</text></view>
+            <text :style="lookCaption">{{ look.caption }}</text>
+            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ likeCount(look.id, look.likes) }}</text></view></view>
+          </view>
+        </view>
+
+      </view>
+    </template>
+  </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="community" />
+  <!-- #endif -->
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
+import { showFeedback } from '@/utils/feedback'
+// #ifdef APP
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
+
+const activeTopic = ref('全部')
+const pendingDeleteId = ref('')
+const library = useContentLibraryStore()
+const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
+const looks = [
+  { id: 'l1', image: '/static/demo/outfit-editorial-01.jpg', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', likes: 126 },
+  { id: 'l2', image: '/static/demo/prod-editorial-01.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', likes: 89 },
+]
+const visibleLooks = computed(() => activeTopic.value === '全部' ? looks : looks.filter((item) => item.topic === activeTopic.value))
+const visibleUserLooks = computed((): SavedOutfitPost[] => activeTopic.value === '全部' ? library.outfitPosts : library.outfitPosts.filter((item) => item.topic === activeTopic.value))
+function onTopicChange(topic: string) { activeTopic.value = topic }
+function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
+function toggleLike(id: string) { library.togglePostLike(id) }
+function likeCount(id: string, baseCount: number): number { return baseCount + (library.isPostLiked(id) ? 1 : 0) }
+function deleteOwnPost(id: string) {
+  if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
+  library.removeOutfit(id)
+  pendingDeleteId.value = ''
+  showFeedback('晒搭已删除')
+}
+onShow(() => {
+  syncTabBarChrome()
+  library.reload()
+  try {
+    const pendingTopic = uni.getStorageSync('community_topic') as string
+    if (pendingTopic !== '') {
+      activeTopic.value = pendingTopic
+      uni.removeStorageSync('community_topic')
+    }
+  } catch (e) {}
+})
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
+const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '116rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '8rpx' }))
+const composerIcon = computed((): any => ({ width: '68rpx', height: '68rpx', borderRadius: '22rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const composerCopy = { ...flexFill }
+const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const composerDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '5rpx' }))
+const composerButton = { minWidth: '104rpx', height: '58rpx', borderRadius: '29rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }
+const composerButtonText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface }))
+const heroImage = { width: '670rpx', height: '760rpx' }
+const lookBody = { padding: CARD_PADDING }
+const authorRow = { ...flexRow, alignItems: 'center' }
+const avatar = computed((): any => ({ width: '52rpx', height: '52rpx', borderRadius: '26rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const avatarText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }
+const authorName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const timeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const lookCaption = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
+const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx' }
+const topicText = { fontSize: fontSize.xs, color: brand[600], marginTop: '10rpx' }
+const likeAction = { ...flexRow, alignItems: 'center', minWidth: '76rpx', height: '52rpx', justifyContent: 'flex-end' }
+function likeText(id: string) { return { fontSize: fontSize.xs, color: library.isPostLiked(id) ? brand[600] : n.value.textTertiary, marginLeft: '6rpx' } }
+const categoryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
+function deleteOwnText(id: string) { return { fontSize: fontSize['2xs'], color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

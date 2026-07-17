@@ -1,0 +1,120 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="搜索" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit" @clear="onClear">
+          <template #prefix><AppIcon name="search" :size="34" /></template>
+        </AppInput>
+
+        <view v-if="keyword === ''">
+          <V2SectionHeader title="热门搜索" :compact="true" />
+          <view :style="hotWrap">
+            <view v-for="(item, idx) in hotKeywords" :key="item" :style="hotChip(idx)" @tap="selectKeyword(item)">
+              <text :style="hotText">{{ item }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view v-else>
+          <V2SectionHeader :title="'搜索结果 · ' + String(results.length)" :compact="true" />
+          <view v-if="results.length > 0" :style="resultGrid">
+            <view v-for="(item, idx) in results" :key="item.id" :style="productShell(idx)">
+              <V2ProductCard
+                :image="item.coverUrl"
+                :brand-name="item.brandName"
+                :title="item.title"
+                :price-text="formatPrice(item.price)"
+                :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''"
+                :badge="item.badgeText"
+                :deadline-text="formatDeadline(item.eventEndAt)"
+                @click="onResultTap(item)"
+              />
+            </view>
+          </view>
+          <view v-else :style="emptyWrap">
+            <AppIcon name="search" :size="64" />
+            <text :style="emptyTitle">没有找到相关内容</text>
+            <text :style="emptyDesc">换个商品名、品牌或坑向试试</text>
+          </view>
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { getFirstPage } from '@/domain/content/mock-feed-repo'
+import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
+
+const keyword = ref('')
+// 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
+const inputFocused = ref(false)
+const sourceItems = getFirstPage()
+const hotKeywords = ['月光曲', '格裙', '宋制', '新品预约', 'Lolita 茶会', '汉服通勤']
+
+function normalizedQuery(value: string): string {
+  let q = value.trim().toLowerCase()
+  q = q.replace('洛丽塔', 'lolita').replace('洛莉塔', 'lolita').replace('lo裙', 'lolita')
+  q = q.replace('水手服', 'jk').replace('格裙', 'jk').replace('制服', 'jk')
+  q = q.replace('华服', '汉服').replace('汉元素', '汉服')
+  return q
+}
+
+function itemSearchText(item: FeedItem): string {
+  const categoryLabel = item.category === 'HANFU' ? '汉服 华服 汉元素' : (item.category === 'LOLITA' ? 'lolita 洛丽塔 洛莉塔 lo裙' : 'jk 制服 水手服 格裙')
+  return `${item.title} ${item.brandName} ${item.subtitle} ${categoryLabel}`.toLowerCase()
+}
+
+const results = computed((): FeedItem[] => {
+  const q = normalizedQuery(keyword.value)
+  if (q === '') return []
+  return sourceItems.filter((item) => {
+    if (item.feedType !== FEED_PRODUCT) return false
+    return itemSearchText(item).includes(q)
+  })
+})
+
+function onSubmit() { inputFocused.value = false }
+function onClear() { keyword.value = ''; inputFocused.value = false }
+function selectKeyword(value: string) { keyword.value = value }
+function onResultTap(item: FeedItem) {
+  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+}
+
+onMounted(() => {
+  try {
+    const pending = uni.getStorageSync('pending_search_keyword') as string
+    if (pending !== '') {
+      keyword.value = pending
+      uni.removeStorageSync('pending_search_keyword')
+    }
+  } catch (e) {}
+})
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const hotWrap = { ...flexRow, flexWrap: 'wrap' as string }
+function hotChip(idx: number) { return { minHeight: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: idx % 3 < 2 ? '12rpx' : '0', marginBottom: '12rpx' } }
+const hotText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
+const resultGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

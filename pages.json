@@ -7,7 +7,67 @@
       }
     },
     {
+      "path": "pages/discover/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/ai/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/favorites/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/community/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/search/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/share/create",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/product/detail",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/wardrobe/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/wardrobe/edit",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/budget/index",
       "style": {
         "navigationStyle": "custom"
       }
@@ -26,12 +86,6 @@
     },
     {
       "path": "pages/purchase/edit",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/profile/index",
       "style": {
         "navigationStyle": "custom"
       }
@@ -65,42 +119,53 @@
       "style": {
         "navigationStyle": "custom"
       }
-    },
-    {
-      "path": "pages/dev/ui-playground",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/dev/page-playground",
-      "style": {
-        "navigationStyle": "custom"
-      }
     }
   ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#FAF9F8",
+    "backgroundColor": "#FAF9F8",
+    "backgroundTextStyle": "dark"
+  }
+  // #ifndef APP
+  ,
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#FF4D7E",
+    "selectedColor": "#D65378",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "static/tabbar/tab-home.png",
+        "selectedIconPath": "static/tabbar/tab-home-active.png"
       },
       {
-        "pagePath": "pages/wardrobe/index",
-        "text": "衣橱"
+        "pagePath": "pages/discover/index",
+        "text": "发现",
+        "iconPath": "static/tabbar/tab-discover.png",
+        "selectedIconPath": "static/tabbar/tab-discover-active.png"
       },
       {
-        "pagePath": "pages/purchase/index",
-        "text": "消费"
+        "pagePath": "pages/ai/index",
+        "text": "绮灵AI",
+        "iconPath": "static/tabbar/tab-ai.png",
+        "selectedIconPath": "static/tabbar/tab-ai-active.png"
+      },
+      {
+        "pagePath": "pages/community/index",
+        "text": "晒搭",
+        "iconPath": "static/tabbar/tab-community.png",
+        "selectedIconPath": "static/tabbar/tab-community-active.png"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "static/tabbar/tab-profile.png",
+        "selectedIconPath": "static/tabbar/tab-profile-active.png"
       }
     ]
   }
+  // #endif
 }

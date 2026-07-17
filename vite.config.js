@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [uni()],
   resolve: {
     alias: {
-      '@': './src'
+      '@': '.'
     }
   }
 })
