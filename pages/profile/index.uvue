@@ -99,7 +99,7 @@ const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
 
-function onEdit() { showFeedback('资料编辑正在准备中') }
+function onEdit() { showFeedback('当前为本地体验账号') }
 function loginPreview() {
   isLoggedIn.value = true
   uni.setStorageSync('sk_login_preview', 'logged_in')
@@ -129,8 +129,19 @@ function onSettingTap(id: string) {
     showFeedback('缓存已清理')
     return
   }
+  if (id === 'notification') {
+    // #ifdef MP-WEIXIN
+    uni.openSetting({})
+    // #endif
+    // #ifdef APP
+    showFeedback('请在系统设置中管理通知权限')
+    // #endif
+    return
+  }
+  if (id === 'ai') { openPrimaryTab('/pages/ai/index'); return }
+  if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
+  if (id === 'about') { showFeedback('三坑绮橱 V2.0 内容闭环版'); return }
   if (id === 'logout') { logoutPreview(); return }
-  showFeedback('这项设置正在准备中')
 }
 function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
 function toggleTaste(name: string) {
