@@ -30,7 +30,7 @@ export const useBudgetStore = defineStore('budget', () => {
       'budget',
       'monthly',
       'upsert',
-      `limit=${monthlyLimit.value}&alertPercent=${alertPercent.value}`,
+      `{\"monthlyLimit\":${monthlyLimit.value},\"alertPercent\":${alertPercent.value}}`,
     )
   }
 
