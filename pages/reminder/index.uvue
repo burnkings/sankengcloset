@@ -4,7 +4,7 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="focusCard"><view :style="focusCopy"><text :style="focusLabel">近期需要关注</text><text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text></view><view :style="focusStats"><text :style="focusMeta">今天 {{ store.todayCount }}</text><text :style="focusMeta">逾期 {{ store.overdueCount }}</text></view></view>
-        <V2SectionHeader title="提醒列表" subtitle="发售节点与个人事项统一管理" :compact="true" />
+        <V2SectionHeader title="提醒列表" :compact="true" />
         <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
         <AppLoading v-if="store.loading" />
         <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
