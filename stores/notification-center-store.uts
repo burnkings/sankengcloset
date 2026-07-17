@@ -60,9 +60,9 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   const visibleItems = computed((): AppNotification[] => activeType.value === 'all' ? items.value : items.value.filter((item) => item.type === activeType.value))
 
   function reload() {
-    const readIds = readIds()
+    const savedReadIds = readIds()
     const next = mockNotifications()
-    for (let i = 0; i < next.length; i++) next[i].read = readIds.indexOf(next[i].id) >= 0
+    for (let i = 0; i < next.length; i++) next[i].read = savedReadIds.indexOf(next[i].id) >= 0
     items.value = next
   }
 
