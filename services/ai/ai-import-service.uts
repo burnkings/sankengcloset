@@ -6,6 +6,10 @@ function safeSuggestion(): AiImportSuggestion {
   const suggestion = new AiImportSuggestion()
   suggestion.name = '待确认单品'
   suggestion.category = 'OTHER'
+  suggestion.brand = ''
+  suggestion.priceCents = 0
+  suggestion.color = ''
+  suggestion.size = ''
   suggestion.note = '当前为 Mock 安全草稿，请根据图片自行确认所有字段。'
   return suggestion
 }
