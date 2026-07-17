@@ -67,6 +67,12 @@
       }
     },
     {
+      "path": "pages/budget/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/purchase/index",
       "style": {
         "navigationStyle": "custom"
