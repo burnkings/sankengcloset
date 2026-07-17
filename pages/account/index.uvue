@@ -69,7 +69,7 @@ function logout() {
   showFeedback('已退出，设备数据仍保留')
 }
 function queueMigration() {
-  enqueueLocalOperation(session.userId, 'local_asset_bundle', session.userId, 'migrate', 'favorites|brand_follows|post_likes|outfits|wardrobe|purchases|reminders|budget')
+  enqueueLocalOperation(session.userId, 'local_asset_bundle', session.userId, 'migrate', 'favorites|brand_follows|post_likes|outfits|wishlist|wardrobe|purchases|reminders|budget')
   session.markLocalAssetsQueued()
   sync.reload()
   showFeedback('本地资产已加入同步队列')
