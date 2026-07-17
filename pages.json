@@ -37,6 +37,24 @@
       }
     },
     {
+      "path": "pages/account/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/notification/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/sync/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/search/index",
       "style": {
         "navigationStyle": "custom"
