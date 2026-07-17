@@ -1,6 +1,4 @@
-/**
- * PurchaseRepo — 消费记录数据仓库
- */
+/** PurchaseRepo — 外部购买进度的本地数据仓库。 */
 
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 
@@ -32,26 +30,16 @@ function loadAll(): PurchaseRecord[] {
       r.updatedAt = obj.updatedAt ?? ''
       return r
     })
-  } catch {
+  } catch (e) {
     return []
   }
 }
 
-function saveAll(records: PurchaseRecord[]) {
-  uni.setStorageSync(STORAGE_KEY, JSON.stringify(records))
-}
+function saveAll(records: PurchaseRecord[]) { uni.setStorageSync(STORAGE_KEY, JSON.stringify(records)) }
+function generateId(): string { return `${Date.now()}-${Math.floor(Math.random() * 10000)}` }
 
-function generateId(): string {
-  return `${Date.now()}-${Math.floor(Math.random() * 10000)}`
-}
-
-export function getAll(): PurchaseRecord[] {
-  return loadAll().filter((r) => !r.isDeleted)
-}
-
-export function getById(id: string): PurchaseRecord | undefined {
-  return loadAll().find((r) => r.id == id && !r.isDeleted)
-}
+export function getAll(): PurchaseRecord[] { return loadAll().filter((r) => !r.isDeleted) }
+export function getById(id: string): PurchaseRecord | undefined { return loadAll().find((r) => r.id == id && !r.isDeleted) }
 
 export function add(record: PurchaseRecord): PurchaseRecord {
   const records = loadAll()
@@ -70,11 +58,16 @@ export function update(id: string, data: PurchaseUpdateData): boolean {
   if (idx < 0) return false
   const r = records[idx]
   if (data.name != '') r.name = data.name
-  if (data.brand != '') r.brand = data.brand
+  r.brand = data.brand
+  r.shopName = data.shopName
+  r.category = data.category
   if (data.totalAmount >= 0) r.totalAmount = data.totalAmount
+  if (data.depositAmount >= 0) r.depositAmount = data.depositAmount
   if (data.paidAmount >= 0) r.paidAmount = data.paidAmount
   if (data.paymentStatus != '') r.paymentStatus = data.paymentStatus
-  if (data.deadline != '') r.deadline = data.deadline
+  r.purchaseDate = data.purchaseDate
+  r.deadline = data.deadline
+  r.note = data.note
   r.remainingAmount = Math.max(0, r.totalAmount - r.paidAmount)
   r.updatedAt = new Date().toISOString()
   saveAll(records)
@@ -83,26 +76,27 @@ export function update(id: string, data: PurchaseUpdateData): boolean {
 
 export function softDelete(id: string): boolean {
   const records = loadAll()
-  const r = records.find((rec) => rec.id == id)
-  if (!r) return false
-  r.isDeleted = true
-  r.updatedAt = new Date().toISOString()
+  const record = records.find((item) => item.id == id)
+  if (record == null) return false
+  record.isDeleted = true
+  record.updatedAt = new Date().toISOString()
   saveAll(records)
   return true
 }
 
 export function initMockData() {
-  const existing = loadAll()
-  if (existing.length > 0) return
-
+  if (loadAll().length > 0) return
   const now = new Date().toISOString()
-  const mockData: PurchaseRecord[] = [
-    (() => { const r = new PurchaseRecord(); r.id = 'p1'; r.name = '深蓝格裙 45cm'; r.brand = '中牌'; r.shopName = '中牌制服馆'; r.totalAmount = 128; r.depositAmount = 30; r.paidAmount = 128; r.remainingAmount = 0; r.paymentStatus = 'COMPLETED'; r.purchaseDate = '2026-05-10'; r.deadline = ''; r.createdAt = now; r.updatedAt = now; return r })(),
-    (() => { const r = new PurchaseRecord(); r.id = 'p2'; r.name = '甜系草莓柄 SK'; r.brand = 'Alice兔'; r.shopName = 'Alice兔原创'; r.totalAmount = 680; r.depositAmount = 200; r.paidAmount = 200; r.remainingAmount = 480; r.paymentStatus = 'DEPOSIT_PAID'; r.purchaseDate = '2026-06-15'; r.deadline = '2026-08-15'; r.createdAt = now; r.updatedAt = now; return r })(),
-    (() => { const r = new PurchaseRecord(); r.id = 'p3'; r.name = '哥特十字架 JSK'; r.brand = 'BABY'; r.shopName = 'BABY天猫'; r.totalAmount = 1580; r.depositAmount = 500; r.paidAmount = 0; r.remainingAmount = 1580; r.paymentStatus = 'PRE_ORDER'; r.purchaseDate = '2026-07-01'; r.deadline = '2026-10-01'; r.createdAt = now; r.updatedAt = now; return r })(),
-    (() => { const r = new PurchaseRecord(); r.id = 'p4'; r.name = '宋制旋裙套装'; r.brand = '重回汉唐'; r.shopName = '重回汉唐旗舰店'; r.totalAmount = 320; r.depositAmount = 100; r.paidAmount = 100; r.remainingAmount = 220; r.paymentStatus = 'BALANCE_PENDING'; r.purchaseDate = '2026-06-20'; r.deadline = '2026-07-20'; r.createdAt = now; r.updatedAt = now; return r })(),
-    (() => { const r = new PurchaseRecord(); r.id = 'p5'; r.name = '明制马面裙'; r.brand = '汉尚华莲'; r.shopName = '汉尚华莲'; r.totalAmount = 450; r.depositAmount = 150; r.paidAmount = 450; r.remainingAmount = 0; r.paymentStatus = 'COMPLETED'; r.purchaseDate = '2026-04-01'; r.deadline = ''; r.createdAt = now; r.updatedAt = now; return r })(),
-    (() => { const r = new PurchaseRecord(); r.id = 'p6'; r.name = '蕾丝边夹套装'; r.brand = '表面咒语'; r.shopName = '表面咒语'; r.totalAmount = 260; r.depositAmount = 80; r.paidAmount = 0; r.remainingAmount = 260; r.paymentStatus = 'CANCELLED'; r.purchaseDate = '2026-05-20'; r.deadline = ''; r.createdAt = now; r.updatedAt = now; return r })(),
-  ]
-  saveAll(mockData)
+  const records: PurchaseRecord[] = []
+  function sample(id: string, name: string, brandName: string, total: number, paid: number, status: string, deadline: string): PurchaseRecord {
+    const r = new PurchaseRecord()
+    r.id = id; r.name = name; r.brand = brandName; r.shopName = `${brandName}官方渠道`; r.totalAmount = total; r.paidAmount = paid
+    r.remainingAmount = Math.max(0, total - paid); r.paymentStatus = status; r.deadline = deadline; r.createdAt = now; r.updatedAt = now
+    return r
+  }
+  records.push(sample('p1', '深蓝格裙 45cm', '兔缝缝', 128, 128, 'COMPLETED', ''))
+  records.push(sample('p2', '甜系草莓柄 SK', 'Alice兔', 680, 200, 'DEPOSIT_PAID', '2026-08-15'))
+  records.push(sample('p3', '哥特十字架 JSK', 'BABY', 1580, 0, 'PRE_ORDER', '2026-10-01'))
+  records.push(sample('p4', '宋制旋裙套装', '重回汉唐', 320, 100, 'BALANCE_PENDING', '2026-07-20'))
+  saveAll(records)
 }
