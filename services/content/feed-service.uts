@@ -17,7 +17,7 @@ export class FeedPage {
 export async function fetchFeedPage(pageIndex: number): Promise<FeedPage> {
   const config = getRuntimeConfig()
   if (!config.mockOnline) throw new Error('网络不可用，稍后重试')
-  await new Promise<void>((resolve) => setTimeout(() => resolve(), config.mockLatencyMs))
+  await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
 
   const result = new FeedPage()
   result.requestId = createRequestId('feed')
