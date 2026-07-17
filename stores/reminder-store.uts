@@ -97,7 +97,7 @@ export const useReminderStore = defineStore('reminder', () => {
     try {
       const added = repo.add(item)
       items.value = [...items.value, added]
-      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', added.id, 'create', '')
+      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', added.id, 'create', JSON.stringify(added))
       return added
     } catch (err) {
       error.value = String(err)
@@ -118,7 +118,7 @@ export const useReminderStore = defineStore('reminder', () => {
         if (data.status != '') existing.status = data.status
         existing.updatedAt = new Date().toISOString()
       }
-      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', '')
+      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify(data))
     }
     return ok
   }
