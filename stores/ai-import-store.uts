@@ -1,0 +1,51 @@
+import { AiImportTask, AI_IMPORT_IDLE, AI_IMPORT_PROCESSING, AI_IMPORT_READY, AI_IMPORT_FAILED, AI_IMPORT_CONFIRMED } from '@/domain/ai/ai-import-task'
+import { analyzeImportImage } from '@/services/ai/ai-import-service'
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+
+export const useAiImportStore = defineStore('aiImport', () => {
+  const state = ref(AI_IMPORT_IDLE)
+  const task = ref(null) as Ref<AiImportTask | null>
+  const errorMessage = ref('')
+
+  const processing = computed((): boolean => state.value === AI_IMPORT_PROCESSING)
+  const ready = computed((): boolean => state.value === AI_IMPORT_READY)
+
+  function reset() {
+    state.value = AI_IMPORT_IDLE
+    task.value = null
+    errorMessage.value = ''
+  }
+
+  async function analyze(sourceImage: string, useDemo: boolean): Promise<AiImportTask | null> {
+    state.value = AI_IMPORT_PROCESSING
+    errorMessage.value = ''
+    try {
+      const result = await analyzeImportImage(sourceImage, useDemo)
+      task.value = result
+      state.value = AI_IMPORT_READY
+      return result
+    } catch (e) {
+      state.value = AI_IMPORT_FAILED
+      errorMessage.value = e instanceof Error ? e.message : '识别任务失败，请重试'
+      return null
+    }
+  }
+
+  function confirm(targetType: string, targetId: string, confirmedPayload: string) {
+    if (task.value === null) return
+    task.value!.state = AI_IMPORT_CONFIRMED
+    task.value!.confirmedAt = String(Date.now())
+    task.value!.targetType = targetType
+    task.value!.targetId = targetId
+    state.value = AI_IMPORT_CONFIRMED
+    enqueueLocalOperation(
+      getCurrentSyncUserId(),
+      'ai_import_confirmation',
+      task.value!.taskId,
+      'confirm',
+      confirmedPayload,
+    )
+  }
+
+  return { state, task, errorMessage, processing, ready, reset, analyze, confirm }
+})
