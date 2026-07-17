@@ -101,7 +101,7 @@ function onManageTap(id: string) {
 function onSettingTap(id: string) {
   if (id === 'dark') {
     setDarkMode(!isDark.value)
-    syncTabBarChrome()
+    nextTick(() => { syncTabBarChrome() })
     return
   }
   if (id === 'cache') {
