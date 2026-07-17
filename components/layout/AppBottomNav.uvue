@@ -29,5 +29,9 @@ const itemStyle = { ...flexFill, height: '110rpx', alignItems: 'center', justify
 const iconStyle = { width: '48rpx', height: '48rpx' }
 function iconPath(id: string): string { return `/static/tabbar/tab-${id}${id === props.active ? '-active' : ''}.png` }
 function labelStyle(id: string) { return { fontSize: fontSize['2xs'], color: id === props.active ? brand[500] : n.value.textTertiary, marginTop: '4rpx' } }
-function open(id: string, url: string) { if (id !== props.active) uni.reLaunch({ url }) }
+function open(id: string, url: string) {
+  if (id === props.active) return
+  // App 一级导航页不是原生 tabBar 页面；替换当前页即可，无需重启整个页面栈。
+  uni.redirectTo({ url })
+}
 </script>
