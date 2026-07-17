@@ -34,6 +34,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import { showFeedback } from '@/utils/feedback'
 
 const store = useWardrobeStore()
 const searchValue = ref('')
@@ -48,7 +49,7 @@ const visibleItems = computed(() => {
 })
 function categoryLabel(value: string): string { return value === 'LOLITA' ? 'Lolita' : (value === 'HANFU' ? '汉服' : (value === 'JK' ? 'JK' : '其他')) }
 function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿' : (value === 'WORN' ? '已穿' : (value === 'FREQUENT' ? '常穿' : '')) }
-function goAdd() { uni.showToast({ title: '单品录入页将在下一轮接入', icon: 'none' }) }
+function goAdd() { showFeedback('单品录入正在准备中') }
 onMounted(() => { store.fetchItems() })
 watch(searchValue, (value) => { store.setSearch(value) })
 
