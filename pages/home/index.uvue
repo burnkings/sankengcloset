@@ -146,10 +146,10 @@
 
         <!-- Footer -->
         <!-- #ifdef MP-WEIXIN -->
-        <view>
+        <view v-if="showFeedFooter">
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
-        <list-item :type="'footer'">
+        <list-item v-if="showFeedFooter" :type="'footer'">
         <!-- #endif -->
           <view :style="footerWrap">
             <text :style="footerTxt">{{ store.isLoadingMore ? '加载中...' : (store.hasMore ? '上拉加载更多' : '已显示全部') }}</text>
@@ -240,6 +240,8 @@ function onTap(item: FeedItem) {
 }
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
+// 筛选后内容不足一屏时不展示“上拉加载更多/已显示全部”，避免制造虚假操作预期。
+const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
 onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
 onShow(() => { syncTabBarChrome() })
