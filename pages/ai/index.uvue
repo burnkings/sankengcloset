@@ -20,7 +20,7 @@
           <text :style="answerNote">当前为本地体验结果，接入 AI 服务后会结合衣橱、收藏和发售数据。</text>
         </view>
 
-        <V2SectionHeader title="六项专属能力" subtitle="每项解决不同的三坑决策" />
+        <V2SectionHeader title="六项专属能力" />
         <view :style="taskGrid">
           <view v-for="(task, idx) in tasks" :key="task.id" :style="taskCard(idx)" @tap="onTaskTap(task.id)">
             <view :style="taskIcon"><AppIcon :name="task.icon" :size="42" :active="true" /></view>
@@ -49,6 +49,7 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
@@ -68,13 +69,13 @@ const tasks = [
 function runAssistant() {
   const q = aiQuery.value.trim()
   if (q === '') {
-    uni.showToast({ title: '先描述你的需求', icon: 'none' })
+    showFeedback('先告诉绮灵你想找什么')
     return
   }
   answer.value = `已按「${q}」拆成风格、预算与使用场景。建议先从衣橱已有单品匹配，再检查近期发售节点，避免重复购买。`
 }
 function onTaskTap(id: string) {
-  if (id === 'identify') { uni.showToast({ title: '请选择一张待识别图片', icon: 'none' }); return }
+  if (id === 'identify') { showFeedback('先选一张想识别的商品图'); return }
   if (id === 'release') { uni.navigateTo({ url: '/pages/reminder/index' }); return }
   if (id === 'collection') { uni.navigateTo({ url: '/pages/favorites/index' }); return }
   if (id === 'budget') { openPrimaryTab('/pages/profile/index'); return }
