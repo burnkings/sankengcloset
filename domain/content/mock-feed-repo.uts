@@ -98,6 +98,7 @@ function makeProductFeed(idx: number): FeedItem {
   item.title = p.title
   item.subtitle = b.name
   item.coverUrl = '/static/demo/prod-editorial-' + String((idx % 3) + 1).padStart(2, '0') + '.jpg'
+  item.secondaryCoverUrl = '/static/demo/prod-editorial-' + String(((idx + 1) % 3) + 1).padStart(2, '0') + '.jpg'
   item.brandId = b.id
   item.brandName = b.name
   item.price = p.price
@@ -126,6 +127,7 @@ function makeEventFeed(idx: number): FeedItem {
   item.title = e.title
   item.subtitle = `${getEventTypeLabel(e.eventType)} · ${e.daysFromNow >= 0 ? e.daysFromNow + '天后' : Math.abs(e.daysFromNow) + '天前'}`
   item.coverUrl = idx % 2 == 0 ? '/static/demo/outfit-editorial-01.jpg' : '/static/demo/prod-editorial-02.jpg'
+  item.secondaryCoverUrl = idx % 2 == 0 ? '/static/demo/prod-editorial-03.jpg' : '/static/demo/outfit-editorial-01.jpg'
   item.brandId = b.id
   item.brandName = b.name
   item.price = e.price
