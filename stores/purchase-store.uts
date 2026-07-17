@@ -44,7 +44,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     try {
       const added = repo.add(record)
       items.value = [...items.value, added]
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', '')
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
       return added
     } catch (err) {
       error.value = String(err)
@@ -56,7 +56,7 @@ export const usePurchaseStore = defineStore('purchase', () => {
     const ok = repo.update(id, data)
     if (ok) {
       items.value = repo.getAll()
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', '')
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
     }
     return ok
   }
