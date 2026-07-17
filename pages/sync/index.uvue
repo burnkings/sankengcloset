@@ -1,0 +1,109 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="同步与备份" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="statusCard">
+          <view :style="statusTop">
+            <view :style="statusIcon"><AppIcon name="sync" :size="46" :active="sync.online" /></view>
+            <view :style="statusCopy">
+              <text :style="statusTitle">{{ sync.online ? 'Mock 服务在线' : '离线模拟中' }}</text>
+              <text :style="statusDesc">{{ sync.pendingCount }} 项本地操作等待同步</text>
+            </view>
+          </view>
+          <view :style="statusMetrics">
+            <view :style="metric"><text :style="metricValue">{{ sync.pendingCount }}</text><text :style="metricLabel">待同步</text></view>
+            <view :style="metric"><text :style="metricValue">{{ sync.lastSyncAt === '' ? '—' : formatSyncAt(sync.lastSyncAt) }}</text><text :style="metricLabel">最近完成</text></view>
+          </view>
+          <view :style="primaryButton(sync.syncing || !sync.hasPending)" @tap="runSync"><text :style="primaryText">{{ sync.syncing ? '同步中…' : (sync.hasPending ? '立即同步' : '队列已清空') }}</text></view>
+        </view>
+
+        <V2SectionHeader title="开发模拟" />
+        <V2ListGroup>
+          <view :style="rowDivider" @tap="toggleOnline"><V2ListRow icon="sync" label="Mock 网络" :subtitle="sync.online ? '可消费同步队列' : '失败后保留操作并增加重试次数'" :value="sync.online ? '在线' : '离线'" :show-arrow="false" /></view>
+          <view @tap="openAccount"><V2ListRow icon="profile" label="数据归属" :value="session.isLoggedIn ? session.profile.nickname : '本地访客'" /></view>
+        </V2ListGroup>
+
+        <V2SectionHeader title="操作队列" />
+        <view v-if="sync.operations.length === 0" :style="emptyQueue"><text :style="emptyTitle">没有待同步操作</text><text :style="emptyDesc">收藏、关注、点赞和晒搭修改会自动进入这里。</text></view>
+        <view v-for="op in sync.operations" :key="op.opId" :style="operationCard">
+          <view :style="operationTop"><text :style="operationTitle">{{ operationLabel(op.entityType, op.action) }}</text><text :style="operationStatus">{{ op.status === 'failed' ? '等待重试' : '待同步' }}</text></view>
+          <text :style="operationMeta">{{ op.entityId }} · {{ op.deviceId }}</text>
+          <text v-if="op.retryCount > 0" :style="retryText">已重试 {{ op.retryCount }} 次</text>
+        </view>
+
+        <view :style="boundaryCard"><text :style="boundaryText">这里演示离线优先和幂等队列。当前“同步成功”只表示 Mock Adapter 已消费操作；接入后端后，将由服务端回执、版本号和冲突记录替代。</text></view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { useSyncStore } from '@/stores/sync-store'
+import { useSessionStore } from '@/stores/session-store'
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import V2ListRow from '@/components/v2/V2ListRow.uvue'
+
+const sync = useSyncStore()
+const session = useSessionStore()
+
+async function runSync() {
+  if (sync.syncing || !sync.hasPending) return
+  const before = sync.pendingCount
+  const count = await sync.syncNow()
+  if (count > 0) showFeedback(`已同步 ${count} 项 Mock 操作`)
+  else if (before > 0) showFeedback(sync.errorMessage !== '' ? sync.errorMessage : '同步未完成')
+}
+function toggleOnline() { sync.setOnline(!sync.online); sync.reload() }
+function openAccount() { uni.navigateTo({ url: '/pages/account/index' }) }
+function formatSyncAt(value: string): string {
+  const time = parseInt(value)
+  if (isNaN(time)) return '—'
+  const date = new Date(time)
+  const minute = date.getMinutes()
+  return `${date.getHours()}:${minute < 10 ? '0' + String(minute) : String(minute)}`
+}
+function operationLabel(type: string, action: string): string {
+  const entity = type === 'favorite' ? '商品收藏' : (type === 'brand_follow' ? '品牌关注' : (type === 'post_like' ? '晒搭喜欢' : (type === 'outfit' ? '晒搭内容' : '本地资产')))
+  return `${entity} · ${action === 'delete' ? '删除' : (action === 'create' ? '创建' : '更新')}`
+}
+onShow(() => { sync.reload(); session.reload() })
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const statusCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const statusTop = { ...flexRow, alignItems: 'center' }
+const statusIcon = computed((): any => ({ width: '80rpx', height: '80rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center', marginRight: '18rpx' }))
+const statusCopy = { ...flexFill }
+const statusTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const statusDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '7rpx' }))
+const statusMetrics = { ...flexRow, marginTop: '24rpx' }
+const metric = computed((): any => ({ ...flexFill, padding: '16rpx', borderRadius: '18rpx', backgroundColor: n.value.surface, marginRight: '10rpx' }))
+const metricValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text }))
+const metricLabel = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '6rpx' }))
+function primaryButton(disabled: boolean) { return { height: '80rpx', borderRadius: '40rpx', backgroundColor: disabled ? n.value.bgTertiary : brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '22rpx' } }
+const primaryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const rowDivider = computed((): any => ({ borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.divider }))
+const emptyQueue = computed((): any => ({ padding: '30rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, alignItems: 'center' }))
+const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const operationCard = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '12rpx' }))
+const operationTop = { ...flexRow }
+const operationTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const operationStatus = { fontSize: fontSize.xs, color: brand[600] }
+const operationMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))
+const retryText = { fontSize: fontSize['2xs'], color: brand[700], marginTop: '7rpx' }
+const boundaryCard = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
+const boundaryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '36rpx' }))
+</script>
+
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
