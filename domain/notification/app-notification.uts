@@ -1,0 +1,14 @@
+export const NOTICE_RELEASE = 'release'
+export const NOTICE_PRICE = 'price'
+export const NOTICE_SOCIAL = 'social'
+export const NOTICE_SYSTEM = 'system'
+
+export class AppNotification {
+  id: string = ''
+  type: string = NOTICE_SYSTEM
+  title: string = ''
+  body: string = ''
+  createdAt: string = ''
+  actionTarget: string = ''
+  read: boolean = false
+}
