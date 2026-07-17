@@ -47,7 +47,7 @@
         <list-item :type="'categoryFilters'">
         <!-- #endif -->
           <view :style="categoryFilterWrap">
-            <V2FilterChips :items="categories" :active="store.currentCategory" @change="onCategoryTap" />
+            <V2FilterChips :items="categories" :active="store.currentCategory" :edge-inset="true" @change="onCategoryTap" />
           </view>
         <!-- #ifdef MP-WEIXIN -->
         </view>
