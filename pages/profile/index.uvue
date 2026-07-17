@@ -3,11 +3,11 @@
     <template #navbar><V2PageHeader title="我的" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view v-if="isLoggedIn" :style="profileCard">
+        <view v-if="session.isLoggedIn" :style="profileCard">
           <view :style="avatarWrap"><text :style="avatarText">SK</text></view>
           <view :style="profileCopy">
-            <text :style="userName">三坑女孩</text>
-            <text :style="accountId">ID: sk_0001</text>
+            <text :style="userName">{{ session.profile.nickname }}</text>
+            <text :style="accountId">ID: {{ session.profile.userId }}</text>
           </view>
           <view :style="editButton" @tap="onEdit"><text :style="editText">编辑</text></view>
         </view>
@@ -87,26 +87,28 @@ import { usePurchaseStore } from '@/stores/purchase-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBudgetStore } from '@/stores/budget-store'
+import { useSessionStore } from '@/stores/session-store'
+import { useSyncStore } from '@/stores/sync-store'
+import { useNotificationCenterStore } from '@/stores/notification-center-store'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const selectedTastes = ref(['JK', 'Lolita', '汉服'])
-const isLoggedIn = ref(false)
 const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
 const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
+const session = useSessionStore()
+const sync = useSyncStore()
+const notices = useNotificationCenterStore()
 
-function onEdit() { showFeedback('当前为本地体验账号') }
-function loginPreview() {
-  isLoggedIn.value = true
-  uni.setStorageSync('sk_login_preview', 'logged_in')
-}
+function onEdit() { uni.navigateTo({ url: '/pages/account/index' }) }
+function loginPreview() { uni.navigateTo({ url: '/pages/account/index' }) }
 function logoutPreview() {
-  isLoggedIn.value = false
-  uni.setStorageSync('sk_login_preview', 'logged_out')
+  session.logout()
+  showFeedback('已退出，设备数据仍保留')
 }
 function goPage(url: string) { uni.navigateTo({ url }) }
 function openCommunity() { openPrimaryTab('/pages/community/index') }
@@ -129,15 +131,9 @@ function onSettingTap(id: string) {
     showFeedback('缓存已清理')
     return
   }
-  if (id === 'notification') {
-    // #ifdef MP-WEIXIN
-    uni.openSetting({})
-    // #endif
-    // #ifdef APP
-    showFeedback('请在系统设置中管理通知权限')
-    // #endif
-    return
-  }
+  if (id === 'notification') { uni.navigateTo({ url: '/pages/notification/index' }); return }
+  if (id === 'account') { uni.navigateTo({ url: '/pages/account/index' }); return }
+  if (id === 'sync') { uni.navigateTo({ url: '/pages/sync/index' }); return }
   if (id === 'ai') { openPrimaryTab('/pages/ai/index'); return }
   if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
   if (id === 'about') { showFeedback('三坑绮橱 V2.0 内容闭环版'); return }
@@ -160,12 +156,11 @@ function toggleTaste(name: string) {
 
 onMounted(() => {
   try {
-    isLoggedIn.value = (uni.getStorageSync('sk_login_preview') as string) === 'logged_in'
     const saved = uni.getStorageSync('content_preferences') as string
     if (saved !== '') selectedTastes.value = saved.split(',')
   } catch (e) {}
 })
-onShow(() => { library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems(); syncTabBarChrome() })
+onShow(() => { session.reload(); sync.reload(); notices.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems(); syncTabBarChrome() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
@@ -224,14 +219,16 @@ function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: f
 
 const settingsItems = computed(() => {
   const items = [
-    { id: 'notification', icon: 'notification', label: '通知', value: '' },
+    { id: 'account', icon: 'profile', label: '账号与本地数据', value: session.isLoggedIn ? '体验账号' : '未登录' },
+    { id: 'notification', icon: 'notification', label: '通知中心', value: notices.unreadCount > 0 ? `${notices.unreadCount} 条未读` : '' },
+    { id: 'sync', icon: 'sync', label: '同步与备份', value: sync.pendingCount > 0 ? `${sync.pendingCount} 项待同步` : '' },
     { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭' },
     { id: 'ai', icon: 'sparkles', label: 'AI 设置', value: '' },
     { id: 'cache', icon: 'database', label: '清理缓存', value: '' },
     { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '' },
     { id: 'about', icon: 'info', label: '关于', value: '' },
   ]
-  if (isLoggedIn.value) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '' })
+  if (session.isLoggedIn) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '' })
   return items
 })
 function settingShell(idx: number) { return { borderBottomWidth: idx < settingsItems.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
