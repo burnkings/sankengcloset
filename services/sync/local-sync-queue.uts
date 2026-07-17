@@ -1,0 +1,117 @@
+import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-operation'
+import { getRuntimeConfig } from '@/config/runtime'
+
+const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
+const PREFIX = 'v21_sync_op_'
+const DEVICE_KEY = 'v21_device_id'
+
+function readString(key: string): string {
+  try {
+    const value = uni.getStorageSync(key)
+    return value == null ? '' : String(value)
+  } catch (e) {
+    return ''
+  }
+}
+
+function readIds(): string[] {
+  const raw = readString(QUEUE_IDS_KEY)
+  return raw === '' ? [] : raw.split(',').filter((id) => id !== '')
+}
+
+function writeIds(ids: string[]) {
+  uni.setStorageSync(QUEUE_IDS_KEY, ids.join(','))
+}
+
+function key(id: string, field: string): string {
+  return `${PREFIX}${id}_${field}`
+}
+
+function writeOperation(op: SyncOperation) {
+  uni.setStorageSync(key(op.opId, 'user'), op.userId)
+  uni.setStorageSync(key(op.opId, 'device'), op.deviceId)
+  uni.setStorageSync(key(op.opId, 'entity_type'), op.entityType)
+  uni.setStorageSync(key(op.opId, 'entity_id'), op.entityId)
+  uni.setStorageSync(key(op.opId, 'action'), op.action)
+  uni.setStorageSync(key(op.opId, 'payload'), op.payload)
+  uni.setStorageSync(key(op.opId, 'created_at'), op.createdAt)
+  uni.setStorageSync(key(op.opId, 'retry'), String(op.retryCount))
+  uni.setStorageSync(key(op.opId, 'status'), op.status)
+}
+
+function readOperation(id: string): SyncOperation {
+  const op = new SyncOperation()
+  op.opId = id
+  op.userId = readString(key(id, 'user'))
+  op.deviceId = readString(key(id, 'device'))
+  op.entityType = readString(key(id, 'entity_type'))
+  op.entityId = readString(key(id, 'entity_id'))
+  op.action = readString(key(id, 'action'))
+  op.payload = readString(key(id, 'payload'))
+  op.createdAt = readString(key(id, 'created_at'))
+  op.retryCount = parseInt(readString(key(id, 'retry'))) || 0
+  op.status = readString(key(id, 'status')) || SYNC_PENDING
+  return op
+}
+
+function removeOperation(id: string) {
+  const fields = ['user', 'device', 'entity_type', 'entity_id', 'action', 'payload', 'created_at', 'retry', 'status']
+  for (let i = 0; i < fields.length; i++) uni.removeStorageSync(key(id, fields[i]))
+}
+
+export function getOrCreateDeviceId(): string {
+  const saved = readString(DEVICE_KEY)
+  if (saved !== '') return saved
+  const id = `device_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+  uni.setStorageSync(DEVICE_KEY, id)
+  return id
+}
+
+export function enqueueLocalOperation(userId: string, entityType: string, entityId: string, action: string, payload: string): string {
+  const op = new SyncOperation()
+  op.opId = `op_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+  op.userId = userId
+  op.deviceId = getOrCreateDeviceId()
+  op.entityType = entityType
+  op.entityId = entityId
+  op.action = action
+  op.payload = payload
+  op.createdAt = String(Date.now())
+  op.status = SYNC_PENDING
+  writeOperation(op)
+  const ids = readIds()
+  ids.push(op.opId)
+  writeIds(ids)
+  return op.opId
+}
+
+export function readPendingOperations(): SyncOperation[] {
+  const ids = readIds()
+  const result: SyncOperation[] = []
+  for (let i = 0; i < ids.length; i++) result.push(readOperation(ids[i]))
+  return result
+}
+
+export async function flushLocalOperations(): Promise<number> {
+  const config = getRuntimeConfig()
+  const ids = readIds()
+  if (ids.length === 0) return 0
+  if (!config.mockOnline) {
+    for (let i = 0; i < ids.length; i++) {
+      const op = readOperation(ids[i])
+      op.status = SYNC_FAILED
+      op.retryCount += 1
+      writeOperation(op)
+    }
+    throw new Error('当前为离线模拟，操作已保留')
+  }
+  await new Promise<void>((resolve) => setTimeout(() => resolve(), config.mockLatencyMs))
+  for (let i = 0; i < ids.length; i++) removeOperation(ids[i])
+  writeIds([])
+  uni.setStorageSync('v21_sync_last_success_at', String(Date.now()))
+  return ids.length
+}
+
+export function getLastSyncAt(): string {
+  return readString('v21_sync_last_success_at')
+}
