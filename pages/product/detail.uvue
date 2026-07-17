@@ -33,7 +33,7 @@
     </template>
   </MainLayout>
   <view v-if="item !== null" :style="actionBar">
-    <view :style="minorButton" @tap="saveItem"><AppIcon name="wardrobe" :size="36" /><text :style="minorText">收藏</text></view>
+    <view :style="minorButton" @tap="saveItem"><AppIcon name="wardrobe" :size="36" :active="isSaved" /><text :style="minorText">{{ isSaved ? '已收藏' : '收藏' }}</text></view>
     <view :style="minorButton" @tap="askAI"><AppIcon name="sparkles" :size="36" /><text :style="minorText">问绮灵</text></view>
     <view :style="officialButton" @tap="openOfficial"><text :style="officialText">前往官方渠道</text></view>
   </view>
@@ -43,6 +43,7 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { getFirstPage } from '@/domain/content/mock-feed-repo'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
+import { useContentLibraryStore } from '@/stores/content-library-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -59,11 +60,13 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 const itemId = ref('')
+const library = useContentLibraryStore()
 const sourceItems = getFirstPage()
 const item = computed((): FeedItem | null => {
   const found = sourceItems.find((entry) => entry.entityId === itemId.value || entry.id === itemId.value)
   return found ?? null
 })
+const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
 const stages = ['图透', '定金', '尾款', '现货']
 const currentImageIndex = ref(0)
 const detailImages = computed((): string[] => {
@@ -81,7 +84,11 @@ const detailImages = computed((): string[] => {
   return images
 })
 function onGalleryChange(e: any) { currentImageIndex.value = (e.detail as any).current ?? 0 }
-function saveItem() { showFeedback('已收进心动收藏') }
+function saveItem() {
+  if (item.value === null) return
+  const saved = library.toggleFavorite(item.value!.entityId)
+  showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
+}
 function askAI() { openPrimaryTab('/pages/ai/index') }
 function openOfficial() { showFeedback('官方购买入口接入后可跳转') }
 onMounted(() => {
