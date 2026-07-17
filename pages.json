@@ -19,6 +19,12 @@
       }
     },
     {
+      "path": "pages/ai/import",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/favorites/index",
       "style": {
         "navigationStyle": "custom"
