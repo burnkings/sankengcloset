@@ -4,20 +4,22 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="welcomeCard">
-          <text :style="welcomeTitle">今天想找什么灵感？</text>
-          <text :style="welcomeDesc">描述场合、预算和风格，绮灵会给出可执行建议</text>
+          <text :style="welcomeTitle">把想法变成购买与搭配决策</text>
+          <text :style="welcomeDesc">写清场合、预算或发售节点，先由本机规则给出可解释建议</text>
           <view :style="inputRow">
-            <view :style="inputShell">
-              <AppInput v-model="aiQuery" placeholder="例如：800元内的夏日茶会搭配" confirm-type="search" :clearable="true" @confirm="runAssistant" />
-            </view>
+            <view :style="inputShell"><AppInput v-model="aiQuery" placeholder="例如：800元内的夏日茶会搭配" confirm-type="search" :clearable="true" @confirm="runAssistant" /></view>
             <view :style="sendButton" @tap="runAssistant"><AppIcon name="arrow-right" :size="38" :active="true" /></view>
           </view>
         </view>
 
-        <view v-if="answer !== ''" :style="answerCard">
-          <view :style="answerTop"><AppIcon name="sparkles" :size="34" :active="true" /><text :style="answerTitle">绮灵建议</text></view>
-          <text :style="answerText">{{ answer }}</text>
-          <text :style="answerNote">当前为本地体验结果，接入 AI 服务后会结合衣橱、收藏和发售数据。</text>
+        <view v-if="result !== null" :style="answerCard">
+          <view :style="answerTop"><AppIcon name="sparkles" :size="34" :active="true" /><text :style="answerTitle">{{ result!.title }}</text></view>
+          <text :style="answerText">{{ result!.summary }}</text>
+          <view :style="evidenceList">
+            <view v-for="evidence in result!.evidence" :key="evidence" :style="evidenceRow"><view :style="evidenceDot" /><text :style="evidenceText">{{ evidence }}</text></view>
+          </view>
+          <view :style="answerAction" @tap="runResultAction"><text :style="answerActionText">{{ result!.actionLabel }}</text><AppIcon name="arrow-right" :size="30" :active="true" /></view>
+          <text :style="answerNote">本地决策结果 · 不替代品牌官方信息</text>
         </view>
 
         <V2SectionHeader title="六项专属能力" />
@@ -28,7 +30,6 @@
             <text :style="taskDesc">{{ task.desc }}</text>
           </view>
         </view>
-
       </view>
     </template>
   </MainLayout>
@@ -38,68 +39,91 @@
 </template>
 
 <script setup lang="uts">
+import { AiDecisionResult, buildLocalDecision, buildImageBoundaryResult } from '@/domain/ai/local-decision-engine'
+import { useContentLibraryStore } from '@/stores/content-library-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow } from '@/theme/layout/flex'
+import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
+import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
+const library = useContentLibraryStore()
 const aiQuery = ref('')
-const answer = ref('')
-
+const result = ref(null) as Ref<AiDecisionResult | null>
 const tasks = [
-  { id: 'identify', icon: 'camera', name: '图片识款', desc: '从照片识别品牌、款名与版型' },
-  { id: 'outfit', icon: 'wand', name: '衣橱搭配', desc: '按场合、天气组合已有单品' },
-  { id: 'alternative', icon: 'search', name: '平替雷达', desc: '针对已知款寻找相近低价选择' },
-  { id: 'collection', icon: 'grid', name: '收藏画像', desc: '分析偏好、重复款和风格缺口' },
-  { id: 'budget', icon: 'budget', name: '预算守门', desc: '评估本次购买对月预算的影响' },
-  { id: 'release', icon: 'notification', name: '发售雷达', desc: '跟踪图透、定金、尾款与现货' },
+  { id: 'identify', icon: 'camera', name: '图片识款', desc: '视觉模型边界清晰，不编造款名' },
+  { id: 'outfit', icon: 'wand', name: '衣橱搭配', desc: '按场合复用已有单品' },
+  { id: 'alternative', icon: 'search', name: '平替雷达', desc: '按版型、总价与状态比较' },
+  { id: 'collection', icon: 'grid', name: '收藏画像', desc: '识别偏好与重复购买风险' },
+  { id: 'budget', icon: 'budget', name: '预算守门', desc: '把定金和尾款一起计算' },
+  { id: 'release', icon: 'notification', name: '发售雷达', desc: '拆分图透、定金、尾款与现货' },
 ]
 
 function runAssistant() {
-  const q = aiQuery.value.trim()
-  if (q === '') {
-    showFeedback('先告诉绮灵你想找什么')
-    return
-  }
-  answer.value = `已按「${q}」拆成风格、预算与使用场景。建议先从衣橱已有单品匹配，再检查近期发售节点，避免重复购买。`
+  const query = aiQuery.value.trim()
+  if (query === '') { showFeedback('写下场合、预算或发售问题'); return }
+  result.value = buildLocalDecision(query, library.favoriteCount, library.followedBrandCount, library.outfitCount)
+}
+function identifyImage() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: () => { result.value = buildImageBoundaryResult() },
+    fail: () => {},
+  })
 }
 function onTaskTap(id: string) {
-  if (id === 'identify') { showFeedback('先选一张想识别的商品图'); return }
-  if (id === 'release') { uni.navigateTo({ url: '/pages/reminder/index' }); return }
-  if (id === 'collection') { uni.navigateTo({ url: '/pages/favorites/index' }); return }
-  if (id === 'budget') { openPrimaryTab('/pages/profile/index'); return }
-  const preset = id === 'outfit' ? '用我的衣橱搭配周末茶会造型' : '为月光曲 JSK 寻找更低价的相似款'
+  if (id === 'identify') { identifyImage(); return }
+  const preset = id === 'outfit' ? '用我的衣橱搭配周末茶会造型'
+    : (id === 'alternative' ? '为月光曲 JSK 找更低价的相似款'
+    : (id === 'collection' ? '分析我的收藏偏好和重复款'
+    : (id === 'budget' ? '800元预算内这次购买是否合适' : '整理近期预约和尾款提醒')))
   aiQuery.value = preset
   runAssistant()
 }
-
-onShow(() => { syncTabBarChrome() })
+function runResultAction() {
+  if (result.value === null) return
+  const target = result.value!.actionTarget
+  if (target === 'purchase') { uni.navigateTo({ url: '/pages/purchase/index' }); return }
+  if (target === 'reminder') { uni.navigateTo({ url: '/pages/reminder/index' }); return }
+  if (target === 'wardrobe') { uni.navigateTo({ url: '/pages/wardrobe/index' }); return }
+  if (target === 'favorites') { uni.navigateTo({ url: '/pages/favorites/index' }); return }
+  if (target === 'community') { openPrimaryTab('/pages/community/index'); return }
+  openPrimaryTab('/pages/discover/index')
+}
+onShow(() => { syncTabBarChrome(); library.reload() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const welcomeCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
-const welcomeTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: isDark.value ? brand[200] : brand[700] }))
+const welcomeTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: isDark.value ? brand[200] : brand[700], lineHeight: '46rpx' }))
 const welcomeDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '8rpx', lineHeight: '38rpx' }))
 const inputRow = { ...flexRow, marginTop: '22rpx' }
 const inputShell = { width: '534rpx', flexShrink: 0, marginRight: '12rpx' }
 const sendButton = computed((): any => ({ width: '84rpx', height: '80rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 const answerCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: isDark.value ? n.value.divider : brand[100] }))
 const answerTop = { ...flexRow, alignItems: 'center' }
-const answerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '10rpx' }))
+const answerTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '10rpx' }))
 const answerText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx', marginTop: '14rpx' }))
-const answerNote = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, lineHeight: '34rpx', marginTop: '12rpx' }))
+const evidenceList = { marginTop: '14rpx' }
+const evidenceRow = { ...flexRow, alignItems: 'flex-start', marginBottom: '8rpx' }
+const evidenceDot = { width: '8rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[500], marginTop: '14rpx', marginRight: '12rpx', flexShrink: 0 }
+const evidenceText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
+const answerAction = computed((): any => ({ ...flexRow, height: '68rpx', paddingLeft: '22rpx', paddingRight: '18rpx', borderRadius: '34rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'space-between', marginTop: '14rpx' }))
+const answerActionText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }
+const answerNote = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '12rpx' }))
 const taskGrid = { ...flexRow, flexWrap: 'wrap' as string }
-function taskCard(idx: number) { return { width: '325rpx', minHeight: '178rpx', padding: '22rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+function taskCard(idx: number) { return { width: '325rpx', minHeight: '184rpx', padding: '22rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const taskIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center' }))
 const taskName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
 const taskDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx', lineHeight: '32rpx' }))
