@@ -1,0 +1,51 @@
+import { AiImportTask, AiImportSuggestion, AI_IMPORT_READY } from '@/domain/ai/ai-import-task'
+import { createRequestId } from '@/domain/platform/api-contract'
+import { getRuntimeConfig } from '@/config/runtime'
+
+function safeSuggestion(): AiImportSuggestion {
+  const suggestion = new AiImportSuggestion()
+  suggestion.name = '待确认单品'
+  suggestion.category = 'OTHER'
+  suggestion.note = '当前为 Mock 安全草稿，请根据图片自行确认所有字段。'
+  return suggestion
+}
+
+function demoSuggestion(): AiImportSuggestion {
+  const suggestion = new AiImportSuggestion()
+  suggestion.name = '深蓝格裙 45cm'
+  suggestion.category = 'JK'
+  suggestion.brand = '兔缝缝'
+  suggestion.priceCents = 12800
+  suggestion.color = '深蓝'
+  suggestion.size = 'M'
+  suggestion.note = '示例识别草稿，仅用于验证确认与导入流程。'
+  return suggestion
+}
+
+/**
+ * 当前只实现可替换的 Mock Adapter。
+ * 真实图片不会被伪造识别；Remote 接入时保持返回模型不变。
+ */
+export async function analyzeImportImage(sourceImage: string, useDemo: boolean): Promise<AiImportTask> {
+  if (sourceImage === '') throw new Error('请先选择图片')
+  const config = getRuntimeConfig()
+  if (!config.mockOnline) throw new Error('当前离线，识别任务尚未提交')
+  await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, Math.max(360, config.mockLatencyMs)) })
+
+  const task = new AiImportTask()
+  task.taskId = `ai_import_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+  task.state = AI_IMPORT_READY
+  task.sourceImage = sourceImage
+  task.sourceMode = useDemo ? 'mock_demo' : 'mock_safe'
+  task.requestId = createRequestId('ai_import')
+  task.createdAt = String(Date.now())
+  task.suggestion = useDemo ? demoSuggestion() : safeSuggestion()
+  task.confidence = useDemo ? 0.88 : 0.18
+  task.evidence = useDemo
+    ? ['示例素材：轮廓接近制服格裙', '示例素材：主色为深蓝', '示例数据：品牌与价格来自本地演示集']
+    : ['Mock 未读取真实图片像素', '品牌、价格和尺码保持空白', '用户确认后才会写入个人数据']
+  task.warnings = useDemo
+    ? ['这是固定示例结果，不代表真实模型准确率']
+    : ['当前未连接视觉模型，请逐项人工确认']
+  return task
+}
