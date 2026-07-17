@@ -1,0 +1,35 @@
+/** V2.1 客户端与未来服务端共享的基础契约。 */
+
+export const API_OK = 'OK'
+export const API_OFFLINE = 'OFFLINE'
+export const API_UNAUTHORIZED = 'UNAUTHORIZED'
+export const API_NOT_FOUND = 'NOT_FOUND'
+export const API_CONFLICT = 'CONFLICT'
+export const API_RATE_LIMITED = 'RATE_LIMITED'
+export const API_VALIDATION_FAILED = 'VALIDATION_FAILED'
+export const API_SERVER_ERROR = 'SERVER_ERROR'
+
+export class ApiProblem {
+  code: string = API_OK
+  message: string = ''
+  requestId: string = ''
+  retryable: boolean = false
+}
+
+export class CursorPageInfo {
+  nextCursor: string = ''
+  hasMore: boolean = false
+  totalHint: number = 0
+}
+
+export class MutationReceipt {
+  ok: boolean = false
+  requestId: string = ''
+  operationId: string = ''
+  serverVersion: number = 0
+  problem: ApiProblem | null = null
+}
+
+export function createRequestId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+}
