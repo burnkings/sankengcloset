@@ -11,12 +11,12 @@
         </view>
         <V2FilterChips :items="topics" :active="activeTopic" @change="onTopicChange" />
 
-        <view v-if="localImage !== '' && topicVisible(localTopic)" :style="lookCard" @tap="goCreate">
-          <view :style="heroImage"><AppImage :src="localImage" width="100%" height="100%" mode="aspectFill" /></view>
+        <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
           <view :style="lookBody">
             <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的晒搭</text><text :style="timeText">刚刚</text></view>
-            <text :style="lookCaption">{{ localCaption !== '' ? localCaption : '今天也认真搭配了' }}</text>
-            <text :style="topicText">#{{ localTopic }}</text>
+            <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
+            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view>
           </view>
         </view>
 
@@ -48,35 +48,31 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const activeTopic = ref('全部')
-const localImage = ref('')
-const localCaption = ref('')
-const localTopic = ref('今日穿搭')
+const library = useContentLibraryStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const looks = [
   { id: 'l1', image: '/static/demo/outfit-editorial-01.jpg', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', likes: 126 },
   { id: 'l2', image: '/static/demo/prod-editorial-01.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', likes: 89 },
 ]
 const visibleLooks = computed(() => activeTopic.value === '全部' ? looks : looks.filter((item) => item.topic === activeTopic.value))
-function topicVisible(topic: string): boolean { return activeTopic.value === '全部' || activeTopic.value === topic }
+const visibleUserLooks = computed((): SavedOutfitPost[] => activeTopic.value === '全部' ? library.outfitPosts : library.outfitPosts.filter((item) => item.topic === activeTopic.value))
 function onTopicChange(topic: string) { activeTopic.value = topic }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 onShow(() => {
   syncTabBarChrome()
+  library.reload()
   try {
     const pendingTopic = uni.getStorageSync('community_topic') as string
     if (pendingTopic !== '') {
       activeTopic.value = pendingTopic
       uni.removeStorageSync('community_topic')
     }
-    localImage.value = uni.getStorageSync('local_outfit_image') as string
-    localCaption.value = uni.getStorageSync('local_outfit_caption') as string
-    const savedTopic = uni.getStorageSync('local_outfit_topic') as string
-    if (savedTopic !== '') localTopic.value = savedTopic
   } catch (e) {}
 })
 
@@ -101,6 +97,7 @@ const lookCaption = computed((): any => ({ fontSize: fontSize.sm, color: n.value
 const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx' }
 const topicText = { fontSize: fontSize.xs, color: brand[600], marginTop: '10rpx' }
 const likeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const categoryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
 </script>
 
 <style>
