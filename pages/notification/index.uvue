@@ -1,0 +1,93 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="通知中心" :show-back="true"><template #right><text v-if="notices.unreadCount > 0" :style="readAllText" @tap="readAll">全部已读</text></template></AppNavbar></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <V2FilterChips :items="filterLabels" :active="activeLabel" @change="onFilter" />
+        <view v-if="notices.visibleItems.length === 0" :style="emptyCard">
+          <AppIcon name="notification" :size="52" />
+          <text :style="emptyTitle">当前没有这类通知</text>
+        </view>
+        <view v-for="notice in notices.visibleItems" :key="notice.id" :style="noticeCard(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
+          <view :style="noticeIcon(notice.type)"><AppIcon :name="iconName(notice.type)" :size="40" :active="!notice.read" /></view>
+          <view :style="noticeCopy">
+            <view :style="noticeTop"><text :style="noticeTitle(notice.read)">{{ notice.title }}</text><view v-if="!notice.read" :style="unreadDot" /></view>
+            <text :style="noticeBody">{{ notice.body }}</text>
+            <text :style="noticeTime">{{ formatTime(notice.createdAt) }}</text>
+          </view>
+          <AppIcon name="chevron-right" :size="30" />
+        </view>
+        <view :style="sourceNote"><text :style="sourceText">当前通知由本地 Mock 生成，用于验证分类、已读和跳转；系统推送将在服务端接入后启用。</text></view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { useNotificationCenterStore } from '@/stores/notification-center-store'
+import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL } from '@/domain/notification/app-notification'
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
+import { openPrimaryTab } from '@/utils/tab-navigation'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+
+const notices = useNotificationCenterStore()
+const activeLabel = ref('全部')
+const filterLabels = ['全部', '发售', '降价', '互动', '系统']
+
+function typeForLabel(label: string): string {
+  if (label === '发售') return 'release'
+  if (label === '降价') return 'price'
+  if (label === '互动') return 'social'
+  if (label === '系统') return 'system'
+  return 'all'
+}
+function onFilter(label: string) { activeLabel.value = label; notices.setType(typeForLabel(label)) }
+function readAll() { notices.markAllRead(); showFeedback('通知已全部标为已读') }
+function openNotice(id: string, target: string) {
+  notices.markRead(id)
+  if (target === '') return
+  if (target === '/pages/community/index') { openPrimaryTab(target); return }
+  uni.navigateTo({ url: target })
+}
+function iconName(type: string): string {
+  if (type === NOTICE_RELEASE) return 'notification'
+  if (type === NOTICE_PRICE) return 'budget'
+  if (type === NOTICE_SOCIAL) return 'heart'
+  return 'info'
+}
+function formatTime(value: string): string {
+  const time = parseInt(value)
+  if (isNaN(time)) return ''
+  const diff = Math.max(0, Date.now() - time)
+  const hour = Math.floor(diff / 3600000)
+  if (hour < 1) return `${Math.max(1, Math.floor(diff / 60000))} 分钟前`
+  if (hour < 24) return `${hour} 小时前`
+  return `${Math.floor(hour / 24)} 天前`
+}
+onShow(() => notices.reload())
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
+function noticeCard(read: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx' } }
+function noticeIcon(type: string) { return { width: '72rpx', height: '72rpx', borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : (type === NOTICE_PRICE ? '#FFF2EA' : brand[100]), alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 } }
+const noticeCopy = { ...flexFill }
+const noticeTop = { ...flexRow, alignItems: 'center' }
+function noticeTitle(read: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: read ? fontWeight.medium : fontWeight.semibold, color: n.value.text } }
+const unreadDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[600], marginLeft: '10rpx' }
+const noticeBody = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginTop: '8rpx' }))
+const noticeTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '9rpx' }))
+const emptyCard = computed((): any => ({ height: '320rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }))
+const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '18rpx' }))
+const sourceNote = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
+const sourceText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
+</script>
+
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
