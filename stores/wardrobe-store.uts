@@ -56,7 +56,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     try {
       const added = repo.add(item)
       items.value = [...items.value, added]
-      enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', added.id, 'create', '')
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', added.id, 'create', JSON.stringify(added))
       return added
     } catch (err) {
       error.value = String(err)
@@ -68,7 +68,7 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
     const ok = repo.update(id, data)
     if (ok) {
       items.value = repo.getAll()
-      enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', id, 'update', '')
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', id, 'update', JSON.stringify(data))
     }
     return ok
   }
