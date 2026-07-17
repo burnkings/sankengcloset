@@ -1,3 +1,5 @@
+import { enqueueLocalOperation } from '@/services/sync/local-sync-queue'
+
 /**
  * ContentLibraryStore — V2.0 用户内容资产
  *
@@ -38,6 +40,15 @@ function readList(key: string): string[] {
 
 function writeList(key: string, values: string[]) {
   uni.setStorageSync(key, values.join(','))
+}
+
+function currentSyncUserId(): string {
+  try {
+    const id = String(uni.getStorageSync('v21_session_user_id') || '')
+    return id !== '' ? id : 'guest_local'
+  } catch (e) {
+    return 'guest_local'
+  }
 }
 
 function outfitKey(id: string, field: string): string {
@@ -118,6 +129,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     else values.unshift(entityId)
     favoriteIds.value = values
     writeList(FAVORITE_IDS_KEY, values)
+    enqueueLocalOperation(currentSyncUserId(), 'favorite', entityId, idx < 0 ? 'upsert' : 'delete', '')
     return idx < 0
   }
 
@@ -133,6 +145,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     else values.unshift(brandName)
     followedBrands.value = values
     writeList(FOLLOWED_BRANDS_KEY, values)
+    enqueueLocalOperation(currentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
     return idx < 0
   }
 
@@ -151,6 +164,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
       if (removedId != null) removeOutfitStorage(removedId)
     }
     writeList(OUTFIT_IDS_KEY, ids)
+    enqueueLocalOperation(currentSyncUserId(), 'outfit', id, 'create', `${category}|${topic}|${caption}`)
     reload()
     return id
   }
@@ -161,6 +175,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     if (idx >= 0) ids.splice(idx, 1)
     writeList(OUTFIT_IDS_KEY, ids)
     removeOutfitStorage(id)
+    enqueueLocalOperation(currentSyncUserId(), 'outfit', id, 'delete', '')
     reload()
   }
 
@@ -176,6 +191,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     else values.unshift(postId)
     likedPostIds.value = values
     writeList(LIKED_POST_IDS_KEY, values)
+    enqueueLocalOperation(currentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
     return idx < 0
   }
 
