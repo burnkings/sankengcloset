@@ -1,0 +1,87 @@
+import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
+
+const READ_IDS_KEY = 'v21_notification_read_ids'
+
+function readIds(): string[] {
+  try {
+    const raw = String(uni.getStorageSync(READ_IDS_KEY) || '')
+    return raw === '' ? [] : raw.split(',').filter((id) => id !== '')
+  } catch (e) {
+    return []
+  }
+}
+
+function mockNotifications(): AppNotification[] {
+  const now = Date.now()
+  const items: AppNotification[] = []
+
+  const release = new AppNotification()
+  release.id = 'notice_release_01'
+  release.type = NOTICE_RELEASE
+  release.title = '月光曲 JSK 定金即将开始'
+  release.body = '明天 20:00 开定，建议提前确认尺码与预算。'
+  release.createdAt = String(now - 20 * 60000)
+  release.actionTarget = '/pages/reminder/index'
+  items.push(release)
+
+  const price = new AppNotification()
+  price.id = 'notice_price_01'
+  price.type = NOTICE_PRICE
+  price.title = '收藏商品出现价格变化'
+  price.body = '田园碎花 OP 当前展示价较上次记录降低 ¥90。'
+  price.createdAt = String(now - 2 * 3600000)
+  price.actionTarget = '/pages/favorites/index'
+  items.push(price)
+
+  const social = new AppNotification()
+  social.id = 'notice_social_01'
+  social.type = NOTICE_SOCIAL
+  social.title = '你的晒搭收到了新的喜欢'
+  social.body = '茶会风格晒搭新增 3 个喜欢。'
+  social.createdAt = String(now - 5 * 3600000)
+  social.actionTarget = '/pages/community/index'
+  items.push(social)
+
+  const system = new AppNotification()
+  system.id = 'notice_system_01'
+  system.type = NOTICE_SYSTEM
+  system.title = 'V2.1 后端就绪体验已开启'
+  system.body = '账号、通知与同步目前使用本地 Mock，不代表云端已经保存。'
+  system.createdAt = String(now - 24 * 3600000)
+  system.actionTarget = '/pages/sync/index'
+  items.push(system)
+  return items
+}
+
+export const useNotificationCenterStore = defineStore('notificationCenter', () => {
+  const items = ref([]) as Ref<AppNotification[]>
+  const activeType = ref('all')
+  const unreadCount = computed((): number => items.value.filter((item) => !item.read).length)
+  const visibleItems = computed((): AppNotification[] => activeType.value === 'all' ? items.value : items.value.filter((item) => item.type === activeType.value))
+
+  function reload() {
+    const readIds = readIds()
+    const next = mockNotifications()
+    for (let i = 0; i < next.length; i++) next[i].read = readIds.indexOf(next[i].id) >= 0
+    items.value = next
+  }
+
+  function persistReadState() {
+    uni.setStorageSync(READ_IDS_KEY, items.value.filter((item) => item.read).map((item) => item.id).join(','))
+  }
+
+  function markRead(id: string) {
+    for (let i = 0; i < items.value.length; i++) if (items.value[i].id === id) items.value[i].read = true
+    persistReadState()
+  }
+
+  function markAllRead() {
+    for (let i = 0; i < items.value.length; i++) items.value[i].read = true
+    persistReadState()
+  }
+
+  function setType(type: string) { activeType.value = type }
+
+  reload()
+  return { items, activeType, visibleItems, unreadCount, reload, markRead, markAllRead, setType }
+})
