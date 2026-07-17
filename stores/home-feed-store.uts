@@ -1,12 +1,11 @@
 /**
  * HomeFeedStore — 首页内容发现 Feed 状态管理
  * Phase 1C: 状态完整性、分页防重、频道切换重置
- * 使用 MockFeedRepo 提供数据
+ * 数据访问与筛选统一经 FeedService 提供
  */
 
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
-import { filterByChannel } from '@/domain/content/mock-feed-repo'
-import { fetchFeedPage } from '@/services/content/feed-service'
+import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
 
 // ====== 频道定义 ======
 
@@ -125,7 +124,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     const ch = currentChannel.value
     if (DEBUG_EMPTY_CHANNEL !== '' && ch === DEBUG_EMPTY_CHANNEL) return []
     if (DEBUG_FORCE_EMPTY) return []
-    const channelItems = filterByChannel(allItems.value, ch)
+    const channelItems = filterFeedByChannel(allItems.value, ch)
     const category = currentCategory.value
     if (category === '' || category === '全部') return channelItems
     const code = categoryCode(category)
