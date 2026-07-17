@@ -105,7 +105,7 @@ export async function flushLocalOperations(): Promise<number> {
     }
     throw new Error('当前为离线模拟，操作已保留')
   }
-  await new Promise<void>((resolve) => setTimeout(() => resolve(), config.mockLatencyMs))
+  await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
   for (let i = 0; i < ids.length; i++) removeOperation(ids[i])
   writeIds([])
   uni.setStorageSync('v21_sync_last_success_at', String(Date.now()))
