@@ -21,7 +21,7 @@
           <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="search(item.name)">
             <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
             <view :style="brandCopy"><text :style="brandName">{{ item.name }}</text><text :style="brandMeta">{{ item.meta }}</text></view>
-            <text :style="followText">关注</text>
+            <view :style="followAction(item.name)" @tap.stop="toggleBrand(item.name)"><text :style="followText(item.name)">{{ library.isFollowingBrand(item.name) ? '已关注' : '关注' }}</text></view>
           </view>
         </view>
 
@@ -52,6 +52,8 @@ import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
 import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
@@ -65,6 +67,11 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
 function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); openPrimaryTab('/pages/community/index') }
+const library = useContentLibraryStore()
+function toggleBrand(brandName: string) {
+  const followed = library.toggleBrandFollow(brandName)
+  showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
+}
 
 const features = [
   { id: 'f1', image: '/static/demo/outfit-editorial-01.jpg', title: '夏日三坑轻量化指南', desc: '从面料到版型的编辑选择', keyword: '夏日穿搭' },
@@ -105,7 +112,8 @@ const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, c
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
-const followText = { fontSize: fontSize.xs, color: brand[600] }
+function followAction(brandName: string) { return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName) ? brand[600] : n.value.bgSecondary, marginLeft: '8rpx' } }
+function followText(brandName: string) { return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName) ? '#FFFFFF' : brand[600] } }
 const calendarRow = { ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center' }
 const calendarDate = { width: '96rpx', alignItems: 'center', flexShrink: 0 }
 const calendarDay = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -118,7 +126,7 @@ const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[6
 function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.length - 1 ? '12rpx' : '0' } }
 const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
-onShow(() => { syncTabBarChrome() })
+onShow(() => { library.reload(); syncTabBarChrome() })
 </script>
 
 <style>
