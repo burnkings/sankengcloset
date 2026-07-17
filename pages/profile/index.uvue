@@ -20,7 +20,7 @@
           <view :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
 
-        <V2SectionHeader title="管理中心" subtitle="你的三坑日常" />
+        <V2SectionHeader title="管理中心" />
         <view :style="closetCard" @tap="goPage('/pages/wardrobe/index')">
           <view :style="closetCopy">
             <view :style="closetTop"><AppIcon name="wardrobe" :size="44" :active="true" /><text :style="closetLabel">衣橱</text></view>
@@ -38,7 +38,7 @@
           </view>
         </view>
 
-        <V2SectionHeader title="内容偏好" subtitle="影响首页推荐，可多选" />
+        <V2SectionHeader title="推荐偏好" />
         <view :style="tasteRow">
           <view v-for="(item, idx) in tasteItems" :key="item.name" :style="tasteChip(idx, item.name)" @tap="toggleTaste(item.name)">
             <AppIcon :name="item.icon" :size="38" :active="isTasteSelected(item.name)" />
@@ -74,6 +74,7 @@ import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
+import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
@@ -81,7 +82,7 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 const selectedTastes = ref(['JK', 'Lolita', '汉服'])
 const isLoggedIn = ref(false)
 
-function onEdit() { uni.showToast({ title: '编辑资料', icon: 'none' }) }
+function onEdit() { showFeedback('资料编辑正在准备中') }
 function loginPreview() {
   isLoggedIn.value = true
   uni.setStorageSync('sk_login_preview', 'logged_in')
@@ -95,31 +96,30 @@ function onManageTap(id: string) {
   if (id === 'favorites') goPage('/pages/favorites/index')
   if (id === 'orders') goPage('/pages/purchase/index')
   if (id === 'reminders') goPage('/pages/reminder/index')
-  if (id === 'budget') uni.showToast({ title: '预算功能准备中', icon: 'none' })
+  if (id === 'budget') showFeedback('预算助手正在准备中')
 }
 function onSettingTap(id: string) {
   if (id === 'dark') {
     setDarkMode(!isDark.value)
-    // Recreate cached tab pages once so they never flash the previous palette on first visit.
-    uni.reLaunch({ url: '/pages/profile/index' })
+    syncTabBarChrome()
     return
   }
   if (id === 'cache') {
     uni.removeStorageSync('home_feed_cache')
     uni.removeStorageSync('content_cache')
     uni.removeStorageSync('image_cache')
-    uni.showToast({ title: '缓存已清理', icon: 'success' })
+    showFeedback('缓存已清理')
     return
   }
   if (id === 'logout') { logoutPreview(); return }
-  uni.showToast({ title: '功能准备中', icon: 'none' })
+  showFeedback('这项设置正在准备中')
 }
 function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
 function toggleTaste(name: string) {
   const idx = selectedTastes.value.indexOf(name)
   if (idx >= 0) {
     if (selectedTastes.value.length === 1) {
-      uni.showToast({ title: '至少保留一个偏好', icon: 'none' })
+      showFeedback('至少保留一个推荐偏好')
       return
     }
     selectedTastes.value.splice(idx, 1)
