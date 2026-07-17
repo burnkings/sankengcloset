@@ -17,6 +17,10 @@
             <text :style="titleText">{{ item!.title }}</text>
             <text :style="brandText">{{ item!.brandName }}</text>
             <view :style="statusRow"><view :style="statusDot" /><text :style="statusText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text><text v-if="formatDeadline(item!.eventEndAt) !== ''" :style="deadlineText">{{ formatDeadline(item!.eventEndAt) }}</text></view>
+            <view :style="decisionRow">
+              <view :style="decisionAction(false)" @tap="createReminder"><AppIcon name="reminder" :size="32" :active="true" /><text :style="decisionText">设置提醒</text></view>
+              <view :style="decisionAction(true)" @tap="createPurchase"><AppIcon name="order" :size="32" :active="true" /><text :style="decisionText">记入购买</text></view>
+            </view>
           </view>
 
           <V2SectionHeader title="发售进度" />
@@ -91,6 +95,24 @@ function saveItem() {
 }
 function askAI() { openPrimaryTab('/pages/ai/index') }
 function openOfficial() { showFeedback('官方购买入口接入后可跳转') }
+function dateOnly(value: string): string {
+  if (value === '') return ''
+  return value.length >= 10 ? value.substring(0, 10) : value
+}
+function encoded(value: string): string { return encodeURIComponent(value) }
+function createReminder() {
+  if (item.value === null) return
+  const type = item.value!.badgeText === '尾款' ? 'BALANCE' : 'RELEASE'
+  const title = `${item.value!.title} ${item.value!.badgeText !== '' ? item.value!.badgeText : '发售'}`
+  const note = `${item.value!.brandName} · 来源于商品详情`
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${dateOnly(item.value!.eventEndAt)}&note=${encoded(note)}` })
+}
+function createPurchase() {
+  if (item.value === null) return
+  const amount = item.value!.price > 0 ? String(item.value!.price / 100) : ''
+  const category = item.value!.category === 'LOLITA' ? 'LOLITA' : (item.value!.category === 'HANFU' ? 'HANFU' : 'JK')
+  uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${dateOnly(item.value!.eventEndAt)}` })
+}
 onMounted(() => {
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]
@@ -113,6 +135,9 @@ const statusRow = { ...flexRow, alignItems: 'center', marginTop: '18rpx' }
 const statusDot = { width: '10rpx', height: '10rpx', borderRadius: '5rpx', backgroundColor: brand[500], marginRight: '8rpx' }
 const statusText = { fontSize: fontSize.xs, color: brand[600] }
 const deadlineText = { fontSize: fontSize.xs, color: brand[600], marginLeft: '16rpx' }
+const decisionRow = { ...flexRow, marginTop: '22rpx' }
+function decisionAction(last: boolean) { return { ...flexFill, height: '68rpx', borderRadius: '34rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center', marginRight: last ? '0' : '12rpx' } }
+const decisionText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600], marginLeft: '8rpx' }))
 const timelineCard = computed((): any => ({ ...flexRow, padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 function stageItem(idx: number) { return { ...flexFill, alignItems: 'center' } }
 function stageDot(idx: number) { return { width: '22rpx', height: '22rpx', borderRadius: '11rpx', backgroundColor: idx < 2 ? brand[500] : n.value.divider, borderWidth: idx === 2 ? '4rpx' : '0', borderStyle: 'solid', borderColor: brand[200] } }
