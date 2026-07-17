@@ -35,7 +35,7 @@
         <view :style="publishButton" @tap="publishLook">
           <text :style="publishText">发布到晒搭广场</text>
         </view>
-        <text :style="privacyNote">当前版本保存为本地预览；接入内容服务后将支持公开分享、点赞与评论。</text>
+        <text :style="privacyNote">当前内容仅保存在本机；登录同步上线后可在多端继续查看。</text>
       </view>
     </template>
   </MainLayout>
@@ -56,6 +56,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { useContentLibraryStore } from '@/stores/content-library-store'
 
 const selectedImage = ref('')
 const caption = ref('')
@@ -63,6 +64,7 @@ const category = ref('JK')
 const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服']
 const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
+const library = useContentLibraryStore()
 
 function choosePhoto() {
   uni.chooseImage({
@@ -80,11 +82,16 @@ function publishLook() {
     showFeedback('先选一张想分享的美照')
     return
   }
-  uni.setStorageSync('local_outfit_image', selectedImage.value)
-  uni.setStorageSync('local_outfit_caption', caption.value)
-  uni.setStorageSync('local_outfit_category', category.value)
-  uni.setStorageSync('local_outfit_topic', topic.value)
-  openPrimaryTab('/pages/community/index')
+  const completePublish = (imagePath: string) => {
+    library.saveOutfit(imagePath, caption.value, category.value, topic.value)
+    showFeedback('已发布到晒搭')
+    setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
+  }
+  uni.saveFile({
+    tempFilePath: selectedImage.value,
+    success: (res) => { completePublish(res.savedFilePath) },
+    fail: () => { completePublish(selectedImage.value) },
+  })
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
