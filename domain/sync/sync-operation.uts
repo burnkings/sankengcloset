@@ -1,0 +1,18 @@
+/** 可幂等重放的离线操作。后端以 opId 作为幂等键。 */
+
+export const SYNC_PENDING = 'pending'
+export const SYNC_SYNCING = 'syncing'
+export const SYNC_FAILED = 'failed'
+
+export class SyncOperation {
+  opId: string = ''
+  userId: string = ''
+  deviceId: string = ''
+  entityType: string = ''
+  entityId: string = ''
+  action: string = ''
+  payload: string = ''
+  createdAt: string = ''
+  retryCount: number = 0
+  status: string = SYNC_PENDING
+}
