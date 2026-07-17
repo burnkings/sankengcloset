@@ -7,6 +7,7 @@ import { WishItem, WishUpdateData, PRIORITY_ORDER, WISH_STATUS_FLOW } from '@/do
 import { toDisplayModel, toDisplayModels, WishDisplayModel } from '@/domain/wish-presenter'
 import * as repo from '@/domain/repositories/wishlist-repo'
 import { PurchaseRecord } from '@/domain/purchase-record'
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 export const useWishListStore = defineStore('wishlist', () => {
   // ====== State ======
@@ -128,6 +129,7 @@ export const useWishListStore = defineStore('wishlist', () => {
     try {
       const added = repo.add(item)
       items.value = [...items.value, added]
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', added.id, 'create', JSON.stringify(added))
       return added
     } catch (err) {
       error.value = String(err)
@@ -151,6 +153,7 @@ export const useWishListStore = defineStore('wishlist', () => {
         if (data.isFavorite >= 0) existing.isFavorite = data.isFavorite == 1
         existing.updatedAt = new Date().toISOString()
       }
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(data))
     }
     return ok
   }
@@ -159,6 +162,7 @@ export const useWishListStore = defineStore('wishlist', () => {
     const ok = repo.softDelete(id)
     if (ok) {
       items.value = items.value.filter((w) => w.id !== id)
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'delete', '')
     }
     return ok
   }
@@ -171,6 +175,7 @@ export const useWishListStore = defineStore('wishlist', () => {
         existing.status = newStatus
         existing.updatedAt = new Date().toISOString()
       }
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `status=${newStatus}`)
     }
     return ok
   }
@@ -182,6 +187,7 @@ export const useWishListStore = defineStore('wishlist', () => {
       if (existing) {
         existing.isFavorite = !existing.isFavorite
       }
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', 'favorite=toggle')
     }
     return ok
   }
@@ -213,6 +219,7 @@ export const useWishListStore = defineStore('wishlist', () => {
         existing.convertedAt = new Date().toISOString()
         existing.updatedAt = existing.convertedAt
       }
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `purchaseId=${purchaseId}`)
     }
     return ok
   }
@@ -225,6 +232,7 @@ export const useWishListStore = defineStore('wishlist', () => {
         existing.wardrobeId = wardrobeId
         existing.updatedAt = new Date().toISOString()
       }
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `wardrobeId=${wardrobeId}`)
     }
     return ok
   }
