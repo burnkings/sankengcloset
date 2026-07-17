@@ -5,7 +5,7 @@
       <view class="page-canvas" :style="pageWrap">
         <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
 
-        <V2SectionHeader title="编辑精选" subtitle="值得关注的品牌故事与趋势" action-text="查看更多" />
+        <V2SectionHeader title="编辑精选" action-text="查看更多" />
         <scroll-view scroll-x :style="featureScroll">
           <view :style="featureRow">
             <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="search(item.keyword)">
@@ -16,7 +16,7 @@
           </view>
         </scroll-view>
 
-        <V2SectionHeader title="品牌目录" subtitle="关注品牌后优先获得官方动态" action-text="全部品牌" />
+        <V2SectionHeader title="品牌目录" action-text="全部品牌" />
         <view :style="brandGrid">
           <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="search(item.name)">
             <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
@@ -25,7 +25,7 @@
           </view>
         </view>
 
-        <V2SectionHeader title="发售日历" subtitle="图透、定金、尾款与现货节点" action-text="完整日历" />
+        <V2SectionHeader title="发售日历" action-text="完整日历" />
         <V2ListGroup>
           <view v-for="(evt, idx) in calendar" :key="evt.id" :style="calendarRow" @tap="search(evt.brand)">
             <view :style="calendarDate"><text :style="calendarDay">{{ evt.day }}</text><text :style="calendarMonth">7月</text></view>
@@ -33,7 +33,7 @@
           </view>
         </V2ListGroup>
 
-        <V2SectionHeader title="趋势话题" subtitle="来自晒搭发布者选择的话题" />
+        <V2SectionHeader title="趋势话题" />
         <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic.name)">
           <text :style="topicName"># {{ topic.name }}</text><text :style="topicMeta">{{ topic.meta }}</text><AppIcon name="chevron-right" :size="30" />
         </view>
