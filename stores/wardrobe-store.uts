@@ -1,152 +1,35 @@
-/**
- * WardrobeStore — 衣橱状态管理
- * Page → Store → Repository
- */
-
-import { WardrobeItem } from '@/domain/wardrobe-item'
+import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
 import * as repo from '@/domain/repositories/wardrobe-repo'
 import { CATEGORY_LABELS } from '@/domain/clothing-category'
 
 export const useWardrobeStore = defineStore('wardrobe', () => {
-  // ====== State ======
-  const items = ref([]) as Ref<WardrobeItem[]>
-  const loading = ref(false)
-  const error = ref('')
-  const currentCategory = ref('')
-  const searchKeyword = ref('')
-  const currentSort = ref('newest')
-  const viewMode = ref('grid')
-
-  // ====== Getters ======
-
-  const filteredItems = computed((): WardrobeItem[] => {
-    let result = items.value
-
-    if (currentCategory.value) {
-      result = result.filter((i) => i.category == currentCategory.value)
-    }
-
-    if (searchKeyword.value) {
-      const kw = searchKeyword.value.toLowerCase()
-      result = result.filter((i) => {
-        if (i.name.toLowerCase().includes(kw)) return true
-        if (i.brand.toLowerCase().includes(kw)) return true
-        if (i.note.toLowerCase().includes(kw)) return true
-        const catLabel = CATEGORY_LABELS[i.category] ?? ''
-        if (catLabel.toLowerCase().includes(kw)) return true
-        return false
-      })
-    }
-
+  const items = ref([]) as Ref<WardrobeItem[]>; const loading = ref(false); const error = ref(''); const currentCategory = ref(''); const searchKeyword = ref(''); const currentSort = ref('newest'); const viewMode = ref('grid')
+  const filteredItems = computed((): WardrobeItem[] => items.value.filter((item) => {
+    if (currentCategory.value != '' && item.category != currentCategory.value) return false
+    if (searchKeyword.value == '') return true
+    const keyword = searchKeyword.value.toLowerCase(); const category = CATEGORY_LABELS[item.category] ?? ''
+    return item.name.toLowerCase().includes(keyword) || item.brand.toLowerCase().includes(keyword) || item.note.toLowerCase().includes(keyword) || category.toLowerCase().includes(keyword)
+  }))
+  const sortedItems = computed((): WardrobeItem[] => {
+    const result = [...filteredItems.value]
+    if (currentSort.value == 'priceHigh') result.sort((a, b) => b.purchasePrice - a.purchasePrice)
+    else if (currentSort.value == 'priceLow') result.sort((a, b) => a.purchasePrice - b.purchasePrice)
+    else if (currentSort.value == 'name') result.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    else result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     return result
   })
-
-  const sortedItems = computed((): WardrobeItem[] => {
-    const arr = [...filteredItems.value]
-    switch (currentSort.value) {
-      case 'newest':
-        arr.sort((a, b) => {
-          const da = a.createdAt ? new Date(a.createdAt).getTime() : 0
-          const db = b.createdAt ? new Date(b.createdAt).getTime() : 0
-          return db - da
-        })
-        break
-      case 'priceHigh':
-        arr.sort((a, b) => (b.purchasePrice ?? 0) - (a.purchasePrice ?? 0))
-        break
-      case 'priceLow':
-        arr.sort((a, b) => (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0))
-        break
-      case 'name':
-        arr.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-        break
-    }
-    return arr
-  })
-
   const itemCount = computed((): number => items.value.length)
-
-  const categoryCounts = computed(() => {
-    const counts = {}
-    for (const item of items.value) {
-      counts[item.category] = (counts[item.category] ?? 0) + 1
-    }
-    return counts
-  })
-
-  // ====== Actions ======
-
-  function fetchItems() {
-    loading.value = true
-    error.value = ''
-    try {
-      repo.initMockData()
-      items.value = repo.getAll()
-    } catch (err) {
-      error.value = String(err)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function deleteItem(id: string): boolean {
-    const ok = repo.softDelete(id)
-    if (ok) {
-      items.value = items.value.filter((i) => i.id !== id)
-    }
-    return ok
-  }
-
-  function toggleFavorite(id: string) {
-    const ok = repo.toggleFavorite(id)
-    if (ok) {
-      const item = items.value.find((i) => i.id == id)
-      if (item) item.isFavorite = !item.isFavorite
-    }
-  }
-
-  function setCategory(category: string) {
-    currentCategory.value = category
-  }
-
-  function setSearch(keyword: string) {
-    searchKeyword.value = keyword
-  }
-
-  function setSort(sort: string) {
-    currentSort.value = sort
-  }
-
-  function setViewMode(mode: string) {
-    viewMode.value = mode
-  }
-
-  function toggleViewMode() {
-    viewMode.value = viewMode.value == 'grid' ? 'list' : 'grid'
-  }
-
-  function getById(id: string): WardrobeItem | undefined {
-    return items.value.find((i) => i.id == id)
-  }
-
-  return {
-    loading,
-    error,
-    currentCategory,
-    searchKeyword,
-    currentSort,
-    viewMode,
-    sortedItems,
-    itemCount,
-    categoryCounts,
-    fetchItems,
-    deleteItem,
-    toggleFavorite,
-    setCategory,
-    setSearch,
-    setSort,
-    setViewMode,
-    toggleViewMode,
-    getById,
-  }
+  const categoryCounts = computed(() => { const counts = {}; for (const item of items.value) counts[item.category] = (counts[item.category] ?? 0) + 1; return counts })
+  function fetchItems() { loading.value = true; error.value = ''; try { repo.initMockData(); items.value = repo.getAll() } catch (err) { error.value = String(err) } finally { loading.value = false } }
+  function addItem(item: WardrobeItem): WardrobeItem | null { try { const added = repo.add(item); items.value = [...items.value, added]; return added } catch (err) { error.value = String(err); return null } }
+  function updateItem(id: string, data: WardrobeUpdateData): boolean { const ok = repo.update(id, data); if (ok) items.value = repo.getAll(); return ok }
+  function deleteItem(id: string): boolean { const ok = repo.softDelete(id); if (ok) items.value = items.value.filter((item) => item.id !== id); return ok }
+  function toggleFavorite(id: string) { if (repo.toggleFavorite(id)) items.value = repo.getAll() }
+  function setCategory(value: string) { currentCategory.value = value }
+  function setSearch(value: string) { searchKeyword.value = value }
+  function setSort(value: string) { currentSort.value = value }
+  function setViewMode(value: string) { viewMode.value = value }
+  function toggleViewMode() { viewMode.value = viewMode.value == 'grid' ? 'list' : 'grid' }
+  function getById(id: string): WardrobeItem | undefined { return items.value.find((item) => item.id == id) }
+  return { loading, error, currentCategory, searchKeyword, currentSort, viewMode, sortedItems, itemCount, categoryCounts, fetchItems, addItem, updateItem, deleteItem, toggleFavorite, setCategory, setSearch, setSort, setViewMode, toggleViewMode, getById }
 })
