@@ -6,7 +6,13 @@
         <!-- Layer 1: Brand + Capsule -->
         <view class="nav-canvas" :style="layer1">
           <text :style="brandText">三坑绮橱</text>
-          <view :style="capsuleSpacer" />
+          <view :style="navActions">
+            <view :style="noticeButton" @tap="openNotifications">
+              <AppIcon name="notification" :size="38" />
+              <view v-if="notices.unreadCount > 0" :style="noticeDot" />
+            </view>
+            <view :style="capsuleSpacer" />
+          </view>
         </view>
         <view :style="wordmarkSearchSpacer" />
         <!-- Layer 2: Search -->
@@ -175,6 +181,7 @@
 
 <script setup lang="uts">
 import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline } from '@/stores/home-feed-store'
+import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
 import { brand, baseColors } from '@/theme/tokens/colors'
@@ -199,6 +206,7 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const store = useHomeFeedStore()
+const notices = useNotificationCenterStore()
 const channels = CHANNELS
 const categories = CATEGORY_FILTERS
 
@@ -224,6 +232,7 @@ try {
 
 function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
+function openNotifications() { uni.navigateTo({ url: '/pages/notification/index' }) }
 function onChannelTap(ch: string) { store.setChannel(ch) }
 function onCategoryTap(category: string) { store.setCategory(category) }
 function onTap(item: FeedItem) {
@@ -244,7 +253,7 @@ function onRetry() { store.retry() }
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
 onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
-onShow(() => { syncTabBarChrome() })
+onShow(() => { notices.reload(); syncTabBarChrome() })
 
 // --- Spacing tokens (no gap) ---
 const CARD_PAIR_GAP = '20rpx'  // between two product cards
@@ -265,6 +274,9 @@ const brandText = computed((): any => ({
   fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[500],
 }))
 const capsuleSpacer = { width: `${capsuleW}px` }
+const navActions = { ...flexRow, alignItems: 'center' }
+const noticeButton = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', position: 'relative', marginRight: capsuleW > 0 ? '12rpx' : '0' }))
+const noticeDot = { position: 'absolute', top: '8rpx', right: '8rpx', width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[600] }
 
 const wordmarkSearchSpacer = { height: '16rpx' }
 const layer2Wrap = {}
