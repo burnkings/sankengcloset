@@ -4,7 +4,7 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="summaryCard"><view :style="summaryPrimary"><text :style="summaryLabel">累计记录</text><text :style="summaryAmount">¥{{ store.totalSpent }}</text></view><view :style="summarySide"><text :style="sideValue">{{ store.itemCount }} 笔</text><text :style="sideLabel">待结清 ¥{{ store.remainingTotal }}</text></view></view>
-        <V2SectionHeader title="记录明细" subtitle="仅用于个人管理，不代表应用内交易" :compact="true" />
+        <V2SectionHeader title="记录明细" :compact="true" />
         <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
         <AppLoading v-if="store.loading" />
         <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="order" :size="64" /><text :style="emptyTitle">暂无符合条件的记录</text></view>
