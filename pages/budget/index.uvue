@@ -1,0 +1,65 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="月度预算" :show-back="true"><template #right><text :style="saveText" @tap="save">保存</text></template></AppNavbar></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="summaryCard">
+          <text :style="summaryEyebrow">{{ currentMonth }} 已记录承诺金额</text>
+          <text :style="spentText">¥{{ formatAmount(monthSpent) }}</text>
+          <view :style="progressTrack"><view :style="progressFill" /></view>
+          <view :style="summaryRow"><text :style="summaryMeta">月预算 ¥{{ formatAmount(limitValue) }}</text><text :style="summaryMeta">剩余 ¥{{ formatAmount(remaining) }}</text></view>
+        </view>
+
+        <text :style="fieldLabel">月预算上限</text><AppInput v-model="limitText" placeholder="例如：2000" type="digit" />
+        <text :style="fieldLabel">提醒阈值</text><V2FilterChips :items="alertLabels" :active="activeAlert" @change="onAlert" />
+        <view :style="ruleCard"><AppIcon name="budget" :size="36" :active="true" /><text :style="ruleText">按购买记录中的商品总额计算，包含尚未支付的尾款；不会读取外部平台账单。</text></view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { useBudgetStore } from '@/stores/budget-store'
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+
+const budget = useBudgetStore(); const purchases = usePurchaseStore()
+const limitText = ref(budget.monthlyLimit > 0 ? String(budget.monthlyLimit) : '')
+const alertValue = ref(budget.alertPercent)
+const alertLabels = ['70%', '80%', '90%']
+const activeAlert = computed((): string => `${alertValue.value}%`)
+const now = new Date(); const monthNumber = now.getMonth() + 1; const currentMonth = `${now.getFullYear()}年${monthNumber}月`; const monthCode = `${now.getFullYear()}-${monthNumber < 10 ? '0' + String(monthNumber) : String(monthNumber)}`
+const monthSpent = computed((): number => purchases.filteredItems.filter((item) => item.purchaseDate.indexOf(monthCode) === 0).reduce((sum, item) => sum + item.totalAmount, 0))
+const limitValue = computed((): number => { const value = limitText.value.trim() === '' ? 0 : parseFloat(limitText.value); return isNaN(value) ? 0 : value })
+const remaining = computed((): number => Math.max(0, limitValue.value - monthSpent.value))
+const progress = computed((): number => limitValue.value <= 0 ? 0 : Math.min(100, Math.round(monthSpent.value / limitValue.value * 100)))
+function onAlert(label: string) { alertValue.value = parseInt(label.replace('%', '')) }
+function formatAmount(value: number): string { return value === Math.floor(value) ? String(Math.floor(value)) : value.toFixed(2) }
+function save() { if (limitValue.value <= 0) { showFeedback('请填写大于 0 的月预算'); return }; budget.save(limitValue.value, alertValue.value); showFeedback('月预算已保存'); setTimeout(() => { uni.navigateBack() }, 220) }
+onMounted(() => { purchases.fetchPurchases() })
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const summaryCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const summaryEyebrow = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
+const spentText = computed((): any => ({ fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: n.value.text, marginTop: '10rpx' }))
+const progressTrack = computed((): any => ({ height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.surface, overflow: 'hidden', marginTop: '22rpx' }))
+const progressFill = computed((): any => ({ width: `${progress.value}%`, height: '12rpx', borderRadius: '6rpx', backgroundColor: progress.value >= alertValue.value ? brand[700] : brand[500] }))
+const summaryRow = { ...flexRow, marginTop: '12rpx' }
+const summaryMeta = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary }))
+const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
+const ruleCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '24rpx' }))
+const ruleText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginLeft: '12rpx' }))
+</script>
+
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
