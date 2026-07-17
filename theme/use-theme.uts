@@ -20,7 +20,7 @@ function readInitialDarkMode(): boolean {
 // 在模块第一次求值时就确定主题，避免首个页面先浅色渲染再跳成深色。
 const _isDark = ref(readInitialDarkMode())
 const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
-const _themeSwitching = ref(false)
+let lastTabBarMode = ''
 
 function applySystemChrome() {
   const palette = _isDark.value ? neutralDark : neutralLight
@@ -38,12 +38,15 @@ function applySystemChrome() {
 /** Only call from actual native tab pages. Secondary pages must not call setTabBarStyle. */
 export function syncTabBarChrome() {
   // #ifdef MP-WEIXIN
+  const mode = _isDark.value ? 'dark' : 'light'
+  if (lastTabBarMode === mode) return
+  lastTabBarMode = mode
   uni.setTabBarStyle({
     color: _isDark.value ? neutralDark.textTertiary : neutralLight.textTertiary,
     selectedColor: brand[500],
     backgroundColor: _isDark.value ? neutralDark.surface : neutralLight.surface,
     borderStyle: _isDark.value ? 'white' : 'black',
-    fail: () => {},
+    fail: () => { lastTabBarMode = '' },
   })
   // #endif
 }
@@ -58,12 +61,11 @@ export function syncSystemChrome() {
 
 export function setDarkMode(enabled: boolean) {
   if (_isDark.value === enabled) return
-  uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
-  _themeSwitching.value = true
+  // 先让当前组件树在同一渲染帧完成换色，再同步原生系统栏。
+  // 不重载页面、不使用全屏遮罩，滚动位置与组件状态均保持不变。
   _isDark.value = enabled
-  applySystemChrome()
-  // 用同色过渡层遮住原生导航栏与页面样式更新之间的单帧差异。
-  setTimeout(() => { _themeSwitching.value = false }, 160)
+  uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
+  nextTick(() => { applySystemChrome() })
 }
 
 export function toggleDarkMode(): boolean {
@@ -81,4 +83,3 @@ export function useTheme() {
 /** 直接导出，避免解构 */
 export const isDark = _isDark
 export const n = _neutral
-export const themeSwitching = _themeSwitching
