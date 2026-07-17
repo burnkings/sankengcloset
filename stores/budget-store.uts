@@ -1,19 +1,38 @@
 /** 本地月预算设置。服务端账号接入后可替换存储实现。 */
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+
 const LIMIT_KEY = 'v2_budget_monthly_limit'
 const ALERT_KEY = 'v2_budget_alert_percent'
 
 function readNumber(key: string, fallback: number): number {
-  try { const raw = uni.getStorageSync(key); if (raw == null || String(raw) === '') return fallback; const value = parseFloat(String(raw)); return isNaN(value) ? fallback : value }
-  catch (e) { return fallback }
+  try {
+    const raw = uni.getStorageSync(key)
+    if (raw == null || String(raw) === '') return fallback
+    const value = parseFloat(String(raw))
+    return isNaN(value) ? fallback : value
+  } catch (e) {
+    return fallback
+  }
 }
 
 export const useBudgetStore = defineStore('budget', () => {
   const monthlyLimit = ref(readNumber(LIMIT_KEY, 0))
   const alertPercent = ref(readNumber(ALERT_KEY, 80))
   const isConfigured = computed((): boolean => monthlyLimit.value > 0)
+
   function save(limit: number, percent: number) {
-    monthlyLimit.value = Math.max(0, limit); alertPercent.value = Math.min(100, Math.max(1, percent))
-    uni.setStorageSync(LIMIT_KEY, String(monthlyLimit.value)); uni.setStorageSync(ALERT_KEY, String(alertPercent.value))
+    monthlyLimit.value = Math.max(0, limit)
+    alertPercent.value = Math.min(100, Math.max(1, percent))
+    uni.setStorageSync(LIMIT_KEY, String(monthlyLimit.value))
+    uni.setStorageSync(ALERT_KEY, String(alertPercent.value))
+    enqueueLocalOperation(
+      getCurrentSyncUserId(),
+      'budget',
+      'monthly',
+      'upsert',
+      `limit=${monthlyLimit.value}&alertPercent=${alertPercent.value}`,
+    )
   }
+
   return { monthlyLimit, alertPercent, isConfigured, save }
 })
