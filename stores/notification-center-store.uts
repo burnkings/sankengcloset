@@ -1,4 +1,5 @@
 import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 const READ_IDS_KEY = 'v21_notification_read_ids'
 
@@ -71,13 +72,22 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   }
 
   function markRead(id: string) {
-    for (let i = 0; i < items.value.length; i++) if (items.value[i].id === id) items.value[i].read = true
+    let changed = false
+    for (let i = 0; i < items.value.length; i++) {
+      if (items.value[i].id === id && !items.value[i].read) {
+        items.value[i].read = true
+        changed = true
+      }
+    }
     persistReadState()
+    if (changed) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}')
   }
 
   function markAllRead() {
+    const hadUnread = unreadCount.value > 0
     for (let i = 0; i < items.value.length; i++) items.value[i].read = true
     persistReadState()
+    if (hadUnread) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', 'all', 'upsert', '{"readAll":true}')
   }
 
   function setType(type: string) { activeType.value = type }
