@@ -15,17 +15,17 @@
           </view>
         </view>
 
-        <V2SectionHeader title="穿搭说明" subtitle="说说搭配灵感" :compact="true" />
+        <V2SectionHeader title="穿搭说明" :compact="true" />
         <AppInput v-model="caption" placeholder="例如：第一次尝试茶会风 Lolita" :maxlength="60" :clearable="true" />
 
-        <V2SectionHeader title="选择坑向" subtitle="帮助同好发现" :compact="true" />
+        <V2SectionHeader title="选择坑向" :compact="true" />
         <view :style="categoryRow">
           <view v-for="(item, idx) in categories" :key="item" :style="categoryChip(idx, item)" @tap="category = item">
             <text :style="categoryText(item)">{{ item }}</text>
           </view>
         </view>
 
-        <V2SectionHeader title="选择话题" subtitle="话题来自发布者选择，不自动生成" :compact="true" />
+        <V2SectionHeader title="选择话题" :compact="true" />
         <view :style="topicWrap">
           <view v-for="(item, idx) in topics" :key="item" :style="topicChip(idx, item)" @tap="topic = item">
             <text :style="topicText(item)">#{{ item }}</text>
@@ -55,6 +55,7 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import { showFeedback } from '@/utils/feedback'
 
 const selectedImage = ref('')
 const caption = ref('')
@@ -76,7 +77,7 @@ function choosePhoto() {
 
 function publishLook() {
   if (selectedImage.value === '') {
-    uni.showToast({ title: '请先选择一张美照', icon: 'none' })
+    showFeedback('先选一张想分享的美照')
     return
   }
   uni.setStorageSync('local_outfit_image', selectedImage.value)
