@@ -10,7 +10,7 @@
         <AppLoading v-if="store.loading" />
         <view v-else-if="visibleItems.length === 0" :style="emptyWrap"><AppIcon name="wardrobe" :size="64" /><text :style="emptyTitle">衣橱里还没有匹配单品</text><text :style="emptyDesc">添加单品后可用于绮灵 AI 搭配</text></view>
         <view v-else :style="grid">
-          <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)">
+          <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
             <view :style="imageWrap"><AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" /></view>
             <view :style="cardBody"><text :style="brandText">{{ item.brand !== '' ? item.brand : categoryLabel(item.category) }}</text><text :style="itemName">{{ item.name }}</text><view :style="bottomRow"><text :style="priceText">{{ item.purchasePrice > 0 ? '¥' + String(item.purchasePrice) : '未记录价格' }}</text><text :style="wearText">{{ wearLabel(item.wearStatus) }}</text></view></view>
           </view>
@@ -49,8 +49,9 @@ const visibleItems = computed(() => {
 })
 function categoryLabel(value: string): string { return value === 'LOLITA' ? 'Lolita' : (value === 'HANFU' ? '汉服' : (value === 'JK' ? 'JK' : '其他')) }
 function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿' : (value === 'WORN' ? '已穿' : (value === 'FREQUENT' ? '常穿' : '')) }
-function goAdd() { showFeedback('单品录入正在准备中') }
-onMounted(() => { store.fetchItems() })
+function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
+function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
+onShow(() => { store.fetchItems() })
 watch(searchValue, (value) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
