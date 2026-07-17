@@ -8,6 +8,7 @@
 const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
 const FOLLOWED_BRANDS_KEY = 'v2_library_followed_brands'
 const OUTFIT_IDS_KEY = 'v2_library_outfit_ids'
+const LIKED_POST_IDS_KEY = 'v2_library_liked_post_ids'
 const OUTFIT_PREFIX = 'v2_library_outfit_'
 const MAX_LOCAL_OUTFITS = 30
 
@@ -66,14 +67,17 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
   const favoriteIds = ref([]) as Ref<string[]>
   const followedBrands = ref([]) as Ref<string[]>
   const outfitPosts = ref([]) as Ref<SavedOutfitPost[]>
+  const likedPostIds = ref([]) as Ref<string[]>
 
   const favoriteCount = computed((): number => favoriteIds.value.length)
   const followedBrandCount = computed((): number => followedBrands.value.length)
   const outfitCount = computed((): number => outfitPosts.value.length)
+  const likedPostCount = computed((): number => likedPostIds.value.length)
 
   function reload() {
     favoriteIds.value = readList(FAVORITE_IDS_KEY)
     followedBrands.value = readList(FOLLOWED_BRANDS_KEY)
+    likedPostIds.value = readList(LIKED_POST_IDS_KEY)
     const ids = readList(OUTFIT_IDS_KEY)
     // Phase 1C 只保存一条晒搭；首次进入 V2.0 时无损迁移到多条内容库。
     if (ids.length === 0) {
@@ -160,15 +164,32 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     reload()
   }
 
+  function isPostLiked(postId: string): boolean {
+    return likedPostIds.value.indexOf(postId) >= 0
+  }
+
+  function togglePostLike(postId: string): boolean {
+    if (postId === '') return false
+    const values = [...likedPostIds.value]
+    const idx = values.indexOf(postId)
+    if (idx >= 0) values.splice(idx, 1)
+    else values.unshift(postId)
+    likedPostIds.value = values
+    writeList(LIKED_POST_IDS_KEY, values)
+    return idx < 0
+  }
+
   reload()
 
   return {
     favoriteIds,
     followedBrands,
     outfitPosts,
+    likedPostIds,
     favoriteCount,
     followedBrandCount,
     outfitCount,
+    likedPostCount,
     reload,
     isFavorite,
     toggleFavorite,
@@ -176,5 +197,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     toggleBrandFollow,
     saveOutfit,
     removeOutfit,
+    isPostLiked,
+    togglePostLike,
   }
 })
