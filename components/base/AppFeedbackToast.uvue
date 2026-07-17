@@ -1,0 +1,29 @@
+<template>
+  <view v-if="feedbackVisible" :style="rootStyle">
+    <view :style="panelStyle">
+      <view :style="brandMark" />
+      <text :style="messageStyle">{{ feedbackMessage }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+import { feedbackVisible, feedbackMessage } from '@/utils/feedback'
+
+const rootStyle = {
+  position: 'fixed', left: '40rpx', right: '40rpx', bottom: '184rpx',
+  zIndex: 9999, alignItems: 'center', pointerEvents: 'none',
+}
+const panelStyle = computed((): any => ({
+  ...flexRow, minHeight: '72rpx', maxWidth: '610rpx', alignItems: 'center',
+  paddingLeft: '24rpx', paddingRight: '28rpx', borderRadius: '36rpx',
+  backgroundColor: n.value.surfaceRaised,
+  borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.divider,
+}))
+const brandMark = { width: '12rpx', height: '28rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '16rpx', flexShrink: 0 }
+const messageStyle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text, lineHeight: '38rpx' }))
+</script>
