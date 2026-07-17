@@ -136,7 +136,7 @@ function onSettingTap(id: string) {
   if (id === 'sync') { uni.navigateTo({ url: '/pages/sync/index' }); return }
   if (id === 'ai') { openPrimaryTab('/pages/ai/index'); return }
   if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
-  if (id === 'about') { showFeedback('三坑绮橱 V2.0 内容闭环版'); return }
+  if (id === 'about') { showFeedback('三坑绮橱 V2.1 后端就绪体验版'); return }
   if (id === 'logout') { logoutPreview(); return }
 }
 function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
