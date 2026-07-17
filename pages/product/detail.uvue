@@ -3,7 +3,14 @@
     <template #navbar><AppNavbar title="商品详情" :show-back="true" /></template>
     <template #default>
       <view v-if="item !== null" :style="pageWrap">
-        <view :style="hero"><AppImage :src="item!.coverUrl" width="100%" height="100%" mode="aspectFill" /></view>
+        <view :style="galleryWrap">
+          <swiper :style="hero" :circular="detailImages.length > 1" :indicator-dots="detailImages.length > 1" :indicator-color="n.divider" :indicator-active-color="brand[500]" @change="onGalleryChange">
+            <swiper-item v-for="imageUrl in detailImages" :key="imageUrl">
+              <AppImage :src="imageUrl" width="100%" height="100%" mode="aspectFill" />
+            </swiper-item>
+          </swiper>
+          <view v-if="detailImages.length > 1" :style="imageCounter"><text :style="imageCounterText">{{ currentImageIndex + 1 }} / {{ detailImages.length }}</text></view>
+        </view>
         <view class="page-canvas">
           <view :style="summaryCard">
             <view :style="priceRow"><text :style="priceText">{{ formatPrice(item!.price) }}</text><text v-if="item!.originalPrice > item!.price" :style="oldPrice">{{ formatPrice(item!.originalPrice) }}</text></view>
@@ -12,7 +19,7 @@
             <view :style="statusRow"><view :style="statusDot" /><text :style="statusText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text><text v-if="formatDeadline(item!.eventEndAt) !== ''" :style="deadlineText">{{ formatDeadline(item!.eventEndAt) }}</text></view>
           </view>
 
-          <V2SectionHeader title="发售进度" subtitle="以官方渠道最终信息为准" />
+          <V2SectionHeader title="发售进度" />
           <view :style="timelineCard">
             <view v-for="(stage, idx) in stages" :key="stage" :style="stageItem(idx)"><view :style="stageDot(idx)" /><text :style="stageText(idx)">{{ stage }}</text></view>
           </view>
@@ -49,6 +56,7 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import { showFeedback } from '@/utils/feedback'
 
 const itemId = ref('')
 const sourceItems = getFirstPage()
@@ -57,9 +65,25 @@ const item = computed((): FeedItem | null => {
   return found ?? null
 })
 const stages = ['图透', '定金', '尾款', '现货']
-function saveItem() { uni.showToast({ title: '已加入收藏', icon: 'success' }) }
+const currentImageIndex = ref(0)
+const detailImages = computed((): string[] => {
+  const images: string[] = []
+  if (item.value === null) return images
+  function addImage(url: string) {
+    if (url !== '' && images.indexOf(url) < 0 && images.length < 4) images.push(url)
+  }
+  addImage(item.value!.coverUrl)
+  addImage(item.value!.secondaryCoverUrl)
+  for (let i = 0; i < sourceItems.length; i++) {
+    const candidate = sourceItems[i]
+    if (candidate.category === item.value!.category && candidate.feedType === 'product') addImage(candidate.coverUrl)
+  }
+  return images
+})
+function onGalleryChange(e: any) { currentImageIndex.value = (e.detail as any).current ?? 0 }
+function saveItem() { showFeedback('已收进心动收藏') }
 function askAI() { openPrimaryTab('/pages/ai/index') }
-function openOfficial() { uni.showToast({ title: '正式数据接入后跳转品牌官方渠道', icon: 'none' }) }
+function openOfficial() { showFeedback('官方购买入口接入后可跳转') }
 onMounted(() => {
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]
@@ -68,7 +92,10 @@ onMounted(() => {
 
 const safeBottom = getSafeBottomInset()
 const pageWrap = { paddingBottom: '0' }
+const galleryWrap = { width: '750rpx', height: '750rpx', position: 'relative' as string }
 const hero = computed((): any => ({ width: '750rpx', height: '750rpx', backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
+const imageCounter = { position: 'absolute' as string, right: '28rpx', bottom: '28rpx', minWidth: '82rpx', height: '44rpx', paddingLeft: '14rpx', paddingRight: '14rpx', borderRadius: '22rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,18,19,0.58)' }
+const imageCounterText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: baseColors.white }
 const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
 const priceText = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[600] }
