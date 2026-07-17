@@ -5,7 +5,8 @@
  */
 
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
-import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel } from '@/domain/content/mock-feed-repo'
+import { filterByChannel } from '@/domain/content/mock-feed-repo'
+import { fetchFeedPage } from '@/services/content/feed-service'
 
 // ====== 频道定义 ======
 
@@ -163,18 +164,11 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     state.value = 'loading'
     errorMessage.value = ''
     try {
-      await new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-          if (DEBUG_FORCE_ERROR) {
-            reject(new Error('网络连接失败，请重试'))
-          } else {
-            resolve()
-          }
-        }, 300)
-      })
-      allItems.value = getFirstPage()
+      if (DEBUG_FORCE_ERROR) throw new Error('网络连接失败，请重试')
+      const page = await fetchFeedPage(0)
+      allItems.value = page.items
       currentPage.value = 1
-      hasMore.value = allItems.value.length < getMaxItems()
+      hasMore.value = page.hasMore
       state.value = 'loaded'
     } catch (e) {
       state.value = 'error'
@@ -187,17 +181,16 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     if (isLoadingMore.value || !hasMore.value || state.value !== 'loaded') return
     isLoadingMore.value = true
     try {
-      await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 200))
-      const newItems = getFeedPage(currentPage.value)
-      if (newItems.length === 0) {
+      const page = await fetchFeedPage(currentPage.value)
+      if (page.items.length === 0) {
         hasMore.value = false
       } else {
-        allItems.value = [...allItems.value, ...newItems]
-        currentPage.value++
-        if (allItems.value.length >= getMaxItems()) {
-          hasMore.value = false
-        }
+        allItems.value = [...allItems.value, ...page.items]
+        currentPage.value += 1
+        hasMore.value = page.hasMore
       }
+    } catch (e) {
+      errorMessage.value = e instanceof Error ? e.message : '加载失败'
     } finally {
       isLoadingMore.value = false
     }
