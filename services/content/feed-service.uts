@@ -1,5 +1,5 @@
 import { FeedItem } from '@/domain/content/feed-item'
-import { getFirstPage, getFeedPage, getMaxItems } from '@/domain/content/mock-feed-repo'
+import { getFirstPage, getFeedPage, getMaxItems, filterByChannel as filterMockByChannel } from '@/domain/content/mock-feed-repo'
 import { createRequestId } from '@/domain/platform/api-contract'
 import { getRuntimeConfig } from '@/config/runtime'
 
@@ -26,4 +26,9 @@ export async function fetchFeedPage(pageIndex: number): Promise<FeedPage> {
   result.hasMore = result.items.length > 0 && loadedHint < getMaxItems()
   result.nextCursor = result.hasMore ? String(pageIndex + 1) : ''
   return result
+}
+
+/** Store 只认识稳定筛选语义，不接触 Mock Adapter。 */
+export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
+  return filterMockByChannel(items, channel)
 }
