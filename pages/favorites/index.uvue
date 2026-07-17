@@ -13,7 +13,7 @@
           <view :style="emptyAction" @tap="goDiscover"><text :style="emptyActionText">去发现</text></view>
         </view>
 
-        <V2SectionHeader title="可能喜欢" subtitle="根据你的品类偏好" />
+        <V2SectionHeader title="可能喜欢" />
         <view :style="recommendGrid">
           <view v-for="(item, idx) in mockRecommend" :key="item.id" :style="productShell(idx)">
             <V2ProductCard :image="item.img" :brand-name="item.brand" :title="item.title" :price-text="item.price" @click="onRecTap(item)" />
