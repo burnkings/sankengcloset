@@ -75,12 +75,14 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { useContentLibraryStore } from '@/stores/content-library-store'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const selectedTastes = ref(['JK', 'Lolita', '汉服'])
 const isLoggedIn = ref(false)
+const library = useContentLibraryStore()
 
 function onEdit() { showFeedback('资料编辑正在准备中') }
 function loginPreview() {
@@ -136,7 +138,7 @@ onMounted(() => {
     if (saved !== '') selectedTastes.value = saved.split(',')
   } catch (e) {}
 })
-onShow(() => { syncTabBarChrome() })
+onShow(() => { library.reload(); syncTabBarChrome() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
@@ -160,12 +162,12 @@ const closetValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fo
 const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
 const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
-const manageItems = [
-  { id: 'favorites', icon: 'wardrobe', label: '收藏', value: '心动内容' },
+const manageItems = computed(() => [
+  { id: 'favorites', icon: 'wardrobe', label: '收藏', value: `${library.favoriteCount} 件` },
   { id: 'orders', icon: 'order', label: '购买记录', value: '3 笔' },
   { id: 'reminders', icon: 'reminder', label: '提醒', value: '5 条' },
   { id: 'budget', icon: 'budget', label: '预算', value: '¥2,400' },
-]
+])
 const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '16rpx' }
 function manageCard(idx: number) { return { width: '325rpx', height: '142rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
 const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
