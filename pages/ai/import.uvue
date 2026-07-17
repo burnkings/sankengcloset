@@ -1,0 +1,267 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="AI 辅助导入" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="principleCard">
+          <AppIcon name="sparkles" :size="38" :active="true" />
+          <view :style="principleCopy">
+            <text :style="principleTitle">AI 只预填，你来确认</text>
+            <text :style="principleText">不会自动保存，也不会把 Mock 结果当成真实识别。</text>
+          </view>
+        </view>
+
+        <view :style="sourceCard">
+          <view :style="previewShell">
+            <AppImage v-if="sourceImage !== ''" :src="sourceImage" width="100%" height="100%" mode="aspectFill" />
+            <view v-else :style="previewEmpty"><AppIcon name="camera" :size="58" :active="true" /><text :style="previewText">选择一张单品图片</text></view>
+          </view>
+          <view :style="sourceActions">
+            <view :style="secondaryAction" @tap="choosePhoto"><text :style="secondaryActionText">{{ sourceImage === '' ? '相册或拍照' : '重新选择' }}</text></view>
+            <view :style="demoAction" @tap="useDemo"><text :style="demoActionText">使用示例</text></view>
+          </view>
+        </view>
+
+        <view v-if="importer.processing" :style="stateCard">
+          <AppIcon name="sync" :size="42" :active="true" />
+          <text :style="stateTitle">正在生成可编辑草稿</text>
+          <text :style="stateDesc">Mock 只验证流程，不代表已调用视觉模型。</text>
+        </view>
+
+        <view v-if="importer.errorMessage !== ''" :style="errorCard">
+          <text :style="errorText">{{ importer.errorMessage }}</text>
+          <view :style="retryButton" @tap="retry"><text :style="retryText">重新尝试</text></view>
+        </view>
+
+        <view v-if="importer.ready">
+          <view :style="resultMeta">
+            <view :style="modePill"><text :style="modeText">{{ sourceModeLabel }}</text></view>
+            <text :style="confidenceText">参考置信度 {{ confidenceLabel }}</text>
+          </view>
+
+          <V2SectionHeader title="确认信息" />
+          <text :style="fieldLabel">单品名称</text>
+          <AppInput v-model="form.name" placeholder="请确认单品名称" :clearable="true" />
+
+          <text :style="fieldLabel">坑向</text>
+          <V2FilterChips :items="categories" :active="activeCategory" @change="onCategory" />
+
+          <view :style="twoColumnRow">
+            <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="未知可留空" /></view>
+            <view :style="halfFieldLast"><text :style="fieldLabelCompact">价格（元）</text><AppInput v-model="form.price" placeholder="0" type="digit" /></view>
+          </view>
+          <view :style="twoColumnRow">
+            <view :style="halfField"><text :style="fieldLabelCompact">颜色</text><AppInput v-model="form.color" placeholder="主色" /></view>
+            <view :style="halfFieldLast"><text :style="fieldLabelCompact">尺码</text><AppInput v-model="form.size" placeholder="尺码" /></view>
+          </view>
+
+          <text :style="fieldLabel">备注</text>
+          <view :style="noteShell"><textarea :value="form.note" placeholder="识别依据、版型或待确认信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="180" @input="onNoteInput" /></view>
+
+          <view :style="evidenceCard">
+            <text :style="evidenceTitle">依据与边界</text>
+            <view v-for="line in evidence" :key="line" :style="evidenceRow"><view :style="evidenceDot" /><text :style="evidenceText">{{ line }}</text></view>
+            <view v-for="line in warnings" :key="line" :style="warningRow"><AppIcon name="info" :size="28" /><text :style="warningText">{{ line }}</text></view>
+          </view>
+
+          <V2SectionHeader title="保存位置" />
+          <view :style="targetRow">
+            <view :style="targetCard('wardrobe')" @tap="targetType = 'wardrobe'">
+              <AppIcon name="wardrobe" :size="42" :active="targetType === 'wardrobe'" />
+              <text :style="targetTitle('wardrobe')">加入衣橱</text>
+              <text :style="targetDesc">已经拥有的单品</text>
+            </view>
+            <view :style="targetCard('wishlist')" @tap="targetType = 'wishlist'">
+              <AppIcon name="heart" :size="42" :active="targetType === 'wishlist'" />
+              <text :style="targetTitle('wishlist')">加入心愿</text>
+              <text :style="targetDesc">还在考虑的单品</text>
+            </view>
+          </view>
+
+          <view :style="primaryButton" @tap="saveConfirmed"><text :style="primaryText">确认并保存</text></view>
+          <text :style="privacyNote">保存的是你确认后的字段；图片后续接入对象存储时将单独授权上传。</text>
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { useAiImportStore } from '@/stores/ai-import-store'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { useWishListStore } from '@/stores/wishlist-store'
+import { WardrobeItem } from '@/domain/wardrobe-item'
+import { WishItem, SOURCE_AI_IMPORT } from '@/domain/wish-item'
+import { brand, semantic } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+
+const importer = useAiImportStore()
+const wardrobe = useWardrobeStore()
+const wishlist = useWishListStore()
+const sourceImage = ref('')
+const useDemoMode = ref(false)
+const targetType = ref('wardrobe')
+const categories = ['JK', 'Lolita', '汉服', '其他']
+const form = ref({ name: '', category: 'OTHER', brand: '', price: '', color: '', size: '', note: '' })
+const evidence = ref([]) as Ref<string[]>
+const warnings = ref([]) as Ref<string[]>
+
+const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'JK' ? 'JK' : '其他')))
+const sourceModeLabel = computed((): string => useDemoMode.value ? '固定示例 Mock' : '安全草稿 Mock')
+const confidenceLabel = computed((): string => importer.task === null ? '—' : `${Math.round(importer.task!.confidence * 100)}%`)
+
+function onCategory(label: string) {
+  form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === 'JK' ? 'JK' : 'OTHER'))
+}
+function onNoteInput(e: any) { form.value.note = (e.detail as any).value ?? '' }
+
+function choosePhoto() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      const temporary = res.tempFilePaths.length > 0 ? res.tempFilePaths[0] : ''
+      if (temporary === '') return
+      uni.saveFile({
+        tempFilePath: temporary,
+        success: (saved) => { startAnalysis(saved.savedFilePath, false) },
+        fail: () => { startAnalysis(temporary, false) },
+      })
+    },
+    fail: () => {},
+  })
+}
+function useDemo() { startAnalysis('/static/demo/prod-editorial-01.jpg', true) }
+async function startAnalysis(path: string, demo: boolean) {
+  sourceImage.value = path
+  useDemoMode.value = demo
+  const task = await importer.analyze(path, demo)
+  if (task === null) return
+  form.value.name = task.suggestion.name
+  form.value.category = task.suggestion.category
+  form.value.brand = task.suggestion.brand
+  form.value.price = task.suggestion.priceCents > 0 ? String(task.suggestion.priceCents / 100) : ''
+  form.value.color = task.suggestion.color
+  form.value.size = task.suggestion.size
+  form.value.note = task.suggestion.note
+  evidence.value = [...task.evidence]
+  warnings.value = [...task.warnings]
+}
+function retry() {
+  if (sourceImage.value === '') { choosePhoto(); return }
+  startAnalysis(sourceImage.value, useDemoMode.value)
+}
+function saveConfirmed() {
+  if (!importer.ready || importer.task === null) return
+  if (form.value.name.trim() === '') { showFeedback('请确认单品名称'); return }
+  const price = form.value.price.trim() === '' ? 0 : parseFloat(form.value.price)
+  if (isNaN(price) || price < 0) { showFeedback('请填写正确的价格'); return }
+
+  let targetId = ''
+  if (targetType.value === 'wardrobe') {
+    const item = new WardrobeItem()
+    item.name = form.value.name.trim()
+    item.category = form.value.category
+    item.brand = form.value.brand.trim()
+    item.purchasePrice = price
+    item.color = form.value.color.trim()
+    item.size = form.value.size.trim()
+    item.purchaseSource = 'AI_IMPORT'
+    item.images = sourceImage.value === '' ? [] : [sourceImage.value]
+    item.note = form.value.note.trim()
+    const added = wardrobe.addItem(item)
+    if (added === null) { showFeedback('保存失败，请重试'); return }
+    targetId = added.id
+  } else {
+    const item = new WishItem()
+    item.name = form.value.name.trim()
+    item.brand = form.value.brand.trim()
+    item.estimatedPrice = price
+    item.coverImage = sourceImage.value
+    item.source = SOURCE_AI_IMPORT
+    item.note = form.value.note.trim()
+    const added = wishlist.addItem(item)
+    if (added === null) { showFeedback('保存失败，请重试'); return }
+    targetId = added.id
+  }
+
+  const payload = JSON.stringify({
+    targetType: targetType.value,
+    targetId,
+    name: form.value.name.trim(),
+    category: form.value.category,
+    brand: form.value.brand.trim(),
+    priceCents: Math.round(price * 100),
+    color: form.value.color.trim(),
+    size: form.value.size.trim(),
+    sourceMode: useDemoMode.value ? 'mock_demo' : 'mock_safe',
+  })
+  importer.confirm(targetType.value, targetId, payload)
+  showFeedback(targetType.value === 'wardrobe' ? '已加入衣橱' : '已加入心愿')
+  setTimeout(() => { uni.navigateBack() }, 260)
+}
+function targetCard(type: string) { return { width: '327rpx', minHeight: '142rpx', padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: targetType.value === type ? (isDark.value ? n.value.surfaceWarm : brand[50]) : n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: targetType.value === type ? brand[300] : n.value.divider, marginRight: type === 'wardrobe' ? GROUP_GAP : '0' } }
+function targetTitle(type: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: targetType.value === type ? brand[600] : n.value.text, marginTop: '10rpx' } }
+
+onMounted(() => { importer.reset(); wardrobe.fetchItems(); wishlist.fetchItems() })
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '72rpx' }
+const principleCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const principleCopy = { ...flexFill, marginLeft: '14rpx' }
+const principleTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const principleText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx', lineHeight: '32rpx' }))
+const sourceCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '20rpx' }))
+const previewShell = computed((): any => ({ width: '630rpx', height: '430rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
+const previewEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
+const previewText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '16rpx' }))
+const sourceActions = { ...flexRow, marginTop: '16rpx' }
+const secondaryAction = computed((): any => ({ width: '303rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const secondaryActionText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text }))
+const demoAction = { width: '303rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }
+const demoActionText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const stateCard = computed((): any => ({ minHeight: '220rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }))
+const stateTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '14rpx' }))
+const stateDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const errorCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '20rpx' }))
+const errorText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: semantic.error }))
+const retryButton = { height: '60rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '30rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }
+const retryText = { fontSize: fontSize.xs, color: '#FFFFFF' }
+const resultMeta = { ...flexRow, alignItems: 'center', marginTop: '22rpx' }
+const modePill = computed((): any => ({ paddingLeft: '18rpx', paddingRight: '18rpx', height: '48rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50], alignItems: 'center', justifyContent: 'center' }))
+const modeText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: brand[600] }
+const confidenceText = computed((): any => ({ ...flexFill, textAlign: 'right', fontSize: fontSize.xs, color: n.value.textTertiary }))
+const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '26rpx', marginBottom: '12rpx' }))
+const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '12rpx' }))
+const twoColumnRow = { ...flexRow, marginTop: '26rpx' }
+const halfField = { width: '327rpx', marginRight: '16rpx' }
+const halfFieldLast = { ...flexFill }
+const noteShell = computed((): any => ({ minHeight: '170rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgTertiary }))
+const noteInput = computed((): any => ({ width: '100%', minHeight: '138rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '38rpx' }))
+const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
+const evidenceCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '22rpx' }))
+const evidenceTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '12rpx' }))
+const evidenceRow = { ...flexRow, alignItems: 'flex-start', marginBottom: '8rpx' }
+const evidenceDot = { width: '8rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[500], marginTop: '13rpx', marginRight: '12rpx', flexShrink: 0 }
+const evidenceText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx' }))
+const warningRow = { ...flexRow, alignItems: 'center', marginTop: '10rpx' }
+const warningText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '8rpx', lineHeight: '32rpx' }))
+const targetRow = { ...flexRow }
+const targetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+const primaryButton = { height: '84rpx', borderRadius: '42rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '28rpx' }
+const primaryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const privacyNote = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, textAlign: 'center', lineHeight: '32rpx', marginTop: '14rpx' }))
+</script>
+
+<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
