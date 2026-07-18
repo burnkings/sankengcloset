@@ -134,17 +134,18 @@
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "black",
-    "navigationBarBackgroundColor": "#FAF9F8",
+    "navigationBarTextStyle": "@navTextStyle",
+    "navigationBarBackgroundColor": "@navBgColor",
+    "backgroundColor": "@bgColor",
     "backgroundTextStyle": "dark"
   }
   // #ifndef APP
   ,
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#D65378",
-    "backgroundColor": "#FFFFFF",
-    "borderStyle": "black",
+    "color": "@tabColor",
+    "selectedColor": "@tabSelectedColor",
+    "backgroundColor": "@tabBgColor",
+    "borderStyle": "@tabBorderStyle",
     "list": [
       {
         "pagePath": "pages/home/index",
