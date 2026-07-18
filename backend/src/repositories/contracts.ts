@@ -27,6 +27,7 @@ export interface AppRepository {
   close(): Promise<void>;
   ready(): Promise<boolean>;
   ensureDevUser(nickname: string): Promise<UserProfile>;
+  ensureWechatUser(openId: string, nickname: string): Promise<UserProfile>;
   getUser(userId: string): Promise<UserProfile | null>;
   listFeed(userId: string | null, query: FeedQuery): Promise<FeedResult>;
   getProduct(userId: string | null, productId: string): Promise<Product | null>;
