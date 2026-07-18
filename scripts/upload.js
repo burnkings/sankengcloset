@@ -12,8 +12,8 @@ const project = new ci.Project({
 
 ci.upload({
   project,
-  version: '1.6.2',
-  desc: 'Latest feature/v2-final-experience — AppBottomNav, privacy page, tab nav, component cleanup, search improvements',
+  version: '1.7.0',
+  desc: 'V2 UX一致性修复：深色模式/Toast/晒搭→圈子/推荐偏好/衣橱筛选/信息架构',
   setting: {
     es6: true,
     minify: false,
