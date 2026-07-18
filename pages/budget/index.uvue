@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="月度预算" :show-back="true"><template #right><text :style="saveText" @tap="save">保存</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="月度预算" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="summaryCard">
@@ -16,6 +16,9 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="budgetBottomBar">
+    <view :style="budgetSaveButton" @tap="save"><text :style="budgetSaveText">保存预算</text></view>
+  </view>
 </template>
 
 <script setup lang="uts">
@@ -32,6 +35,7 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const budget = useBudgetStore(); const purchases = usePurchaseStore()
 const limitText = ref(budget.monthlyLimit > 0 ? String(budget.monthlyLimit) : '')
@@ -46,10 +50,13 @@ const progress = computed((): number => limitValue.value <= 0 ? 0 : Math.min(100
 function onAlert(label: string) { alertValue.value = parseInt(label.replace('%', '')) }
 function formatAmount(value: number): string { return value === Math.floor(value) ? String(Math.floor(value)) : value.toFixed(2) }
 function save() { if (limitValue.value <= 0) { showFeedback('请填写大于 0 的月预算'); return }; budget.save(limitValue.value, alertValue.value); showFeedback('月预算已保存'); setTimeout(() => { uni.navigateBack() }, 220) }
+const safeBottom = getSafeBottomInset()
 onMounted(() => { purchases.fetchPurchases() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
-const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' }
+const budgetBottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${safeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
+const budgetSaveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
+const budgetSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const summaryCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
 const summaryEyebrow = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const spentText = computed((): any => ({ fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: n.value.text, marginTop: '10rpx' }))

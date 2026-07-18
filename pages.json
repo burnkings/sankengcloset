@@ -136,7 +136,6 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarBackgroundColor": "#FAF9F8",
-    "backgroundColor": "#FAF9F8",
     "backgroundTextStyle": "dark"
   }
   // #ifndef APP
