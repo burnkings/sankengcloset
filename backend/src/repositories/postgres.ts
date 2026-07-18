@@ -111,6 +111,38 @@ export class PostgresRepository implements AppRepository {
     return mapUser(rows[0] as Row);
   }
 
+  async ensureWechatUser(openId: string, nickname: string): Promise<UserProfile> {
+    return this.sql.begin(async (tx) => {
+      const existing = await tx`
+        select u.id, u.nickname, u.status, u.created_at
+        from user_identities i join users u on u.id = i.user_id
+        where i.provider = 'wechat' and i.provider_subject = ${openId} and u.status = 'active'
+      `;
+      if (existing.length > 0) return mapUser(existing[0] as Row);
+
+      const userId = newId('usr');
+      await tx`insert into users (id, nickname, status) values (${userId}, ${nickname}, 'active')`;
+      const identity = await tx`
+        insert into user_identities (user_id, provider, provider_subject)
+        values (${userId}, 'wechat', ${openId})
+        on conflict (provider, provider_subject) do nothing
+        returning user_id
+      `;
+      if (identity.length > 0) {
+        const created = await tx`select id, nickname, status, created_at from users where id = ${userId}`;
+        return mapUser(created[0] as Row);
+      }
+
+      await tx`delete from users where id = ${userId}`;
+      const raced = await tx`
+        select u.id, u.nickname, u.status, u.created_at
+        from user_identities i join users u on u.id = i.user_id
+        where i.provider = 'wechat' and i.provider_subject = ${openId} and u.status = 'active'
+      `;
+      return mapUser(raced[0] as Row);
+    });
+  }
+
   async getUser(userId: string): Promise<UserProfile | null> {
     const rows = await this.sql`select id, nickname, status, created_at from users where id = ${userId} and status = 'active'`;
     return rows.length === 0 ? null : mapUser(rows[0] as Row);
