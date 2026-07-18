@@ -126,7 +126,6 @@ function onManageTap(id: string) {
 function onSettingTap(id: string) {
   if (id === 'dark') {
     setDarkMode(!isDark.value)
-    nextTick(() => { syncTabBarChrome() })
     return
   }
   if (id === 'notification') {

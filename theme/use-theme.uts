@@ -12,10 +12,23 @@
 import { neutralLight, neutralDark, brand } from './tokens/colors'
 
 const THEME_STORAGE_KEY = 'sankeng_theme_mode'
+const OLD_THEME_KEYS = ['sk_dark_mode', 'app_theme_mode', 'theme_dark_mode']
 
 function readStorageDarkMode(): boolean {
   try {
-    return (uni.getStorageSync(THEME_STORAGE_KEY) as string) === 'dark'
+    // 1. 先读新 key
+    const current = uni.getStorageSync(THEME_STORAGE_KEY) as string
+    if (current === 'dark') return true
+    if (current === 'light') return false
+    // 2. 迁移旧 key（老版本升级时保留用户偏好）
+    for (let i = 0; i < OLD_THEME_KEYS.length; i++) {
+      const old = uni.getStorageSync(OLD_THEME_KEYS[i]) as string
+      if (old === 'dark' || old === 'light') {
+        uni.setStorageSync(THEME_STORAGE_KEY, old)
+        return old === 'dark'
+      }
+    }
+    return false
   } catch (e) {
     return false
   }
