@@ -1,8 +1,9 @@
 <script setup lang="uts">
-import { initializeTheme, syncSystemChrome } from '@/theme/use-theme'
+import { initializeTheme, syncSystemChrome, syncTabBarChrome } from '@/theme/use-theme'
 
 onLaunch(() => {
   initializeTheme()
+  syncTabBarChrome()
   console.log('App Launch')
 })
 

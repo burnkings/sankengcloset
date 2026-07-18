@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="我的衣橱" :show-back="true"><template #right><text :style="addText" @tap="goAdd">添加</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="我的衣橱" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <AppInput v-model="searchValue" placeholder="搜索衣物名称或品牌" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
@@ -19,6 +19,7 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
 </template>
 
 <script setup lang="uts">
@@ -36,8 +37,10 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWardrobeStore()
+const safeBottom = getSafeBottomInset()
 const searchValue = ref('')
 const activeFilter = ref('全部')
 const activeStatus = ref('全部')
@@ -62,6 +65,7 @@ watch(searchValue, (value) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 const summaryRow = { ...flexRow, alignItems: 'center', marginTop: '24rpx', marginBottom: '16rpx' }
 const summaryTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const sortBadge = computed((): any => ({ ...flexRow, alignItems: 'center', paddingLeft: '16rpx', paddingRight: '12rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary }))

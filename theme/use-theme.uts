@@ -63,6 +63,15 @@ export function syncSystemChrome() {
 export function initPageTheme() {
   applySystemChrome()
   syncTabBarChrome()
+  // 同步设置当前页面背景，减少异步 API 延迟导致的闪白
+  try {
+    const palette = _isDark.value ? neutralDark : neutralLight
+    uni.setBackgroundColor({
+      backgroundColor: palette.bg,
+      backgroundColorTop: palette.bg,
+      backgroundColorBottom: palette.bg,
+    })
+  } catch (e) {}
 }
 
 export function setDarkMode(enabled: boolean) {
@@ -71,7 +80,8 @@ export function setDarkMode(enabled: boolean) {
   uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
   // 重置缓存，确保下次 syncTabBarChrome 一定会重新应用
   lastTabBarMode = ''
-  nextTick(() => { applySystemChrome(); syncTabBarChrome() })
+  applySystemChrome()
+  syncTabBarChrome()
 }
 
 export function toggleDarkMode(): boolean {

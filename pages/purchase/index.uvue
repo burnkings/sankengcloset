@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="购买记录" :show-back="true"><template #right><text :style="addText" @tap="goAdd">添加</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="购买记录" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="summaryCard"><view :style="summaryPrimary"><text :style="summaryLabel">累计记录</text><text :style="summaryAmount">¥{{ store.totalSpent }}</text></view><view :style="summarySide"><text :style="sideValue">{{ store.itemCount }} 笔</text><text :style="sideLabel">待结清 ¥{{ store.remainingTotal }}</text></view></view>
@@ -19,6 +19,7 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
 </template>
 
 <script setup lang="uts">
@@ -34,8 +35,10 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = usePurchaseStore()
+const safeBottom = getSafeBottomInset()
 const activeFilter = ref('全部')
 const filters = ['全部', '预售中', '已付定金', '待付款', '已完成', '已取消']
 function onFilter(label: string) {
@@ -54,6 +57,7 @@ onMounted(() => { store.fetchPurchases() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const summaryPrimary = { ...flexFill }
 const summaryLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
