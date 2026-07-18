@@ -26,28 +26,6 @@ afterEach(async () => {
   if (app) await app.close();
   app = undefined;
   vi.unstubAllGlobals();
-
-  it('exchanges a WeChat code without exposing the session key', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
-      openid: 'openid_ci_user', session_key: 'must-not-leave-server', unionid: 'union_ci_user',
-    }), { status: 200, headers: { 'content-type': 'application/json' } })));
-    const config = loadConfig({
-      NODE_ENV: 'test', DATA_DRIVER: 'memory', JWT_SECRET: 'test-secret-that-is-longer-than-32-characters',
-      PUBLIC_BASE_URL: 'http://localhost:8787', UPLOAD_DIR: '/tmp/sankeng-api-tests',
-      WECHAT_APP_ID: 'wx_test_app', WECHAT_APP_SECRET: 'server-only-secret',
-    });
-    app = await buildApp({ config, repository: new MemoryRepository(), logger: false });
-    await app.ready();
-
-    const response = await app.inject({
-      method: 'POST', url: '/api/v1/sessions/wechat', payload: { code: 'temporary-code', deviceId: 'device_test' },
-    });
-    expect(response.statusCode).toBe(200);
-    expect(response.json().data.mode).toBe('wechat');
-    expect(response.json().data.accessToken).toBeTypeOf('string');
-    expect(response.body).not.toContain('session_key');
-    expect(response.body).not.toContain('must-not-leave-server');
-  });
 });
 
 describe('runtime foundation', () => {
@@ -105,5 +83,27 @@ describe('runtime foundation', () => {
     expect(confirmed.statusCode).toBe(200);
     expect(confirmed.json().data.task.state).toBe('confirmed');
     expect(confirmed.json().data.task.targetId).toMatch(/^wdi_/);
+  });
+
+  it('exchanges a WeChat code without exposing the session key', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      openid: 'openid_ci_user', session_key: 'must-not-leave-server', unionid: 'union_ci_user',
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    const config = loadConfig({
+      NODE_ENV: 'test', DATA_DRIVER: 'memory', JWT_SECRET: 'test-secret-that-is-longer-than-32-characters',
+      PUBLIC_BASE_URL: 'http://localhost:8787', UPLOAD_DIR: '/tmp/sankeng-api-tests',
+      WECHAT_APP_ID: 'wx_test_app', WECHAT_APP_SECRET: 'server-only-secret',
+    });
+    app = await buildApp({ config, repository: new MemoryRepository(), logger: false });
+    await app.ready();
+
+    const response = await app.inject({
+      method: 'POST', url: '/api/v1/sessions/wechat', payload: { code: 'temporary-code', deviceId: 'device_test' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.mode).toBe('wechat');
+    expect(response.json().data.accessToken).toBeTypeOf('string');
+    expect(response.body).not.toContain('session_key');
+    expect(response.body).not.toContain('must-not-leave-server');
   });
 });
