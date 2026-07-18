@@ -4,6 +4,7 @@ import type { AppConfig } from '../config.js';
 import { success, requireUser } from '../http.js';
 import type { AppRepository } from '../repositories/contracts.js';
 import { AppProblem, notFound } from '../lib/problem.js';
+import { exchangeWechatCode } from '../services/wechat-auth.js';
 
 const devLoginSchema = z.object({ nickname: z.string().trim().min(1).max(32).default('本地测试用户') });
 const refreshSchema = z.object({ refreshToken: z.string().min(1) });
@@ -26,11 +27,13 @@ export async function registerSessionRoutes(app: FastifyInstance, config: AppCon
   });
 
   app.post('/api/v1/sessions/wechat', async (request) => {
-    wechatSchema.parse(request.body);
+    const body = wechatSchema.parse(request.body);
     if (config.WECHAT_APP_ID === '' || config.WECHAT_APP_SECRET === '') {
       throw new AppProblem(503, 'WECHAT_NOT_CONFIGURED', '微信登录尚未配置 App ID 与 Secret', false);
     }
-    throw new AppProblem(501, 'NOT_IMPLEMENTED', '微信 code2Session 适配器尚未启用', false);
+    const session = await exchangeWechatCode(config.WECHAT_APP_ID, config.WECHAT_APP_SECRET, body.code);
+    const user = await repository.ensureWechatUser(session.openId, '三坑女孩');
+    return success(request, { user, ...createTokens(app, user.id), mode: 'wechat' });
   });
 
   app.post('/api/v1/sessions/refresh', async (request) => {
