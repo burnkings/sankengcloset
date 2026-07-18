@@ -31,6 +31,20 @@ npm run dev
 docker compose up --build
 ```
 
+生产部署使用独立 Compose 文件，数据库不会暴露到宿主机公网，API 仅监听
+
+`127.0.0.1:8787`，应由 Caddy/Nginx 提供 HTTPS：
+
+```bash
+cp .env.production.example .env.production
+# 填写强密码、正式 HTTPS 域名以及微信 App ID/Secret
+docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
+docker compose --env-file .env.production -f docker-compose.production.yml ps
+curl http://127.0.0.1:8787/ready
+```
+
+本地上传卷只适合单机首发；切换多实例前必须把对象存储适配器替换为 OSS/COS/S3。
+
 ## 开发登录
 
 仅 `NODE_ENV != production` 时开放：
@@ -41,7 +55,7 @@ curl -X POST http://localhost:8787/api/v1/sessions/dev \
   -d '{"nickname":"本地测试用户"}'
 ```
 
-生产环境必须接入 `POST /api/v1/sessions/wechat`，并配置微信 App ID/Secret。开发登录在生产环境会返回 404。
+生产环境通过 `POST /api/v1/sessions/wechat` 完成微信 `code2Session`，并将 OpenID 映射到内部用户；微信 session key 永不返回客户端。必须在服务器环境变量配置 App ID/Secret，开发登录在生产环境会返回 404。
 
 ## 已落地端点
 
