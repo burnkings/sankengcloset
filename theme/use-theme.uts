@@ -3,11 +3,15 @@
  * 
  * 注意：不要解构返回值，直接用 theme.isDark / theme.n
  * UTS→Kotlin 编译器不支持对象解构
+ *
+ * 跨页面同步：小程序每个页面有独立 JS 上下文，module-level ref 不共享。
+ * 通过 uni.$emit('themeChanged') 广播，initPageTheme() 中 uni.$on 接收并更新本地 ref。
  */
 
 import { neutralLight, neutralDark, brand } from './tokens/colors'
 
-const THEME_STORAGE_KEY = 'sk_theme_mode'
+const THEME_STORAGE_KEY = 'sankeng_theme_mode'
+const THEME_EVENT = 'themeChanged'
 
 function readInitialDarkMode(): boolean {
   try {
@@ -21,6 +25,7 @@ function readInitialDarkMode(): boolean {
 const _isDark = ref(readInitialDarkMode())
 const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
 let lastTabBarMode = ''
+let _themeListenerBound = false
 
 function applySystemChrome() {
   const palette = _isDark.value ? neutralDark : neutralLight
@@ -59,19 +64,34 @@ export function syncSystemChrome() {
   applySystemChrome()
 }
 
-/** Tab 页 onLoad 阶段调用：同步主题 + 系统栏 + TabBar，避免首帧闪白 */
+/**
+ * Tab 页 onLoad 阶段调用：同步主题 + 系统栏 + TabBar + 跨页面事件监听
+ * 解决小程序页面间 JS 上下文隔离导致的主题不同步问题
+ */
 export function initPageTheme() {
+  // 1. 从 storage 读取最新值（防止被其他页面修改后本页面还是旧值）
+  _isDark.value = readInitialDarkMode()
+
+  // 2. 应用系统 chrome
   applySystemChrome()
+  lastTabBarMode = ''
   syncTabBarChrome()
-  // 同步设置当前页面背景，减少异步 API 延迟导致的闪白
-  try {
-    const palette = _isDark.value ? neutralDark : neutralLight
-    uni.setBackgroundColor({
-      backgroundColor: palette.bg,
-      backgroundColorTop: palette.bg,
-      backgroundColorBottom: palette.bg,
+
+  // 3. 监听其他页面的主题切换事件
+  if (!_themeListenerBound) {
+    _themeListenerBound = true
+    uni.$on(THEME_EVENT, (data: any) => {
+      try {
+        const dark = data as boolean
+        if (_isDark.value !== dark) {
+          _isDark.value = dark
+          lastTabBarMode = ''
+          applySystemChrome()
+          syncTabBarChrome()
+        }
+      } catch (e) {}
     })
-  } catch (e) {}
+  }
 }
 
 export function setDarkMode(enabled: boolean) {
@@ -82,6 +102,8 @@ export function setDarkMode(enabled: boolean) {
   lastTabBarMode = ''
   applySystemChrome()
   syncTabBarChrome()
+  // 广播给其他页面
+  uni.$emit(THEME_EVENT, enabled)
 }
 
 export function toggleDarkMode(): boolean {
