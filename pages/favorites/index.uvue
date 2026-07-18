@@ -72,7 +72,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, CARD_RADIUS } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
@@ -95,7 +95,7 @@ const emptyTitleText = computed((): string => {
 })
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
-  if (activeTab.value === '穿搭') return '从晒搭里收集想尝试的搭配'
+  if (activeTab.value === '穿搭') return '从圈子里收集想尝试的搭配'
   if (activeTab.value === '合集') return '以后可以按场景整理心动内容'
   return '从新品、预约和降价中慢慢挑选'
 })
@@ -107,6 +107,7 @@ function openBrand(brandName: string) {
   uni.setStorageSync('pending_search_keyword', brandName)
   uni.navigateTo({ url: '/pages/search/index' })
 }
+onLoad(() => { initPageTheme() })
 onShow(() => { library.reload() })
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }

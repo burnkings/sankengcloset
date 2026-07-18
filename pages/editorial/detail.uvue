@@ -1,0 +1,123 @@
+<template>
+  <MainLayout>
+    <template #navbar><AppNavbar :title="pageTitle" show-back /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <!-- Hero image -->
+        <view :style="heroWrap">
+          <AppImage :src="heroImage" width="100%" height="100%" mode="aspectFill" />
+          <view :style="heroOverlay" />
+          <view :style="heroCopy">
+            <text :style="heroTitle">{{ pageTitle }}</text>
+            <text :style="heroDesc">{{ pageDesc }}</text>
+          </view>
+        </view>
+
+        <!-- Collection products -->
+        <V2SectionHeader :title="`专题商品 (${filteredItems.length})`" />
+        <view v-if="filteredItems.length === 0" :style="emptyWrap">
+          <text :style="emptyText">暂无相关商品</text>
+        </view>
+        <view :style="productGrid">
+          <V2ProductCard
+            v-for="(item, idx) in filteredItems"
+            :key="item.id"
+            :image="item.coverUrl"
+            :brand-name="item.brandName"
+            :title="item.title"
+            :price-text="formatPrice(item.price)"
+            :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''"
+            :badge="item.badgeText"
+            @click="onProductTap(item.entityId)"
+          />
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { FeedItem } from '@/domain/content/feed-item'
+import { getFirstPage } from '@/domain/content/mock-feed-repo'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+import { brand } from '@/theme/tokens/colors'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
+
+const pageTitle = ref('')
+const pageDesc = ref('')
+const pageCategory = ref('')
+const heroImage = ref('/static/demo/outfit-editorial-01.jpg')
+const filteredItems = ref([]) as Ref<FeedItem[]>
+
+function formatPrice(cents: number): string {
+  if (cents <= 0) return ''
+  const yuan = cents / 100
+  if (yuan === Math.floor(yuan)) return `¥${Math.floor(yuan)}`
+  return `¥${yuan.toFixed(2)}`
+}
+
+function onProductTap(entityId: string) {
+  uni.navigateTo({ url: `/pages/product/detail?id=${entityId}` })
+}
+
+onLoad((query) => {
+  if (query != null) {
+    if (query['title'] != null) pageTitle.value = decodeURIComponent(String(query['title']))
+    if (query['category'] != null) pageCategory.value = String(query['category'])
+    if (query['image'] != null) {
+      const img = String(query['image'])
+      if (img !== '') heroImage.value = img
+    }
+  }
+
+  // Set description based on category
+  if (pageCategory.value === 'JK') {
+    pageDesc.value = '精选格裙、水手服与配饰，打造夏日盐系风格'
+  } else if (pageCategory.value === 'LOLITA') {
+    pageDesc.value = '从第一条 JSK 开始，探索 Lolita 的甜美世界'
+  } else if (pageCategory.value === 'HANFU') {
+    pageDesc.value = '宋制、明制、唐制——传统服饰的现代演绎'
+  } else {
+    pageDesc.value = '编辑团队为你精心挑选的专题内容'
+  }
+
+  // Filter products by category
+  const allItems = getFirstPage()
+  const category = pageCategory.value
+  if (category !== '') {
+    const filtered: FeedItem[] = []
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i]
+      if (item.category === category) {
+        filtered.push(item)
+      }
+    }
+    filteredItems.value = filtered
+  } else {
+    filteredItems.value = allItems
+  }
+})
+
+// ====== Styles ======
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const heroWrap = { width: '670rpx', height: '380rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', position: 'relative' }
+const heroOverlay = { position: 'absolute', left: '0', right: '0', bottom: '0', height: '200rpx', backgroundColor: 'rgba(0,0,0,0.4)' }
+const heroCopy = { position: 'absolute', left: '0', right: '0', bottom: '0', paddingLeft: '24rpx', paddingRight: '24rpx', paddingBottom: '28rpx' }
+const heroTitle = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: '#FFFFFF' }
+const heroDesc = { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.8)', marginTop: '8rpx' }
+const productGrid = { ...flexRow, flexWrap: 'wrap' as string, gap: GROUP_GAP }
+const emptyWrap = { paddingTop: '120rpx', alignItems: 'center' }
+const emptyText = { fontSize: fontSize.sm, color: n.value.textTertiary }
+</script>
+
+<style>
+.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
+</style>

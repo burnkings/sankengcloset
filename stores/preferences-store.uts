@@ -1,0 +1,167 @@
+/**
+ * PreferencesStore — 推荐偏好管理
+ * 管理用户的坑种偏好、内容类型偏好、关注品牌与价格区间
+ * 用于首页 Feed 排序：匹配偏好内容获得更高排序分
+ */
+
+import { FeedItem } from '@/domain/content/feed-item'
+
+const STORAGE_KEY = 'v2_user_preferences'
+
+// ====== 默认值 ======
+
+const DEFAULT_PIT_TYPES = ['JK', 'LOLITA', 'HANFU']
+const DEFAULT_CONTENT_TYPES = ['新品', '预约', '现货', '降价', '图透', '穿搭']
+const DEFAULT_PRICE_RANGE = 'all'
+
+// ====== 持久化工具 ======
+
+function readPreferences(): PreferencesData {
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY)
+    if (raw == null || raw === '') return new PreferencesData()
+    const parsed = JSON.parse(String(raw)) as any
+    if (parsed == null) return new PreferencesData()
+    const data = new PreferencesData()
+    if (parsed.pitTypes != null) data.pitTypes = parsed.pitTypes as string[]
+    if (parsed.contentTypes != null) data.contentTypes = parsed.contentTypes as string[]
+    if (parsed.followedBrands != null) data.followedBrands = parsed.followedBrands as string[]
+    if (parsed.priceRange != null) data.priceRange = String(parsed.priceRange)
+    return data
+  } catch (e) {
+    return new PreferencesData()
+  }
+}
+
+function writePreferences(data: PreferencesData) {
+  try {
+    const json = JSON.stringify(data)
+    uni.setStorageSync(STORAGE_KEY, json)
+  } catch (e) {
+    // write failure is non-fatal
+  }
+}
+
+// ====== 数据模型 ======
+
+export class PreferencesData {
+  pitTypes: string[] = DEFAULT_PIT_TYPES
+  contentTypes: string[] = DEFAULT_CONTENT_TYPES
+  followedBrands: string[] = []
+  priceRange: string = DEFAULT_PRICE_RANGE
+}
+
+// ====== Store ======
+
+export const usePreferencesStore = defineStore('preferences', () => {
+  const preferences = ref(new PreferencesData()) as Ref<PreferencesData>
+
+  function loadPreferences() {
+    preferences.value = readPreferences()
+  }
+
+  function savePreferences() {
+    writePreferences(preferences.value)
+  }
+
+  function setPitTypes(types: string[]) {
+    const copy = [] as string[]
+    for (let i = 0; i < types.length; i++) copy.push(types[i])
+    preferences.value.pitTypes = copy
+    savePreferences()
+  }
+
+  function setContentTypes(types: string[]) {
+    const copy = [] as string[]
+    for (let i = 0; i < types.length; i++) copy.push(types[i])
+    preferences.value.contentTypes = copy
+    savePreferences()
+  }
+
+  function togglePitType(type: string) {
+    if (type === '') return
+    const prefs = preferences.value
+    const values = [] as string[]
+    for (let i = 0; i < prefs.pitTypes.length; i++) values.push(prefs.pitTypes[i])
+    const idx = values.indexOf(type)
+    if (idx >= 0) {
+      values.splice(idx, 1)
+    } else {
+      values.push(type)
+    }
+    preferences.value.pitTypes = values
+    savePreferences()
+  }
+
+  function toggleContentType(type: string) {
+    if (type === '') return
+    const prefs = preferences.value
+    const values = [] as string[]
+    for (let i = 0; i < prefs.contentTypes.length; i++) values.push(prefs.contentTypes[i])
+    const idx = values.indexOf(type)
+    if (idx >= 0) {
+      values.splice(idx, 1)
+    } else {
+      values.push(type)
+    }
+    preferences.value.contentTypes = values
+    savePreferences()
+  }
+
+  function resetPreferences() {
+    const defaults = new PreferencesData()
+    // preserve followed brands on reset
+    defaults.followedBrands = preferences.value.followedBrands
+    preferences.value = defaults
+    savePreferences()
+  }
+
+  function computeScore(item: FeedItem): number {
+    const prefs = preferences.value
+    let score = item.rankingScore
+
+    // Category matches selected pit types: +100
+    const pitTypes = prefs.pitTypes
+    for (let i = 0; i < pitTypes.length; i++) {
+      if (item.category === pitTypes[i]) {
+        score += 100
+        break
+      }
+    }
+
+    // Badge text matches selected content types: +50
+    const contentTypes = prefs.contentTypes
+    for (let i = 0; i < contentTypes.length; i++) {
+      if (item.badgeText === contentTypes[i]) {
+        score += 50
+        break
+      }
+    }
+
+    // Brand is in followed brands: +80
+    const brands = prefs.followedBrands
+    for (let i = 0; i < brands.length; i++) {
+      if (item.brandName === brands[i]) {
+        score += 80
+        break
+      }
+    }
+
+    return score
+  }
+
+  // 初始化
+  loadPreferences()
+
+  return {
+    preferences,
+    loadPreferences,
+    savePreferences,
+    setPitTypes,
+    setContentTypes,
+    togglePitType,
+    toggleContentType,
+    resetPreferences,
+    computeScore,
+  }
+})

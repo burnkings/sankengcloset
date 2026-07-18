@@ -13,7 +13,7 @@ const project = new ci.Project({
 ci.upload({
   project,
   version: '1.6.2',
-  desc: 'Gate 0: Visual rebuild — isDark fix, nav capsule, 5-tab V2, real images, emoji-free',
+  desc: 'Latest feature/v2-final-experience — AppBottomNav, privacy page, tab nav, component cleanup, search improvements',
   setting: {
     es6: true,
     minify: false,

@@ -6,6 +6,7 @@
 
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
 import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel } from '@/domain/content/mock-feed-repo'
+import { usePreferencesStore } from '@/stores/preferences-store'
 
 // ====== 频道定义 ======
 
@@ -126,9 +127,18 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     if (DEBUG_FORCE_EMPTY) return []
     const channelItems = filterByChannel(allItems.value, ch)
     const category = currentCategory.value
-    if (category === '' || category === '全部') return channelItems
-    const code = categoryCode(category)
-    return channelItems.filter((item) => item.category === code)
+    let result = channelItems
+    if (category === '' || category === '全部') {
+      result = channelItems
+    } else {
+      const code = categoryCode(category)
+      result = channelItems.filter((item) => item.category === code)
+    }
+    // Preference-based sorting
+    const prefs = usePreferencesStore()
+    const sorted = [...result]
+    sorted.sort((a, b) => prefs.computeScore(b) - prefs.computeScore(a))
+    return sorted
   })
 
   const isEmpty = computed((): boolean => {
@@ -241,24 +251,30 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     }
   }
 
-  return {
-    state,
-    loading,
-    isEmpty,
-    errorMessage,
-    currentChannel,
-    currentCategory,
-    allItems,
-    displayItems,
-    feedRows,
-    isLoadingMore,
-    hasMore,
-    loadFirstPage,
-    loadMore,
-    setChannel,
-    setCategory,
-    retry,
-    toggleLike,
-    toggleSave,
+  function refreshPreferences() {
+    const prefs = usePreferencesStore()
+    prefs.loadPreferences()
   }
+
+  return {
+      state,
+      loading,
+      isEmpty,
+      errorMessage,
+      currentChannel,
+      currentCategory,
+      allItems,
+      displayItems,
+      feedRows,
+      isLoadingMore,
+      hasMore,
+      loadFirstPage,
+      loadMore,
+      setChannel,
+      setCategory,
+      retry,
+      toggleLike,
+      toggleSave,
+      refreshPreferences,
+    }
 })

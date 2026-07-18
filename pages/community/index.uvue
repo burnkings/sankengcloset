@@ -1,6 +1,6 @@
 <template>
   <MainLayout>
-    <template #navbar><V2PageHeader title="晒搭" action-text="发布" @action="goCreate" /></template>
+    <template #navbar><V2PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
@@ -9,12 +9,13 @@
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
           <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
         </view>
+        <V2FilterChips :items="pitTypes" :active="activePitType" @change="onPitTypeChange" />
         <V2FilterChips :items="topics" :active="activeTopic" @change="onTopicChange" />
 
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
           <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
           <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的晒搭</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
             <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view>
           </view>
@@ -42,7 +43,7 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
+import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
@@ -55,16 +56,39 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const activeTopic = ref('全部')
+const activePitType = ref('全部')
 const pendingDeleteId = ref('')
 const library = useContentLibraryStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
+const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']
 const looks = [
-  { id: 'l1', image: '/static/demo/outfit-editorial-01.jpg', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', likes: 126 },
-  { id: 'l2', image: '/static/demo/prod-editorial-01.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', likes: 89 },
+  { id: 'l1', image: '/static/demo/outfit-editorial-01.jpg', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', pitType: 'Lolita', likes: 126 },
+  { id: 'l2', image: '/static/demo/prod-editorial-01.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', pitType: 'JK', likes: 89 },
+  { id: 'l3', image: '/static/demo/outfit-editorial-01.jpg', author: '月见酱', initial: '月', time: '3小时前', caption: '宋制对襟衫配马面裙，日常也能穿。', topic: '通勤三坑', pitType: '汉服', likes: 73 },
 ]
-const visibleLooks = computed(() => activeTopic.value === '全部' ? looks : looks.filter((item) => item.topic === activeTopic.value))
-const visibleUserLooks = computed((): SavedOutfitPost[] => activeTopic.value === '全部' ? library.outfitPosts : library.outfitPosts.filter((item) => item.topic === activeTopic.value))
+function filterByPitAndTopic(items: any[]): any[] {
+  let result = items
+  if (activePitType.value !== '全部') {
+    result = result.filter((item) => (item.pitType ?? '') === activePitType.value)
+  }
+  if (activeTopic.value !== '全部') {
+    result = result.filter((item) => item.topic === activeTopic.value)
+  }
+  return result
+}
+const visibleLooks = computed(() => filterByPitAndTopic(looks))
+const visibleUserLooks = computed((): SavedOutfitPost[] => {
+  let result: SavedOutfitPost[] = library.outfitPosts
+  if (activePitType.value !== '全部') {
+    result = result.filter((item) => item.category === activePitType.value || (activePitType.value === '混搭' && item.category === '混搭'))
+  }
+  if (activeTopic.value !== '全部') {
+    result = result.filter((item) => item.topic === activeTopic.value)
+  }
+  return result
+})
 function onTopicChange(topic: string) { activeTopic.value = topic }
+function onPitTypeChange(pit: string) { activePitType.value = pit }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function toggleLike(id: string) { library.togglePostLike(id) }
 function likeCount(id: string, baseCount: number): number { return baseCount + (library.isPostLiked(id) ? 1 : 0) }
@@ -72,8 +96,9 @@ function deleteOwnPost(id: string) {
   if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
   library.removeOutfit(id)
   pendingDeleteId.value = ''
-  showFeedback('晒搭已删除')
+  showFeedback('圈子动态已删除')
 }
+onLoad(() => { initPageTheme() })
 onShow(() => {
   syncTabBarChrome()
   library.reload()

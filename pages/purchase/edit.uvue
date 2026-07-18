@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar :title="isEdit ? '编辑购买记录' : '新增购买记录'" :show-back="true"><template #right><text :style="saveText" @tap="save">保存</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar :title="isEdit ? '编辑购买记录' : '新增购买记录'" :show-back="true"></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <text :style="fieldLabel">商品</text>
@@ -33,6 +33,9 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="purchaseBottomBar">
+    <view :style="purchaseSaveButton" @tap="save"><text :style="purchaseSaveText">{{ isEdit ? '保存修改' : '保存记录' }}</text></view>
+  </view>
 </template>
 
 <script setup lang="uts">
@@ -44,6 +47,7 @@ import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -130,8 +134,12 @@ onMounted(() => {
   form.value.purchaseDate = now.toISOString().substring(0, 10)
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' }
 const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const purchaseSafeBottom = getSafeBottomInset()
+const purchaseBottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${purchaseSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
+const purchaseSaveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
+const purchaseSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
 const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
 const twoColumnRow = { ...flexRow, marginTop: '30rpx' }

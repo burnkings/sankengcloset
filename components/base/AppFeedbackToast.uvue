@@ -15,7 +15,7 @@ import { n } from '@/theme/use-theme'
 import { feedbackVisible, feedbackMessage } from '@/utils/feedback'
 
 const rootStyle = {
-  position: 'fixed', left: '40rpx', right: '40rpx', bottom: '184rpx',
+  position: 'fixed', left: '40rpx', right: '40rpx', top: '38%',
   zIndex: 9999, alignItems: 'center', pointerEvents: 'none',
 }
 const panelStyle = computed((): any => ({

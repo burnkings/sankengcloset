@@ -15,7 +15,7 @@
           <view :style="guestAvatar"><AppIcon name="profile" :size="44" /></view>
           <view :style="profileCopy">
             <text :style="userName">登录三坑绮橱</text>
-            <text :style="guestDesc">同步收藏、晒搭、衣橱与提醒</text>
+            <text :style="guestDesc">同步收藏、圈子、衣橱与提醒</text>
           </view>
           <view :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
@@ -40,7 +40,7 @@
 
         <view :style="outfitAssetCard" @tap="openCommunity">
           <view :style="outfitAssetIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
-          <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的晒搭</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
+          <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的圈子</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
           <AppIcon name="chevron-right" :size="32" />
         </view>
 
@@ -54,7 +54,14 @@
 
         <V2SectionHeader title="设置" />
         <V2ListGroup>
-          <view v-for="(item, idx) in settingsItems" :key="item.id" :style="settingShell(idx)" @tap="onSettingTap(item.id)">
+          <view v-for="(item, idx) in settingsGroup" :key="item.id" :style="settingShell(idx, settingsGroup.length)" @tap="onSettingTap(item.id)">
+            <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
+          </view>
+        </V2ListGroup>
+
+        <V2SectionHeader title="关于" />
+        <V2ListGroup>
+          <view v-for="(item, idx) in aboutGroup" :key="item.id" :style="settingShell(idx, aboutGroup.length)" @tap="onSettingTap(item.id)">
             <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
           </view>
         </V2ListGroup>
@@ -72,7 +79,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n, isDark, setDarkMode, syncTabBarChrome } from '@/theme/use-theme'
+import { n, isDark, setDarkMode, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -122,6 +129,30 @@ function onSettingTap(id: string) {
     nextTick(() => { syncTabBarChrome() })
     return
   }
+  if (id === 'notification') {
+    showFeedback('通知设置功能即将开放')
+    return
+  }
+  if (id === 'preferences') {
+    uni.navigateTo({ url: '/pages/preferences/index' })
+    return
+  }
+  if (id === 'privacy') {
+    showFeedback('隐私与权限设置即将开放')
+    return
+  }
+  if (id === 'agreement') {
+    showFeedback('用户协议页面即将开放')
+    return
+  }
+  if (id === 'policy') {
+    showFeedback('隐私政策页面即将开放')
+    return
+  }
+  if (id === 'version') {
+    showFeedback('三坑绮橱 V2.0 内容闭环版')
+    return
+  }
   if (id === 'cache') {
     uni.removeStorageSync('home_feed_cache')
     uni.removeStorageSync('content_cache')
@@ -129,18 +160,7 @@ function onSettingTap(id: string) {
     showFeedback('缓存已清理')
     return
   }
-  if (id === 'notification') {
-    // #ifdef MP-WEIXIN
-    uni.openSetting({})
-    // #endif
-    // #ifdef APP
-    showFeedback('请在系统设置中管理通知权限')
-    // #endif
-    return
-  }
-  if (id === 'ai') { openPrimaryTab('/pages/ai/index'); return }
   if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
-  if (id === 'about') { showFeedback('三坑绮橱 V2.0 内容闭环版'); return }
   if (id === 'logout') { logoutPreview(); return }
 }
 function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
@@ -165,6 +185,7 @@ onMounted(() => {
     if (saved !== '') selectedTastes.value = saved.split(',')
   } catch (e) {}
 })
+onLoad(() => { initPageTheme() })
 onShow(() => { library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems(); syncTabBarChrome() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
@@ -195,7 +216,7 @@ const manageItems = computed(() => [
   { id: 'reminders', icon: 'reminder', label: '提醒', value: `${reminders.pendingCount} 条待办` },
   { id: 'budget', icon: 'budget', label: '预算', value: budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置' },
 ])
-const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '16rpx' }
+const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '48rpx' }
 function manageCard(idx: number) { return { width: '325rpx', height: '142rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
 const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
 const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
@@ -223,18 +244,23 @@ function tasteChip(idx: number, name: string) {
 function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isTasteSelected(name) ? brand[700] : n.value.textSecondary, marginLeft: '10rpx' } }
 
 const settingsItems = computed(() => {
-  const items = [
-    { id: 'notification', icon: 'notification', label: '通知', value: '' },
-    { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭' },
-    { id: 'ai', icon: 'sparkles', label: 'AI 设置', value: '' },
-    { id: 'cache', icon: 'database', label: '清理缓存', value: '' },
-    { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '' },
-    { id: 'about', icon: 'info', label: '关于', value: '' },
+  const items: Array<{id: string, icon: string, label: string, value: string, section: string}> = [
+    { id: 'notification', icon: 'notification', label: '通知设置', value: '', section: 'settings' },
+    { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭', section: 'settings' },
+    { id: 'preferences', icon: 'heart', label: '推荐偏好', value: '', section: 'settings' },
+    { id: 'privacy', icon: 'info', label: '隐私与权限', value: '', section: 'settings' },
+    { id: 'agreement', icon: 'info', label: '用户协议', value: '', section: 'about' },
+    { id: 'policy', icon: 'info', label: '隐私政策', value: '', section: 'about' },
+    { id: 'version', icon: 'info', label: '版本信息', value: 'V2.0', section: 'about' },
+    { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '', section: 'about' },
+    { id: 'cache', icon: 'database', label: '清理缓存', value: '', section: 'about' },
   ]
-  if (isLoggedIn.value) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '' })
+  if (isLoggedIn.value) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '', section: 'about' })
   return items
 })
-function settingShell(idx: number) { return { borderBottomWidth: idx < settingsItems.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+const settingsGroup = computed(() => settingsItems.value.filter((item) => item.section === 'settings'))
+const aboutGroup = computed(() => settingsItems.value.filter((item) => item.section === 'about'))
+function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
 
 <style>

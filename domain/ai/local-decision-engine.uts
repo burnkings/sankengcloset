@@ -35,7 +35,7 @@ function assetEvidence(favoriteCount: number, followedBrandCount: number, outfit
   return [
     `已收藏 ${favoriteCount} 件商品`,
     `已关注 ${followedBrandCount} 个品牌`,
-    `已有 ${outfitCount} 条晒搭记录`,
+    `已有 ${outfitCount} 条圈子记录`,
   ]
 }
 
@@ -81,9 +81,9 @@ export function buildLocalDecision(query: string, favoriteCount: number, followe
     result.title = '场景搭配建议'
     result.summary = outfitCount > 0
       ? '优先复用已有主单品，用鞋包、头饰和外搭调整场景感，减少只为一次活动购买整套。'
-      : '先确定主单品和场合约束，再从衣橱补齐鞋包、外搭与头饰；完成后可发布晒搭沉淀模板。'
-    result.evidence = [`已有 ${outfitCount} 条晒搭可复用`, '先检查活动时长、天气和行动便利性', '同色系配件比堆叠装饰更稳定']
-    result.actionLabel = outfitCount > 0 ? '查看晒搭' : '打开衣橱'
+      : '先确定主单品和场合约束，再从衣橱补齐鞋包、外搭与头饰；完成后可发布圈子沉淀模板。'
+    result.evidence = [`已有 ${outfitCount} 条圈子可复用`, '先检查活动时长、天气和行动便利性', '同色系配件比堆叠装饰更稳定']
+    result.actionLabel = outfitCount > 0 ? '查看圈子' : '打开衣橱'
     result.actionTarget = outfitCount > 0 ? 'community' : 'wardrobe'
     return result
   }

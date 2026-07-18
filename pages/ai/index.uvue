@@ -45,7 +45,7 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
+import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -102,6 +102,7 @@ function runResultAction() {
   if (target === 'community') { openPrimaryTab('/pages/community/index'); return }
   openPrimaryTab('/pages/discover/index')
 }
+onLoad(() => { initPageTheme() })
 onShow(() => { syncTabBarChrome(); library.reload() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }

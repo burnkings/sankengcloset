@@ -5,10 +5,10 @@
       <view class="page-canvas" :style="pageWrap">
         <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
 
-        <V2SectionHeader title="编辑精选" action-text="查看更多" />
+        <V2SectionHeader title="精选专题" action-text="查看更多" />
         <scroll-view scroll-x :style="featureScroll">
           <view :style="featureRow">
-            <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="search(item.keyword)">
+            <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="openEditorial(item)">
               <view :style="featureImage"><AppImage :src="item.image" width="100%" height="100%" mode="aspectFill" /></view>
               <view :style="featureCopy"><text :style="featureTitle">{{ item.title }}</text><text :style="featureDesc">{{ item.desc }}</text></view>
             </view>
@@ -50,7 +50,7 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT } from '@/theme/tokens/responsive'
-import { n, isDark, syncTabBarChrome } from '@/theme/use-theme'
+import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { showFeedback } from '@/utils/feedback'
@@ -72,10 +72,13 @@ function toggleBrand(brandName: string) {
   const followed = library.toggleBrandFollow(brandName)
   showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
 }
+function openEditorial(item: any) {
+  uni.navigateTo({ url: `/pages/editorial/detail?id=${item.id}&title=${encodeURIComponent(item.title)}&category=${item.category}` })
+}
 
 const features = [
-  { id: 'f1', image: '/static/demo/outfit-editorial-01.jpg', title: '夏日三坑轻量化指南', desc: '从面料到版型的编辑选择', keyword: '夏日穿搭' },
-  { id: 'f2', image: '/static/demo/prod-editorial-01.jpg', title: '本周值得蹲的预约', desc: '官方节点与时间一次看清', keyword: '预约' },
+  { id: 'f1', image: '/static/demo/outfit-editorial-01.jpg', title: '夏日盐系JK', desc: '从面料到版型的编辑选择', keyword: 'JK', category: 'JK' },
+  { id: 'f2', image: '/static/demo/prod-editorial-01.jpg', title: '初入Lolita的第一条裙', desc: '官方节点与时间一次看清', keyword: 'Lolita', category: 'LOLITA' },
 ]
 const brands = [
   { name: '兔缝缝', initial: '兔', meta: 'JK · 格裙' },
@@ -89,9 +92,9 @@ const calendar = [
   { id: 'c3', day: '22', title: '宋制套装尾款截止', brand: '花筵', tag: '尾款' },
 ]
 const topics = [
-  { id: 't1', name: '今日穿搭', meta: '1,286 篇晒搭' },
-  { id: 't2', name: '茶会搭配', meta: '863 篇晒搭' },
-  { id: 't3', name: '通勤三坑', meta: '742 篇晒搭' },
+  { id: 't1', name: '今日穿搭', meta: '1,286 篇圈子' },
+  { id: 't2', name: '茶会搭配', meta: '863 篇圈子' },
+  { id: 't3', name: '通勤三坑', meta: '742 篇圈子' },
 ]
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
@@ -126,6 +129,7 @@ const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[6
 function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.length - 1 ? '12rpx' : '0' } }
 const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
+onLoad(() => { initPageTheme() })
 onShow(() => { library.reload(); syncTabBarChrome() })
 </script>
 

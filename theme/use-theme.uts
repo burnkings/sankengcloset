@@ -59,13 +59,19 @@ export function syncSystemChrome() {
   applySystemChrome()
 }
 
+/** Tab 页 onLoad 阶段调用：同步主题 + 系统栏 + TabBar，避免首帧闪白 */
+export function initPageTheme() {
+  applySystemChrome()
+  syncTabBarChrome()
+}
+
 export function setDarkMode(enabled: boolean) {
   if (_isDark.value === enabled) return
-  // 先让当前组件树在同一渲染帧完成换色，再同步原生系统栏。
-  // 不重载页面、不使用全屏遮罩，滚动位置与组件状态均保持不变。
   _isDark.value = enabled
   uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
-  nextTick(() => { applySystemChrome() })
+  // 重置缓存，确保下次 syncTabBarChrome 一定会重新应用
+  lastTabBarMode = ''
+  nextTick(() => { applySystemChrome(); syncTabBarChrome() })
 }
 
 export function toggleDarkMode(): boolean {
