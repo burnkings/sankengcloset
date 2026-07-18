@@ -51,3 +51,4 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
+      - run: docker build --tag sankengcloset-api:ci .
