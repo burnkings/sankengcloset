@@ -63,6 +63,7 @@ function toFeed(product: Product): FeedItem {
 
 export class MemoryRepository implements AppRepository {
   private readonly users = new Map<string, UserProfile>();
+  private readonly wechatUsers = new Map<string, string>();
   private readonly products = seedProducts();
   private readonly syncOps = new Map<string, SyncReceipt>();
   private readonly syncCheckpoints = new Map<string, string>();
@@ -78,6 +79,15 @@ export class MemoryRepository implements AppRepository {
     if (existing) return existing;
     const user: UserProfile = { id: 'usr_dev', nickname, status: 'active', createdAt: nowIso() };
     this.users.set(user.id, user);
+    return user;
+  }
+
+  async ensureWechatUser(openId: string, nickname: string): Promise<UserProfile> {
+    const existingId = this.wechatUsers.get(openId);
+    if (existingId) return this.users.get(existingId)!;
+    const user: UserProfile = { id: newId('usr'), nickname, status: 'active', createdAt: nowIso() };
+    this.users.set(user.id, user);
+    this.wechatUsers.set(openId, user.id);
     return user;
   }
 
