@@ -8,6 +8,7 @@ const required = {
   'services/sync/local-sync-queue.uts': ["'/api/v1/sync/operations:batch'", 'receipts', 'apiPostAuthorized'],
   'stores/session-store.uts': ["'/api/v1/sessions/dev'", 'loginWithRuntime', 'saveSessionTokens'],
   'pages/sync/index.uvue': ['保存并检查连接', 'Fastify API', 'testApiConnection'],
+  'pages/account/index.uvue': ['loginWithRuntime', '远程开发账号', "'import'"],
 }
 let failed = false
 for (const [file, needles] of Object.entries(required)) {
