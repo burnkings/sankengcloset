@@ -1,63 +1,52 @@
-/** V2.1 会话 Store：体验账号模拟真实账号边界，不伪造服务端登录。 */
+/** V2.4 会话 Store：Mock 体验账号与远程开发会话共享稳定账号态。 */
+import { DATA_MODE_REMOTE, clearSessionTokens, getRuntimeConfig, saveSessionTokens } from '@/config/runtime'
+import { apiPost } from '@/services/platform/api-client'
 
 const STATE_KEY = 'v21_session_state'
 const USER_ID_KEY = 'v21_session_user_id'
 const NICKNAME_KEY = 'v21_session_nickname'
+const PROVIDER_KEY = 'v24_session_provider'
 const MIGRATION_KEY = 'v21_session_local_asset_migration'
 
-export class SessionProfile {
-  userId: string = ''
-  nickname: string = ''
-  avatarText: string = 'SK'
-  provider: string = 'preview'
-}
-
-function readString(key: string): string {
-  try {
-    const value = uni.getStorageSync(key)
-    return value == null ? '' : String(value)
-  } catch (e) {
-    return ''
-  }
-}
+export class SessionProfile { userId: string = ''; nickname: string = ''; avatarText: string = 'SK'; provider: string = 'preview' }
+function readString(key: string): string { try { const value = uni.getStorageSync(key); return value == null ? '' : String(value) } catch (e) { return '' } }
 
 export const useSessionStore = defineStore('session', () => {
   const state = ref(readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest')
   const profile = ref(new SessionProfile())
   const localAssetsPending = ref(readString(MIGRATION_KEY) === 'pending')
-
+  const loggingIn = ref(false)
+  const errorMessage = ref('')
   const isLoggedIn = computed((): boolean => state.value === 'logged_in')
   const userId = computed((): string => isLoggedIn.value ? profile.value.userId : 'guest_local')
 
   function reload() {
     state.value = readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest'
-    const next = new SessionProfile()
-    next.userId = readString(USER_ID_KEY)
-    next.nickname = readString(NICKNAME_KEY)
-    if (next.userId === '') next.userId = 'user_preview_0001'
-    if (next.nickname === '') next.nickname = '三坑女孩'
-    profile.value = next
-    localAssetsPending.value = readString(MIGRATION_KEY) === 'pending'
+    const next = new SessionProfile(); next.userId = readString(USER_ID_KEY); next.nickname = readString(NICKNAME_KEY); next.provider = readString(PROVIDER_KEY) || 'preview'
+    if (next.userId === '') next.userId = 'user_preview_0001'; if (next.nickname === '') next.nickname = '三坑女孩'
+    profile.value = next; localAssetsPending.value = readString(MIGRATION_KEY) === 'pending'
   }
-
-  function loginPreview() {
-    uni.setStorageSync(STATE_KEY, 'logged_in')
-    uni.setStorageSync(USER_ID_KEY, 'user_preview_0001')
-    uni.setStorageSync(NICKNAME_KEY, '三坑女孩')
-    uni.setStorageSync(MIGRATION_KEY, 'pending')
-    reload()
+  function persist(userIdValue: string, nickname: string, provider: string) {
+    uni.setStorageSync(STATE_KEY, 'logged_in'); uni.setStorageSync(USER_ID_KEY, userIdValue); uni.setStorageSync(NICKNAME_KEY, nickname)
+    uni.setStorageSync(PROVIDER_KEY, provider); uni.setStorageSync(MIGRATION_KEY, 'pending'); reload()
   }
-
-  function markLocalAssetsQueued() {
-    uni.setStorageSync(MIGRATION_KEY, 'queued')
-    localAssetsPending.value = false
+  function loginPreview() { clearSessionTokens(); persist('user_preview_0001', '三坑女孩', 'preview') }
+  async function loginWithRuntime(): Promise<boolean> {
+    if (loggingIn.value) return false
+    loggingIn.value = true; errorMessage.value = ''
+    try {
+      if (getRuntimeConfig().mode !== DATA_MODE_REMOTE) { loginPreview(); return true }
+      const response = await apiPost('/api/v1/sessions/dev', { nickname: '三坑女孩' })
+      const data = response.data as any; const user = data.user as any
+      if (user == null || data.accessToken == null) throw new Error('登录响应不完整')
+      saveSessionTokens(String(data.accessToken), data.refreshToken != null ? String(data.refreshToken) : '')
+      persist(String(user.id), user.nickname != null ? String(user.nickname) : '三坑女孩', 'remote_dev')
+      return true
+    } catch (e) { errorMessage.value = e instanceof Error ? e.message : '登录失败'; return false }
+    finally { loggingIn.value = false }
   }
-
-  function logout() {
-    uni.setStorageSync(STATE_KEY, 'guest')
-    state.value = 'guest'
-  }
-
+  function markLocalAssetsQueued() { uni.setStorageSync(MIGRATION_KEY, 'queued'); localAssetsPending.value = false }
+  function logout() { clearSessionTokens(); uni.setStorageSync(STATE_KEY, 'guest'); state.value = 'guest' }
   reload()
-  return { state, profile, isLoggedIn, userId, localAssetsPending, reload, loginPreview, markLocalAssetsQueued, logout }
+  return { state, profile, isLoggedIn, userId, localAssetsPending, loggingIn, errorMessage, reload, loginPreview, loginWithRuntime, markLocalAssetsQueued, logout }
 })

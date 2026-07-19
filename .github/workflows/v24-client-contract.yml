@@ -1,0 +1,23 @@
+name: V2.4 Client Contract
+
+on:
+  pull_request:
+    paths:
+      - 'config/**'
+      - 'services/**'
+      - 'stores/**'
+      - 'pages/sync/**'
+      - 'pages/account/**'
+      - 'scripts/check-v24-remote-runtime.js'
+      - '.github/workflows/v24-client-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  remote-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify client/backend integration boundary
+        run: node scripts/check-v24-remote-runtime.js
