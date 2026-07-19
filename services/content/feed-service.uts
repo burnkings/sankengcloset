@@ -1,7 +1,8 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { getFirstPage, getFeedPage, getMaxItems, filterByChannel as filterMockByChannel } from '@/domain/content/mock-feed-repo'
 import { createRequestId } from '@/domain/platform/api-contract'
-import { getRuntimeConfig } from '@/config/runtime'
+import { DATA_MODE_REMOTE, getRuntimeConfig } from '@/config/runtime'
+import { apiGet, encodeQuery } from '@/services/platform/api-client'
 
 export class FeedPage {
   items: FeedItem[] = []
@@ -10,15 +11,64 @@ export class FeedPage {
   requestId: string = ''
 }
 
-/**
- * FeedService 是页面/Store 唯一数据入口。
- * 后端接入时保留 FeedPage，替换本文件内部 Adapter 即可。
- */
-export async function fetchFeedPage(pageIndex: number): Promise<FeedPage> {
+function mapFeedItem(raw: any): FeedItem {
+  const item = new FeedItem()
+  item.id = raw.id != null ? String(raw.id) : ''
+  item.feedType = raw.feedType != null ? String(raw.feedType) : 'product'
+  item.entityId = raw.entityId != null ? String(raw.entityId) : ''
+  item.title = raw.title != null ? String(raw.title) : ''
+  item.subtitle = raw.subtitle != null ? String(raw.subtitle) : ''
+  item.coverUrl = raw.coverUrl != null ? String(raw.coverUrl) : ''
+  item.secondaryCoverUrl = raw.secondaryCoverUrl != null ? String(raw.secondaryCoverUrl) : ''
+  item.brandId = raw.brandId != null ? String(raw.brandId) : ''
+  item.brandName = raw.brandName != null ? String(raw.brandName) : ''
+  item.price = raw.price != null ? Number(raw.price) : 0
+  item.originalPrice = raw.originalPrice != null ? Number(raw.originalPrice) : 0
+  item.badgeText = raw.badgeText != null ? String(raw.badgeText) : ''
+  item.eventStartAt = raw.eventStartAt != null ? String(raw.eventStartAt) : ''
+  item.eventEndAt = raw.eventEndAt != null ? String(raw.eventEndAt) : ''
+  item.liked = raw.liked === true
+  item.saved = raw.saved === true
+  item.sourceLabel = raw.sourceLabel != null ? String(raw.sourceLabel) : ''
+  item.rankingScore = raw.rankingScore != null ? Number(raw.rankingScore) : 0
+  item.category = raw.category != null ? String(raw.category) : ''
+  item.createdAt = raw.createdAt != null ? String(raw.createdAt) : ''
+  return item
+}
+
+function channelCode(channel: string): string {
+  if (channel === '新品') return 'new'
+  if (channel === '预约') return 'reservation'
+  if (channel === '降价') return 'price_drop'
+  if (channel === '穿搭') return 'outfit'
+  return 'recommend'
+}
+
+function categoryCode(category: string): string {
+  if (category === 'Lolita') return 'LOLITA'
+  if (category === '汉服') return 'HANFU'
+  return category === '全部' ? '' : category
+}
+
+async function fetchRemoteFeed(pageIndex: number, channel: string, category: string): Promise<FeedPage> {
+  const offset = Math.max(pageIndex, 0) * 20
+  const path = `/api/v1/feed?cursor=${offset}&limit=20&channel=${encodeQuery(channelCode(channel))}&category=${encodeQuery(categoryCode(category))}`
+  const response = await apiGet(path)
+  const rawItems = response.data as any[]
+  const result = new FeedPage()
+  result.requestId = response.requestId
+  if (rawItems != null) for (let i = 0; i < rawItems.length; i++) result.items.push(mapFeedItem(rawItems[i]))
+  const page = response.page as any
+  result.nextCursor = page != null && page.nextCursor != null ? String(page.nextCursor) : ''
+  result.hasMore = page != null && page.hasMore === true
+  return result
+}
+
+export async function fetchFeedPage(pageIndex: number, channel: string = '推荐', category: string = '全部'): Promise<FeedPage> {
   const config = getRuntimeConfig()
+  if (config.mode === DATA_MODE_REMOTE) return await fetchRemoteFeed(pageIndex, channel, category)
   if (!config.mockOnline) throw new Error('网络不可用，稍后重试')
   await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
-
   const result = new FeedPage()
   result.requestId = createRequestId('feed')
   result.items = pageIndex <= 0 ? getFirstPage() : getFeedPage(pageIndex)
@@ -28,7 +78,6 @@ export async function fetchFeedPage(pageIndex: number): Promise<FeedPage> {
   return result
 }
 
-/** Store 只认识稳定筛选语义，不接触 Mock Adapter。 */
 export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
   return filterMockByChannel(items, channel)
 }
