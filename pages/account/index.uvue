@@ -5,35 +5,24 @@
       <view class="page-canvas" :style="pageWrap">
         <view :style="identityCard">
           <view :style="avatar"><text :style="avatarText">{{ session.isLoggedIn ? 'SK' : '访' }}</text></view>
-          <view :style="identityCopy">
-            <text :style="identityTitle">{{ session.isLoggedIn ? session.profile.nickname : '本地访客' }}</text>
-            <text :style="identityMeta">{{ session.isLoggedIn ? session.profile.userId : '数据仅保存在当前设备' }}</text>
-          </view>
-          <view v-if="!session.isLoggedIn" :style="primaryMini" @tap="login"><text :style="primaryMiniText">体验登录</text></view>
+          <view :style="identityCopy"><text :style="identityTitle">{{ session.isLoggedIn ? session.profile.nickname : '本地访客' }}</text><text :style="identityMeta">{{ session.isLoggedIn ? session.profile.userId : '数据仅保存在当前设备' }}</text></view>
+          <view v-if="!session.isLoggedIn" :style="primaryMini" @tap="login"><text :style="primaryMiniText">{{ session.loggingIn ? '登录中' : '体验登录' }}</text></view>
         </view>
 
         <view v-if="session.isLoggedIn && session.localAssetsPending" :style="migrationCard">
           <AppIcon name="sync" :size="42" :active="true" />
-          <view :style="migrationCopy">
-            <text :style="migrationTitle">本地资产等待加入同步队列</text>
-            <text :style="migrationDesc">只生成可重放操作，不会声称已经上传云端。</text>
-          </view>
+          <view :style="migrationCopy"><text :style="migrationTitle">本地资产等待加入同步队列</text><text :style="migrationDesc">生成可重放操作，远程模式会等待服务端回执。</text></view>
           <view :style="queueButton" @tap="queueMigration"><text :style="queueButtonText">加入队列</text></view>
         </view>
 
         <V2SectionHeader title="账号状态" />
         <V2ListGroup>
-          <view :style="rowDivider"><V2ListRow icon="profile" label="登录方式" :value="session.isLoggedIn ? '体验账号' : '未登录'" :show-arrow="false" /></view>
-          <view :style="rowDivider"><V2ListRow icon="database" label="本地数据" value="保留在设备" :show-arrow="false" /></view>
-          <view @tap="openSync"><V2ListRow icon="sync" label="同步与备份" :value="sync.pendingCount > 0 ? sync.pendingCount + ' 项待同步' : '队列为空'" /></view>
+          <view :style="rowDivider"><V2ListRow icon="profile" label="登录方式" :value="loginLabel" :show-arrow="false" /></view>
+          <view :style="rowDivider"><V2ListRow icon="database" label="数据来源" :value="runtimeLabel" :show-arrow="false" /></view>
+          <view @tap="openSync"><V2ListRow icon="sync" label="同步与连接" :value="sync.pendingCount > 0 ? sync.pendingCount + ' 项待同步' : '队列为空'" /></view>
         </V2ListGroup>
-
-        <view :style="boundaryCard">
-          <text :style="boundaryTitle">当前体验边界</text>
-          <text :style="boundaryText">体验登录用于验证账号态、数据归属和同步流程，不包含微信真实登录、短信验证码或云端账号。退出不会删除本地衣橱、提醒和购买记录。</text>
-        </view>
-
-        <view v-if="session.isLoggedIn" :style="secondaryButton" @tap="logout"><text :style="secondaryButtonText">退出体验账号</text></view>
+        <view :style="boundaryCard"><text :style="boundaryText">远程开发登录只用于当前体验环境；正式发布时将切换为微信授权登录。退出不会删除本地衣橱、提醒和购买记录。</text></view>
+        <view v-if="session.isLoggedIn" :style="secondaryButton" @tap="logout"><text :style="secondaryButtonText">退出当前账号</text></view>
       </view>
     </template>
   </MainLayout>
@@ -43,6 +32,7 @@
 import { useSessionStore } from '@/stores/session-store'
 import { useSyncStore } from '@/stores/sync-store'
 import { enqueueLocalOperation } from '@/services/sync/local-sync-queue'
+import { DATA_MODE_REMOTE, getRuntimeConfig } from '@/config/runtime'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -56,48 +46,19 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 
-const session = useSessionStore()
-const sync = useSyncStore()
-
-function login() {
-  session.loginPreview()
-  sync.reload()
-  showFeedback('已进入体验账号')
-}
-function logout() {
-  session.logout()
-  showFeedback('已退出，设备数据仍保留')
-}
-function queueMigration() {
-  enqueueLocalOperation(session.userId, 'local_asset_bundle', session.userId, 'migrate', 'favorites|brand_follows|post_likes|outfits|wishlist|wardrobe|purchases|reminders|budget')
-  session.markLocalAssetsQueued()
-  sync.reload()
-  showFeedback('本地资产已加入同步队列')
-}
+const session = useSessionStore(); const sync = useSyncStore(); const runtimeMode = ref('mock')
+const runtimeLabel = computed((): string => runtimeMode.value === DATA_MODE_REMOTE ? 'Fastify 远程服务' : '本地演示数据')
+const loginLabel = computed((): string => !session.isLoggedIn ? '未登录' : (session.profile.provider === 'remote_dev' ? '远程开发账号' : '本地体验账号'))
+async function login() { if (session.loggingIn) return; const ok = await session.loginWithRuntime(); sync.reload(); showFeedback(ok ? (runtimeMode.value === DATA_MODE_REMOTE ? '远程登录成功' : '已进入本地体验账号') : session.errorMessage) }
+function logout() { session.logout(); showFeedback('已退出，设备数据仍保留') }
+function queueMigration() { enqueueLocalOperation(session.userId, 'local_asset_bundle', session.userId, 'import', JSON.stringify({ scopes: ['favorites','brand_follows','post_likes','outfits','wishlist','wardrobe','purchases','reminders','budget'] })); session.markLocalAssetsQueued(); sync.reload(); showFeedback('本地资产已加入同步队列') }
 function openSync() { uni.navigateTo({ url: '/pages/sync/index' }) }
-onShow(() => { session.reload(); sync.reload() })
+onShow(() => { runtimeMode.value = getRuntimeConfig().mode; session.reload(); sync.reload() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
-const identityCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '156rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
-const avatar = computed((): any => ({ width: '92rpx', height: '92rpx', borderRadius: '46rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '18rpx' }))
-const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
-const identityCopy = { ...flexFill }
-const identityTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const identityMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '7rpx' }))
-const primaryMini = { minWidth: '128rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }
-const primaryMiniText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
-const migrationCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50], marginTop: '20rpx' }))
-const migrationCopy = { ...flexFill, marginLeft: '14rpx' }
-const migrationTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const migrationDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx', lineHeight: '32rpx' }))
-const queueButton = { minWidth: '108rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx' }
-const queueButtonText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: '#FFFFFF' }
-const rowDivider = computed((): any => ({ borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.divider }))
-const boundaryCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
-const boundaryTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const boundaryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '36rpx', marginTop: '10rpx' }))
-const secondaryButton = computed((): any => ({ height: '84rpx', borderRadius: '42rpx', borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.divider, alignItems: 'center', justifyContent: 'center', marginTop: '28rpx' }))
-const secondaryButtonText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
+const identityCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '156rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface })); const avatar = computed((): any => ({ width: '92rpx', height: '92rpx', borderRadius: '46rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '18rpx' })); const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }; const identityCopy = { ...flexFill }; const identityTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text })); const identityMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '7rpx' }))
+const primaryMini = { minWidth: '128rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }; const primaryMiniText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const migrationCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50], marginTop: '20rpx' })); const migrationCopy = { ...flexFill, marginLeft: '14rpx' }; const migrationTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text })); const migrationDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx', lineHeight: '32rpx' })); const queueButton = { minWidth: '108rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx' }; const queueButtonText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const rowDivider = computed((): any => ({ borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.divider })); const boundaryCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' })); const boundaryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '36rpx' })); const secondaryButton = computed((): any => ({ height: '84rpx', borderRadius: '42rpx', borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.divider, alignItems: 'center', justifyContent: 'center', marginTop: '28rpx' })); const secondaryButtonText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 </script>
-
 <style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
