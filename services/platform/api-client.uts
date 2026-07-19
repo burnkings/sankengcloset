@@ -1,4 +1,4 @@
-import { getRuntimeConfig, getAccessToken } from '@/config/runtime'
+import { getRuntimeConfig, getAccessToken, getRefreshToken, saveSessionTokens } from '@/config/runtime'
 
 export class ApiResponse {
   data: any = null
@@ -24,7 +24,9 @@ function parseResponse(statusCode: number, raw: any): ApiResponse {
   if (statusCode < 200 || statusCode >= 300) {
     const problem = raw != null ? (raw as any).error : null
     const message = problem != null && problem.message != null ? String(problem.message) : `服务请求失败（${statusCode}）`
-    throw new Error(message)
+    const error: any = new Error(message)
+    error.statusCode = statusCode
+    throw error
   }
   const response = new ApiResponse()
   response.statusCode = statusCode
@@ -69,6 +71,25 @@ export function apiPost(path: string, payload: any): Promise<ApiResponse> {
       fail: (error: any) => reject(new Error(error != null && error.errMsg != null ? String(error.errMsg) : '无法连接服务')),
     })
   })
+}
+
+export async function refreshRemoteSession(): Promise<boolean> {
+  const refreshToken = getRefreshToken()
+  if (refreshToken === '') return false
+  const response = await apiPost('/api/v1/sessions/refresh', { refreshToken })
+  const data = response.data as any
+  if (data == null || data.accessToken == null) return false
+  saveSessionTokens(String(data.accessToken), data.refreshToken != null ? String(data.refreshToken) : refreshToken)
+  return true
+}
+
+export async function apiPostAuthorized(path: string, payload: any): Promise<ApiResponse> {
+  try { return await apiPost(path, payload) }
+  catch (e) {
+    const error = e as any
+    if (error == null || Number(error.statusCode) !== 401 || !(await refreshRemoteSession())) throw e
+    return await apiPost(path, payload)
+  }
 }
 
 export async function testApiConnection(): Promise<string> {
