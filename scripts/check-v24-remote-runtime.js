@@ -3,9 +3,9 @@ const fs = require('fs')
 
 const required = {
   'config/runtime.uts': ['setApiBaseUrl', 'saveSessionTokens', 'DATA_MODE_REMOTE'],
-  'services/platform/api-client.uts': ["apiGet", "apiPost", "'/health'"],
+  'services/platform/api-client.uts': ["apiGet", "apiPostAuthorized", "refreshRemoteSession", "'/health'"],
   'services/content/feed-service.uts': ['/api/v1/feed', 'mapFeedItem', 'DATA_MODE_REMOTE'],
-  'services/sync/local-sync-queue.uts': ["'/api/v1/sync/operations:batch'", 'receipts', 'getAccessToken'],
+  'services/sync/local-sync-queue.uts': ["'/api/v1/sync/operations:batch'", 'receipts', 'apiPostAuthorized'],
   'stores/session-store.uts': ["'/api/v1/sessions/dev'", 'loginWithRuntime', 'saveSessionTokens'],
   'pages/sync/index.uvue': ['保存并检查连接', 'Fastify API', 'testApiConnection'],
 }
