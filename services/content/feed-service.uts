@@ -1,0 +1,34 @@
+import { FeedItem } from '@/domain/content/feed-item'
+import { getFirstPage, getFeedPage, getMaxItems, filterByChannel as filterMockByChannel } from '@/domain/content/mock-feed-repo'
+import { createRequestId } from '@/domain/platform/api-contract'
+import { getRuntimeConfig } from '@/config/runtime'
+
+export class FeedPage {
+  items: FeedItem[] = []
+  nextCursor: string = ''
+  hasMore: boolean = false
+  requestId: string = ''
+}
+
+/**
+ * FeedService 是页面/Store 唯一数据入口。
+ * 后端接入时保留 FeedPage，替换本文件内部 Adapter 即可。
+ */
+export async function fetchFeedPage(pageIndex: number): Promise<FeedPage> {
+  const config = getRuntimeConfig()
+  if (!config.mockOnline) throw new Error('网络不可用，稍后重试')
+  await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
+
+  const result = new FeedPage()
+  result.requestId = createRequestId('feed')
+  result.items = pageIndex <= 0 ? getFirstPage() : getFeedPage(pageIndex)
+  const loadedHint = pageIndex <= 0 ? result.items.length : (pageIndex + 1) * result.items.length
+  result.hasMore = result.items.length > 0 && loadedHint < getMaxItems()
+  result.nextCursor = result.hasMore ? String(pageIndex + 1) : ''
+  return result
+}
+
+/** Store 只认识稳定筛选语义，不接触 Mock Adapter。 */
+export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
+  return filterMockByChannel(items, channel)
+}

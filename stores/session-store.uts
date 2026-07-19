@@ -1,0 +1,63 @@
+/** V2.1 会话 Store：体验账号模拟真实账号边界，不伪造服务端登录。 */
+
+const STATE_KEY = 'v21_session_state'
+const USER_ID_KEY = 'v21_session_user_id'
+const NICKNAME_KEY = 'v21_session_nickname'
+const MIGRATION_KEY = 'v21_session_local_asset_migration'
+
+export class SessionProfile {
+  userId: string = ''
+  nickname: string = ''
+  avatarText: string = 'SK'
+  provider: string = 'preview'
+}
+
+function readString(key: string): string {
+  try {
+    const value = uni.getStorageSync(key)
+    return value == null ? '' : String(value)
+  } catch (e) {
+    return ''
+  }
+}
+
+export const useSessionStore = defineStore('session', () => {
+  const state = ref(readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest')
+  const profile = ref(new SessionProfile())
+  const localAssetsPending = ref(readString(MIGRATION_KEY) === 'pending')
+
+  const isLoggedIn = computed((): boolean => state.value === 'logged_in')
+  const userId = computed((): string => isLoggedIn.value ? profile.value.userId : 'guest_local')
+
+  function reload() {
+    state.value = readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest'
+    const next = new SessionProfile()
+    next.userId = readString(USER_ID_KEY)
+    next.nickname = readString(NICKNAME_KEY)
+    if (next.userId === '') next.userId = 'user_preview_0001'
+    if (next.nickname === '') next.nickname = '三坑女孩'
+    profile.value = next
+    localAssetsPending.value = readString(MIGRATION_KEY) === 'pending'
+  }
+
+  function loginPreview() {
+    uni.setStorageSync(STATE_KEY, 'logged_in')
+    uni.setStorageSync(USER_ID_KEY, 'user_preview_0001')
+    uni.setStorageSync(NICKNAME_KEY, '三坑女孩')
+    uni.setStorageSync(MIGRATION_KEY, 'pending')
+    reload()
+  }
+
+  function markLocalAssetsQueued() {
+    uni.setStorageSync(MIGRATION_KEY, 'queued')
+    localAssetsPending.value = false
+  }
+
+  function logout() {
+    uni.setStorageSync(STATE_KEY, 'guest')
+    state.value = 'guest'
+  }
+
+  reload()
+  return { state, profile, isLoggedIn, userId, localAssetsPending, reload, loginPreview, markLocalAssetsQueued, logout }
+})

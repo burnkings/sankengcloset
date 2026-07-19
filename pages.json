@@ -19,6 +19,12 @@
       }
     },
     {
+      "path": "pages/ai/import",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/favorites/index",
       "style": {
         "navigationStyle": "custom"
@@ -32,6 +38,24 @@
     },
     {
       "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/account/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/notification/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/sync/index",
       "style": {
         "navigationStyle": "custom"
       }

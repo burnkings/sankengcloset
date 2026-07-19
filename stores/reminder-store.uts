@@ -3,29 +3,23 @@
  */
 
 import { Reminder, ReminderUpdateData, STATUS_PENDING } from '@/domain/reminder'
-import { toDisplayModel, toDisplayModels, ReminderDisplayModel } from '@/domain/reminder-presenter'
+import { toDisplayModels, ReminderDisplayModel } from '@/domain/reminder-presenter'
 import * as repo from '@/domain/repositories/reminder-repo'
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 export const useReminderStore = defineStore('reminder', () => {
-  // ====== State ======
   const items = ref([]) as Ref<Reminder[]>
   const loading = ref(false)
   const error = ref('')
   const filterStatus = ref('')
   const searchKeyword = ref('')
-  const currentSort = ref('date-asc') // date-asc | date-desc | type
+  const currentSort = ref('date-asc')
 
-  // ====== Getters ======
-
-  const activeItems = computed((): Reminder[] =>
-    items.value.filter((r) => !r.isDeleted)
-  )
+  const activeItems = computed((): Reminder[] => items.value.filter((r) => !r.isDeleted))
 
   const todayItems = computed((): Reminder[] => {
     const today = new Date().toISOString().split('T')[0]
-    return activeItems.value.filter((r) =>
-      r.remindDate === today && r.status === STATUS_PENDING
-    )
+    return activeItems.value.filter((r) => r.remindDate === today && r.status === STATUS_PENDING)
   })
 
   const upcomingItems = computed((): Reminder[] => {
@@ -45,34 +39,18 @@ export const useReminderStore = defineStore('reminder', () => {
 
   const overdueItems = computed((): Reminder[] => {
     const today = new Date().toISOString().split('T')[0]
-    return activeItems.value.filter((r) =>
-      r.remindDate < today && r.status === STATUS_PENDING
-    )
+    return activeItems.value.filter((r) => r.remindDate < today && r.status === STATUS_PENDING)
   })
 
-  const doneItems = computed((): Reminder[] =>
-    activeItems.value.filter((r) => r.status === 'DONE')
-  )
+  const doneItems = computed((): Reminder[] => activeItems.value.filter((r) => r.status === 'DONE'))
 
   const filteredItems = computed((): Reminder[] => {
     let result = activeItems.value
-
-    // 状态筛选
-    if (filterStatus.value) {
-      result = result.filter((r) => r.status == filterStatus.value)
-    }
-
-    // 搜索
+    if (filterStatus.value) result = result.filter((r) => r.status == filterStatus.value)
     if (searchKeyword.value) {
       const kw = searchKeyword.value.toLowerCase()
-      result = result.filter((r) => {
-        if (r.title.toLowerCase().includes(kw)) return true
-        if (r.note.toLowerCase().includes(kw)) return true
-        return false
-      })
+      result = result.filter((r) => r.title.toLowerCase().includes(kw) || r.note.toLowerCase().includes(kw))
     }
-
-    // 排序
     result = [...result].sort((a, b) => {
       if (currentSort.value == 'date-asc') {
         const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
@@ -92,23 +70,15 @@ export const useReminderStore = defineStore('reminder', () => {
       }
       return 0
     })
-
     return result
   })
 
-  const displayItems = computed((): ReminderDisplayModel[] =>
-    toDisplayModels(filteredItems.value)
-  )
-
+  const displayItems = computed((): ReminderDisplayModel[] => toDisplayModels(filteredItems.value))
   const itemCount = computed((): number => activeItems.value.length)
-  const pendingCount = computed((): number =>
-    activeItems.value.filter((r) => r.status == 'PENDING').length
-  )
+  const pendingCount = computed((): number => activeItems.value.filter((r) => r.status == 'PENDING').length)
   const todayCount = computed((): number => todayItems.value.length)
   const upcomingCount = computed((): number => upcomingItems.value.length)
   const overdueCount = computed((): number => overdueItems.value.length)
-
-  // ====== Actions ======
 
   function fetchItems() {
     loading.value = true
@@ -127,6 +97,7 @@ export const useReminderStore = defineStore('reminder', () => {
     try {
       const added = repo.add(item)
       items.value = [...items.value, added]
+      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', added.id, 'create', JSON.stringify(added))
       return added
     } catch (err) {
       error.value = String(err)
@@ -147,6 +118,7 @@ export const useReminderStore = defineStore('reminder', () => {
         if (data.status != '') existing.status = data.status
         existing.updatedAt = new Date().toISOString()
       }
+      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify(data))
     }
     return ok
   }
@@ -155,6 +127,7 @@ export const useReminderStore = defineStore('reminder', () => {
     const ok = repo.softDelete(id)
     if (ok) {
       items.value = items.value.filter((r) => r.id !== id)
+      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'delete', '')
     }
     return ok
   }
@@ -167,52 +140,20 @@ export const useReminderStore = defineStore('reminder', () => {
         existing.status = 'DONE'
         existing.updatedAt = new Date().toISOString()
       }
+      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', 'status=DONE')
     }
     return ok
   }
 
-  function setFilterStatus(status: string) {
-    filterStatus.value = status
-  }
-
-  function setSearch(keyword: string) {
-    searchKeyword.value = keyword
-  }
-
-  function setSort(sort: string) {
-    currentSort.value = sort
-  }
-
-  function getById(id: string): Reminder | undefined {
-    return items.value.find((r) => r.id == id)
-  }
+  function setFilterStatus(status: string) { filterStatus.value = status }
+  function setSearch(keyword: string) { searchKeyword.value = keyword }
+  function setSort(sort: string) { currentSort.value = sort }
+  function getById(id: string): Reminder | undefined { return items.value.find((r) => r.id == id) }
 
   return {
-    loading,
-    error,
-    filterStatus,
-    searchKeyword,
-    currentSort,
-    activeItems,
-    todayItems,
-    upcomingItems,
-    overdueItems,
-    doneItems,
-    filteredItems,
-    displayItems,
-    itemCount,
-    pendingCount,
-    todayCount,
-    upcomingCount,
-    overdueCount,
-    fetchItems,
-    addItem,
-    updateItem,
-    deleteItem,
-    markDone,
-    setFilterStatus,
-    setSearch,
-    setSort,
-    getById,
+    loading, error, filterStatus, searchKeyword, currentSort, activeItems, todayItems,
+    upcomingItems, overdueItems, doneItems, filteredItems, displayItems, itemCount,
+    pendingCount, todayCount, upcomingCount, overdueCount, fetchItems, addItem,
+    updateItem, deleteItem, markDone, setFilterStatus, setSearch, setSort, getById,
   }
 })

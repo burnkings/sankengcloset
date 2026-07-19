@@ -1,3 +1,5 @@
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+
 /**
  * ContentLibraryStore — V2.0 用户内容资产
  *
@@ -39,6 +41,7 @@ function readList(key: string): string[] {
 function writeList(key: string, values: string[]) {
   uni.setStorageSync(key, values.join(','))
 }
+
 
 function outfitKey(id: string, field: string): string {
   return `${OUTFIT_PREFIX}${id}_${field}`
@@ -118,6 +121,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     else values.unshift(entityId)
     favoriteIds.value = values
     writeList(FAVORITE_IDS_KEY, values)
+    enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, idx < 0 ? 'upsert' : 'delete', '')
     return idx < 0
   }
 
@@ -133,6 +137,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     else values.unshift(brandName)
     followedBrands.value = values
     writeList(FOLLOWED_BRANDS_KEY, values)
+    enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
     return idx < 0
   }
 
@@ -151,6 +156,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
       if (removedId != null) removeOutfitStorage(removedId)
     }
     writeList(OUTFIT_IDS_KEY, ids)
+    enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'create', `${category}|${topic}|${caption}`)
     reload()
     return id
   }
@@ -161,6 +167,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     if (idx >= 0) ids.splice(idx, 1)
     writeList(OUTFIT_IDS_KEY, ids)
     removeOutfitStorage(id)
+    enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
     reload()
   }
 
@@ -176,6 +183,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     else values.unshift(postId)
     likedPostIds.value = values
     writeList(LIKED_POST_IDS_KEY, values)
+    enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
     return idx < 0
   }
 

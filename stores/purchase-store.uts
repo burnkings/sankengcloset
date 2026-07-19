@@ -3,6 +3,7 @@
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 import { toDisplayModels, PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import * as repo from '@/domain/repositories/purchase-repo'
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 export const usePurchaseStore = defineStore('purchase', () => {
   const items = ref([]) as Ref<PurchaseRecord[]>
@@ -27,25 +28,48 @@ export const usePurchaseStore = defineStore('purchase', () => {
   const itemCount = computed((): number => activeItems.value.length)
 
   function fetchPurchases() {
-    loading.value = true; error.value = ''
-    try { repo.initMockData(); items.value = repo.getAll() }
-    catch (err) { error.value = String(err) }
-    finally { loading.value = false }
+    loading.value = true
+    error.value = ''
+    try {
+      repo.initMockData()
+      items.value = repo.getAll()
+    } catch (err) {
+      error.value = String(err)
+    } finally {
+      loading.value = false
+    }
   }
+
   function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
-    try { const added = repo.add(record); items.value = [...items.value, added]; return added }
-    catch (err) { error.value = String(err); return null }
+    try {
+      const added = repo.add(record)
+      items.value = [...items.value, added]
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
+      return added
+    } catch (err) {
+      error.value = String(err)
+      return null
+    }
   }
+
   function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
     const ok = repo.update(id, data)
-    if (ok) items.value = repo.getAll()
+    if (ok) {
+      items.value = repo.getAll()
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
+    }
     return ok
   }
+
   function deletePurchase(id: string): boolean {
     const ok = repo.softDelete(id)
-    if (ok) items.value = items.value.filter((r) => r.id !== id)
+    if (ok) {
+      items.value = items.value.filter((r) => r.id !== id)
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
+    }
     return ok
   }
+
   function setFilterStatus(status: string) { filterStatus.value = status }
   function getPurchaseById(id: string): PurchaseRecord | undefined { return items.value.find((r) => r.id == id) }
 

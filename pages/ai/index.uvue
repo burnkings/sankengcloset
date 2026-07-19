@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="uts">
-import { AiDecisionResult, buildLocalDecision, buildImageBoundaryResult } from '@/domain/ai/local-decision-engine'
+import { AiDecisionResult, buildLocalDecision } from '@/domain/ai/local-decision-engine'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -61,7 +61,7 @@ const library = useContentLibraryStore()
 const aiQuery = ref('')
 const result = ref(null) as Ref<AiDecisionResult | null>
 const tasks = [
-  { id: 'identify', icon: 'camera', name: '图片识款', desc: '视觉模型边界清晰，不编造款名' },
+  { id: 'identify', icon: 'camera', name: '图片识款', desc: '识别草稿逐字段确认后再导入' },
   { id: 'outfit', icon: 'wand', name: '衣橱搭配', desc: '按场合复用已有单品' },
   { id: 'alternative', icon: 'search', name: '平替雷达', desc: '按版型、总价与状态比较' },
   { id: 'collection', icon: 'grid', name: '收藏画像', desc: '识别偏好与重复购买风险' },
@@ -75,13 +75,7 @@ function runAssistant() {
   result.value = buildLocalDecision(query, library.favoriteCount, library.followedBrandCount, library.outfitCount)
 }
 function identifyImage() {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: () => { result.value = buildImageBoundaryResult() },
-    fail: () => {},
-  })
+  uni.navigateTo({ url: '/pages/ai/import' })
 }
 function onTaskTap(id: string) {
   if (id === 'identify') { identifyImage(); return }

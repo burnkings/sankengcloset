@@ -1,0 +1,33 @@
+export const AI_IMPORT_IDLE = 'idle'
+export const AI_IMPORT_PROCESSING = 'processing'
+export const AI_IMPORT_READY = 'ready'
+export const AI_IMPORT_FAILED = 'failed'
+export const AI_IMPORT_CONFIRMED = 'confirmed'
+
+export class AiImportSuggestion {
+  name: string = ''
+  category: string = 'OTHER'
+  brand: string = ''
+  priceCents: number = 0
+  color: string = ''
+  size: string = ''
+  note: string = ''
+}
+
+export class AiImportTask {
+  taskId: string = ''
+  state: string = AI_IMPORT_IDLE
+  sourceImage: string = ''
+  sourceMode: string = 'mock_safe'
+  modelName: string = 'mock-boundary'
+  modelVersion: string = 'v2.2'
+  requestId: string = ''
+  confidence: number = 0
+  evidence: string[] = []
+  warnings: string[] = []
+  suggestion: AiImportSuggestion = new AiImportSuggestion()
+  createdAt: string = ''
+  confirmedAt: string = ''
+  targetType: string = ''
+  targetId: string = ''
+}

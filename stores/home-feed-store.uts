@@ -1,12 +1,11 @@
 /**
  * HomeFeedStore — 首页内容发现 Feed 状态管理
  * Phase 1C: 状态完整性、分页防重、频道切换重置
- * 使用 MockFeedRepo 提供数据
+ * 数据访问与筛选统一经 FeedService 提供
  */
 
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
-import { getFirstPage, getFeedPage, getPageSize, getMaxItems, filterByChannel } from '@/domain/content/mock-feed-repo'
-import { usePreferencesStore } from '@/stores/preferences-store'
+import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
 
 // ====== 频道定义 ======
 
@@ -125,7 +124,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     const ch = currentChannel.value
     if (DEBUG_EMPTY_CHANNEL !== '' && ch === DEBUG_EMPTY_CHANNEL) return []
     if (DEBUG_FORCE_EMPTY) return []
-    const channelItems = filterByChannel(allItems.value, ch)
+    const channelItems = filterFeedByChannel(allItems.value, ch)
     const category = currentCategory.value
     let result = channelItems
     if (category === '' || category === '全部') {
@@ -173,18 +172,11 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     state.value = 'loading'
     errorMessage.value = ''
     try {
-      await new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-          if (DEBUG_FORCE_ERROR) {
-            reject(new Error('网络连接失败，请重试'))
-          } else {
-            resolve()
-          }
-        }, 300)
-      })
-      allItems.value = getFirstPage()
+      if (DEBUG_FORCE_ERROR) throw new Error('网络连接失败，请重试')
+      const page = await fetchFeedPage(0)
+      allItems.value = page.items
       currentPage.value = 1
-      hasMore.value = allItems.value.length < getMaxItems()
+      hasMore.value = page.hasMore
       state.value = 'loaded'
     } catch (e) {
       state.value = 'error'
@@ -197,17 +189,16 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     if (isLoadingMore.value || !hasMore.value || state.value !== 'loaded') return
     isLoadingMore.value = true
     try {
-      await new Promise<void>((resolve) => setTimeout(() => { resolve() }, 200))
-      const newItems = getFeedPage(currentPage.value)
-      if (newItems.length === 0) {
+      const page = await fetchFeedPage(currentPage.value)
+      if (page.items.length === 0) {
         hasMore.value = false
       } else {
-        allItems.value = [...allItems.value, ...newItems]
-        currentPage.value++
-        if (allItems.value.length >= getMaxItems()) {
-          hasMore.value = false
-        }
+        allItems.value = [...allItems.value, ...page.items]
+        currentPage.value += 1
+        hasMore.value = page.hasMore
       }
+    } catch (e) {
+      errorMessage.value = e instanceof Error ? e.message : '加载失败'
     } finally {
       isLoadingMore.value = false
     }
