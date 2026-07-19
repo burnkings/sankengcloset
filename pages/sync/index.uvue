@@ -25,8 +25,8 @@
             <view :style="modeChip(isRemote)" @tap="useRemote"><text :style="modeText(isRemote)">远程服务</text></view>
           </view>
           <view v-if="isRemote" :style="inputWrap">
-            <AppInput v-model="apiUrl" placeholder="例如 https://api.example.com" :clearable="true" :focus="false" />
-            <text :style="inputHint">真机不能访问服务器的 127.0.0.1，请填写同网段地址或 HTTPS 隧道地址。</text>
+            <AppInput v-model="apiUrl" placeholder="例如 203.0.113.10:8787" :clearable="true" :focus="false" />
+            <text :style="inputHint">Android 临时内测可填写公网 IP:端口；未写协议时自动补 http://。127.0.0.1 只代表手机自身，真机不可用。</text>
             <view :style="testButton(testing)" @tap="saveAndTest"><text :style="testButtonText">{{ testing ? '检查中…' : '保存并检查连接' }}</text></view>
           </view>
         </view>
@@ -54,7 +54,7 @@
 <script setup lang="uts">
 import { useSyncStore } from '@/stores/sync-store'
 import { useSessionStore } from '@/stores/session-store'
-import { DATA_MODE_REMOTE, getRuntimeConfig, normalizeApiBaseUrl, setApiBaseUrl, setRuntimeMode } from '@/config/runtime'
+import { DATA_MODE_REMOTE, getRuntimeConfig, isLoopbackApiBaseUrl, normalizeApiBaseUrl, setApiBaseUrl, setRuntimeMode, validateApiBaseUrl } from '@/config/runtime'
 import { testApiConnection } from '@/services/platform/api-client'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -76,7 +76,7 @@ function loadRuntime() { const config = getRuntimeConfig(); runtimeMode.value = 
 async function runSync() { if (sync.syncing || !sync.hasPending) return; const before = sync.pendingCount; const count = await sync.syncNow(); if (count > 0) showFeedback(`已同步 ${count} 项操作`); else if (before > 0) showFeedback(sync.errorMessage !== '' ? sync.errorMessage : '同步未完成') }
 function useMock() { if (session.profile.provider === 'remote_dev') session.logout(); setRuntimeMode('mock'); runtimeMode.value = 'mock'; sync.reload(); showFeedback('已切换到本地演示') }
 function useRemote() { if (session.isLoggedIn && session.profile.provider !== 'remote_dev') session.logout(); setRuntimeMode(DATA_MODE_REMOTE); runtimeMode.value = DATA_MODE_REMOTE; sync.reload() }
-async function saveAndTest() { if (testing.value) return; const previous = getRuntimeConfig().apiBaseUrl; const next = normalizeApiBaseUrl(apiUrl.value); if (previous !== next && session.isLoggedIn) session.logout(); setApiBaseUrl(next); loadRuntime(); testing.value = true; try { const service = await testApiConnection(); showFeedback(`连接成功 · ${service}`) } catch (e) { showFeedback(e instanceof Error ? e.message : '连接失败') } finally { testing.value = false; sync.reload() } }
+async function saveAndTest() { if (testing.value) return; const next = normalizeApiBaseUrl(apiUrl.value); const validation = validateApiBaseUrl(next); if (validation !== '') { showFeedback(validation); return }; if (isLoopbackApiBaseUrl(next)) { showFeedback('真机不能使用 127.0.0.1 或 localhost'); return }; const previous = getRuntimeConfig().apiBaseUrl; if (previous !== next && session.isLoggedIn) session.logout(); apiUrl.value = next; setApiBaseUrl(next); loadRuntime(); testing.value = true; try { const service = await testApiConnection(); showFeedback(`连接成功 · ${service}`) } catch (e) { showFeedback(e instanceof Error ? e.message : '连接失败，请检查公网端口与防火墙') } finally { testing.value = false; sync.reload() } }
 function toggleOnline() { sync.setOnline(!sync.online); sync.reload() }
 function openAccount() { uni.navigateTo({ url: '/pages/account/index' }) }
 function formatSyncAt(value: string): string { const time = parseInt(value); if (isNaN(time)) return '—'; const date = new Date(time); const minute = date.getMinutes(); return `${date.getHours()}:${minute < 10 ? '0' + String(minute) : String(minute)}` }

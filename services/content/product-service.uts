@@ -1,0 +1,91 @@
+import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { getFirstPage } from '@/domain/content/mock-feed-repo'
+import { DATA_MODE_REMOTE, getRuntimeConfig } from '@/config/runtime'
+import { apiGet } from '@/services/platform/api-client'
+
+export class ProductDetailModel {
+  item: FeedItem = new FeedItem()
+  images: string[] = []
+  description: string = ''
+  shopUrl: string = ''
+  requestId: string = ''
+}
+
+function fallbackImage(category: string): string {
+  if (category === 'HANFU') return '/static/demo/prod-editorial-03.jpg'
+  if (category === 'LOLITA') return '/static/demo/prod-editorial-02.jpg'
+  return '/static/demo/prod-editorial-01.jpg'
+}
+
+function safeImage(url: string, category: string): string {
+  if (url === '' || url.indexOf('example.invalid') >= 0) return fallbackImage(category)
+  return url
+}
+
+function statusLabel(status: string): string {
+  if (status === 'PRE_ORDER') return '预售'
+  if (status === 'UPCOMING') return '预告'
+  if (status === 'SOLD_OUT') return '售罄'
+  if (status === 'ON_SALE') return '现货'
+  return ''
+}
+
+function addUniqueImage(images: string[], url: string) {
+  if (url !== '' && images.indexOf(url) < 0) images.push(url)
+}
+
+function mapRemoteProduct(raw: any, requestId: string): ProductDetailModel {
+  const result = new ProductDetailModel()
+  const item = new FeedItem()
+  item.id = raw.id != null ? String(raw.id) : ''
+  item.entityId = item.id
+  item.feedType = FEED_PRODUCT
+  item.title = raw.title != null ? String(raw.title) : ''
+  item.subtitle = raw.description != null ? String(raw.description) : ''
+  item.brandId = raw.brandId != null ? String(raw.brandId) : ''
+  item.brandName = raw.brandName != null ? String(raw.brandName) : ''
+  item.category = raw.category != null ? String(raw.category) : ''
+  item.price = raw.priceCents != null ? Number(raw.priceCents) : 0
+  item.originalPrice = raw.originalPriceCents != null ? Number(raw.originalPriceCents) : item.price
+  item.badgeText = statusLabel(raw.status != null ? String(raw.status) : '')
+  item.coverUrl = safeImage(raw.coverUrl != null ? String(raw.coverUrl) : '', item.category)
+  item.sourceLabel = '服务端'
+  item.createdAt = raw.createdAt != null ? String(raw.createdAt) : ''
+
+  const images = raw.images as any[]
+  if (images != null) {
+    for (let i = 0; i < images.length; i++) addUniqueImage(result.images, safeImage(String(images[i]), item.category))
+  }
+  addUniqueImage(result.images, item.coverUrl)
+  if (result.images.length > 1) item.secondaryCoverUrl = result.images[1]
+
+  result.item = item
+  result.description = raw.description != null ? String(raw.description) : ''
+  result.shopUrl = raw.shopUrl != null ? String(raw.shopUrl) : ''
+  result.requestId = requestId
+  return result
+}
+
+function localProduct(id: string): ProductDetailModel | null {
+  const sourceItems = getFirstPage()
+  const found = sourceItems.find((entry) => entry.entityId === id || entry.id === id)
+  if (found == null) return null
+  const result = new ProductDetailModel()
+  result.item = found
+  addUniqueImage(result.images, found.coverUrl)
+  addUniqueImage(result.images, found.secondaryCoverUrl)
+  for (let i = 0; i < sourceItems.length && result.images.length < 4; i++) {
+    const candidate = sourceItems[i]
+    if (candidate.category === found.category && candidate.feedType === FEED_PRODUCT) addUniqueImage(result.images, candidate.coverUrl)
+  }
+  result.description = found.subtitle
+  return result
+}
+
+export async function fetchProductDetail(id: string): Promise<ProductDetailModel | null> {
+  if (id === '') return null
+  if (getRuntimeConfig().mode !== DATA_MODE_REMOTE) return localProduct(id)
+  const response = await apiGet(`/api/v1/products/${encodeURIComponent(id)}`)
+  if (response.data == null) return null
+  return mapRemoteProduct(response.data, response.requestId)
+}

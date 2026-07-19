@@ -1,4 +1,4 @@
-/** V2.4 数据运行模式与远程会话配置。 */
+/** V2.5 数据运行模式、远程会话与 Android 公网内测配置。 */
 
 export const DATA_MODE_LOCAL = 'local'
 export const DATA_MODE_MOCK = 'mock'
@@ -29,8 +29,26 @@ function readString(key: string): string {
 
 export function normalizeApiBaseUrl(value: string): string {
   let result = value.trim()
+  if (result !== '' && !result.startsWith('http://') && !result.startsWith('https://')) result = `http://${result}`
   while (result.endsWith('/')) result = result.substring(0, result.length - 1)
   return result
+}
+
+export function validateApiBaseUrl(value: string): string {
+  const result = normalizeApiBaseUrl(value)
+  if (result === '') return '请输入服务器地址'
+  if (!result.startsWith('http://') && !result.startsWith('https://')) return '仅支持 HTTP 或 HTTPS 地址'
+  const schemeEnd = result.indexOf('://')
+  const host = schemeEnd >= 0 ? result.substring(schemeEnd + 3) : ''
+  if (host === '' || host.startsWith(':')) return '服务器地址格式不正确'
+  if (host.indexOf(' ') >= 0) return '服务器地址不能包含空格'
+  return ''
+}
+
+export function isLoopbackApiBaseUrl(value: string): boolean {
+  const result = normalizeApiBaseUrl(value).toLowerCase()
+  return result.startsWith('http://127.0.0.1') || result.startsWith('https://127.0.0.1')
+    || result.startsWith('http://localhost') || result.startsWith('https://localhost')
 }
 
 export function getRuntimeConfig(): RuntimeConfig {
