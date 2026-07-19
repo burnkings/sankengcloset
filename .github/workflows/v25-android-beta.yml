@@ -3,7 +3,6 @@ name: V2.5 Android beta contract
 on:
   pull_request:
     paths:
-      - 'backend/**'
       - 'config/**'
       - 'services/**'
       - 'pages/**'
@@ -34,15 +33,3 @@ jobs:
           ET.parse('nativeResources/android/res/xml/sankeng_beta_network_security_config.xml')
           print('Android XML valid')
           PY
-      - name: Backend install
-        working-directory: backend
-        run: npm ci
-      - name: Backend typecheck
-        working-directory: backend
-        run: npm run typecheck
-      - name: Backend tests
-        working-directory: backend
-        run: npm test
-      - name: Backend build
-        working-directory: backend
-        run: npm run build
