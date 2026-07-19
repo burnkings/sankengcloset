@@ -132,6 +132,7 @@ import { n } from '@/theme/use-theme'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
+import { showFeedback } from '@/utils/feedback'
 
 
 const store = useWishListStore()
@@ -205,7 +206,7 @@ function onConfirmConvert() {
   const added = purchaseStore.addPurchase(record)
   if (added) {
     store.markPurchased(itemId.value, added.id)
-    uni.showToast({ title: '已转为消费记录', icon: 'success' })
+    showFeedback('已转为消费记录')
   }
 }
 

@@ -190,7 +190,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexCenter, flexFill } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
-import { n, syncTabBarChrome } from '@/theme/use-theme'
+import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { CARD_PADDING, CARD_RADIUS, BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_FONT_SIZE, SEARCH_HEIGHT, SEARCH_RADIUS, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH } from '@/theme/tokens/responsive'
@@ -253,6 +253,7 @@ function onRetry() { store.retry() }
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
 onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
+onLoad(() => { initPageTheme() })
 onShow(() => { notices.reload(); syncTabBarChrome() })
 
 // --- Spacing tokens (no gap) ---

@@ -3,7 +3,7 @@ import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/loc
 /**
  * ContentLibraryStore — V2.0 用户内容资产
  *
- * 当前以本地持久化实现商品收藏、品牌关注与晒搭发布记录。
+ * 当前以本地持久化实现商品收藏、品牌关注与圈子发布记录。
  * 页面只依赖本 Store，后续接入账号与服务端同步时无需重写页面交互。
  */
 
@@ -82,7 +82,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     followedBrands.value = readList(FOLLOWED_BRANDS_KEY)
     likedPostIds.value = readList(LIKED_POST_IDS_KEY)
     const ids = readList(OUTFIT_IDS_KEY)
-    // Phase 1C 只保存一条晒搭；首次进入 V2.0 时无损迁移到多条内容库。
+    // Phase 1C 只保存一条圈子；首次进入 V2.0 时无损迁移到多条内容库。
     if (ids.length === 0) {
       const legacyImage = readString('local_outfit_image')
       if (legacyImage !== '') {

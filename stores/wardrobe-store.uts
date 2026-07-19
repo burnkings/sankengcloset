@@ -11,9 +11,11 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
   const searchKeyword = ref('')
   const currentSort = ref('newest')
   const viewMode = ref('grid')
-
+  const currentStatus = ref('')
   const filteredItems = computed((): WardrobeItem[] => items.value.filter((item) => {
     if (currentCategory.value != '' && item.category != currentCategory.value) return false
+    if (currentStatus.value == 'favorite' && !item.isFavorite) return false
+    if (currentStatus.value != '' && currentStatus.value != 'favorite' && item.wearStatus != currentStatus.value) return false
     if (searchKeyword.value == '') return true
     const keyword = searchKeyword.value.toLowerCase()
     const category = CATEGORY_LABELS[item.category] ?? ''
@@ -25,7 +27,8 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
 
   const sortedItems = computed((): WardrobeItem[] => {
     const result = [...filteredItems.value]
-    if (currentSort.value == 'priceHigh') result.sort((a, b) => b.purchasePrice - a.purchasePrice)
+    if (currentSort.value == 'earliest') result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    else if (currentSort.value == 'priceHigh') result.sort((a, b) => b.purchasePrice - a.purchasePrice)
     else if (currentSort.value == 'priceLow') result.sort((a, b) => a.purchasePrice - b.purchasePrice)
     else if (currentSort.value == 'name') result.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
     else result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -92,13 +95,23 @@ export const useWardrobeStore = defineStore('wardrobe', () => {
   function setCategory(value: string) { currentCategory.value = value }
   function setSearch(value: string) { searchKeyword.value = value }
   function setSort(value: string) { currentSort.value = value }
+  function setStatus(value: string) { currentStatus.value = value }
   function setViewMode(value: string) { viewMode.value = value }
   function toggleViewMode() { viewMode.value = viewMode.value == 'grid' ? 'list' : 'grid' }
   function getById(id: string): WardrobeItem | undefined { return items.value.find((item) => item.id == id) }
-
+  const activeFilterCount = computed((): number => { let count = 0; if (currentCategory.value != '') count++; if (currentStatus.value != '') count++; return count })
+  const sortLabel = computed((): string => {
+    if (currentSort.value == 'newest') return '最近加入'
+    if (currentSort.value == 'earliest') return '最早加入'
+    if (currentSort.value == 'priceHigh') return '价格高→低'
+    if (currentSort.value == 'priceLow') return '价格低→高'
+    if (currentSort.value == 'name') return '名称'
+    return '最近加入'
+  })
   return {
-    loading, error, currentCategory, searchKeyword, currentSort, viewMode, sortedItems,
-    itemCount, categoryCounts, fetchItems, addItem, updateItem, deleteItem, toggleFavorite,
-    setCategory, setSearch, setSort, setViewMode, toggleViewMode, getById,
+    loading, error, currentCategory, searchKeyword, currentSort, currentStatus, viewMode,
+    sortedItems, itemCount, categoryCounts, activeFilterCount, sortLabel,
+    fetchItems, addItem, updateItem, deleteItem, toggleFavorite,
+    setCategory, setSearch, setSort, setStatus, setViewMode, toggleViewMode, getById,
   }
 })

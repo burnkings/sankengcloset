@@ -126,9 +126,18 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     if (DEBUG_FORCE_EMPTY) return []
     const channelItems = filterFeedByChannel(allItems.value, ch)
     const category = currentCategory.value
-    if (category === '' || category === '全部') return channelItems
-    const code = categoryCode(category)
-    return channelItems.filter((item) => item.category === code)
+    let result = channelItems
+    if (category === '' || category === '全部') {
+      result = channelItems
+    } else {
+      const code = categoryCode(category)
+      result = channelItems.filter((item) => item.category === code)
+    }
+    // Preference-based sorting
+    const prefs = usePreferencesStore()
+    const sorted = [...result]
+    sorted.sort((a, b) => prefs.computeScore(b) - prefs.computeScore(a))
+    return sorted
   })
 
   const isEmpty = computed((): boolean => {
@@ -233,24 +242,30 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     }
   }
 
-  return {
-    state,
-    loading,
-    isEmpty,
-    errorMessage,
-    currentChannel,
-    currentCategory,
-    allItems,
-    displayItems,
-    feedRows,
-    isLoadingMore,
-    hasMore,
-    loadFirstPage,
-    loadMore,
-    setChannel,
-    setCategory,
-    retry,
-    toggleLike,
-    toggleSave,
+  function refreshPreferences() {
+    const prefs = usePreferencesStore()
+    prefs.loadPreferences()
   }
+
+  return {
+      state,
+      loading,
+      isEmpty,
+      errorMessage,
+      currentChannel,
+      currentCategory,
+      allItems,
+      displayItems,
+      feedRows,
+      isLoadingMore,
+      hasMore,
+      loadFirstPage,
+      loadMore,
+      setChannel,
+      setCategory,
+      retry,
+      toggleLike,
+      toggleSave,
+      refreshPreferences,
+    }
 })

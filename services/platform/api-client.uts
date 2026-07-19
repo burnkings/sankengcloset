@@ -1,0 +1,102 @@
+import { getRuntimeConfig, getAccessToken, getRefreshToken, saveSessionTokens } from '@/config/runtime'
+
+export class ApiResponse {
+  data: any = null
+  page: any = null
+  requestId: string = ''
+  statusCode: number = 0
+}
+
+function endpoint(path: string): string {
+  const base = getRuntimeConfig().apiBaseUrl
+  if (base === '') throw new Error('请先在同步与备份中配置 API 地址')
+  return `${base}${path.startsWith('/') ? path : '/' + path}`
+}
+
+function headers(): any {
+  const result: any = { 'content-type': 'application/json' }
+  const token = getAccessToken()
+  if (token !== '') result.authorization = `Bearer ${token}`
+  return result
+}
+
+function parseResponse(statusCode: number, raw: any): ApiResponse {
+  if (statusCode < 200 || statusCode >= 300) {
+    const problem = raw != null ? (raw as any).error : null
+    const message = problem != null && problem.message != null ? String(problem.message) : `服务请求失败（${statusCode}）`
+    const error: any = new Error(message)
+    error.statusCode = statusCode
+    throw error
+  }
+  const response = new ApiResponse()
+  response.statusCode = statusCode
+  response.requestId = raw != null && raw.requestId != null ? String(raw.requestId) : ''
+  response.data = raw != null && raw.data !== undefined ? raw.data : raw
+  response.page = raw != null && raw.page !== undefined ? raw.page : null
+  return response
+}
+
+export function apiGet(path: string): Promise<ApiResponse> {
+  return new Promise<ApiResponse>((resolve, reject) => {
+    let url = ''
+    try { url = endpoint(path) } catch (e) { reject(e); return }
+    uni.request({
+      url,
+      method: 'GET',
+      header: headers(),
+      timeout: 12000,
+      success: (res: any) => {
+        try { resolve(parseResponse(Number(res.statusCode), res.data)) }
+        catch (e) { reject(e) }
+      },
+      fail: (error: any) => reject(new Error(error != null && error.errMsg != null ? String(error.errMsg) : '无法连接服务')),
+    })
+  })
+}
+
+export function apiPost(path: string, payload: any): Promise<ApiResponse> {
+  return new Promise<ApiResponse>((resolve, reject) => {
+    let url = ''
+    try { url = endpoint(path) } catch (e) { reject(e); return }
+    uni.request({
+      url,
+      method: 'POST',
+      header: headers(),
+      data: payload,
+      timeout: 15000,
+      success: (res: any) => {
+        try { resolve(parseResponse(Number(res.statusCode), res.data)) }
+        catch (e) { reject(e) }
+      },
+      fail: (error: any) => reject(new Error(error != null && error.errMsg != null ? String(error.errMsg) : '无法连接服务')),
+    })
+  })
+}
+
+export async function refreshRemoteSession(): Promise<boolean> {
+  const refreshToken = getRefreshToken()
+  if (refreshToken === '') return false
+  const response = await apiPost('/api/v1/sessions/refresh', { refreshToken })
+  const data = response.data as any
+  if (data == null || data.accessToken == null) return false
+  saveSessionTokens(String(data.accessToken), data.refreshToken != null ? String(data.refreshToken) : refreshToken)
+  return true
+}
+
+export async function apiPostAuthorized(path: string, payload: any): Promise<ApiResponse> {
+  try { return await apiPost(path, payload) }
+  catch (e) {
+    const error = e as any
+    if (error == null || Number(error.statusCode) !== 401 || !(await refreshRemoteSession())) throw e
+    return await apiPost(path, payload)
+  }
+}
+
+export async function testApiConnection(): Promise<string> {
+  const response = await apiGet('/health')
+  const data = response.data as any
+  if (data == null || String(data.status) !== 'ok') throw new Error('服务健康检查未通过')
+  return data.service != null ? String(data.service) : 'sankengcloset-api'
+}
+
+export function encodeQuery(value: string): string { return encodeURIComponent(value) }

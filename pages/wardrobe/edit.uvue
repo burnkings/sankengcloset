@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar :title="isEdit ? '编辑衣橱单品' : '添加衣橱单品'" :show-back="true"><template #right><text :style="saveText" @tap="save">保存</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar :title="isEdit ? '编辑衣橱单品' : '添加衣橱单品'" :show-back="true"></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="photoCard" @tap="choosePhoto">
@@ -30,6 +30,9 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="bottomBar">
+    <view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣橱' }}</text></view>
+  </view>
 </template>
 
 <script setup lang="uts">
@@ -41,6 +44,7 @@ import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -101,8 +105,12 @@ onMounted(() => {
   form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = item.coverImage
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' }
 const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const editSafeBottom = getSafeBottomInset()
+const bottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${editSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
+const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
+const saveButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const photoCard = computed((): any => ({ width: '670rpx', height: '460rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
 const photoEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 const photoText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '16rpx' }))

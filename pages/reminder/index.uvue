@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="提醒" :show-back="true"><template #right><text :style="addText" @tap="goAdd">添加</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="提醒" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="focusCard"><view :style="focusCopy"><text :style="focusLabel">近期需要关注</text><text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text></view><view :style="focusStats"><text :style="focusMeta">今天 {{ store.todayCount }}</text><text :style="focusMeta">逾期 {{ store.overdueCount }}</text></view></view>
@@ -17,6 +17,7 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
 </template>
 
 <script setup lang="uts">
@@ -32,8 +33,10 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useReminderStore()
+const safeBottom = getSafeBottomInset()
 const activeFilter = ref('全部')
 const filters = ['全部', '待提醒', '已完成']
 function onFilter(label: string) { activeFilter.value = label; store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : 'DONE')) }
@@ -43,6 +46,7 @@ onMounted(() => { store.fetchItems() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
 const focusCopy = { ...flexFill }
 const focusLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))

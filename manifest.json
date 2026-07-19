@@ -16,7 +16,9 @@
         "setting" : {
             "urlCheck" : false
         },
-        "usingComponents" : true
+        "usingComponents" : true,
+        "darkmode" : true,
+        "themeLocation" : "theme.json"
     },
     "mp-alipay" : {
         "usingComponents" : true

@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="发布美照" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="发布圈子动态" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="photoCard" @tap="choosePhoto">
@@ -33,7 +33,7 @@
         </view>
 
         <view :style="publishButton" @tap="publishLook">
-          <text :style="publishText">发布到晒搭广场</text>
+          <text :style="publishText">发布到圈子</text>
         </view>
         <text :style="privacyNote">当前内容仅保存在本机；登录同步上线后可在多端继续查看。</text>
       </view>
@@ -62,7 +62,7 @@ const selectedImage = ref('')
 const caption = ref('')
 const category = ref('JK')
 const topic = ref('今日穿搭')
-const categories = ['JK', 'Lolita', '汉服']
+const categories = ['JK', 'Lolita', '汉服', '混搭']
 const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const library = useContentLibraryStore()
 
@@ -84,7 +84,7 @@ function publishLook() {
   }
   const completePublish = (imagePath: string) => {
     library.saveOutfit(imagePath, caption.value, category.value, topic.value)
-    showFeedback('已发布到晒搭')
+    showFeedback('已发布到圈子')
     setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
   }
   uni.saveFile({
@@ -104,7 +104,7 @@ const uploadIcon = { width: '104rpx', height: '104rpx', borderRadius: '52rpx', b
 const uploadTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx' }))
 const uploadDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
 const categoryRow = { ...flexRow }
-function categoryChip(idx: number, item: string) { return { width: '210rpx', height: '72rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? brand[600] : n.value.surface, marginRight: idx < 2 ? '20rpx' : '0' } }
+function categoryChip(idx: number, item: string) { return { width: '155rpx', height: '72rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? brand[600] : n.value.surface, marginRight: idx < 3 ? '16rpx' : '0' } }
 function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? baseColors.white : n.value.textSecondary } }
 const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
 function topicChip(idx: number, item: string) { return { minHeight: '64rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value === item ? brand[50] : n.value.surface, borderWidth: topic.value === item ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200], marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }

@@ -1,14 +1,15 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="我的衣橱" :show-back="true"><template #right><text :style="addText" @tap="goAdd">添加</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="我的衣橱" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <AppInput v-model="searchValue" placeholder="搜索衣物名称或品牌" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
-        <view :style="summaryRow"><text :style="summaryTitle">{{ store.itemCount }} 件单品</text><text :style="summaryMeta">按加入时间排列</text></view>
+        <view :style="summaryRow"><text :style="summaryTitle">{{ store.itemCount }} 件单品</text><view :style="sortBadge" @tap="showSortSheet"><text :style="sortBadgeText">{{ store.sortLabel }}</text></view><view v-if="store.activeFilterCount > 0" :style="filterBadge"><text :style="filterBadgeText">{{ store.activeFilterCount }}</text></view></view>
         <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
+        <V2FilterChips :items="statusFilters" :active="activeStatus" @change="onStatusFilter" />
 
         <AppLoading v-if="store.loading" />
-        <view v-else-if="visibleItems.length === 0" :style="emptyWrap"><AppIcon name="wardrobe" :size="64" /><text :style="emptyTitle">衣橱里还没有匹配单品</text><text :style="emptyDesc">添加单品后可用于绮灵 AI 搭配</text></view>
+        <view v-else-if="visibleItems.length === 0" :style="emptyWrap"><AppIcon name="wardrobe" :size="64" /><text :style="emptyTitle">{{ hasActiveFilters ? '没有匹配的单品' : '衣橱里还没有单品' }}</text><text :style="emptyDesc">{{ hasActiveFilters ? '试试调整筛选条件' : '添加你的第一件三坑单品' }}</text></view>
         <view v-else :style="grid">
           <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
             <view :style="imageWrap"><AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" /></view>
@@ -18,6 +19,7 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
 </template>
 
 <script setup lang="uts">
@@ -35,18 +37,25 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWardrobeStore()
+const safeBottom = getSafeBottomInset()
 const searchValue = ref('')
 const activeFilter = ref('全部')
+const activeStatus = ref('全部')
 const filters = ['全部', 'JK', 'Lolita', '汉服']
+const statusFilters = ['全部', '收藏', '未穿', '常穿']
 function applySearch() { store.setSearch(searchValue.value) }
 function onFilter(label: string) { activeFilter.value = label; store.setCategory(label === '全部' ? '' : (label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : 'JK'))) }
-const visibleItems = computed(() => {
-  const code = activeFilter.value === '全部' ? '' : (activeFilter.value === 'Lolita' ? 'LOLITA' : (activeFilter.value === '汉服' ? 'HANFU' : 'JK'))
-  if (code === '') return store.sortedItems
-  return store.sortedItems.filter((item) => item.category === code)
-})
+function onStatusFilter(label: string) { activeStatus.value = label; store.setStatus(label === '全部' ? '' : (label === '收藏' ? 'favorite' : (label === '未穿' ? 'UNWORN' : 'FREQUENT'))) }
+const hasActiveFilters = computed((): boolean => store.activeFilterCount > 0)
+const visibleItems = computed((): any[] => store.sortedItems)
+const sortOptions = ['newest', 'earliest', 'priceHigh', 'priceLow', 'name']
+const sortLabels = ['最近加入', '最早加入', '价格高→低', '价格低→高', '名称']
+function showSortSheet() {
+  uni.showActionSheet({ itemList: sortLabels, success: (res) => { store.setSort(sortOptions[res.tapIndex]) } })
+}
 function categoryLabel(value: string): string { return value === 'LOLITA' ? 'Lolita' : (value === 'HANFU' ? '汉服' : (value === 'JK' ? 'JK' : '其他')) }
 function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿' : (value === 'WORN' ? '已穿' : (value === 'FREQUENT' ? '常穿' : '')) }
 function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
@@ -56,9 +65,13 @@ watch(searchValue, (value) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 const summaryRow = { ...flexRow, alignItems: 'center', marginTop: '24rpx', marginBottom: '16rpx' }
 const summaryTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const summaryMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const sortBadge = computed((): any => ({ ...flexRow, alignItems: 'center', paddingLeft: '16rpx', paddingRight: '12rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary }))
+const sortBadgeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '4rpx' }))
+const filterBadge = { minWidth: '32rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', paddingLeft: '8rpx', paddingRight: '8rpx', marginLeft: '8rpx' }
+const filterBadgeText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const grid = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '22rpx' }
 function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const imageWrap = { width: '325rpx', height: '390rpx' }

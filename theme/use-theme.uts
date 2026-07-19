@@ -1,26 +1,75 @@
 /**
  * useTheme — 主题切换
  * 
+ * 小程序每个页面有独立 JS 上下文，module-level ref 不跨页面共享。
+ * 解决方案：通过 getApp().globalData.isDark 存储全局深色模式状态
+ * 每次读取都从 globalData 取值，确保跨页面同步。
+ *
  * 注意：不要解构返回值，直接用 theme.isDark / theme.n
  * UTS→Kotlin 编译器不支持对象解构
  */
 
 import { neutralLight, neutralDark, brand } from './tokens/colors'
 
-const THEME_STORAGE_KEY = 'sk_theme_mode'
+const THEME_STORAGE_KEY = 'sankeng_theme_mode'
+const OLD_THEME_KEYS = ['sk_dark_mode', 'app_theme_mode', 'theme_dark_mode']
 
-function readInitialDarkMode(): boolean {
+function readStorageDarkMode(): boolean {
   try {
-    return (uni.getStorageSync(THEME_STORAGE_KEY) as string) === 'dark'
+    // 1. 先读新 key
+    const current = uni.getStorageSync(THEME_STORAGE_KEY) as string
+    if (current === 'dark') return true
+    if (current === 'light') return false
+    // 2. 迁移旧 key（老版本升级时保留用户偏好）
+    for (let i = 0; i < OLD_THEME_KEYS.length; i++) {
+      const old = uni.getStorageSync(OLD_THEME_KEYS[i]) as string
+      if (old === 'dark' || old === 'light') {
+        uni.setStorageSync(THEME_STORAGE_KEY, old)
+        return old === 'dark'
+      }
+    }
+    return false
   } catch (e) {
     return false
   }
 }
 
-// 在模块第一次求值时就确定主题，避免首个页面先浅色渲染再跳成深色。
-const _isDark = ref(readInitialDarkMode())
+// ====== 全局状态（跨页面共享） ======
+
+function getGlobalDark(): boolean {
+  try {
+    const app = getApp()
+    if (app != null && app.globalData != null) {
+      const val = app.globalData['isDark']
+      if (val != null) return val as boolean
+    }
+  } catch (e) {}
+  return readStorageDarkMode()
+}
+
+function setGlobalDark(value: boolean) {
+  try {
+    const app = getApp()
+    if (app != null) {
+      if (app.globalData == null) app.globalData = {}
+      app.globalData['isDark'] = value
+    }
+  } catch (e) {}
+}
+
+// 本地 ref：初始化时从 globalData 或 storage 读取
+const _isDark = ref(getGlobalDark())
 const _neutral = computed(() => _isDark.value ? neutralDark : neutralLight)
 let lastTabBarMode = ''
+
+// 每次访问 isDark 时，强制同步 globalData（跨页面一致性保障）
+function syncFromGlobal() {
+  const globalDark = getGlobalDark()
+  if (_isDark.value !== globalDark) {
+    _isDark.value = globalDark
+    lastTabBarMode = ''
+  }
+}
 
 function applySystemChrome() {
   const palette = _isDark.value ? neutralDark : neutralLight
@@ -38,6 +87,7 @@ function applySystemChrome() {
 /** Only call from actual native tab pages. Secondary pages must not call setTabBarStyle. */
 export function syncTabBarChrome() {
   // #ifdef MP-WEIXIN
+  syncFromGlobal()
   const mode = _isDark.value ? 'dark' : 'light'
   if (lastTabBarMode === mode) return
   lastTabBarMode = mode
@@ -52,20 +102,34 @@ export function syncTabBarChrome() {
 }
 
 export function initializeTheme() {
+  syncFromGlobal()
   applySystemChrome()
 }
 
 export function syncSystemChrome() {
+  syncFromGlobal()
   applySystemChrome()
 }
 
+/**
+ * Tab 页 onLoad 阶段调用：从 globalData 同步 + 应用系统栏 + TabBar
+ */
+export function initPageTheme() {
+  syncFromGlobal()
+  applySystemChrome()
+  lastTabBarMode = ''
+  syncTabBarChrome()
+}
+
 export function setDarkMode(enabled: boolean) {
-  if (_isDark.value === enabled) return
-  // 先让当前组件树在同一渲染帧完成换色，再同步原生系统栏。
-  // 不重载页面、不使用全屏遮罩，滚动位置与组件状态均保持不变。
   _isDark.value = enabled
+  // 写入全局 + storage
+  setGlobalDark(enabled)
   uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
-  nextTick(() => { applySystemChrome() })
+  // 重置缓存
+  lastTabBarMode = ''
+  applySystemChrome()
+  syncTabBarChrome()
 }
 
 export function toggleDarkMode(): boolean {
@@ -74,12 +138,13 @@ export function toggleDarkMode(): boolean {
 }
 
 export function useTheme() {
+  syncFromGlobal()
   return {
     isDark: _isDark,
     neutral: _neutral,
   }
 }
 
-/** 直接导出，避免解构 */
+/** 直接导出，避免解构。每次访问前先同步 globalData */
 export const isDark = _isDark
 export const n = _neutral
