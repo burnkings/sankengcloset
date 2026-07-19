@@ -54,7 +54,7 @@
 <script setup lang="uts">
 import { useSyncStore } from '@/stores/sync-store'
 import { useSessionStore } from '@/stores/session-store'
-import { DATA_MODE_REMOTE, getRuntimeConfig, setApiBaseUrl, setRuntimeMode } from '@/config/runtime'
+import { DATA_MODE_REMOTE, getRuntimeConfig, normalizeApiBaseUrl, setApiBaseUrl, setRuntimeMode } from '@/config/runtime'
 import { testApiConnection } from '@/services/platform/api-client'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -74,9 +74,9 @@ const sync = useSyncStore(); const session = useSessionStore(); const apiUrl = r
 const isRemote = computed((): boolean => runtimeMode.value === DATA_MODE_REMOTE)
 function loadRuntime() { const config = getRuntimeConfig(); runtimeMode.value = config.mode; apiUrl.value = config.apiBaseUrl; sync.reload() }
 async function runSync() { if (sync.syncing || !sync.hasPending) return; const before = sync.pendingCount; const count = await sync.syncNow(); if (count > 0) showFeedback(`已同步 ${count} 项操作`); else if (before > 0) showFeedback(sync.errorMessage !== '' ? sync.errorMessage : '同步未完成') }
-function useMock() { setRuntimeMode('mock'); runtimeMode.value = 'mock'; sync.reload(); showFeedback('已切换到本地演示') }
-function useRemote() { setRuntimeMode(DATA_MODE_REMOTE); runtimeMode.value = DATA_MODE_REMOTE; sync.reload() }
-async function saveAndTest() { if (testing.value) return; setApiBaseUrl(apiUrl.value); loadRuntime(); testing.value = true; try { const service = await testApiConnection(); showFeedback(`连接成功 · ${service}`) } catch (e) { showFeedback(e instanceof Error ? e.message : '连接失败') } finally { testing.value = false; sync.reload() } }
+function useMock() { if (session.profile.provider === 'remote_dev') session.logout(); setRuntimeMode('mock'); runtimeMode.value = 'mock'; sync.reload(); showFeedback('已切换到本地演示') }
+function useRemote() { if (session.isLoggedIn && session.profile.provider !== 'remote_dev') session.logout(); setRuntimeMode(DATA_MODE_REMOTE); runtimeMode.value = DATA_MODE_REMOTE; sync.reload() }
+async function saveAndTest() { if (testing.value) return; const previous = getRuntimeConfig().apiBaseUrl; const next = normalizeApiBaseUrl(apiUrl.value); if (previous !== next && session.isLoggedIn) session.logout(); setApiBaseUrl(next); loadRuntime(); testing.value = true; try { const service = await testApiConnection(); showFeedback(`连接成功 · ${service}`) } catch (e) { showFeedback(e instanceof Error ? e.message : '连接失败') } finally { testing.value = false; sync.reload() } }
 function toggleOnline() { sync.setOnline(!sync.online); sync.reload() }
 function openAccount() { uni.navigateTo({ url: '/pages/account/index' }) }
 function formatSyncAt(value: string): string { const time = parseInt(value); if (isNaN(time)) return '—'; const date = new Date(time); const minute = date.getMinutes(); return `${date.getHours()}:${minute < 10 ? '0' + String(minute) : String(minute)}` }
