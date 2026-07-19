@@ -2,7 +2,8 @@
   <MainLayout navbar-content-height="88rpx">
     <template #navbar><AppNavbar title="商品详情" :show-back="true" /></template>
     <template #default>
-      <view v-if="item !== null" :style="pageWrap">
+      <view v-if="loading" :style="emptyWrap"><text :style="emptyText">正在加载商品信息…</text></view>
+      <view v-else-if="item !== null" :style="pageWrap">
         <view :style="galleryWrap">
           <swiper :style="hero" :circular="detailImages.length > 1" :indicator-dots="detailImages.length > 1" :indicator-color="n.divider" :indicator-active-color="brand[500]" @change="onGalleryChange">
             <swiper-item v-for="imageUrl in detailImages" :key="imageUrl">
@@ -29,11 +30,11 @@
           </view>
 
           <V2SectionHeader title="商品说明" />
-          <view :style="detailCard"><text :style="detailText">{{ item!.subtitle !== '' ? item!.subtitle : '收录品牌公开商品信息与发售节点，便于收藏、比较和设置提醒。' }}</text></view>
+          <view :style="detailCard"><text :style="detailText">{{ description !== '' ? description : (item!.subtitle !== '' ? item!.subtitle : '商品说明待品牌补充') }}</text></view>
           <view :style="actionSpacer" />
         </view>
       </view>
-      <view v-else :style="emptyWrap"><text :style="emptyText">商品信息不存在</text></view>
+      <view v-else :style="emptyWrap"><text :style="emptyText">{{ errorMessage !== '' ? errorMessage : '商品信息不存在' }}</text><view :style="retryButton" @tap="loadDetail"><text :style="retryText">重新加载</text></view></view>
     </template>
   </MainLayout>
   <view v-if="item !== null" :style="actionBar">
@@ -45,7 +46,7 @@
 
 <script setup lang="uts">
 import { FeedItem } from '@/domain/content/feed-item'
-import { getFirstPage } from '@/domain/content/mock-feed-repo'
+import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
@@ -65,28 +66,15 @@ import { showFeedback } from '@/utils/feedback'
 
 const itemId = ref('')
 const library = useContentLibraryStore()
-const sourceItems = getFirstPage()
-const item = computed((): FeedItem | null => {
-  const found = sourceItems.find((entry) => entry.entityId === itemId.value || entry.id === itemId.value)
-  return found ?? null
-})
+const item = ref(null) as Ref<FeedItem | null>
+const loading = ref(true)
+const errorMessage = ref('')
+const description = ref('')
+const shopUrl = ref('')
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
 const stages = ['图透', '定金', '尾款', '现货']
 const currentImageIndex = ref(0)
-const detailImages = computed((): string[] => {
-  const images: string[] = []
-  if (item.value === null) return images
-  function addImage(url: string) {
-    if (url !== '' && images.indexOf(url) < 0 && images.length < 4) images.push(url)
-  }
-  addImage(item.value!.coverUrl)
-  addImage(item.value!.secondaryCoverUrl)
-  for (let i = 0; i < sourceItems.length; i++) {
-    const candidate = sourceItems[i]
-    if (candidate.category === item.value!.category && candidate.feedType === 'product') addImage(candidate.coverUrl)
-  }
-  return images
-})
+const detailImages = ref([]) as Ref<string[]>
 function onGalleryChange(e: any) { currentImageIndex.value = (e.detail as any).current ?? 0 }
 function saveItem() {
   if (item.value === null) return
@@ -94,7 +82,10 @@ function saveItem() {
   showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
 }
 function askAI() { openPrimaryTab('/pages/ai/index') }
-function openOfficial() { showFeedback('官方购买入口接入后可跳转') }
+function openOfficial() {
+  if (shopUrl.value === '') { showFeedback('暂未收录官方购买地址'); return }
+  uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('官方地址已复制，可在浏览器打开') } })
+}
 function dateOnly(value: string): string {
   if (value === '') return ''
   return value.length >= 10 ? value.substring(0, 10) : value
@@ -113,10 +104,30 @@ function createPurchase() {
   const category = item.value!.category === 'LOLITA' ? 'LOLITA' : (item.value!.category === 'HANFU' ? 'HANFU' : 'JK')
   uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${dateOnly(item.value!.eventEndAt)}` })
 }
+async function loadDetail() {
+  loading.value = true
+  errorMessage.value = ''
+  currentImageIndex.value = 0
+  try {
+    const result = await fetchProductDetail(itemId.value)
+    if (result === null) { item.value = null; errorMessage.value = '商品信息不存在'; return }
+    item.value = result.item
+    detailImages.value = result.images
+    description.value = result.description
+    shopUrl.value = result.shopUrl
+  } catch (e) {
+    item.value = null
+    detailImages.value = []
+    errorMessage.value = e instanceof Error ? e.message : '商品加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 onMounted(() => {
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]
   itemId.value = (current as any).options?.id ?? ''
+  loadDetail()
 })
 
 const safeBottom = getSafeBottomInset()
@@ -146,7 +157,7 @@ const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: C
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 const actionSpacer = { height: `${uni.upx2px(160) + safeBottom}px`, flexShrink: 0 }
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
-const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary })); const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }; const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
 const actionBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, minHeight: '112rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'center', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))
 const minorButton = { width: '112rpx', alignItems: 'center', justifyContent: 'center' }
 const minorText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textSecondary, marginTop: '4rpx' }))
