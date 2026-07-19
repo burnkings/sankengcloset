@@ -1,45 +1,17 @@
 import { SyncOperation } from '@/domain/sync/sync-operation'
 import { readPendingOperations, flushLocalOperations, getLastSyncAt } from '@/services/sync/local-sync-queue'
-import { getRuntimeConfig, setMockOnline } from '@/config/runtime'
+import { DATA_MODE_REMOTE, getRuntimeConfig, setMockOnline } from '@/config/runtime'
 
 export const useSyncStore = defineStore('sync', () => {
-  const operations = ref([]) as Ref<SyncOperation[]>
-  const syncing = ref(false)
-  const lastSyncAt = ref('')
-  const online = ref(true)
-  const errorMessage = ref('')
-
-  const pendingCount = computed((): number => operations.value.length)
-  const hasPending = computed((): boolean => pendingCount.value > 0)
-
-  function reload() {
-    operations.value = readPendingOperations()
-    lastSyncAt.value = getLastSyncAt()
-    online.value = getRuntimeConfig().mockOnline
-  }
-
-  function setOnline(value: boolean) {
-    setMockOnline(value)
-    online.value = value
-  }
-
+  const operations = ref([]) as Ref<SyncOperation[]>; const syncing = ref(false); const lastSyncAt = ref(''); const online = ref(true); const errorMessage = ref('')
+  const pendingCount = computed((): number => operations.value.length); const hasPending = computed((): boolean => pendingCount.value > 0)
+  function reload() { const config = getRuntimeConfig(); operations.value = readPendingOperations(); lastSyncAt.value = getLastSyncAt(); online.value = config.mode === DATA_MODE_REMOTE ? config.apiBaseUrl !== '' : config.mockOnline }
+  function setOnline(value: boolean) { if (getRuntimeConfig().mode === DATA_MODE_REMOTE) return; setMockOnline(value); online.value = value }
   async function syncNow(): Promise<number> {
-    if (syncing.value) return 0
-    syncing.value = true
-    errorMessage.value = ''
-    try {
-      const count = await flushLocalOperations()
-      reload()
-      return count
-    } catch (e) {
-      errorMessage.value = e instanceof Error ? e.message : '同步失败，操作已保留'
-      reload()
-      return 0
-    } finally {
-      syncing.value = false
-    }
+    if (syncing.value) return 0; syncing.value = true; errorMessage.value = ''
+    try { const count = await flushLocalOperations(); reload(); return count }
+    catch (e) { errorMessage.value = e instanceof Error ? e.message : '同步失败，操作已保留'; reload(); return 0 }
+    finally { syncing.value = false }
   }
-
-  reload()
-  return { operations, syncing, lastSyncAt, online, errorMessage, pendingCount, hasPending, reload, setOnline, syncNow }
+  reload(); return { operations, syncing, lastSyncAt, online, errorMessage, pendingCount, hasPending, reload, setOnline, syncNow }
 })
