@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import fs from 'node:fs'
+const fs = require('node:fs')
 
 const manifest = fs.readFileSync('manifest.json', 'utf8')
 const nativeManifest = fs.readFileSync('nativeResources/android/AndroidManifest.xml', 'utf8')
