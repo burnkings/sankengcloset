@@ -1,6 +1,6 @@
 import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-operation'
 import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
-import { apiPost } from '@/services/platform/api-client'
+import { apiPostAuthorized } from '@/services/platform/api-client'
 
 const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
 const PREFIX = 'v21_sync_op_'
@@ -44,7 +44,7 @@ async function flushRemote(ids: string[]): Promise<number> {
     const op = readOperation(ids[i])
     operations.push({ opId: op.opId, deviceId: op.deviceId, entityType: op.entityType, entityId: op.entityId, action: op.action === 'migrate' ? 'import' : op.action, payload: safePayload(op.payload), createdAt: op.createdAt })
   }
-  const response = await apiPost('/api/v1/sync/operations:batch', { operations })
+  const response = await apiPostAuthorized('/api/v1/sync/operations:batch', { operations })
   const data = response.data as any
   const receipts = data != null ? data.receipts as any[] : []
   const accepted: string[] = []
