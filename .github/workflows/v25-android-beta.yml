@@ -1,0 +1,48 @@
+name: V2.5 Android beta contract
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'config/**'
+      - 'services/**'
+      - 'pages/**'
+      - 'nativeResources/android/**'
+      - 'manifest.json'
+      - 'scripts/check-v25-android-beta.js'
+      - '.github/workflows/v25-android-beta.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Android beta contract
+        run: node scripts/check-v25-android-beta.js
+      - name: Validate XML resources
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse('nativeResources/android/AndroidManifest.xml')
+          ET.parse('nativeResources/android/res/xml/sankeng_beta_network_security_config.xml')
+          print('Android XML valid')
+          PY
+      - name: Backend install
+        working-directory: backend
+        run: npm ci
+      - name: Backend typecheck
+        working-directory: backend
+        run: npm run typecheck
+      - name: Backend tests
+        working-directory: backend
+        run: npm test
+      - name: Backend build
+        working-directory: backend
+        run: npm run build
