@@ -7,6 +7,8 @@ const networkConfig = fs.readFileSync('nativeResources/android/res/xml/sankeng_b
 const runtime = fs.readFileSync('config/runtime.uts', 'utf8')
 const detail = fs.readFileSync('pages/product/detail.uvue', 'utf8')
 const service = fs.readFileSync('services/content/product-service.uts', 'utf8')
+const layout = fs.readFileSync('components/layout/MainLayout.uvue', 'utf8')
+const theme = fs.readFileSync('theme/use-theme.uts', 'utf8')
 
 const checks = [
   ['beta version', manifest.includes('"versionName" : "2.5.0-beta.1"') && manifest.includes('"versionCode" : "25001"')],
@@ -16,6 +18,8 @@ const checks = [
   ['public IP normalization', runtime.includes('http://') && runtime.includes('isLoopbackApiBaseUrl')],
   ['remote detail service', service.includes('/api/v1/products/') && detail.includes('fetchProductDetail')],
   ['multi-image detail', detail.includes('detailImages') && detail.includes('<swiper')],
+  ['Android-safe root layout', !layout.includes("height: '100vh'") && !layout.includes("height: '0'" ) && layout.includes('getWindowHeight')],
+  ['startup theme APIs guarded', theme.includes('try {\n    uni.setNavigationBarColor') && theme.includes('try {\n    uni.setBackgroundColor')],
 ]
 let failed = false
 for (const [name, ok] of checks) {
