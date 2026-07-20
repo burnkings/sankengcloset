@@ -10,10 +10,11 @@
 <script setup lang="uts">
 import { flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
+import { getWindowHeight } from '@/utils/window-info'
 
 
 const layoutStyle = computed((): any => ({
-  height: '100vh',
+  height: `${getWindowHeight()}px`,
   backgroundColor: n.value.bg }))
 
 const bodyStyle = computed((): any => ({

@@ -6,7 +6,7 @@
       </template>
     </AppNavbar>
 
-    <scroll-view scroll-y :style="scrollStyle">
+    <scroll-view :style="scrollStyle">
       <view :style="spacerStyle" />
 
       <!-- 设备信息 -->
@@ -57,6 +57,7 @@
 
 <script setup lang="uts">
 import { ref, computed } from 'vue'
+import { getWindowHeight } from '@/utils/window-info'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { getFirstPage, getFeedPage, getMaxItems } from '@/domain/content/mock-feed-repo'
@@ -270,7 +271,7 @@ function updateLastResult(status: string, message: string) {
 
 // Styles
 const pageStyle = computed((): any => ({
-  height: '100vh',
+  height: `${getWindowHeight()}px`,
   backgroundColor: n.value.bg,
 }))
 

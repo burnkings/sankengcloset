@@ -1,5 +1,5 @@
 <template>
-  <scroll-view scroll-x :show-scrollbar="false" :style="scrollStyle">
+  <scroll-view direction="horizontal" :show-scrollbar="false" :style="scrollStyle">
     <view :style="rowStyle">
       <view v-for="(item, idx) in items" :key="item" :style="chipShell(idx)">
         <view :style="chipStyle(item)" @tap="onTap(item)">

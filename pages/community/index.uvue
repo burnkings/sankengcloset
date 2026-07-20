@@ -1,5 +1,5 @@
 <template>
-  <view style="height:100vh;position:relative">
+  <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
       <template #navbar><V2PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
       <template #default>
@@ -54,12 +54,14 @@ import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
 import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
+import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
 const pendingDeleteId = ref('')
+const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']

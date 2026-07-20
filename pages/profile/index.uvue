@@ -1,5 +1,5 @@
 <template>
-  <view style="height:100vh;position:relative">
+  <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
       <template #navbar><V2PageHeader title="我的" /></template>
       <template #default>
@@ -101,6 +101,7 @@ import { useSessionStore } from '@/stores/session-store'
 import { useSyncStore } from '@/stores/sync-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 // #ifdef APP
+import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 

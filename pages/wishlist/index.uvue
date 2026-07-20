@@ -11,7 +11,7 @@
     <template #default>
       <AppLoading v-if="store.loading" />
 
-      <scroll-view v-else scroll-y :style="scrollStyle">
+      <scroll-view v-else :style="scrollStyle">
 
         <!-- 愿望 Hero 区域 -->
         <view :style="heroSection">
@@ -53,7 +53,7 @@
 
         <!-- 筛选 + 收藏 + 排序 -->
         <view :style="toolbarSection">
-          <scroll-view scroll-x :show-scrollbar="false" :style="chipScrollStyle">
+          <scroll-view direction="horizontal" :show-scrollbar="false" :style="chipScrollStyle">
             <view :style="chipRowStyle">
               <AppTag
                 v-for="opt in filterOptions"

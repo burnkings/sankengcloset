@@ -1,5 +1,5 @@
 <template>
-  <view style="height:100vh;position:relative">
+  <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
       <template #navbar><V2PageHeader title="发现" /></template>
       <template #default>
@@ -7,7 +7,7 @@
         <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
 
         <V2SectionHeader title="精选专题" action-text="查看更多" />
-        <scroll-view scroll-x :style="featureScroll">
+        <scroll-view direction="horizontal" :style="featureScroll">
           <view :style="featureRow">
             <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="openEditorial(item)">
               <view :style="featureImage"><AppImage :src="item.image" width="100%" height="100%" mode="aspectFill" /></view>
@@ -63,6 +63,7 @@ import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 // #ifdef APP
+import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
@@ -78,6 +79,7 @@ function openEditorial(item: any) {
   uni.navigateTo({ url: `/pages/editorial/detail?id=${item.id}&title=${encodeURIComponent(item.title)}&category=${item.category}` })
 }
 
+const pageHeight = getWindowHeight()
 const features = [
   { id: 'f1', image: '/static/demo/outfit-editorial-01.png', title: '夏日盐系JK', desc: '从面料到版型的编辑选择', keyword: 'JK', category: 'JK' },
   { id: 'f2', image: '/static/demo/prod-editorial-01.png', title: '初入Lolita的第一条裙', desc: '官方节点与时间一次看清', keyword: 'Lolita', category: 'LOLITA' },

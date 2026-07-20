@@ -1,5 +1,5 @@
 <template>
-  <view style="height:100vh;position:relative">
+  <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout :scrollable="false" navbar-content-height="288rpx">
     <template #navbar>
       <view :style="navbarStyle">
@@ -44,7 +44,7 @@
       <scroll-view v-else scroll-y :style="listViewStyle" @scrolltolower="onLoadMore">
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
-      <list-view v-else scroll-y :style="listViewStyle" @scrolltolower="onLoadMore">
+      <list-view v-else :style="listViewStyle" @scrolltolower="onLoadMore">
       <!-- #endif -->
         <!-- Secondary category filter: scrolls away with content -->
         <!-- #ifdef MP-WEIXIN -->
@@ -207,6 +207,7 @@ import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
+const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
 const notices = useNotificationCenterStore()
 const channels = CHANNELS

@@ -26,7 +26,7 @@ function readOperation(id: string): SyncOperation {
   op.status = readString(key(id, 'status')) || SYNC_PENDING; return op
 }
 function removeOperation(id: string) { const fields = ['user','device','entity_type','entity_id','action','payload','created_at','retry','status']; for (let i = 0; i < fields.length; i++) uni.removeStorageSync(key(id, fields[i])) }
-function safePayload(value: string): string { try { JSON.parse(value); return value } catch (e) { return JSON.stringify({ value }) } }
+function safePayload(value: string): string { if (value === '' || value.charAt(0) !== '{') return JSON.stringify({ value }); try { JSON.parse(value); return value } catch (e) { return JSON.stringify({ value }) } }
 
 export function getCurrentSyncUserId(): string { const saved = readString('v21_session_user_id'); return saved !== '' ? saved : 'guest_local' }
 export function getOrCreateDeviceId(): string { const saved = readString(DEVICE_KEY); if (saved !== '') return saved; const id = `device_${Date.now()}_${Math.floor(Math.random() * 10000)}`; uni.setStorageSync(DEVICE_KEY, id); return id }

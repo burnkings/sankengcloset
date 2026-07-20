@@ -1,5 +1,5 @@
 <template>
-  <scroll-view scroll-x :style="scrollStyle">
+  <scroll-view direction="horizontal" :style="scrollStyle">
     <view :style="rowStyle">
       <view :style="leftPadStyle" />
       <view v-for="item in items" :key="item" :style="itemShellStyle">

@@ -5,7 +5,7 @@
         <slot name="right" />
       </template>
     </AppNavbar>
-    <scroll-view scroll-y :style="bodyStyle">
+    <scroll-view :style="bodyStyle">
       <view :style="navbarSpacerStyle" />
       <slot />
       <view :style="safeBottomStyle" />
@@ -17,7 +17,7 @@
 import { semanticSpacing } from '@/theme/tokens/spacing'
 import { flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
-import { getStatusBarHeight } from '@/utils/window-info'
+import { getStatusBarHeight, getWindowHeight } from '@/utils/window-info'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 
 const props = withDefaults(defineProps<{
@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
 const statusBarHeight = getStatusBarHeight()
 
 const layoutStyle = computed((): any => ({
-  height: '100vh',
+  height: `${getWindowHeight()}px`,
   backgroundColor: n.value.bg }))
 
 const bodyStyle = computed((): any => ({

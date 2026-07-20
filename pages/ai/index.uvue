@@ -1,5 +1,5 @@
 <template>
-  <view style="height:100vh;position:relative">
+  <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
       <template #navbar><V2PageHeader title="绮灵AI" /></template>
       <template #default>
@@ -56,6 +56,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 // #ifdef APP
+import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
