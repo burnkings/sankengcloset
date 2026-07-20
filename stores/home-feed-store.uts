@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
 import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
+import { usePreferencesStore } from '@/stores/preferences-store'
 
 // ====== 频道定义 ======
 
