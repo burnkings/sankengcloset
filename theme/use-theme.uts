@@ -3,7 +3,8 @@
  *
  * Vapor 模式下模块顶层 ref()/computed() 没有活跃 effect scope，
  * 导致 n.value 返回 undefined → 全局白屏。
- * 解决方案：用普通变量 + getter 代替 reactive 原语。
+ * 解决方案：用 reactive + getter 代替 ref/computed。
+ * reactive 对象在 vapor 模式下可被 Vue 追踪变化。
  */
 
 import { neutralLight, neutralDark, brand } from './tokens/colors'
@@ -50,25 +51,25 @@ function setGlobalDark(value: boolean) {
   } catch (e) {}
 }
 
-// ====== Vapor 兼容：plain 变量 + getter 替代 ref/computed ======
+// ====== Vapor 兼容：reactive 状态 + getter ======
 
-let _isDarkValue: boolean = false
-
-function syncFromGlobal() {
-  const globalDark = getGlobalDark()
-  if (_isDarkValue !== globalDark) {
-    _isDarkValue = globalDark
-    lastTabBarMode = ''
-  }
-}
-
+const _state = reactive({ isDark: false })
 let lastTabBarMode = ''
+
+function syncFromGlobal(): boolean {
+  const globalDark = getGlobalDark()
+  const changed = _state.isDark !== globalDark
+  if (changed) {
+    _state.isDark = globalDark
+  }
+  return changed
+}
 
 function applySystemChrome() {
   // #ifdef MP-WEIXIN
-  const palette = _isDarkValue ? neutralDark : neutralLight
+  const palette = _state.isDark ? neutralDark : neutralLight
   uni.setNavigationBarColor({
-    frontColor: _isDarkValue ? '#ffffff' : '#000000',
+    frontColor: _state.isDark ? '#ffffff' : '#000000',
     backgroundColor: palette.bg,
   })
   uni.setBackgroundColor({
@@ -82,14 +83,14 @@ function applySystemChrome() {
 export function syncTabBarChrome() {
   // #ifdef MP-WEIXIN
   syncFromGlobal()
-  const mode = _isDarkValue ? 'dark' : 'light'
+  const mode = _state.isDark ? 'dark' : 'light'
   if (lastTabBarMode === mode) return
   lastTabBarMode = mode
   uni.setTabBarStyle({
-    color: _isDarkValue ? neutralDark.textTertiary : neutralLight.textTertiary,
+    color: _state.isDark ? neutralDark.textTertiary : neutralLight.textTertiary,
     selectedColor: brand[500],
-    backgroundColor: _isDarkValue ? neutralDark.surface : neutralLight.surface,
-    borderStyle: _isDarkValue ? 'white' : 'black',
+    backgroundColor: _state.isDark ? neutralDark.surface : neutralLight.surface,
+    borderStyle: _state.isDark ? 'white' : 'black',
     fail: () => { lastTabBarMode = '' },
   })
   // #endif
@@ -101,19 +102,18 @@ export function initializeTheme() {
 }
 
 export function syncSystemChrome() {
-  syncFromGlobal()
-  applySystemChrome()
+  const changed = syncFromGlobal()
+  if (changed) applySystemChrome()
 }
 
 export function initPageTheme() {
   syncFromGlobal()
   applySystemChrome()
-  lastTabBarMode = ''
   syncTabBarChrome()
 }
 
 export function setDarkMode(enabled: boolean) {
-  _isDarkValue = enabled
+  _state.isDark = enabled
   setGlobalDark(enabled)
   uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
   lastTabBarMode = ''
@@ -122,28 +122,27 @@ export function setDarkMode(enabled: boolean) {
 }
 
 export function toggleDarkMode(): boolean {
-  setDarkMode(!_isDarkValue)
-  return _isDarkValue
+  setDarkMode(!_state.isDark)
+  return _state.isDark
 }
 
 export function useTheme() {
   syncFromGlobal()
   return {
-    get isDark(): boolean { return _isDarkValue },
-    get neutral(): any { return _isDarkValue ? neutralDark : neutralLight },
+    get isDark(): boolean { return _state.isDark },
+    get neutral(): any { return _state.isDark ? neutralDark : neutralLight },
   }
 }
 
+/** Getter — Vue 可追踪 _state.isDark 的变化 */
 export const isDark = {
   get value(): boolean {
-    syncFromGlobal()
-    return _isDarkValue
+    return _state.isDark
   }
 }
 
 export const n = {
   get value(): any {
-    syncFromGlobal()
-    return _isDarkValue ? neutralDark : neutralLight
+    return _state.isDark ? neutralDark : neutralLight
   }
 }

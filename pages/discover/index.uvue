@@ -132,7 +132,7 @@ function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minH
 const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
 onLoad(() => { initPageTheme() })
-onShow(() => { library.reload(); syncTabBarChrome() })
+onShow(() => { library.reload() })
 </script>
 
 <style>

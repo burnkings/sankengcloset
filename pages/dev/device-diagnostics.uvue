@@ -76,26 +76,32 @@ const results = ref<TestResult[]>([]) as Ref<TestResult[]>
 const exportText = ref('')
 const deviceInfo = ref<{ key: string, value: string }[]>([]) as Ref<{ key: string, value: string }[]>
 
-// 初始化设备信息
+// 初始化设备信息 — 使用新 API 替代废弃的 getSystemInfoSync
 function initDeviceInfo() {
-  const sys = uni.getSystemInfoSync()
   const info: { key: string, value: string }[] = []
-  info.push({ key: '平台', value: sys.uniPlatform ?? 'unknown' })
-  info.push({ key: '系统', value: sys.platform ?? 'unknown' })
-  info.push({ key: '品牌', value: sys.brand ?? 'unknown' })
-  info.push({ key: '型号', value: sys.model ?? 'unknown' })
-  info.push({ key: '系统版本', value: sys.system ?? 'unknown' })
-  info.push({ key: '微信版本', value: sys.version ?? 'unknown' })
-  info.push({ key: 'SDK版本', value: sys.SDKVersion ?? 'unknown' })
-  info.push({ key: '屏幕宽度', value: String(sys.windowWidth ?? 0) })
-  info.push({ key: '屏幕高度', value: String(sys.windowHeight ?? 0) })
-  info.push({ key: '像素比', value: String(sys.pixelRatio ?? 0) })
-  // safeArea
-  const sa = sys.safeArea
-  if (sa != null) {
-    info.push({ key: '安全区 top', value: String(sa.top) })
-    info.push({ key: '安全区 bottom', value: String(sa.bottom) })
-  }
+  try {
+    const win = uni.getWindowInfo()
+    info.push({ key: '屏幕宽度', value: String(win.windowWidth) })
+    info.push({ key: '屏幕高度', value: String(win.windowHeight) })
+    info.push({ key: '像素比', value: String(win.pixelRatio) })
+    const sa = win.safeArea
+    if (sa != null) {
+      info.push({ key: '安全区 top', value: String(sa.top) })
+      info.push({ key: '安全区 bottom', value: String(sa.bottom) })
+    }
+  } catch (e) { info.push({ key: '屏幕信息', value: '获取失败' }) }
+  try {
+    const dev = uni.getDeviceInfo()
+    info.push({ key: '平台', value: dev.platform ?? 'unknown' })
+    info.push({ key: '品牌', value: dev.brand ?? 'unknown' })
+    info.push({ key: '型号', value: dev.model ?? 'unknown' })
+    info.push({ key: '系统', value: dev.system ?? 'unknown' })
+  } catch (e) { info.push({ key: '设备信息', value: '获取失败' }) }
+  try {
+    const app = uni.getAppBaseInfo()
+    info.push({ key: 'App 版本', value: app.appVersion ?? 'unknown' })
+    info.push({ key: 'App 渠道', value: app.appChannel ?? 'unknown' })
+  } catch (e) { info.push({ key: 'App 信息', value: '获取失败' }) }
   deviceInfo.value = info
 }
 

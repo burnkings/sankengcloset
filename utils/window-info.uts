@@ -36,3 +36,13 @@ export function getSafeBottomInset(): number {
     return 0
   }
 }
+
+/** Convert rpx to px: rpx * screenWidth / 750 */
+export function upx2px(rpx: number): number {
+  try {
+    const w = uni.getWindowInfo().windowWidth
+    return rpx * w / 750
+  } catch (e) {
+    return rpx * 375 / 750
+  }
+}

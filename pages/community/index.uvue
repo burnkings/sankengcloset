@@ -102,7 +102,6 @@ function deleteOwnPost(id: string) {
 }
 onLoad(() => { initPageTheme() })
 onShow(() => {
-  syncTabBarChrome()
   library.reload()
   try {
     const pendingTopic = uni.getStorageSync('community_topic') as string

@@ -70,7 +70,7 @@ function choosePhoto() {
   uni.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'], success: (res) => {
     const temporary = res.tempFilePaths.length > 0 ? res.tempFilePaths[0] : ''
     if (temporary === '') return
-    uni.saveFile({ tempFilePath: temporary, success: (saved) => { imagePath.value = saved.savedFilePath }, fail: () => { imagePath.value = temporary } })
+    imagePath.value = temporary
   } })
 }
 function save() {

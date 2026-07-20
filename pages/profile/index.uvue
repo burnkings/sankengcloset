@@ -199,7 +199,7 @@ onMounted(() => {
   } catch (e) {}
 })
 onLoad(() => { initPageTheme() })
-onShow(() => { session.reload(); sync.reload(); notices.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems(); syncTabBarChrome() })
+onShow(() => { session.reload(); sync.reload(); notices.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))

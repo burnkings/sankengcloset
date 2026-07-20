@@ -87,11 +87,7 @@ function publishLook() {
     showFeedback('已发布到圈子')
     setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
   }
-  uni.saveFile({
-    tempFilePath: selectedImage.value,
-    success: (res) => { completePublish(res.savedFilePath) },
-    fail: () => { completePublish(selectedImage.value) },
-  })
+  completePublish(selectedImage.value)
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }

@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Temporary Android beta policy: allows http://PUBLIC_IP:8787. Do not ship to production. -->
+<!--
+  Beta 配置：允许所有明文 HTTP 流量（仅限内测）。
+  上线前替换为以下生产配置：
+
+  <network-security-config>
+      <base-config cleartextTrafficPermitted="false">
+          <trust-anchors>
+              <certificates src="system" />
+          </trust-anchors>
+      </base-config>
+      <domain-config cleartextTrafficPermitted="true">
+          <domain includeSubdomains="false">YOUR_PRODUCTION_API_HOST</domain>
+      </domain-config>
+  </network-security-config>
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

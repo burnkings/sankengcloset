@@ -134,11 +134,7 @@ function choosePhoto() {
     success: (res) => {
       const temporary = res.tempFilePaths.length > 0 ? res.tempFilePaths[0] : ''
       if (temporary === '') return
-      uni.saveFile({
-        tempFilePath: temporary,
-        success: (saved) => { startAnalysis(saved.savedFilePath, false) },
-        fail: () => { startAnalysis(temporary, false) },
-      })
+      startAnalysis(temporary, false)
     },
     fail: () => {},
   })

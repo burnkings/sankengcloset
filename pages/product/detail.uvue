@@ -55,7 +55,7 @@ import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
-import { getSafeBottomInset } from '@/utils/window-info'
+import { getSafeBottomInset, upx2px } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -155,7 +155,7 @@ function stageDot(idx: number) { return { width: '22rpx', height: '22rpx', borde
 function stageText(idx: number) { return { fontSize: fontSize.xs, color: idx < 2 ? brand[600] : n.value.textTertiary, marginTop: '12rpx' } }
 const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
-const actionSpacer = { height: `${uni.upx2px(160) + safeBottom}px`, flexShrink: 0 }
+const actionSpacer = { height: `${upx2px(160) + safeBottom}px`, flexShrink: 0 }
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary })); const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }; const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
 const actionBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, minHeight: '112rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'center', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))

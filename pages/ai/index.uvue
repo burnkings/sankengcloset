@@ -99,7 +99,7 @@ function runResultAction() {
   openPrimaryTab('/pages/discover/index')
 }
 onLoad(() => { initPageTheme() })
-onShow(() => { syncTabBarChrome(); library.reload() })
+onShow(() => { library.reload() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const welcomeCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
