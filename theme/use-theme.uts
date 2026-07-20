@@ -73,15 +73,20 @@ function syncFromGlobal() {
 
 function applySystemChrome() {
   const palette = _isDark.value ? neutralDark : neutralLight
-  uni.setNavigationBarColor({
-    frontColor: _isDark.value ? '#ffffff' : '#000000',
-    backgroundColor: palette.bg,
-  })
-  uni.setBackgroundColor({
-    backgroundColor: palette.bg,
-    backgroundColorTop: palette.bg,
-    backgroundColorBottom: palette.bg,
-  })
+  // 系统栏 API 失败不能阻断 App 启动：部分 Android 调试基座不完整实现这些 API。
+  try {
+    uni.setNavigationBarColor({
+      frontColor: _isDark.value ? '#ffffff' : '#000000',
+      backgroundColor: palette.bg,
+    })
+  } catch (e) {}
+  try {
+    uni.setBackgroundColor({
+      backgroundColor: palette.bg,
+      backgroundColorTop: palette.bg,
+      backgroundColorBottom: palette.bg,
+    })
+  } catch (e) {}
 }
 
 /** Only call from actual native tab pages. Secondary pages must not call setTabBarStyle. */
