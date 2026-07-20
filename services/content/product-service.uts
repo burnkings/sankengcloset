@@ -12,9 +12,9 @@ export class ProductDetailModel {
 }
 
 function fallbackImage(category: string): string {
-  if (category === 'HANFU') return '/static/demo/prod-editorial-03.jpg'
-  if (category === 'LOLITA') return '/static/demo/prod-editorial-02.jpg'
-  return '/static/demo/prod-editorial-01.jpg'
+  if (category === 'HANFU') return '/static/demo/prod-editorial-03.png'
+  if (category === 'LOLITA') return '/static/demo/prod-editorial-02.png'
+  return '/static/demo/prod-editorial-01.png'
 }
 
 function safeImage(url: string, category: string): string {

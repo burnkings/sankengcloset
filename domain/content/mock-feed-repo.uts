@@ -7,6 +7,13 @@
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_BRAND_POST, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
 import { getEventTypeLabel } from '@/presentation/content/feed-presenter'
 
+// ====== UTS 兼容工具 ======
+
+/** UTS 编译为 Kotlin/Java，不支持 String.prototype.padStart */
+function padZero(n: number): string {
+  return n < 10 ? '0' + String(n) : String(n)
+}
+
 // ====== Mock 品牌数据 ======
 
 const BRANDS = [
@@ -97,8 +104,8 @@ function makeProductFeed(idx: number): FeedItem {
   item.entityId = p.id
   item.title = p.title
   item.subtitle = b.name
-  item.coverUrl = '/static/demo/prod-editorial-' + String((idx % 3) + 1).padStart(2, '0') + '.jpg'
-  item.secondaryCoverUrl = '/static/demo/prod-editorial-' + String(((idx + 1) % 3) + 1).padStart(2, '0') + '.jpg'
+  item.coverUrl = '/static/demo/prod-editorial-' + padZero((idx % 3) + 1) + '.png'
+  item.secondaryCoverUrl = '/static/demo/prod-editorial-' + padZero(((idx + 1) % 3) + 1) + '.png'
   item.brandId = b.id
   item.brandName = b.name
   item.price = p.price
@@ -126,8 +133,8 @@ function makeEventFeed(idx: number): FeedItem {
   item.entityId = e.id
   item.title = e.title
   item.subtitle = `${getEventTypeLabel(e.eventType)} · ${e.daysFromNow >= 0 ? e.daysFromNow + '天后' : Math.abs(e.daysFromNow) + '天前'}`
-  item.coverUrl = idx % 2 == 0 ? '/static/demo/outfit-editorial-01.jpg' : '/static/demo/prod-editorial-02.jpg'
-  item.secondaryCoverUrl = idx % 2 == 0 ? '/static/demo/prod-editorial-03.jpg' : '/static/demo/outfit-editorial-01.jpg'
+  item.coverUrl = idx % 2 == 0 ? '/static/demo/outfit-editorial-01.png' : '/static/demo/prod-editorial-02.png'
+  item.secondaryCoverUrl = idx % 2 == 0 ? '/static/demo/prod-editorial-03.png' : '/static/demo/outfit-editorial-01.png'
   item.brandId = b.id
   item.brandName = b.name
   item.price = e.price
@@ -152,7 +159,7 @@ function makePostFeed(idx: number): FeedItem {
   item.entityId = p.id
   item.title = p.title
   item.subtitle = b.name
-  item.coverUrl = idx % 2 == 0 ? '/static/demo/outfit-editorial-01.jpg' : '/static/demo/prod-editorial-03.jpg'
+  item.coverUrl = idx % 2 == 0 ? '/static/demo/outfit-editorial-01.png' : '/static/demo/prod-editorial-03.png'
   item.brandId = b.id
   item.brandName = b.name
   item.badgeText = p.badge
@@ -172,7 +179,7 @@ function makeOutfitFeed(idx: number): FeedItem {
   item.entityId = o.id
   item.title = o.title
   item.subtitle = '用户投稿'
-  item.coverUrl = '/static/demo/outfit-editorial-01.jpg'
+  item.coverUrl = '/static/demo/outfit-editorial-01.png'
   item.badgeText = o.badge
   item.liked = idx % 6 === 0
   item.sourceLabel = '用户'

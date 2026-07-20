@@ -1,7 +1,8 @@
 <template>
-  <MainLayout>
-    <template #navbar><V2PageHeader title="绮灵AI" /></template>
-    <template #default>
+  <view style="height:100vh;position:relative">
+    <MainLayout>
+      <template #navbar><V2PageHeader title="绮灵AI" /></template>
+      <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="welcomeCard">
           <text :style="welcomeTitle">把想法变成购买与搭配决策</text>
@@ -36,6 +37,7 @@
   <!-- #ifdef APP -->
   <AppBottomNav active="ai" />
   <!-- #endif -->
+</view>
 </template>
 
 <script setup lang="uts">

@@ -143,7 +143,7 @@ function choosePhoto() {
     fail: () => {},
   })
 }
-function useDemo() { startAnalysis('/static/demo/prod-editorial-01.jpg', true) }
+function useDemo() { startAnalysis('/static/demo/prod-editorial-01.png', true) }
 async function startAnalysis(path: string, demo: boolean) {
   sourceImage.value = path
   useDemoMode.value = demo

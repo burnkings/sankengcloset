@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 /** PurchaseStore — 页面与购买仓库之间的状态层。 */
 
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'

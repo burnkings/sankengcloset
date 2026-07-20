@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { SyncOperation } from '@/domain/sync/sync-operation'
 import { readPendingOperations, flushLocalOperations, getLastSyncAt } from '@/services/sync/local-sync-queue'
 import { DATA_MODE_REMOTE, getRuntimeConfig, setMockOnline } from '@/config/runtime'

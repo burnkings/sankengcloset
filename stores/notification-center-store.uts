@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 

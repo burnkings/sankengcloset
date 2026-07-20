@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 /**
  * WishlistStore — 心愿单状态管理
  * Page → Store → Repository

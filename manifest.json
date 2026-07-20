@@ -47,12 +47,15 @@
     },
     "app-android" : {
         "distribute" : {
+            "android" : {
+                "packageName" : "com.sankeng.closet"
+            },
             "modules" : {},
             "icons" : {
-                "hdpi" : "",
-                "xhdpi" : "",
-                "xxhdpi" : "",
-                "xxxhdpi" : ""
+                "hdpi" : "static/app-icon.png",
+                "xhdpi" : "static/app-icon.png",
+                "xxhdpi" : "static/app-icon.png",
+                "xxxhdpi" : "static/app-icon.png"
             },
             "splashScreens" : {
                 "default" : {}

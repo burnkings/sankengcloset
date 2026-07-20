@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
 import * as repo from '@/domain/repositories/wardrobe-repo'
 import { CATEGORY_LABELS } from '@/domain/clothing-category'

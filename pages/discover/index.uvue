@@ -1,7 +1,8 @@
 <template>
-  <MainLayout>
-    <template #navbar><V2PageHeader title="发现" /></template>
-    <template #default>
+  <view style="height:100vh;position:relative">
+    <MainLayout>
+      <template #navbar><V2PageHeader title="发现" /></template>
+      <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
 
@@ -43,6 +44,7 @@
   <!-- #ifdef APP -->
   <AppBottomNav active="discover" />
   <!-- #endif -->
+</view>
 </template>
 
 <script setup lang="uts">
@@ -77,8 +79,8 @@ function openEditorial(item: any) {
 }
 
 const features = [
-  { id: 'f1', image: '/static/demo/outfit-editorial-01.jpg', title: '夏日盐系JK', desc: '从面料到版型的编辑选择', keyword: 'JK', category: 'JK' },
-  { id: 'f2', image: '/static/demo/prod-editorial-01.jpg', title: '初入Lolita的第一条裙', desc: '官方节点与时间一次看清', keyword: 'Lolita', category: 'LOLITA' },
+  { id: 'f1', image: '/static/demo/outfit-editorial-01.png', title: '夏日盐系JK', desc: '从面料到版型的编辑选择', keyword: 'JK', category: 'JK' },
+  { id: 'f2', image: '/static/demo/prod-editorial-01.png', title: '初入Lolita的第一条裙', desc: '官方节点与时间一次看清', keyword: 'Lolita', category: 'LOLITA' },
 ]
 const brands = [
   { name: '兔缝缝', initial: '兔', meta: 'JK · 格裙' },

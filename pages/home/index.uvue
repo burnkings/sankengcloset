@@ -1,5 +1,6 @@
 <template>
-  <MainLayout :scrollable="false" navbar-content-height="288rpx">
+  <view style="height:100vh;position:relative">
+    <MainLayout :scrollable="false" navbar-content-height="288rpx">
     <template #navbar>
       <view :style="navbarStyle">
         <view :style="statusBarPad" />
@@ -177,6 +178,7 @@
   <!-- #ifdef APP -->
   <AppBottomNav active="home" />
   <!-- #endif -->
+</view>
 </template>
 
 <script setup lang="uts">

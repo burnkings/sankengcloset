@@ -1,7 +1,8 @@
 <template>
-  <MainLayout>
-    <template #navbar><V2PageHeader title="我的" /></template>
-    <template #default>
+  <view style="height:100vh;position:relative">
+    <MainLayout>
+      <template #navbar><V2PageHeader title="我的" /></template>
+      <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view v-if="session.isLoggedIn" :style="profileCard">
           <view :style="avatarWrap"><text :style="avatarText">SK</text></view>
@@ -27,7 +28,7 @@
             <text :style="closetValue">{{ wardrobe.itemCount }} 件心爱单品</text>
             <text :style="closetDesc">JK、Lolita 与汉服正在等你搭配</text>
           </view>
-          <view :style="closetImage"><AppImage src="/static/demo/prod-editorial-01.jpg" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="closetImage"><AppImage src="/static/demo/prod-editorial-01.png" width="100%" height="100%" mode="aspectFill" /></view>
         </view>
 
         <view :style="manageRow">
@@ -71,9 +72,11 @@
   <!-- #ifdef APP -->
   <AppBottomNav active="profile" />
   <!-- #endif -->
+</view>
 </template>
 
 <script setup lang="uts">
+import { ref, computed } from 'vue'
 import { brand } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -268,7 +271,7 @@ const settingsItems = computed(() => {
     { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '', section: 'about' },
     { id: 'cache', icon: 'database', label: '清理缓存', value: '', section: 'about' },
   ]
-  if (isLoggedIn.value) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '', section: 'about' })
+  if (session.isLoggedIn) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '', section: 'about' })
   return items
 })
 const settingsGroup = computed(() => settingsItems.value.filter((item) => item.section === 'settings'))

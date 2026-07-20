@@ -12,8 +12,8 @@ const project = new ci.Project({
 
 ci.upload({
   project,
-  version: '1.7.0',
-  desc: 'V2 UX一致性修复：深色模式/Toast/晒搭→圈子/推荐偏好/衣橱筛选/信息架构',
+  version: '1.8.0',
+  desc: 'V2.3+V2.4 后端基础+远程客户端运行时：WeChat认证/JWT/PostgreSQL/远程API客户端/会话管理/同步队列',
   setting: {
     es6: true,
     minify: false,

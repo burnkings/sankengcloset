@@ -11,6 +11,11 @@ const API_BASE_URL_KEY = 'v24_runtime_api_base_url'
 const ACCESS_TOKEN_KEY = 'v24_session_access_token'
 const REFRESH_TOKEN_KEY = 'v24_session_refresh_token'
 
+// ====== 启动缓存（避免多次 getStorageSync 串行） ======
+
+let _configCache: RuntimeConfig | null = null
+let _tokenCache: { access: string; refresh: string } | null = null
+
 export class RuntimeConfig {
   mode: string = DATA_MODE_MOCK
   apiBaseUrl: string = ''
@@ -25,6 +30,38 @@ function readString(key: string): string {
   } catch (e) {
     return ''
   }
+}
+
+/**
+ * App.onLaunch 时调用一次，预热全部运行配置和 Token 缓存。
+ * 之后 getRuntimeConfig() / getCachedAccessToken() 直接从缓存返回，
+ * 不再触发多次串行 getStorageSync。
+ */
+export function warmRuntimeCache(): RuntimeConfig {
+  const config = new RuntimeConfig()
+  const savedMode = readString(MODE_KEY)
+  if (savedMode === DATA_MODE_LOCAL || savedMode === DATA_MODE_MOCK || savedMode === DATA_MODE_REMOTE) config.mode = savedMode
+  config.apiBaseUrl = normalizeApiBaseUrl(readString(API_BASE_URL_KEY))
+  config.mockOnline = readString(ONLINE_KEY) !== 'offline'
+  const latency = parseInt(readString(LATENCY_KEY))
+  if (!isNaN(latency) && latency >= 0) config.mockLatencyMs = Math.min(latency, 3000)
+  _configCache = config
+  // 预热 Token
+  _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
+  return config
+}
+
+export function getRuntimeConfig(): RuntimeConfig {
+  if (_configCache != null) return _configCache
+  // 未预热时 fallback（通常不会走到）
+  const config = new RuntimeConfig()
+  const savedMode = readString(MODE_KEY)
+  if (savedMode === DATA_MODE_LOCAL || savedMode === DATA_MODE_MOCK || savedMode === DATA_MODE_REMOTE) config.mode = savedMode
+  config.apiBaseUrl = normalizeApiBaseUrl(readString(API_BASE_URL_KEY))
+  config.mockOnline = readString(ONLINE_KEY) !== 'offline'
+  const latency = parseInt(readString(LATENCY_KEY))
+  if (!isNaN(latency) && latency >= 0) config.mockLatencyMs = Math.min(latency, 3000)
+  return config
 }
 
 export function normalizeApiBaseUrl(value: string): string {
@@ -51,43 +88,48 @@ export function isLoopbackApiBaseUrl(value: string): boolean {
     || result.startsWith('http://localhost') || result.startsWith('https://localhost')
 }
 
-export function getRuntimeConfig(): RuntimeConfig {
-  const config = new RuntimeConfig()
-  const savedMode = readString(MODE_KEY)
-  if (savedMode === DATA_MODE_LOCAL || savedMode === DATA_MODE_MOCK || savedMode === DATA_MODE_REMOTE) config.mode = savedMode
-  config.apiBaseUrl = normalizeApiBaseUrl(readString(API_BASE_URL_KEY))
-  config.mockOnline = readString(ONLINE_KEY) !== 'offline'
-  const latency = parseInt(readString(LATENCY_KEY))
-  if (!isNaN(latency) && latency >= 0) config.mockLatencyMs = Math.min(latency, 3000)
-  return config
+export function getCachedAccessToken(): string {
+  if (_tokenCache == null) _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
+  return _tokenCache.access
+}
+
+export function getCachedRefreshToken(): string {
+  if (_tokenCache == null) _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
+  return _tokenCache.refresh
 }
 
 export function setRuntimeMode(mode: string) {
   if (mode !== DATA_MODE_LOCAL && mode !== DATA_MODE_MOCK && mode !== DATA_MODE_REMOTE) return
+  _configCache = null
   uni.setStorageSync(MODE_KEY, mode)
 }
 
 export function setApiBaseUrl(value: string) {
+  _configCache = null
   uni.setStorageSync(API_BASE_URL_KEY, normalizeApiBaseUrl(value))
 }
 
-export function getAccessToken(): string { return readString(ACCESS_TOKEN_KEY) }
-export function getRefreshToken(): string { return readString(REFRESH_TOKEN_KEY) }
+export function getAccessToken(): string { return getCachedAccessToken() }
+export function getRefreshToken(): string { return getCachedRefreshToken() }
 
 export function saveSessionTokens(accessToken: string, refreshToken: string) {
+  _tokenCache = { access: accessToken, refresh: refreshToken }
   uni.setStorageSync(ACCESS_TOKEN_KEY, accessToken)
   uni.setStorageSync(REFRESH_TOKEN_KEY, refreshToken)
 }
 
 export function clearSessionTokens() {
+  _tokenCache = null
   uni.removeStorageSync(ACCESS_TOKEN_KEY)
   uni.removeStorageSync(REFRESH_TOKEN_KEY)
 }
 
 export function setMockOnline(online: boolean) {
+  _configCache = null
   uni.setStorageSync(ONLINE_KEY, online ? 'online' : 'offline')
 }
 
 export function setMockLatency(latencyMs: number) {
+  _configCache = null
   uni.setStorageSync(LATENCY_KEY, String(Math.max(0, Math.min(latencyMs, 3000))))
 }

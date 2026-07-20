@@ -1,4 +1,4 @@
-import { getRuntimeConfig, getAccessToken, getRefreshToken, saveSessionTokens } from '@/config/runtime'
+import { getRuntimeConfig, getCachedAccessToken, getCachedRefreshToken, saveSessionTokens } from '@/config/runtime'
 
 export class ApiResponse {
   data: any = null
@@ -15,7 +15,7 @@ function endpoint(path: string): string {
 
 function headers(): any {
   const result: any = { 'content-type': 'application/json' }
-  const token = getAccessToken()
+  const token = getCachedAccessToken()
   if (token !== '') result.authorization = `Bearer ${token}`
   return result
 }
@@ -74,7 +74,7 @@ export function apiPost(path: string, payload: any): Promise<ApiResponse> {
 }
 
 export async function refreshRemoteSession(): Promise<boolean> {
-  const refreshToken = getRefreshToken()
+  const refreshToken = getCachedRefreshToken()
   if (refreshToken === '') return false
   const response = await apiPost('/api/v1/sessions/refresh', { refreshToken })
   const data = response.data as any

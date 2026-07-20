@@ -32,14 +32,19 @@ export class PurchaseDisplayModel {
   isFavorite: boolean = false
 }
 
+/** UTS 兼容：Kotlin/Java 无 padStart */
+function padZero(n: number): string {
+  return n < 10 ? '0' + String(n) : String(n)
+}
+
 /** 日期格式化 */
 function formatDate(dateStr: string): string {
   if (!dateStr) return '—'
   try {
     const d = new Date(dateStr)
     const y = d.getFullYear()
-    const m = `${d.getMonth() + 1}`.padStart(2, '0')
-    const day = `${d.getDate()}`.padStart(2, '0')
+    const m = padZero(d.getMonth() + 1)
+    const day = padZero(d.getDate())
     return `${y}-${m}-${day}`
   } catch {
     return dateStr

@@ -53,7 +53,7 @@ import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 const pageTitle = ref('')
 const pageDesc = ref('')
 const pageCategory = ref('')
-const heroImage = ref('/static/demo/outfit-editorial-01.jpg')
+const heroImage = ref('/static/demo/outfit-editorial-01.png')
 const filteredItems = ref([]) as Ref<FeedItem[]>
 
 function formatPrice(cents: number): string {

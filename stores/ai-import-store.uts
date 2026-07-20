@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { AiImportTask, AI_IMPORT_IDLE, AI_IMPORT_PROCESSING, AI_IMPORT_READY, AI_IMPORT_FAILED, AI_IMPORT_CONFIRMED } from '@/domain/ai/ai-import-task'
 import { analyzeImportImage } from '@/services/ai/ai-import-service'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'

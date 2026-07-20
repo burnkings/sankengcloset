@@ -1,7 +1,9 @@
 <script setup lang="uts">
 import { initializeTheme, syncSystemChrome, syncTabBarChrome } from '@/theme/use-theme'
+import { warmRuntimeCache } from '@/config/runtime'
 
 onLaunch(() => {
+  warmRuntimeCache()
   initializeTheme()
   syncTabBarChrome()
   console.log('App Launch')

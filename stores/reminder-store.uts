@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 /**
  * ReminderStore — 提醒状态管理
  */

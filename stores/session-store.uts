@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 /** V2.4 会话 Store：Mock 体验账号与远程开发会话共享稳定账号态。 */
 import { DATA_MODE_REMOTE, clearSessionTokens, getRuntimeConfig, saveSessionTokens } from '@/config/runtime'
 import { apiPost } from '@/services/platform/api-client'

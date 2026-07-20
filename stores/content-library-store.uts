@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 /**

@@ -35,7 +35,7 @@ function mapFeedItem(raw: any): FeedItem {
   item.createdAt = raw.createdAt != null ? String(raw.createdAt) : ''
   // Memory 驱动的 example.invalid 只表达媒体契约；客户端用内置素材保证体验环境可视。
   if (item.coverUrl === '' || item.coverUrl.indexOf('example.invalid') >= 0) {
-    item.coverUrl = item.category === 'HANFU' ? '/static/demo/prod-editorial-03.jpg' : (item.category === 'LOLITA' ? '/static/demo/prod-editorial-02.jpg' : '/static/demo/prod-editorial-01.jpg')
+    item.coverUrl = item.category === 'HANFU' ? '/static/demo/prod-editorial-03.png' : (item.category === 'LOLITA' ? '/static/demo/prod-editorial-02.png' : '/static/demo/prod-editorial-01.png')
   }
   if (item.secondaryCoverUrl.indexOf('example.invalid') >= 0) item.secondaryCoverUrl = item.coverUrl
   return item

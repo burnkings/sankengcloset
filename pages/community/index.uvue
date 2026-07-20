@@ -1,7 +1,8 @@
 <template>
-  <MainLayout>
-    <template #navbar><V2PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
-    <template #default>
+  <view style="height:100vh;position:relative">
+    <MainLayout>
+      <template #navbar><V2PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
+      <template #default>
       <view class="page-canvas" :style="pageWrap">
         <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
         <view :style="composerCard" @tap="goCreate">
@@ -36,6 +37,7 @@
   <!-- #ifdef APP -->
   <AppBottomNav active="community" />
   <!-- #endif -->
+</view>
 </template>
 
 <script setup lang="uts">
@@ -62,9 +64,9 @@ const library = useContentLibraryStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']
 const looks = [
-  { id: 'l1', image: '/static/demo/outfit-editorial-01.jpg', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', pitType: 'Lolita', likes: 126 },
-  { id: 'l2', image: '/static/demo/prod-editorial-01.jpg', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', pitType: 'JK', likes: 89 },
-  { id: 'l3', image: '/static/demo/outfit-editorial-01.jpg', author: '月见酱', initial: '月', time: '3小时前', caption: '宋制对襟衫配马面裙，日常也能穿。', topic: '通勤三坑', pitType: '汉服', likes: 73 },
+  { id: 'l1', image: '/static/demo/outfit-editorial-01.png', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', pitType: 'Lolita', likes: 126 },
+  { id: 'l2', image: '/static/demo/prod-editorial-01.png', author: '北野同学', initial: '北', time: '昨天', caption: '深蓝格裙的雨天通勤组合。', topic: '通勤三坑', pitType: 'JK', likes: 89 },
+  { id: 'l3', image: '/static/demo/outfit-editorial-01.png', author: '月见酱', initial: '月', time: '3小时前', caption: '宋制对襟衫配马面裙，日常也能穿。', topic: '通勤三坑', pitType: '汉服', likes: 73 },
 ]
 function filterByPitAndTopic(items: any[]): any[] {
   let result = items
