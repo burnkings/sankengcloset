@@ -7,9 +7,10 @@ export class ApiResponse {
   statusCode: number = 0
 }
 
+const FALLBACK_API_BASE = 'https://api.sankengcloset.icu'
+
 function endpoint(path: string): string {
-  const base = getRuntimeConfig().apiBaseUrl
-  if (base === '') throw new Error('请先在同步与备份中配置 API 地址')
+  const base = getRuntimeConfig().apiBaseUrl || FALLBACK_API_BASE
   return `${base}${path.startsWith('/') ? path : '/' + path}`
 }
 

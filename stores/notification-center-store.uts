@@ -50,7 +50,7 @@ function mockNotifications(): AppNotification[] {
   system.title = 'V2.1 后端就绪体验已开启'
   system.body = '账号、通知与同步目前使用本地 Mock，不代表云端已经保存。'
   system.createdAt = String(now - 24 * 3600000)
-  system.actionTarget = '/pages/sync/index'
+  system.actionTarget = '/pages/preferences/index'
   items.push(system)
   return items
 }

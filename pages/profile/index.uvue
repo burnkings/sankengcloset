@@ -16,7 +16,7 @@
           <view :style="guestAvatar"><AppIcon name="profile" :size="44" /></view>
           <view :style="profileCopy">
             <text :style="userName">登录三坑绮橱</text>
-            <text :style="guestDesc">同步收藏、圈子、衣橱与提醒</text>
+            <text :style="guestDesc">收藏、圈子、衣橱与提醒</text>
           </view>
           <view :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
@@ -82,7 +82,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, setDarkMode, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
+import { n, isDark, themeMode, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -98,8 +98,6 @@ import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
-import { useSyncStore } from '@/stores/sync-store'
-import { useNotificationCenterStore } from '@/stores/notification-center-store'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
@@ -113,11 +111,16 @@ const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
-const sync = useSyncStore()
-const notices = useNotificationCenterStore()
 
-function onEdit() { uni.navigateTo({ url: '/pages/account/index' }) }
-function goLogin() { uni.navigateTo({ url: '/pages/account/index' }) }
+function getThemeLabel(): string {
+  const mode = themeMode.value
+  if (mode === 'system') return '跟随系统'
+  if (mode === 'dark') return '深色'
+  return '浅色'
+}
+
+function onEdit() { showFeedback('个人资料编辑即将开放') }
+function goLogin() { showFeedback('登录功能即将开放') }
 function logout() {
   session.logout()
   showFeedback('已退出，设备数据仍保留')
@@ -132,12 +135,10 @@ function onManageTap(id: string) {
 }
 function onSettingTap(id: string) {
   if (id === 'dark') {
-    setDarkMode(!isDark.value)
+    goPage('/pages/preferences/index')
     return
   }
   if (id === 'notification') { showFeedback('通知设置功能即将开放'); return }
-  if (id === 'account') { uni.navigateTo({ url: '/pages/account/index' }); return }
-  if (id === 'sync') { uni.navigateTo({ url: '/pages/sync/index' }); return }
   if (id === 'preferences') {
     uni.navigateTo({ url: '/pages/preferences/index' })
     return
@@ -200,7 +201,7 @@ onMounted(() => {
   } catch (e) {}
 })
 onLoad(() => { initPageTheme() })
-onShow(() => { session.reload(); sync.reload(); notices.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
+onShow(() => { session.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
@@ -259,11 +260,9 @@ function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: f
 
 const settingsItems = computed(() => {
   const items: Array<{id: string, icon: string, label: string, value: string, section: string}> = [
-    { id: 'account', icon: 'profile', label: '账号管理', value: session.isLoggedIn ? '已登录' : '未登录', section: 'settings' },
-    { id: 'notification', icon: 'notification', label: '通知设置', value: '', section: 'settings' },
-    { id: 'sync', icon: 'sync', label: '同步与备份', value: sync.pendingCount > 0 ? `${sync.pendingCount} 项待同步` : '', section: 'settings' },
-    { id: 'dark', icon: 'moon', label: '深色模式', value: isDark.value ? '已开启' : '已关闭', section: 'settings' },
+    { id: 'dark', icon: 'moon', label: '深色模式', value: getThemeLabel(), section: 'settings' },
     { id: 'preferences', icon: 'heart', label: '推荐偏好', value: '', section: 'settings' },
+    { id: 'notification', icon: 'notification', label: '通知设置', value: '', section: 'settings' },
     { id: 'privacy', icon: 'info', label: '隐私与权限', value: '', section: 'about' },
     { id: 'agreement', icon: 'info', label: '用户协议', value: '', section: 'about' },
     { id: 'policy', icon: 'info', label: '隐私政策', value: '', section: 'about' },
@@ -278,5 +277,3 @@ const settingsGroup = computed(() => settingsItems.value.filter((item) => item.s
 const aboutGroup = computed(() => settingsItems.value.filter((item) => item.section === 'about'))
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 </script>
-
-

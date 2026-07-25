@@ -1,6 +1,9 @@
 /**
  * useTheme — 主题切换 (Vapor 模块级兼容版)
  *
+ * 三态偏好: system / light / dark
+ * 存储键: v2_theme_mode
+ *
  * Vapor 模式下模块顶层 ref()/computed() 没有活跃 effect scope，
  * 导致 n.value 返回 undefined → 全局白屏。
  * 解决方案：用 reactive + getter 代替 ref/computed。
@@ -9,25 +12,42 @@
 
 import { neutralLight, neutralDark, brand } from './tokens/colors'
 
-const THEME_STORAGE_KEY = 'sankeng_theme_mode'
-const OLD_THEME_KEYS = ['sk_dark_mode', 'app_theme_mode', 'theme_dark_mode']
+const THEME_MODE_KEY = 'v2_theme_mode'
+type ThemeMode = 'system' | 'light' | 'dark'
 
-function readStorageDarkMode(): boolean {
+const OLD_THEME_KEYS = ['sk_dark_mode', 'app_theme_mode', 'theme_dark_mode', 'sankeng_theme_mode']
+
+function readStorageThemeMode(): ThemeMode {
   try {
-    const current = uni.getStorageSync(THEME_STORAGE_KEY) as string
-    if (current === 'dark') return true
-    if (current === 'light') return false
+    const current = uni.getStorageSync(THEME_MODE_KEY) as string
+    if (current === 'system' || current === 'light' || current === 'dark') return current as ThemeMode
+    // 迁移旧 key
     for (let i = 0; i < OLD_THEME_KEYS.length; i++) {
       const old = uni.getStorageSync(OLD_THEME_KEYS[i]) as string
       if (old === 'dark' || old === 'light') {
-        uni.setStorageSync(THEME_STORAGE_KEY, old)
-        return old === 'dark'
+        uni.setStorageSync(THEME_MODE_KEY, old)
+        return old as ThemeMode
       }
     }
-    return false
+    return 'system'
+  } catch (e) {
+    return 'system'
+  }
+}
+
+function getSystemDark(): boolean {
+  try {
+    const info = uni.getSystemInfoSync()
+    return info.theme === 'dark'
   } catch (e) {
     return false
   }
+}
+
+function computeIsDark(mode: ThemeMode): boolean {
+  if (mode === 'dark') return true
+  if (mode === 'light') return false
+  return getSystemDark()
 }
 
 function getGlobalDark(): boolean {
@@ -38,7 +58,7 @@ function getGlobalDark(): boolean {
       if (val != null) return val as boolean
     }
   } catch (e) {}
-  return readStorageDarkMode()
+  return computeIsDark(readStorageThemeMode())
 }
 
 function setGlobalDark(value: boolean) {
@@ -49,18 +69,28 @@ function setGlobalDark(value: boolean) {
       app.globalData['isDark'] = value
     }
   } catch (e) {}
+  try {
+    app.globalData['themeMode'] = _state.themeMode
+  } catch (e) {}
 }
 
 // ====== Vapor 兼容：reactive 状态 + getter ======
 
-const _state = reactive({ isDark: false })
+const _state = reactive({
+  themeMode: 'system' as ThemeMode,
+  isDark: false,
+})
 let lastTabBarMode = ''
+let themeChangeHandler: (() => void) | null = null
 
 function syncFromGlobal(): boolean {
-  const globalDark = getGlobalDark()
-  const changed = _state.isDark !== globalDark
+  const mode = readStorageThemeMode()
+  const computedDark = computeIsDark(mode)
+  const changed = _state.themeMode !== mode || _state.isDark !== computedDark
   if (changed) {
-    _state.isDark = globalDark
+    _state.themeMode = mode
+    _state.isDark = computedDark
+    setGlobalDark(computedDark)
   }
   return changed
 }
@@ -82,7 +112,6 @@ function applySystemChrome() {
 
 export function syncTabBarChrome() {
   // #ifdef MP-WEIXIN
-  syncFromGlobal()
   const mode = _state.isDark ? 'dark' : 'light'
   if (lastTabBarMode === mode) return
   lastTabBarMode = mode
@@ -96,9 +125,41 @@ export function syncTabBarChrome() {
   // #endif
 }
 
+// ====== 系统主题变化监听 ======
+
+function enableSystemThemeListener() {
+  if (themeChangeHandler) return
+  themeChangeHandler = () => {
+    if (_state.themeMode !== 'system') return
+    const newDark = getSystemDark()
+    if (_state.isDark !== newDark) {
+      _state.isDark = newDark
+      setGlobalDark(newDark)
+      lastTabBarMode = ''
+      applySystemChrome()
+      syncTabBarChrome()
+    }
+  }
+  // #ifdef MP-WEIXIN
+  uni.onThemeChange(themeChangeHandler)
+  // #endif
+}
+
+function disableSystemThemeListener() {
+  // #ifdef MP-WEIXIN
+  if (themeChangeHandler) {
+    uni.offThemeChange(themeChangeHandler)
+    themeChangeHandler = null
+  }
+  // #endif
+}
+
+// ====== 公开 API ======
+
 export function initializeTheme() {
   syncFromGlobal()
   applySystemChrome()
+  if (_state.themeMode === 'system') enableSystemThemeListener()
 }
 
 export function syncSystemChrome() {
@@ -112,17 +173,36 @@ export function initPageTheme() {
   syncTabBarChrome()
 }
 
-export function setDarkMode(enabled: boolean) {
-  _state.isDark = enabled
-  setGlobalDark(enabled)
-  uni.setStorageSync(THEME_STORAGE_KEY, enabled ? 'dark' : 'light')
+/**
+ * 设置三态主题模式
+ * @param mode 'system' | 'light' | 'dark'
+ */
+export function setThemeMode(mode: ThemeMode) {
+  _state.themeMode = mode
+  _state.isDark = computeIsDark(mode)
+  setGlobalDark(_state.isDark)
+  uni.setStorageSync(THEME_MODE_KEY, mode)
   lastTabBarMode = ''
   applySystemChrome()
   syncTabBarChrome()
+
+  if (mode === 'system') {
+    enableSystemThemeListener()
+  } else {
+    disableSystemThemeListener()
+  }
+}
+
+/**
+ * 向下兼容：切换暗色/亮色（会退出 system 模式）
+ */
+export function setDarkMode(enabled: boolean) {
+  setThemeMode(enabled ? 'dark' : 'light')
 }
 
 export function toggleDarkMode(): boolean {
-  setDarkMode(!_state.isDark)
+  const next = _state.themeMode === 'dark' ? 'light' : 'dark'
+  setThemeMode(next)
   return _state.isDark
 }
 
@@ -130,6 +210,7 @@ export function useTheme() {
   syncFromGlobal()
   return {
     get isDark(): boolean { return _state.isDark },
+    get themeMode(): ThemeMode { return _state.themeMode },
     get neutral(): any { return _state.isDark ? neutralDark : neutralLight },
   }
 }
@@ -138,6 +219,13 @@ export function useTheme() {
 export const isDark = {
   get value(): boolean {
     return _state.isDark
+  }
+}
+
+/** Getter — Vue 可追踪 _state.themeMode 的变化 */
+export const themeMode = {
+  get value(): ThemeMode {
+    return _state.themeMode
   }
 }
 
