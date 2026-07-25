@@ -1,53 +1,143 @@
 import { defineStore } from 'pinia'
-/** V2.4 会话 Store：Mock 体验账号与远程开发会话共享稳定账号态。 */
-import { DATA_MODE_REMOTE, clearSessionTokens, getRuntimeConfig, saveSessionTokens } from '@/config/runtime'
-import { apiPost } from '@/services/platform/api-client'
+/** V2.5 会话 Store：正式微信登录，无 Mock/Preview 回退。 */
+import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
+import { apiPost, apiGet } from '@/services/platform/api-client'
 
 const STATE_KEY = 'v21_session_state'
 const USER_ID_KEY = 'v21_session_user_id'
 const NICKNAME_KEY = 'v21_session_nickname'
-const PROVIDER_KEY = 'v24_session_provider'
-const MIGRATION_KEY = 'v21_session_local_asset_migration'
+const AVATAR_KEY = 'v25_session_avatar'
 
-export class SessionProfile { userId: string = ''; nickname: string = ''; avatarText: string = 'SK'; provider: string = 'preview' }
-function readString(key: string): string { try { const value = uni.getStorageSync(key); return value == null ? '' : String(value) } catch (e) { return '' } }
+export class SessionProfile {
+  userId: string = ''
+  nickname: string = ''
+  avatarUrl: string = ''
+  avatarText: string = 'SK'
+}
+
+function readString(key: string): string {
+  try { const value = uni.getStorageSync(key); return value == null ? '' : String(value) } catch (e) { return '' }
+}
 
 export const useSessionStore = defineStore('session', () => {
   const state = ref(readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest')
   const profile = ref(new SessionProfile())
-  const localAssetsPending = ref(readString(MIGRATION_KEY) === 'pending')
   const loggingIn = ref(false)
   const errorMessage = ref('')
   const isLoggedIn = computed((): boolean => state.value === 'logged_in')
-  const userId = computed((): string => isLoggedIn.value ? profile.value.userId : 'guest_local')
+  const userId = computed((): string => isLoggedIn.value ? profile.value.userId : '')
 
   function reload() {
     state.value = readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest'
-    const next = new SessionProfile(); next.userId = readString(USER_ID_KEY); next.nickname = readString(NICKNAME_KEY); next.provider = readString(PROVIDER_KEY) || 'preview'
-    if (next.userId === '') next.userId = 'user_preview_0001'; if (next.nickname === '') next.nickname = '三坑女孩'
-    profile.value = next; localAssetsPending.value = readString(MIGRATION_KEY) === 'pending'
+    const next = new SessionProfile()
+    next.userId = readString(USER_ID_KEY)
+    next.nickname = readString(NICKNAME_KEY)
+    next.avatarUrl = readString(AVATAR_KEY)
+    if (next.nickname === '') next.nickname = '三坑女孩'
+    profile.value = next
+    // 进入登录页后清除旧登录错误
+    if (state.value === 'guest') errorMessage.value = ''
   }
-  function persist(userIdValue: string, nickname: string, provider: string) {
-    uni.setStorageSync(STATE_KEY, 'logged_in'); uni.setStorageSync(USER_ID_KEY, userIdValue); uni.setStorageSync(NICKNAME_KEY, nickname)
-    uni.setStorageSync(PROVIDER_KEY, provider); uni.setStorageSync(MIGRATION_KEY, 'pending'); reload()
+
+  function persistLogin(userIdValue: string, nickname: string, avatarUrl: string) {
+    uni.setStorageSync(STATE_KEY, 'logged_in')
+    uni.setStorageSync(USER_ID_KEY, userIdValue)
+    uni.setStorageSync(NICKNAME_KEY, nickname)
+    uni.setStorageSync(AVATAR_KEY, avatarUrl)
+    reload()
   }
-  function loginPreview() { clearSessionTokens(); persist('user_preview_0001', '三坑女孩', 'preview') }
-  async function loginWithRuntime(): Promise<boolean> {
+
+  /**
+   * 微信登录流程：
+   * 1. uni.login 获取微信临时 code
+   * 2. POST /api/v1/sessions/wechat { code, deviceId }
+   * 3. 保存 accessToken / refreshToken
+   * 4. GET /api/v1/me 恢复用户会话信息
+   *
+   * 登录失败不静默回退，调用方需展示 errorMessage 并给予重试能力
+   */
+  async function loginWithWechat(): Promise<boolean> {
     if (loggingIn.value) return false
-    loggingIn.value = true; errorMessage.value = ''
+    loggingIn.value = true
+    errorMessage.value = ''
     try {
-      if (getRuntimeConfig().mode !== DATA_MODE_REMOTE) { loginPreview(); return true }
-      const response = await apiPost('/api/v1/sessions/dev', { nickname: '三坑女孩' })
-      const data = response.data as any; const user = data.user as any
-      if (user == null || data.accessToken == null) throw new Error('登录响应不完整')
-      saveSessionTokens(String(data.accessToken), data.refreshToken != null ? String(data.refreshToken) : '')
-      persist(String(user.id), user.nickname != null ? String(user.nickname) : '三坑女孩', 'remote_dev')
+      // 1. 获取微信授权 code
+      const loginResult = await new Promise<any>((resolve, reject) => {
+        uni.login({
+          provider: 'weixin',
+          success: (res: any) => resolve(res),
+          fail: (err: any) => reject(new Error(err != null && err.errMsg != null ? String(err.errMsg) : '微信授权失败')),
+        })
+      })
+      const code: string = loginResult.code != null ? String(loginResult.code) : ''
+      if (code === '') throw new Error('微信授权未返回临时 code')
+
+      // 2. 获取设备标识
+      let deviceId = ''
+      try {
+        deviceId = String((uni.getSystemInfoSync() as any).deviceId ?? '')
+      } catch (_) { /* deviceId 非必需 */ }
+
+      // 3. POST /api/v1/sessions/wechat
+      const response = await apiPost('/api/v1/sessions/wechat', { code, deviceId })
+      const data: any = response.data
+      if (data == null) throw new Error('登录响应为空')
+      const accessToken: string = data.accessToken != null ? String(data.accessToken) : ''
+      if (accessToken === '') throw new Error('登录响应缺少 accessToken')
+      saveSessionTokens(accessToken, data.refreshToken != null ? String(data.refreshToken) : '')
+
+      // 4. 获取用户信息
+      let userInfo: any = null
+      try {
+        const meResponse = await apiGet('/api/v1/me')
+        userInfo = meResponse.data
+      } catch (_) {
+        // 如果 /me 调用失败，仍可登录；但需要下次帧刷新
+      }
+
+      const displayName: string = userInfo != null && userInfo.nickname != null ? String(userInfo.nickname) : '三坑女孩'
+      const avatar: string = userInfo != null && userInfo.avatarUrl != null ? String(userInfo.avatarUrl) : ''
+      const id: string = userInfo != null && userInfo.id != null ? String(userInfo.id) : data.userId != null ? String(data.userId) : ''
+      if (id === '') throw new Error('无法获取用户标识')
+      persistLogin(id, displayName, avatar)
       return true
-    } catch (e) { errorMessage.value = e instanceof Error ? e.message : '登录失败'; return false }
-    finally { loggingIn.value = false }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '登录失败，请重试'
+      errorMessage.value = message
+      // 显式抛出异常，调用方根据 errorMessage 展示错误状态与重试按钮
+      return false
+    } finally {
+      loggingIn.value = false
+    }
   }
-  function markLocalAssetsQueued() { uni.setStorageSync(MIGRATION_KEY, 'queued'); localAssetsPending.value = false }
-  function logout() { clearSessionTokens(); uni.setStorageSync(STATE_KEY, 'guest'); state.value = 'guest' }
+
+  function logout() {
+    clearSessionTokens()
+    uni.removeStorageSync(STATE_KEY)
+    uni.removeStorageSync(USER_ID_KEY)
+    uni.removeStorageSync(NICKNAME_KEY)
+    uni.removeStorageSync(AVATAR_KEY)
+    state.value = 'guest'
+    profile.value = new SessionProfile()
+    errorMessage.value = ''
+  }
+
+  function clearError() {
+    errorMessage.value = ''
+  }
+
   reload()
-  return { state, profile, isLoggedIn, userId, localAssetsPending, loggingIn, errorMessage, reload, loginPreview, loginWithRuntime, markLocalAssetsQueued, logout }
+
+  return {
+    state,
+    profile,
+    isLoggedIn,
+    userId,
+    loggingIn,
+    errorMessage,
+    reload,
+    loginWithWechat,
+    logout,
+    clearError,
+  }
 })

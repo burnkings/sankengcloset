@@ -5,7 +5,7 @@
       <view class="page-canvas" :style="pageWrap">
         <view :style="photoCard" @tap="choosePhoto">
           <view v-if="selectedImage !== ''" :style="previewWrap">
-            <AppImage :src="selectedImage" width="100%" height="100%" mode="aspectFill" />
+            <AppImage :src="selectedImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             <view :style="replaceAction"><AppIcon name="camera" :size="30" :active="true" /><text :style="replaceText">重新选择</text></view>
           </view>
           <view v-else :style="uploadEmpty">
@@ -47,7 +47,7 @@ import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -90,7 +90,7 @@ function publishLook() {
   completePublish(selectedImage.value)
 }
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const photoCard = computed((): any => ({ width: '670rpx', height: '760rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden' }))
 const previewWrap = { width: '670rpx', height: '760rpx', position: 'relative' as string }
 const replaceAction = computed((): any => ({ position: 'absolute', right: '20rpx', bottom: '20rpx', height: '64rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: radius.full, backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
@@ -110,6 +110,4 @@ const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, 
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
 </script>
 
-<style>
-.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
-</style>
+

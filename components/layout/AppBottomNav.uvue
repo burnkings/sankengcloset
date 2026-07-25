@@ -19,7 +19,6 @@ const props = withDefaults(defineProps<{ active?: string }>(), { active: 'home' 
 const items = [
   { id: 'home', label: '首页', url: '/pages/home/index' },
   { id: 'discover', label: '发现', url: '/pages/discover/index' },
-  { id: 'ai', label: '绮灵AI', url: '/pages/ai/index' },
   { id: 'community', label: '圈子', url: '/pages/community/index' },
   { id: 'profile', label: '我的', url: '/pages/profile/index' },
 ]

@@ -1,7 +1,7 @@
 <template>
   <view :style="rootStyle">
     <view :style="statusSpacer" />
-    <view class="v2-page-header-canvas" :style="headerRow">
+    <view :style="headerRow">
       <text :style="titleStyle">{{ title }}</text>
       <view v-if="actionText !== ''" :style="actionButton" @tap="emit('action')"><text :style="actionTextStyle">{{ actionText }}</text></view>
     </view>
@@ -11,7 +11,7 @@
 <script setup lang="uts">
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { PAGE_HEADER_HEIGHT } from '@/theme/tokens/responsive'
+import { PAGE_GUTTER_REGULAR, PAGE_HEADER_HEIGHT } from '@/theme/tokens/responsive'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
 import { n } from '@/theme/use-theme'
@@ -22,12 +22,11 @@ const emit = defineEmits<{ action: [] }>()
 const statusBarHeight = getStatusBarHeight()
 const rootStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg }))
 const statusSpacer = { height: `${statusBarHeight}px` }
-const headerRow = { height: PAGE_HEADER_HEIGHT, ...flexRow, alignItems: 'center' }
+const headerRow = { height: PAGE_HEADER_HEIGHT, ...flexRow, alignItems: 'center', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const titleStyle = computed((): any => ({ ...flexFill, fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
 const actionButton = { minWidth: '96rpx', height: '64rpx', alignItems: 'flex-end', justifyContent: 'center' }
 const actionTextStyle = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
 </script>
 
 <style>
-.v2-page-header-canvas { padding-left: 40rpx; padding-right: 40rpx; }
 </style>

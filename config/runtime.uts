@@ -1,13 +1,7 @@
-/** V2.5 数据运行模式、远程会话与 Android 公网内测配置。 */
+/** V2.5 Runtime 固化配置 — 仅支持远程生产模式。 */
 
-export const DATA_MODE_LOCAL = 'local'
-export const DATA_MODE_MOCK = 'mock'
 export const DATA_MODE_REMOTE = 'remote'
 
-const MODE_KEY = 'v21_runtime_data_mode'
-const ONLINE_KEY = 'v21_runtime_mock_online'
-const LATENCY_KEY = 'v21_runtime_mock_latency'
-const API_BASE_URL_KEY = 'v24_runtime_api_base_url'
 const ACCESS_TOKEN_KEY = 'v24_session_access_token'
 const REFRESH_TOKEN_KEY = 'v24_session_refresh_token'
 
@@ -17,10 +11,8 @@ let _configCache: RuntimeConfig | null = null
 let _tokenCache: { access: string; refresh: string } | null = null
 
 export class RuntimeConfig {
-  mode: string = DATA_MODE_MOCK
-  apiBaseUrl: string = ''
-  mockOnline: boolean = true
-  mockLatencyMs: number = 240
+  mode: string = DATA_MODE_REMOTE
+  apiBaseUrl: string = 'https://api.sankengcloset.icu'
 }
 
 function readString(key: string): string {
@@ -39,12 +31,6 @@ function readString(key: string): string {
  */
 export function warmRuntimeCache(): RuntimeConfig {
   const config = new RuntimeConfig()
-  const savedMode = readString(MODE_KEY)
-  if (savedMode === DATA_MODE_LOCAL || savedMode === DATA_MODE_MOCK || savedMode === DATA_MODE_REMOTE) config.mode = savedMode
-  config.apiBaseUrl = normalizeApiBaseUrl(readString(API_BASE_URL_KEY))
-  config.mockOnline = readString(ONLINE_KEY) !== 'offline'
-  const latency = parseInt(readString(LATENCY_KEY))
-  if (!isNaN(latency) && latency >= 0) config.mockLatencyMs = Math.min(latency, 3000)
   _configCache = config
   // 预热 Token
   _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
@@ -53,39 +39,8 @@ export function warmRuntimeCache(): RuntimeConfig {
 
 export function getRuntimeConfig(): RuntimeConfig {
   if (_configCache != null) return _configCache
-  // 未预热时 fallback（通常不会走到）
   const config = new RuntimeConfig()
-  const savedMode = readString(MODE_KEY)
-  if (savedMode === DATA_MODE_LOCAL || savedMode === DATA_MODE_MOCK || savedMode === DATA_MODE_REMOTE) config.mode = savedMode
-  config.apiBaseUrl = normalizeApiBaseUrl(readString(API_BASE_URL_KEY))
-  config.mockOnline = readString(ONLINE_KEY) !== 'offline'
-  const latency = parseInt(readString(LATENCY_KEY))
-  if (!isNaN(latency) && latency >= 0) config.mockLatencyMs = Math.min(latency, 3000)
   return config
-}
-
-export function normalizeApiBaseUrl(value: string): string {
-  let result = value.trim()
-  if (result !== '' && !result.startsWith('http://') && !result.startsWith('https://')) result = `http://${result}`
-  while (result.endsWith('/')) result = result.substring(0, result.length - 1)
-  return result
-}
-
-export function validateApiBaseUrl(value: string): string {
-  const result = normalizeApiBaseUrl(value)
-  if (result === '') return '请输入服务器地址'
-  if (!result.startsWith('http://') && !result.startsWith('https://')) return '仅支持 HTTP 或 HTTPS 地址'
-  const schemeEnd = result.indexOf('://')
-  const host = schemeEnd >= 0 ? result.substring(schemeEnd + 3) : ''
-  if (host === '' || host.startsWith(':')) return '服务器地址格式不正确'
-  if (host.indexOf(' ') >= 0) return '服务器地址不能包含空格'
-  return ''
-}
-
-export function isLoopbackApiBaseUrl(value: string): boolean {
-  const result = normalizeApiBaseUrl(value).toLowerCase()
-  return result.startsWith('http://127.0.0.1') || result.startsWith('https://127.0.0.1')
-    || result.startsWith('http://localhost') || result.startsWith('https://localhost')
 }
 
 export function getCachedAccessToken(): string {
@@ -96,17 +51,6 @@ export function getCachedAccessToken(): string {
 export function getCachedRefreshToken(): string {
   if (_tokenCache == null) _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
   return _tokenCache.refresh
-}
-
-export function setRuntimeMode(mode: string) {
-  if (mode !== DATA_MODE_LOCAL && mode !== DATA_MODE_MOCK && mode !== DATA_MODE_REMOTE) return
-  _configCache = null
-  uni.setStorageSync(MODE_KEY, mode)
-}
-
-export function setApiBaseUrl(value: string) {
-  _configCache = null
-  uni.setStorageSync(API_BASE_URL_KEY, normalizeApiBaseUrl(value))
 }
 
 export function getAccessToken(): string { return getCachedAccessToken() }
@@ -122,14 +66,4 @@ export function clearSessionTokens() {
   _tokenCache = null
   uni.removeStorageSync(ACCESS_TOKEN_KEY)
   uni.removeStorageSync(REFRESH_TOKEN_KEY)
-}
-
-export function setMockOnline(online: boolean) {
-  _configCache = null
-  uni.setStorageSync(ONLINE_KEY, online ? 'online' : 'offline')
-}
-
-export function setMockLatency(latencyMs: number) {
-  _configCache = null
-  uni.setStorageSync(LATENCY_KEY, String(Math.max(0, Math.min(latencyMs, 3000))))
 }

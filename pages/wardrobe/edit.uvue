@@ -4,7 +4,7 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="photoCard" @tap="choosePhoto">
-          <AppImage v-if="imagePath !== ''" :src="imagePath" width="100%" height="100%" mode="aspectFill" />
+          <AppImage v-if="imagePath !== ''" :src="imagePath" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
           <view v-else :style="photoEmpty"><AppIcon name="camera" :size="52" :active="true" /><text :style="photoText">添加单品照片</text></view>
         </view>
 
@@ -38,10 +38,10 @@
 <script setup lang="uts">
 import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
-import { brand, semantic } from '@/theme/tokens/colors'
+import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
@@ -105,12 +105,12 @@ onMounted(() => {
   form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = item.coverImage
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const editSafeBottom = getSafeBottomInset()
 const bottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${editSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
 const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
-const saveButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const saveButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const photoCard = computed((): any => ({ width: '670rpx', height: '460rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
 const photoEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 const photoText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '16rpx' }))
@@ -130,7 +130,7 @@ const confirmText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, c
 const cancelDelete = computed((): any => ({ height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
 const cancelDeleteText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const confirmDelete = { height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center' }
-const confirmDeleteText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const confirmDeleteText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
 
-<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
+

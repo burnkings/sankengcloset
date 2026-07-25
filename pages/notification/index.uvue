@@ -29,7 +29,7 @@ import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL } from '@/domain/notificati
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { showFeedback } from '@/utils/feedback'
@@ -74,7 +74,7 @@ function formatTime(value: string): string {
 }
 onShow(() => notices.reload())
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
 function noticeCard(read: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx' } }
 function noticeIcon(type: string) { return { width: '72rpx', height: '72rpx', borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : (type === NOTICE_PRICE ? '#FFF2EA' : brand[100]), alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 } }
@@ -90,4 +90,4 @@ const sourceNote = computed((): any => ({ padding: '20rpx', borderRadius: CARD_R
 const sourceText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
 </script>
 
-<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
+

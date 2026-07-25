@@ -1,6 +1,4 @@
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
-import { getFirstPage } from '@/domain/content/mock-feed-repo'
-import { DATA_MODE_REMOTE, getRuntimeConfig } from '@/config/runtime'
 import { apiGet } from '@/services/platform/api-client'
 
 export class ProductDetailModel {
@@ -9,17 +7,6 @@ export class ProductDetailModel {
   description: string = ''
   shopUrl: string = ''
   requestId: string = ''
-}
-
-function fallbackImage(category: string): string {
-  if (category === 'HANFU') return '/static/demo/prod-editorial-03.png'
-  if (category === 'LOLITA') return '/static/demo/prod-editorial-02.png'
-  return '/static/demo/prod-editorial-01.png'
-}
-
-function safeImage(url: string, category: string): string {
-  if (url === '' || url.indexOf('example.invalid') >= 0) return fallbackImage(category)
-  return url
 }
 
 function statusLabel(status: string): string {
@@ -48,13 +35,13 @@ function mapRemoteProduct(raw: any, requestId: string): ProductDetailModel {
   item.price = raw.priceCents != null ? Number(raw.priceCents) : 0
   item.originalPrice = raw.originalPriceCents != null ? Number(raw.originalPriceCents) : item.price
   item.badgeText = statusLabel(raw.status != null ? String(raw.status) : '')
-  item.coverUrl = safeImage(raw.coverUrl != null ? String(raw.coverUrl) : '', item.category)
+  item.coverUrl = raw.coverUrl != null ? String(raw.coverUrl) : ''
   item.sourceLabel = '服务端'
   item.createdAt = raw.createdAt != null ? String(raw.createdAt) : ''
 
   const images = raw.images as any[]
   if (images != null) {
-    for (let i = 0; i < images.length; i++) addUniqueImage(result.images, safeImage(String(images[i]), item.category))
+    for (let i = 0; i < images.length; i++) addUniqueImage(result.images, String(images[i]))
   }
   addUniqueImage(result.images, item.coverUrl)
   if (result.images.length > 1) item.secondaryCoverUrl = result.images[1]
@@ -66,25 +53,8 @@ function mapRemoteProduct(raw: any, requestId: string): ProductDetailModel {
   return result
 }
 
-function localProduct(id: string): ProductDetailModel | null {
-  const sourceItems = getFirstPage()
-  const found = sourceItems.find((entry) => entry.entityId === id || entry.id === id)
-  if (found == null) return null
-  const result = new ProductDetailModel()
-  result.item = found
-  addUniqueImage(result.images, found.coverUrl)
-  addUniqueImage(result.images, found.secondaryCoverUrl)
-  for (let i = 0; i < sourceItems.length && result.images.length < 4; i++) {
-    const candidate = sourceItems[i]
-    if (candidate.category === found.category && candidate.feedType === FEED_PRODUCT) addUniqueImage(result.images, candidate.coverUrl)
-  }
-  result.description = found.subtitle
-  return result
-}
-
 export async function fetchProductDetail(id: string): Promise<ProductDetailModel | null> {
   if (id === '') return null
-  if (getRuntimeConfig().mode !== DATA_MODE_REMOTE) return localProduct(id)
   const response = await apiGet(`/api/v1/products/${encodeURIComponent(id)}`)
   if (response.data == null) return null
   return mapRemoteProduct(response.data, response.requestId)

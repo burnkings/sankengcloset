@@ -47,10 +47,10 @@
 <script setup lang="uts">
 import { useReminderStore } from '@/stores/reminder-store'
 import { Reminder, ReminderUpdateData } from '@/domain/reminder'
-import { brand, semantic } from '@/theme/tokens/colors'
+import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
@@ -137,12 +137,12 @@ onMounted(() => {
   form.value.note = safeParam(options.note)
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const reminderSafeBottom = getSafeBottomInset()
 const reminderBottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${reminderSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
 const reminderSaveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
-const reminderSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const reminderSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
 const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
 const twoColumnRow = { ...flexRow, marginTop: '30rpx' }
@@ -161,7 +161,7 @@ const confirmText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, c
 const cancelDelete = computed((): any => ({ height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
 const cancelDeleteText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const confirmDelete = { height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center' }
-const confirmDeleteText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const confirmDeleteText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
 
-<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
+

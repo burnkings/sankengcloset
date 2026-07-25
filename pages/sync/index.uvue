@@ -1,13 +1,13 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="同步与连接" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="云端同步" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="statusCard">
           <view :style="statusTop">
             <view :style="statusIcon"><AppIcon name="sync" :size="46" :active="sync.online" /></view>
             <view :style="statusCopy">
-              <text :style="statusTitle">{{ isRemote ? (sync.online ? '远程服务已配置' : '等待配置远程服务') : (sync.online ? '本地模拟在线' : '离线模拟中') }}</text>
+              <text :style="statusTitle">远程服务已配置</text>
               <text :style="statusDesc">{{ sync.pendingCount }} 项本地操作等待同步</text>
             </view>
           </view>
@@ -18,24 +18,10 @@
           <view :style="primaryButton(sync.syncing || !sync.hasPending)" @tap="runSync"><text :style="primaryText">{{ sync.syncing ? '同步中…' : (sync.hasPending ? '立即同步' : '队列已清空') }}</text></view>
         </view>
 
-        <V2SectionHeader title="数据连接" />
-        <view :style="connectionCard">
-          <view :style="modeRow">
-            <view :style="modeChip(!isRemote)" @tap="useMock"><text :style="modeText(!isRemote)">本地演示</text></view>
-            <view :style="modeChip(isRemote)" @tap="useRemote"><text :style="modeText(isRemote)">远程服务</text></view>
-          </view>
-          <view v-if="isRemote" :style="inputWrap">
-            <AppInput v-model="apiUrl" placeholder="例如 203.0.113.10:8787" :clearable="true" :focus="false" />
-            <text :style="inputHint">Android 临时内测可填写公网 IP:端口；未写协议时自动补 http://。127.0.0.1 只代表手机自身，真机不可用。</text>
-            <view :style="testButton(testing)" @tap="saveAndTest"><text :style="testButtonText">{{ testing ? '检查中…' : '保存并检查连接' }}</text></view>
-          </view>
-        </view>
-
         <V2SectionHeader title="账号与环境" />
         <V2ListGroup>
-          <view v-if="!isRemote" :style="rowDivider" @tap="toggleOnline"><V2ListRow icon="sync" label="模拟网络" :value="sync.online ? '在线' : '离线'" :show-arrow="false" /></view>
-          <view :style="rowDivider"><V2ListRow icon="database" label="当前来源" :value="isRemote ? 'Fastify API' : '本地 Mock'" :show-arrow="false" /></view>
-          <view @tap="openAccount"><V2ListRow icon="profile" label="数据归属" :value="session.isLoggedIn ? session.profile.nickname : '本地访客'" /></view>
+          <view :style="rowDivider"><V2ListRow icon="database" label="API 地址" :value="apiBaseUrl" :show-arrow="false" /></view>
+          <view :style="rowDivider"><V2ListRow icon="profile" label="数据归属" :value="session.isLoggedIn ? session.profile.nickname : '未登录'" /></view>
         </V2ListGroup>
 
         <V2SectionHeader title="操作队列" />
@@ -45,7 +31,7 @@
           <text :style="operationMeta">{{ op.entityId }} · {{ op.deviceId }}</text>
           <text v-if="op.retryCount > 0" :style="retryText">已重试 {{ op.retryCount }} 次</text>
         </view>
-        <view :style="boundaryCard"><text :style="boundaryText">远程模式会等待服务端逐条回执后再清除本地操作；连接或认证失败时队列保留，可安全重试。本地演示模式不会向外发送数据。</text></view>
+        <view :style="boundaryCard"><text :style="boundaryText">连接或认证失败时队列保留，可安全重试。</text></view>
       </view>
     </template>
   </MainLayout>
@@ -54,50 +40,35 @@
 <script setup lang="uts">
 import { useSyncStore } from '@/stores/sync-store'
 import { useSessionStore } from '@/stores/session-store'
-import { DATA_MODE_REMOTE, getRuntimeConfig, isLoopbackApiBaseUrl, normalizeApiBaseUrl, setApiBaseUrl, setRuntimeMode, validateApiBaseUrl } from '@/config/runtime'
-import { testApiConnection } from '@/services/platform/api-client'
-import { brand } from '@/theme/tokens/colors'
+import { getRuntimeConfig } from '@/config/runtime'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppInput from '@/components/base/AppInput.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 
-const sync = useSyncStore(); const session = useSessionStore(); const apiUrl = ref(''); const runtimeMode = ref('mock'); const testing = ref(false)
-const isRemote = computed((): boolean => runtimeMode.value === DATA_MODE_REMOTE)
-function loadRuntime() { const config = getRuntimeConfig(); runtimeMode.value = config.mode; apiUrl.value = config.apiBaseUrl; sync.reload() }
+const sync = useSyncStore(); const session = useSessionStore(); const apiBaseUrl = ref('')
+function loadRuntime() { const config = getRuntimeConfig(); apiBaseUrl.value = config.apiBaseUrl; sync.reload() }
 async function runSync() { if (sync.syncing || !sync.hasPending) return; const before = sync.pendingCount; const count = await sync.syncNow(); if (count > 0) showFeedback(`已同步 ${count} 项操作`); else if (before > 0) showFeedback(sync.errorMessage !== '' ? sync.errorMessage : '同步未完成') }
-function useMock() { if (session.profile.provider === 'remote_dev') session.logout(); setRuntimeMode('mock'); runtimeMode.value = 'mock'; sync.reload(); showFeedback('已切换到本地演示') }
-function useRemote() { if (session.isLoggedIn && session.profile.provider !== 'remote_dev') session.logout(); setRuntimeMode(DATA_MODE_REMOTE); runtimeMode.value = DATA_MODE_REMOTE; sync.reload() }
-async function saveAndTest() { if (testing.value) return; const next = normalizeApiBaseUrl(apiUrl.value); const validation = validateApiBaseUrl(next); if (validation !== '') { showFeedback(validation); return }; if (isLoopbackApiBaseUrl(next)) { showFeedback('真机不能使用 127.0.0.1 或 localhost'); return }; const previous = getRuntimeConfig().apiBaseUrl; if (previous !== next && session.isLoggedIn) session.logout(); apiUrl.value = next; setApiBaseUrl(next); loadRuntime(); testing.value = true; try { const service = await testApiConnection(); showFeedback(`连接成功 · ${service}`) } catch (e) { showFeedback(e instanceof Error ? e.message : '连接失败，请检查公网端口与防火墙') } finally { testing.value = false; sync.reload() } }
-function toggleOnline() { sync.setOnline(!sync.online); sync.reload() }
-function openAccount() { uni.navigateTo({ url: '/pages/account/index' }) }
 function formatSyncAt(value: string): string { const time = parseInt(value); if (isNaN(time)) return '—'; const date = new Date(time); const minute = date.getMinutes(); return `${date.getHours()}:${minute < 10 ? '0' + String(minute) : String(minute)}` }
 function operationLabel(type: string, action: string): string { const entity = type === 'favorite' ? '商品收藏' : (type === 'brand_follow' ? '品牌关注' : (type === 'post_like' ? '晒搭喜欢' : (type === 'outfit' ? '晒搭内容' : '本地资产'))); return `${entity} · ${action === 'delete' ? '删除' : (action === 'create' ? '创建' : '更新')}` }
-onShow(() => { loadRuntime(); session.reload() })
+onShow(() => { loadRuntime() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const statusCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
 const statusTop = { ...flexRow, alignItems: 'center' }; const statusIcon = computed((): any => ({ width: '80rpx', height: '80rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center', marginRight: '18rpx' }))
 const statusCopy = { ...flexFill }; const statusTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text })); const statusDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '7rpx' }))
 const statusMetrics = { ...flexRow, marginTop: '24rpx' }; const metric = computed((): any => ({ ...flexFill, padding: '16rpx', borderRadius: '18rpx', backgroundColor: n.value.surface, marginRight: '10rpx' })); const metricValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text })); const metricLabel = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '6rpx' }))
 function primaryButton(disabled: boolean) { return { height: '80rpx', borderRadius: '40rpx', backgroundColor: disabled ? n.value.bgTertiary : brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '22rpx' } }
-const primaryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
-const connectionCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface })); const modeRow = { ...flexRow }
-function modeChip(active: boolean) { return { ...flexFill, height: '68rpx', borderRadius: '34rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? brand[100] : n.value.bgTertiary, marginRight: '10rpx' } }
-function modeText(active: boolean) { return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: active ? brand[700] : n.value.textSecondary } }
-const inputWrap = { marginTop: '20rpx' }; const inputHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, lineHeight: '32rpx', marginTop: '10rpx' }))
-function testButton(disabled: boolean) { return { height: '72rpx', borderRadius: '36rpx', backgroundColor: disabled ? n.value.bgTertiary : brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '16rpx' } }
-const testButtonText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const primaryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
 const rowDivider = computed((): any => ({ borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.divider })); const emptyQueue = computed((): any => ({ padding: '30rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, alignItems: 'center' })); const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text })); const emptyDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
 const operationCard = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '12rpx' })); const operationTop = { ...flexRow }; const operationTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text })); const operationStatus = { fontSize: fontSize.xs, color: brand[600] }; const operationMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' })); const retryText = { fontSize: fontSize['2xs'], color: brand[700], marginTop: '7rpx' }
 const boundaryCard = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' })); const boundaryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '36rpx' }))
 </script>
-<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>

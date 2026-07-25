@@ -27,7 +27,7 @@ import { usePurchaseStore } from '@/stores/purchase-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -55,7 +55,7 @@ function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
 onMounted(() => { store.fetchPurchases() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
 const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
@@ -82,4 +82,4 @@ const dateText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.te
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
 </script>
-<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
+

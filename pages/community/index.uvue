@@ -14,7 +14,7 @@
         <V2FilterChips :items="topics" :active="activeTopic" @change="onTopicChange" />
 
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
           <view :style="lookBody">
             <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
@@ -23,7 +23,7 @@
         </view>
 
         <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" /></view>
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
           <view :style="lookBody">
             <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.author }}</text><text :style="timeText">{{ look.time }}</text></view>
             <text :style="lookCaption">{{ look.caption }}</text>
@@ -41,10 +41,10 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -114,7 +114,7 @@ onShow(() => {
   } catch (e) {}
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
 const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '116rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '8rpx' }))
 const composerIcon = computed((): any => ({ width: '68rpx', height: '68rpx', borderRadius: '22rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
@@ -122,7 +122,7 @@ const composerCopy = { ...flexFill }
 const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const composerDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '5rpx' }))
 const composerButton = { minWidth: '104rpx', height: '58rpx', borderRadius: '29rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }
-const composerButtonText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const composerButtonText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface }))
 const heroImage = { width: '670rpx', height: '760rpx' }
 const lookBody = { padding: CARD_PADDING }
@@ -140,6 +140,4 @@ const categoryText = computed((): any => ({ fontSize: fontSize.xs, color: n.valu
 function deleteOwnText(id: string) { return { fontSize: fontSize['2xs'], color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 </script>
 
-<style>
-.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
-</style>
+

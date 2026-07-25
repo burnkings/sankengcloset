@@ -45,12 +45,11 @@
 
 <script setup lang="uts">
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
-import { getFirstPage } from '@/domain/content/mock-feed-repo'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -62,7 +61,7 @@ import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 const keyword = ref('')
 // 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
 const inputFocused = ref(false)
-const sourceItems = getFirstPage()
+const sourceItems = ref([]) as Ref<FeedItem[]>
 const hotKeywords = ['月光曲', '格裙', '宋制', '新品预约', 'Lolita 茶会', '汉服通勤']
 
 function normalizedQuery(value: string): string {
@@ -81,7 +80,7 @@ function itemSearchText(item: FeedItem): string {
 const results = computed((): FeedItem[] => {
   const q = normalizedQuery(keyword.value)
   if (q === '') return []
-  return sourceItems.filter((item) => {
+  return sourceItems.value.filter((item) => {
     if (item.feedType !== FEED_PRODUCT) return false
     return itemSearchText(item).includes(q)
   })
@@ -104,7 +103,7 @@ onMounted(() => {
   } catch (e) {}
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const hotWrap = { ...flexRow, flexWrap: 'wrap' as string }
 function hotChip(idx: number) { return { minHeight: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: idx % 3 < 2 ? '12rpx' : '0', marginBottom: '12rpx' } }
 const hotText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
@@ -115,6 +114,4 @@ const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: f
 const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
 </script>
 
-<style>
-.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
-</style>
+

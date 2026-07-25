@@ -41,10 +41,10 @@
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { PurchaseRecord } from '@/domain/purchase-record'
-import { brand } from '@/theme/tokens/colors'
+import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
@@ -134,12 +134,12 @@ onMounted(() => {
   form.value.purchaseDate = now.toISOString().substring(0, 10)
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const purchaseSafeBottom = getSafeBottomInset()
 const purchaseBottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${purchaseSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
 const purchaseSaveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
-const purchaseSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const purchaseSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
 const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
 const twoColumnRow = { ...flexRow, marginTop: '30rpx' }
@@ -156,4 +156,4 @@ const boundaryCard = computed((): any => ({ ...flexRow, alignItems: 'center', pa
 const boundaryText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginLeft: '12rpx' }))
 </script>
 
-<style>.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }</style>
+

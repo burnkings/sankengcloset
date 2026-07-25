@@ -60,8 +60,8 @@ import { ref, computed } from 'vue'
 import { getWindowHeight } from '@/utils/window-info'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
-import { getFirstPage, getFeedPage, getMaxItems } from '@/domain/content/mock-feed-repo'
 import { FeedItem } from '@/domain/content/feed-item'
+import { fetchFeedPage } from '@/services/content/feed-service'
 import { n } from '@/theme/use-theme'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { spacing } from '@/theme/tokens/spacing'
@@ -108,49 +108,46 @@ function initDeviceInfo() {
 
 initDeviceInfo()
 
-// 测试 Mock Feed
-function testMockFeed() {
+// 测试远程 Feed
+async function testMockFeed() {
   results.value = []
-  addResult('running', '正在测试 Mock Feed...')
+  addResult('running', '正在测试远程 Feed...')
 
   try {
-    const page = getFirstPage()
-    if (page.length === 0) {
-      addResult('fail', 'getFirstPage() 返回空数组')
+    const page = await fetchFeedPage(0, '推荐', '全部')
+    if (page.items.length === 0) {
+      addResult('fail', 'fetchFeedPage(0) 返回空数组')
       return
     }
-    addResult('pass', `getFirstPage() 返回 ${page.length} 条`)
+    addResult('pass', `fetchFeedPage(0) 返回 ${page.items.length} 条`)
 
     // 检查字段完整性
     let missingCover = 0
     let missingTitle = 0
-    for (let i = 0; i < page.length; i++) {
-      const item = page[i]
+    for (let i = 0; i < page.items.length; i++) {
+      const item = page.items[i]
       if (item.coverUrl === '') missingCover++
       if (item.title === '') missingTitle++
     }
-    addResult(missingCover === 0 ? 'pass' : 'fail', `coverUrl 空值: ${missingCover}/${page.length}`)
-    addResult(missingTitle === 0 ? 'pass' : 'fail', `title 空值: ${missingTitle}/${page.length}`)
+    addResult(missingCover === 0 ? 'pass' : 'fail', `coverUrl 空值: ${missingCover}/${page.items.length}`)
+    addResult(missingTitle === 0 ? 'pass' : 'fail', `title 空值: ${missingTitle}/${page.items.length}`)
 
-    // 测试第二页
-    const page2 = getFeedPage(1)
-    addResult(page2.length > 0 ? 'pass' : 'fail', `getFeedPage(1) 返回 ${page2.length} 条`)
-
-    updateLastResult('pass', 'Mock Feed 测试完成')
+    addResult('pass', `hasMore: ${page.hasMore}, nextCursor: ${page.nextCursor}`)
+    addResult('pass', '远程 Feed 测试完成')
   } catch (e) {
-    updateLastResult('fail', `Mock Feed 异常: ${String(e)}`)
+    updateLastResult('fail', `远程 Feed 异常: ${String(e)}`)
   }
 }
 
 // 测试图片
-function testImages() {
+async function testImages() {
   results.value = []
   addResult('running', '正在测试图片...')
 
-  const page = getFirstPage()
+  const page = await fetchFeedPage(0, '推荐', '全部')
   const urls: string[] = []
-  for (let i = 0; i < page.length; i++) {
-    const url = page[i].coverUrl
+  for (let i = 0; i < page.items.length; i++) {
+    const url = page.items[i].coverUrl
     if (url !== '' && urls.indexOf(url) < 0) {
       urls.push(url)
     }
@@ -195,25 +192,25 @@ function testImages() {
   }
 }
 
-// 测试分页
-function testPagination() {
+// 测试分页 — 由于远程分页基于 cursor，一次性最多拉 3 页验证连续性
+async function testPagination() {
   results.value = []
   addResult('running', '正在测试分页...')
 
   try {
-    const max = getMaxItems()
-    addResult('pass', `最大条目数: ${max}`)
-
     let total = 0
-    let page = 0
-    while (true) {
-      const items = getFeedPage(page)
-      if (items.length === 0) break
-      total += items.length
-      page++
+    let pageCount = 0
+    let cursor = 0
+    for (let i = 0; i < 3; i++) {
+      const page = await fetchFeedPage(i, '推荐', '全部')
+      if (page.items.length === 0) break
+      total += page.items.length
+      pageCount++
+      cursor = page.nextCursor !== '' ? Number(page.nextCursor) : cursor + 1
+      if (!page.hasMore) break
     }
-    addResult('pass', `分页加载完成: ${page} 页, ${total} 条`)
-    addResult(total === max ? 'pass' : 'fail', total === max ? '总数一致' : `总数不一致: 期望 ${max}, 实际 ${total}`)
+    addResult(pageCount > 0 ? 'pass' : 'fail', `分页加载完成: ${pageCount} 页, ${total} 条`)
+    addResult('pass', '远程分页测试完成')
   } catch (e) {
     addResult('fail', `分页异常: ${String(e)}`)
   }

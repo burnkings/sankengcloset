@@ -1,7 +1,7 @@
 <template>
   <view :style="containerStyle">
     <view :style="iconBgStyle">
-      <text :style="iconStyle">{{ icon }}</text>
+      <AppIcon :name="icon" :size="56" />
     </view>
     <text :style="titleStyle">{{ title }}</text>
     <text v-if="description" :style="descStyle">{{ description }}</text>
@@ -23,6 +23,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexCenter } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
+import AppIcon from '@/components/base/AppIcon.uvue'
 
 const props = withDefaults(defineProps<{
   icon?: string
@@ -31,7 +32,7 @@ const props = withDefaults(defineProps<{
   actionText?: string
   secondaryText?: string
 }>(), {
-  icon: '📦',
+  icon: 'inbox',
   title: '这里还是空的',
   description: '',
   actionText: '',
@@ -60,10 +61,6 @@ const iconBgStyle = {
   alignItems: 'center',
   justifyContent: 'center',
   marginBottom: spacing[3],
-}
-
-const iconStyle = {
-  fontSize: '60rpx',
 }
 
 const titleStyle = computed((): any => ({

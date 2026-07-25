@@ -1,7 +1,5 @@
 import { FeedItem } from '@/domain/content/feed-item'
-import { getFirstPage, getFeedPage, getMaxItems, filterByChannel as filterMockByChannel } from '@/domain/content/mock-feed-repo'
 import { createRequestId } from '@/domain/platform/api-contract'
-import { DATA_MODE_REMOTE, getRuntimeConfig } from '@/config/runtime'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 
 export class FeedPage {
@@ -11,6 +9,9 @@ export class FeedPage {
   requestId: string = ''
 }
 
+/** 图片加载失败时使用统一占位标识，AppImage 组件内部处理错误展示 */
+const IMAGE_UNAVAILABLE = ''
+
 function mapFeedItem(raw: any): FeedItem {
   const item = new FeedItem()
   item.id = raw.id != null ? String(raw.id) : ''
@@ -18,8 +19,8 @@ function mapFeedItem(raw: any): FeedItem {
   item.entityId = raw.entityId != null ? String(raw.entityId) : ''
   item.title = raw.title != null ? String(raw.title) : ''
   item.subtitle = raw.subtitle != null ? String(raw.subtitle) : ''
-  item.coverUrl = raw.coverUrl != null ? String(raw.coverUrl) : ''
-  item.secondaryCoverUrl = raw.secondaryCoverUrl != null ? String(raw.secondaryCoverUrl) : ''
+  item.coverUrl = raw.coverUrl != null ? String(raw.coverUrl) : IMAGE_UNAVAILABLE
+  item.secondaryCoverUrl = raw.secondaryCoverUrl != null ? String(raw.secondaryCoverUrl) : IMAGE_UNAVAILABLE
   item.brandId = raw.brandId != null ? String(raw.brandId) : ''
   item.brandName = raw.brandName != null ? String(raw.brandName) : ''
   item.price = raw.price != null ? Number(raw.price) : 0
@@ -33,11 +34,6 @@ function mapFeedItem(raw: any): FeedItem {
   item.rankingScore = raw.rankingScore != null ? Number(raw.rankingScore) : 0
   item.category = raw.category != null ? String(raw.category) : ''
   item.createdAt = raw.createdAt != null ? String(raw.createdAt) : ''
-  // Memory 驱动的 example.invalid 只表达媒体契约；客户端用内置素材保证体验环境可视。
-  if (item.coverUrl === '' || item.coverUrl.indexOf('example.invalid') >= 0) {
-    item.coverUrl = item.category === 'HANFU' ? '/static/demo/prod-editorial-03.png' : (item.category === 'LOLITA' ? '/static/demo/prod-editorial-02.png' : '/static/demo/prod-editorial-01.png')
-  }
-  if (item.secondaryCoverUrl.indexOf('example.invalid') >= 0) item.secondaryCoverUrl = item.coverUrl
   return item
 }
 
@@ -70,19 +66,14 @@ async function fetchRemoteFeed(pageIndex: number, channel: string, category: str
 }
 
 export async function fetchFeedPage(pageIndex: number, channel: string = '推荐', category: string = '全部'): Promise<FeedPage> {
-  const config = getRuntimeConfig()
-  if (config.mode === DATA_MODE_REMOTE) return await fetchRemoteFeed(pageIndex, channel, category)
-  if (!config.mockOnline) throw new Error('网络不可用，稍后重试')
-  await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
-  const result = new FeedPage()
-  result.requestId = createRequestId('feed')
-  result.items = pageIndex <= 0 ? getFirstPage() : getFeedPage(pageIndex)
-  const loadedHint = pageIndex <= 0 ? result.items.length : (pageIndex + 1) * result.items.length
-  result.hasMore = result.items.length > 0 && loadedHint < getMaxItems()
-  result.nextCursor = result.hasMore ? String(pageIndex + 1) : ''
-  return result
+  return await fetchRemoteFeed(pageIndex, channel, category)
 }
 
 export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
-  return filterMockByChannel(items, channel)
+  if (channel === '' || channel === '推荐') return items
+  if (channel === '新品') return items.filter((i) => i.badgeText === '新品')
+  if (channel === '预约') return items.filter((i) => i.badgeText === '预约' || i.badgeText === '定金')
+  if (channel === '降价') return items.filter((i) => i.badgeText === '降价')
+  if (channel === '穿搭') return items.filter((i) => i.feedType === 'outfit')
+  return items.filter((i) => i.category === channel)
 }

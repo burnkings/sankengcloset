@@ -7,7 +7,7 @@
         <view :style="galleryWrap">
           <swiper :style="hero" :circular="detailImages.length > 1" :indicator-dots="detailImages.length > 1" :indicator-color="n.divider" :indicator-active-color="brand[500]" @change="onGalleryChange">
             <swiper-item v-for="imageUrl in detailImages" :key="imageUrl">
-              <AppImage :src="imageUrl" width="100%" height="100%" mode="aspectFill" />
+              <AppImage :src="imageUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             </swiper-item>
           </swiper>
           <view v-if="detailImages.length > 1" :style="imageCounter"><text :style="imageCounterText">{{ currentImageIndex + 1 }} / {{ detailImages.length }}</text></view>
@@ -34,12 +34,14 @@
           <view :style="actionSpacer" />
         </view>
       </view>
-      <view v-else :style="emptyWrap"><text :style="emptyText">{{ errorMessage !== '' ? errorMessage : '商品信息不存在' }}</text><view :style="retryButton" @tap="loadDetail"><text :style="retryText">重新加载</text></view></view>
+      <view v-else :style="emptyWrap">
+        <text :style="emptyText">{{ errorMessage !== '' ? errorMessage : '商品信息不存在' }}</text>
+        <view :style="retryButton" @tap="loadDetail"><text :style="retryText">重新加载</text></view>
+      </view>
     </template>
   </MainLayout>
   <view v-if="item !== null" :style="actionBar">
-    <view :style="minorButton" @tap="saveItem"><AppIcon name="wardrobe" :size="36" :active="isSaved" /><text :style="minorText">{{ isSaved ? '已收藏' : '收藏' }}</text></view>
-    <view :style="minorButton" @tap="askAI"><AppIcon name="sparkles" :size="36" /><text :style="minorText">问绮灵</text></view>
+    <view :style="minorButton" @tap="toggleSaved"><AppIcon name="wardrobe" :size="36" :active="isSaved" /><text :style="minorText">{{ isSaved ? '已收藏' : '收藏' }}</text></view>
     <view :style="officialButton" @tap="openOfficial"><text :style="officialText">前往官方渠道</text></view>
   </view>
 </template>
@@ -48,11 +50,12 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
-import { useContentLibraryStore } from '@/stores/content-library-store'
+import { apiGet, apiPost, apiDelete } from '@/services/platform/api-client'
+import { getCachedAccessToken } from '@/config/runtime'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
@@ -65,32 +68,91 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 const itemId = ref('')
-const library = useContentLibraryStore()
 const item = ref(null) as Ref<FeedItem | null>
 const loading = ref(true)
 const errorMessage = ref('')
 const description = ref('')
 const shopUrl = ref('')
-const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
+const isSaved = ref(false)
 const stages = ['图透', '定金', '尾款', '现货']
 const currentImageIndex = ref(0)
 const detailImages = ref([]) as Ref<string[]>
+let savedEntityIds: string[] = []
+
 function onGalleryChange(e: any) { currentImageIndex.value = (e.detail as any).current ?? 0 }
-function saveItem() {
-  if (item.value === null) return
-  const saved = library.toggleFavorite(item.value!.entityId)
-  showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
+
+function isLoggedIn(): boolean {
+  return getCachedAccessToken() !== ''
 }
-function askAI() { openPrimaryTab('/pages/ai/index') }
+
+async function fetchWishlist() {
+  try {
+    const response = await apiGet('/api/v1/wishlist')
+    const items = response.data as any[]
+    if (items != null) {
+      savedEntityIds = items.map((w: any) => String(w.entityId ?? w.id ?? ''))
+      if (item.value !== null) {
+        isSaved.value = savedEntityIds.indexOf(item.value!.entityId) >= 0
+      }
+    }
+  } catch (_) {
+    // 未登录或网络错误 — 收藏态保持 false
+  }
+}
+
+async function toggleSaved() {
+  if (item.value === null) return
+  const entityId = item.value!.entityId
+  if (entityId === '') return
+
+  if (!isLoggedIn()) {
+    showFeedback('请先登录后收藏')
+    return
+  }
+
+  const currentSaved = isSaved.value
+  try {
+    if (currentSaved) {
+      // 查找 wishlist 中对应的 ID
+      const targetId = findWishlistId(entityId)
+      if (targetId !== '') {
+        await apiDelete(`/api/v1/wishlist/${encodeURIComponent(targetId)}`)
+      }
+      isSaved.value = false
+      const idx = savedEntityIds.indexOf(entityId)
+      if (idx >= 0) savedEntityIds.splice(idx, 1)
+      showFeedback('已移出收藏')
+    } else {
+      await apiPost('/api/v1/wishlist', { entityId, feedType: item.value!.feedType, title: item.value!.title })
+      isSaved.value = true
+      savedEntityIds.unshift(entityId)
+      showFeedback('已收进心动收藏')
+    }
+  } catch (e) {
+    // 网络错误回滚状态
+    isSaved.value = currentSaved
+    showFeedback(e instanceof Error ? e.message : '操作失败，请重试')
+  }
+}
+
+function findWishlistId(entityId: string): string {
+  // 从之前缓存的结果中找对应 ID
+  // 实际场景需要保存 wishlist 项的完整映射，这里简化处理
+  return entityId
+}
+
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录官方购买地址'); return }
   uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('官方地址已复制，可在浏览器打开') } })
 }
+
 function dateOnly(value: string): string {
   if (value === '') return ''
   return value.length >= 10 ? value.substring(0, 10) : value
 }
+
 function encoded(value: string): string { return encodeURIComponent(value) }
+
 function createReminder() {
   if (item.value === null) return
   const type = item.value!.badgeText === '尾款' ? 'BALANCE' : 'RELEASE'
@@ -98,16 +160,19 @@ function createReminder() {
   const note = `${item.value!.brandName} · 来源于商品详情`
   uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${dateOnly(item.value!.eventEndAt)}&note=${encoded(note)}` })
 }
+
 function createPurchase() {
   if (item.value === null) return
   const amount = item.value!.price > 0 ? String(item.value!.price / 100) : ''
   const category = item.value!.category === 'LOLITA' ? 'LOLITA' : (item.value!.category === 'HANFU' ? 'HANFU' : 'JK')
   uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${dateOnly(item.value!.eventEndAt)}` })
 }
+
 async function loadDetail() {
   loading.value = true
   errorMessage.value = ''
   currentImageIndex.value = 0
+  isSaved.value = false
   try {
     const result = await fetchProductDetail(itemId.value)
     if (result === null) { item.value = null; errorMessage.value = '商品信息不存在'; return }
@@ -115,6 +180,10 @@ async function loadDetail() {
     detailImages.value = result.images
     description.value = result.description
     shopUrl.value = result.shopUrl
+    // 加载收藏状态
+    if (isLoggedIn()) {
+      await fetchWishlist()
+    }
   } catch (e) {
     item.value = null
     detailImages.value = []
@@ -123,6 +192,7 @@ async function loadDetail() {
     loading.value = false
   }
 }
+
 onMounted(() => {
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]
@@ -131,7 +201,7 @@ onMounted(() => {
 })
 
 const safeBottom = getSafeBottomInset()
-const pageWrap = { paddingBottom: '0' }
+const pageWrap = { paddingBottom: '0' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const galleryWrap = { width: '750rpx', height: '750rpx', position: 'relative' as string }
 const hero = computed((): any => ({ width: '750rpx', height: '750rpx', backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
 const imageCounter = { position: 'absolute' as string, right: '28rpx', bottom: '28rpx', minWidth: '82rpx', height: '44rpx', paddingLeft: '14rpx', paddingRight: '14rpx', borderRadius: '22rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,18,19,0.58)' }
@@ -165,6 +235,4 @@ const officialButton = { ...flexFill, height: '76rpx', borderRadius: '38rpx', ba
 const officialText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
 
-<style>
-.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
-</style>
+

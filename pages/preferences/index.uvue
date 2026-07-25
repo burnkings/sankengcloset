@@ -32,11 +32,11 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, GROUP_GAP } from '@/theme/tokens/responsive'
+import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, GROUP_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -80,7 +80,7 @@ function onReset() {
 
 // ====== Styles ======
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const descText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '32rpx' }))
 const hintText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginBottom: '20rpx' }))
 const pitRow = { ...flexRow, marginBottom: '40rpx' }
@@ -108,13 +108,11 @@ function contentChip(idx: number, item: string) {
   }
 }
 function contentText(item: string) {
-  return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: isContentSelected(item) ? '#FFFFFF' : n.value.textSecondary }
+  return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: isContentSelected(item) ? baseColors.white : n.value.textSecondary }
 }
 const resetRow = { alignItems: 'center', paddingTop: '24rpx', paddingBottom: '24rpx' }
 const resetText = { fontSize: fontSize.sm, color: brand[600] }
 const footerNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', marginTop: '24rpx' }))
 </script>
 
-<style>
-.page-canvas { padding-left: 40rpx; padding-right: 40rpx; }
-</style>
+
