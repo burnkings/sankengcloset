@@ -82,7 +82,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, themeMode, initPageTheme } from '@/theme/use-theme'
+import { n, isDark, themeMode, initPageTheme, toggleDarkMode, getThemeLabel } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -135,24 +135,24 @@ function onManageTap(id: string) {
 }
 function onSettingTap(id: string) {
   if (id === 'dark') {
-    goPage('/pages/preferences/index')
+    toggleDarkMode()
     return
   }
-  if (id === 'notification') { showFeedback('通知设置功能即将开放'); return }
+  if (id === 'notification') { showFeedback('功能开发中'); return }
   if (id === 'preferences') {
     uni.navigateTo({ url: '/pages/preferences/index' })
     return
   }
   if (id === 'privacy') {
-    showFeedback('隐私与权限设置即将开放')
+    showFeedback('功能开发中')
     return
   }
   if (id === 'agreement') {
-    showFeedback('用户协议页面即将开放')
+    showFeedback('功能开发中')
     return
   }
   if (id === 'policy') {
-    showFeedback('隐私政策页面即将开放')
+    showFeedback('功能开发中')
     return
   }
   if (id === 'about') {

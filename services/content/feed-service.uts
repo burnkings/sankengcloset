@@ -1,6 +1,9 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { createRequestId } from '@/domain/platform/api-contract'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
+import { getRuntimeConfig } from '@/config/runtime'
+
+const __DEV__ = false
 
 export class FeedPage {
   items: FeedItem[] = []
@@ -54,7 +57,13 @@ function categoryCode(category: string): string {
 async function fetchRemoteFeed(pageIndex: number, channel: string, category: string): Promise<FeedPage> {
   const offset = Math.max(pageIndex, 0) * 20
   const path = `/api/v1/feed?cursor=${offset}&limit=20&channel=${encodeQuery(channelCode(channel))}&category=${encodeQuery(categoryCode(category))}`
+  if (__DEV__) console.log('[Feed] request:', getRuntimeConfig().apiBaseUrl + path)
   const response = await apiGet(path)
+  if (__DEV__) {
+    console.log('[Feed] HTTP status:', response.statusCode)
+    const first = Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : null
+    if (first != null) console.log('[Feed] first:', JSON.stringify({ id: first.id, title: first.title, coverUrl: first.coverUrl }))
+  }
   const rawItems = response.data as any[]
   const result = new FeedPage()
   result.requestId = response.requestId
