@@ -86,16 +86,16 @@ const errorStyle = computed((): any => ({
   position: 'absolute',
   top: '0', left: '0', right: '0', bottom: '0',
   alignItems: 'center', justifyContent: 'center',
-  backgroundColor: neutralLight.bgTertiary,
+  backgroundColor: n.value.bgTertiary,
   borderRadius: props.radiusToken,
 }))
 
-const errorTextStyle = {
+const errorTextStyle = computed((): any => ({
   fontSize: '22rpx',
-  color: 'rgba(82,55,64,0.48)',
+  color: n.value.textTertiary,
   fontWeight: '600',
   marginTop: '18rpx',
-}
+}))
 
 const errorArtStyle = {
   width: '112rpx', height: '88rpx',
