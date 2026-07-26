@@ -96,12 +96,13 @@ function syncFromGlobal(): boolean {
 }
 
 function applySystemChrome() {
-  // #ifdef MP-WEIXIN
   const palette = _state.isDark ? neutralDark : neutralLight
+  // Android 与微信端都需要显式同步顶部系统栏；页面 token 不能自动改变原生栏颜色。
   uni.setNavigationBarColor({
     frontColor: _state.isDark ? '#ffffff' : '#000000',
     backgroundColor: palette.bg,
   })
+  // #ifdef MP-WEIXIN
   uni.setBackgroundColor({
     backgroundColor: palette.bg,
     backgroundColorTop: palette.bg,
