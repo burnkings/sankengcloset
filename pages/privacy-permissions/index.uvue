@@ -1,0 +1,42 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="隐私与权限" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="hero"><text :style="heroTitle">你的数据由你决定</text><text :style="heroDesc">三坑绮橱按功能申请权限；不使用时不会主动读取相册、相机或发送通知。</text></view>
+        <V2SectionHeader title="权限使用说明" />
+        <V2ListGroup><view v-for="(item, idx) in permissions" :key="item.title" :style="shell(idx, permissions.length)"><view :style="row"><view :style="copy"><text :style="label">{{ item.title }}</text><text :style="desc">{{ item.desc }}</text></view><text :style="status">{{ item.status }}</text></view></view></V2ListGroup>
+        <V2SectionHeader title="数据与控制" />
+        <V2ListGroup><view v-for="(item, idx) in controls" :key="item.title" :style="shell(idx, controls.length)" @tap="onControl(item.id)"><view :style="row"><view :style="copy"><text :style="label">{{ item.title }}</text><text :style="desc">{{ item.desc }}</text></view><text :style="arrow">›</text></view></view></V2ListGroup>
+        <text :style="note">登录时仅在你主动操作后使用微信临时授权 code 创建会话；商品浏览会请求三坑绮橱 API。相册照片仅用于你主动发布动态。</text>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import { showFeedback } from '@/utils/feedback'
+const permissions = [{ title: '相册与相机', desc: '仅在你发布圈子动态、主动选择或拍摄图片时申请', status: '按需使用' }, { title: '通知', desc: '用于价格、发售、提醒和互动消息；可在通知设置关闭类别', status: '系统管理' }, { title: '本地存储', desc: '保存你的偏好、收藏、提醒和本机发布记录', status: '必要' }]
+const controls = [{ id: 'notifications', title: '通知设置', desc: '管理商品、提醒、互动和系统通知类别' }, { id: 'cache', title: '本机数据说明', desc: '清理缓存不会清除衣橱、收藏、提醒和已发布动态' }]
+function onControl(id: string) { if (id === 'notifications') { uni.navigateTo({ url: '/pages/notification-settings/index' }); return }; showFeedback('本机内容数据保存在此设备；删除 App 前请先确认需要保留的内容') }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const hero = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '12rpx' }))
+const heroTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const heroDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx', marginTop: '10rpx' }))
+function shell(index: number, total: number) { return { borderBottomWidth: index < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
+const row = { ...flexRow, alignItems: 'center', minHeight: '114rpx', paddingLeft: '20rpx', paddingRight: '20rpx' }
+const copy = { ...flexFill, paddingRight: '12rpx' }
+const label = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const desc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx', marginTop: '6rpx' }))
+const status = { fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: brand[600] }
+const arrow = computed((): any => ({ fontSize: fontSize.lg, color: n.value.textTertiary }))
+const note = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '36rpx', marginTop: '30rpx', marginBottom: '30rpx' }))
+</script>
