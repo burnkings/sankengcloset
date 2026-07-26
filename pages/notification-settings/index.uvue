@@ -1,44 +1,20 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
     <template #navbar><AppNavbar title="通知设置" :show-back="true" /></template>
-    <template #default>
-      <view class="page-canvas" :style="pageWrap">
-        <view :style="permissionCard">
-          <view :style="permissionCopy">
-            <text :style="permissionTitle">推送权限</text>
-            <text :style="permissionDesc">{{ permissionHint }}</text>
-          </view>
-          <view :style="permissionAction" @tap="openPermissionSettings"><text :style="permissionActionText">去设置</text></view>
-        </view>
-
-        <V2SectionHeader title="商品与购买" />
-        <V2ListGroup>
-          <view v-for="(item, idx) in commerceItems" :key="item.id" :style="rowShell(idx, commerceItems.length)" @tap="toggle(item.id)">
-            <view :style="rowStyle"><view :style="copyStyle"><text :style="labelStyle">{{ item.label }}</text><text :style="descStyle">{{ item.desc }}</text></view><text :style="switchStyle(item.enabled)">{{ item.enabled ? '已开启' : '已关闭' }}</text></view>
-          </view>
-        </V2ListGroup>
-
-        <V2SectionHeader title="提醒与互动" />
-        <V2ListGroup>
-          <view v-for="(item, idx) in socialItems" :key="item.id" :style="rowShell(idx, socialItems.length)" @tap="toggle(item.id)">
-            <view :style="rowStyle"><view :style="copyStyle"><text :style="labelStyle">{{ item.label }}</text><text :style="descStyle">{{ item.desc }}</text></view><text :style="switchStyle(item.enabled)">{{ item.enabled ? '已开启' : '已关闭' }}</text></view>
-          </view>
-        </V2ListGroup>
-
-        <V2SectionHeader title="其他" />
-        <V2ListGroup>
-          <view :style="rowShell(0, 1)" @tap="toggle('system')">
-            <view :style="rowStyle"><view :style="copyStyle"><text :style="labelStyle">系统与服务</text><text :style="descStyle">重要功能更新与账户安全提醒</text></view><text :style="switchStyle(settings.system)">{{ settings.system ? '已开启' : '已关闭' }}</text></view>
-          </view>
-        </V2ListGroup>
-        <text :style="footerText">关闭某一类后，将不再在通知中心展示该类新消息。价格与发售提醒仍以你已设置的提醒规则为准。</text>
-      </view>
-    </template>
+    <template #default><view class="page-canvas" :style="pageWrap">
+      <view :style="permissionCard"><view :style="permissionCopy"><text :style="permissionTitle">系统通知权限</text><text :style="permissionDesc">手机系统权限决定是否能收到 App 外推送</text></view><view :style="permissionAction" @tap="openPermissionSettings"><text :style="permissionActionText">查看说明</text></view></view>
+      <V2SectionHeader title="商品与购买" />
+      <V2ListGroup><view v-for="(item, idx) in commerceItems" :key="item.id" :style="rowShell(idx, commerceItems.length)" @tap="toggle(item.id)"><view :style="rowStyle"><view :style="copyStyle"><text :style="labelStyle">{{ item.label }}</text><text :style="descStyle">{{ item.desc }}</text></view><view :style="toggleStyle(item.enabled)"><view :style="thumbStyle(item.enabled)" /></view></view></view></V2ListGroup>
+      <V2SectionHeader title="提醒与互动" />
+      <V2ListGroup><view v-for="(item, idx) in socialItems" :key="item.id" :style="rowShell(idx, socialItems.length)" @tap="toggle(item.id)"><view :style="rowStyle"><view :style="copyStyle"><text :style="labelStyle">{{ item.label }}</text><text :style="descStyle">{{ item.desc }}</text></view><view :style="toggleStyle(item.enabled)"><view :style="thumbStyle(item.enabled)" /></view></view></view></V2ListGroup>
+      <V2SectionHeader title="其他" />
+      <V2ListGroup><view :style="rowShell(0, 1)" @tap="toggle('system')"><view :style="rowStyle"><view :style="copyStyle"><text :style="labelStyle">系统与服务</text><text :style="descStyle">重要功能更新与账户安全提醒</text></view><view :style="toggleStyle(settings.system)"><view :style="thumbStyle(settings.system)" /></view></view></view></V2ListGroup>
+      <text :style="footerText">关闭某一类后，该类消息不会在通知中心显示。系统推送权限需在手机设置中单独管理。</text>
+    </view></template>
   </MainLayout>
 </template>
-
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
@@ -48,65 +24,28 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import { showFeedback } from '@/utils/feedback'
-
 const STORAGE_KEY = 'v25_notification_preferences'
-class NotificationSettings {
-  priceDrop: boolean = true
-  release: boolean = true
-  reminder: boolean = true
-  interaction: boolean = true
-  system: boolean = true
-}
-function readSettings(): NotificationSettings {
-  const value = new NotificationSettings()
-  try {
-    const raw: any = uni.getStorageSync(STORAGE_KEY)
-    if (raw != null && typeof raw === 'object') {
-      value.priceDrop = raw.priceDrop !== false
-      value.release = raw.release !== false
-      value.reminder = raw.reminder !== false
-      value.interaction = raw.interaction !== false
-      value.system = raw.system !== false
-    }
-  } catch (e) {}
-  return value
-}
+class NotificationSettings { priceDrop: boolean = true; release: boolean = true; reminder: boolean = true; interaction: boolean = true; system: boolean = true }
+function readSettings(): NotificationSettings { const value = new NotificationSettings(); try { const raw: any = uni.getStorageSync(STORAGE_KEY); if (raw != null && typeof raw === 'object') { value.priceDrop = raw.priceDrop !== false; value.release = raw.release !== false; value.reminder = raw.reminder !== false; value.interaction = raw.interaction !== false; value.system = raw.system !== false } } catch (e) {}; return value }
 const settings = ref(readSettings())
-const permissionHint = ref('系统推送权限需要在手机设置中开启')
 function save() { uni.setStorageSync(STORAGE_KEY, settings.value) }
-function toggle(id: string) {
-  if (id === 'priceDrop') settings.value.priceDrop = !settings.value.priceDrop
-  if (id === 'release') settings.value.release = !settings.value.release
-  if (id === 'reminder') settings.value.reminder = !settings.value.reminder
-  if (id === 'interaction') settings.value.interaction = !settings.value.interaction
-  if (id === 'system') settings.value.system = !settings.value.system
-  save()
-}
-const commerceItems = computed(() => [
-  { id: 'priceDrop', label: '降价提醒', desc: '收藏商品出现新的低价时通知我', enabled: settings.value.priceDrop },
-  { id: 'release', label: '上新与发售', desc: '关注品牌上新、预约、定金与尾款节点', enabled: settings.value.release },
-])
-const socialItems = computed(() => [
-  { id: 'reminder', label: '我的提醒', desc: '尾款、发售、穿搭计划等到期提醒', enabled: settings.value.reminder },
-  { id: 'interaction', label: '圈子互动', desc: '我的动态收到点赞、评论或关注时通知', enabled: settings.value.interaction },
-])
-function openPermissionSettings() {
-  showFeedback('请在系统设置中允许三坑绮橱发送通知')
-}
-onShow(() => { permissionHint.value = '通知类别已保存；系统推送权限请在手机设置中管理' })
-
+function toggle(id: string) { if (id === 'priceDrop') settings.value.priceDrop = !settings.value.priceDrop; if (id === 'release') settings.value.release = !settings.value.release; if (id === 'reminder') settings.value.reminder = !settings.value.reminder; if (id === 'interaction') settings.value.interaction = !settings.value.interaction; if (id === 'system') settings.value.system = !settings.value.system; save() }
+const commerceItems = computed(() => [{ id: 'priceDrop', label: '降价提醒', desc: '收藏商品出现新的低价时通知我', enabled: settings.value.priceDrop }, { id: 'release', label: '上新与发售', desc: '关注品牌上新、预约、定金与尾款节点', enabled: settings.value.release }])
+const socialItems = computed(() => [{ id: 'reminder', label: '我的提醒', desc: '尾款、发售、穿搭计划等到期提醒', enabled: settings.value.reminder }, { id: 'interaction', label: '圈子互动', desc: '我的动态收到点赞、评论或关注时通知', enabled: settings.value.interaction }])
+function openPermissionSettings() { showFeedback('请在手机系统设置中允许三坑绮橱发送通知') }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const permissionCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '24rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const permissionCopy = { ...flexFill }
 const permissionTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const permissionDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
-const permissionAction = { minWidth: '104rpx', height: '58rpx', borderRadius: '29rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
+const permissionAction = { minWidth: '118rpx', height: '58rpx', borderRadius: '29rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
 const permissionActionText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
-function rowShell(index: number, total: number) { return { borderBottomWidth: index < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
-const rowStyle = { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '20rpx' }
+function rowShell(index: number, total: number) { return { borderBottomWidth: index < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+const rowStyle = { ...flexRow, alignItems: 'center', minHeight: '116rpx', paddingLeft: '20rpx', paddingRight: '20rpx' }
 const copyStyle = { ...flexFill, paddingRight: '16rpx' }
 const labelStyle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const descStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '5rpx' }))
-function switchStyle(enabled: boolean) { return { minWidth: '92rpx', height: '48rpx', borderRadius: '24rpx', backgroundColor: enabled ? brand[50] : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: enabled ? brand[700] : n.value.textTertiary } }
+function toggleStyle(enabled: boolean) { return { width: '82rpx', height: '48rpx', borderRadius: '24rpx', backgroundColor: enabled ? brand[600] : n.value.bgSecondary, paddingLeft: '4rpx', paddingRight: '4rpx', justifyContent: enabled ? 'flex-end' : 'flex-start', alignItems: 'center' } }
+function thumbStyle(enabled: boolean) { return { width: '40rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: baseColors.white } }
 const footerText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '36rpx', marginTop: '32rpx', marginBottom: '32rpx' }))
 </script>
