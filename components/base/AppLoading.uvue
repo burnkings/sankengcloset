@@ -6,6 +6,7 @@
 </template>
 
 <script setup lang="uts">
+import { n } from '@/theme/use-theme'
 import { brand } from '@/theme/tokens/colors'
 import { spacing } from '@/theme/tokens/spacing'
 import { fontSize } from '@/theme/tokens/typography'
@@ -32,7 +33,7 @@ const wrapperStyle = computed((): any => ({
     left: '0',
     right: '0',
     bottom: '0',
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: n.value.overlay,
     zIndex: zIndex.loading } : {}) }))
 
 const spinnerStyle = computed((): any => ({
