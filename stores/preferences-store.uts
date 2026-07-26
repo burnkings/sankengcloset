@@ -80,15 +80,16 @@ export const usePreferencesStore = defineStore('preferences', () => {
   }
 
   function togglePitType(type: string) {
-    if (type === '') return
+    const normalized = type === 'Lolita' ? 'LOLITA' : type
+    if (normalized === '') return
     const prefs = preferences.value
     const values = [] as string[]
     for (let i = 0; i < prefs.pitTypes.length; i++) values.push(prefs.pitTypes[i])
-    const idx = values.indexOf(type)
+    const idx = values.indexOf(normalized)
     if (idx >= 0) {
       values.splice(idx, 1)
     } else {
-      values.push(type)
+      values.push(normalized)
     }
     preferences.value.pitTypes = values
     savePreferences()
