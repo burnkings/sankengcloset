@@ -3,117 +3,50 @@
     <template #navbar><AppNavbar title="内容偏好" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-
-        <!-- 坑向偏好 -->
-        <V2SectionHeader title="坑向偏好" :compact="true" />
-        <text :style="hintText">选择你感兴趣的坑向，相关内容会优先展示</text>
+        <view :style="introCard">
+          <text :style="introTitle">选择你喜欢的坑向</text>
+          <text :style="introDesc">首页「推荐」会优先展示所选坑向；可多选，全部取消时不限制内容。</text>
+        </view>
         <view :style="pitRow">
           <view v-for="(item, idx) in pitItems" :key="item" :style="pitChip(idx, item)" @tap="togglePit(item)">
             <text :style="pitText(item)">{{ item }}</text>
           </view>
         </view>
-
-        <V2SectionHeader title="内容偏好" :compact="true" />
-        <text :style="hintText">选择你关注的内容类型</text>
-        <view :style="contentRow">
-          <view v-for="(item, idx) in contentItems" :key="item" :style="contentChip(idx, item)" @tap="toggleContent(item)">
-            <text :style="contentText(item)">{{ item }}</text>
-          </view>
-        </view>
-
-        <view :style="resetRow" @tap="onReset">
-          <text :style="resetText">重置为默认偏好</text>
-        </view>
-
-        <text :style="footerNote">修改后首页 Feed 下次刷新即生效</text>
+        <view :style="resetRow" @tap="onReset"><text :style="resetText">重置为全部坑向</text></view>
+        <text :style="footerNote">保存后回到首页，下次刷新即生效</text>
       </view>
     </template>
   </MainLayout>
 </template>
 
 <script setup lang="uts">
-import { brand, baseColors } from '@/theme/tokens/colors'
-import { radius } from '@/theme/tokens/radius'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, GROUP_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { usePreferencesStore } from '@/stores/preferences-store'
 
-// ====== 现有偏好逻辑 ======
-
 const prefs = usePreferencesStore()
-
 const pitItems = ['JK', 'Lolita', '汉服']
-const contentItems = ['新品', '预约', '现货', '降价', '图透', '穿搭']
-
 function isPitSelected(name: string): boolean {
   const code = name === 'Lolita' ? 'LOLITA' : name
-  const values = prefs.preferences.pitTypes
-  for (let i = 0; i < values.length; i++) {
-    if (values[i] === code) return true
-  }
-  return false
+  return prefs.preferences.pitTypes.indexOf(code) >= 0
 }
+function togglePit(name: string) { prefs.togglePitType(name) }
+function onReset() { prefs.resetPreferences(); showFeedback('已恢复全部坑向') }
 
-function isContentSelected(name: string): boolean {
-  const values = prefs.preferences.contentTypes
-  for (let i = 0; i < values.length; i++) {
-    if (values[i] === name) return true
-  }
-  return false
-}
-
-function togglePit(name: string) {
-  prefs.togglePitType(name)
-}
-
-function toggleContent(name: string) {
-  prefs.toggleContentType(name)
-}
-
-function onReset() {
-  prefs.resetPreferences()
-  showFeedback('已重置为默认偏好')
-}
-
-// ====== Styles ======
-
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const descText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '32rpx' }))
-const hintText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginBottom: '20rpx' }))
-const pitRow = { ...flexRow, marginBottom: '40rpx' }
-function pitChip(idx: number, item: string) {
-  const selected = isPitSelected(item)
-  return {
-    width: '200rpx', height: '88rpx', borderRadius: CARD_RADIUS,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: selected ? (brand[50]) : n.value.surface,
-    borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200],
-    marginRight: idx < 2 ? GROUP_GAP : '0',
-  }
-}
-function pitText(item: string) {
-  return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand[700] : n.value.textSecondary }
-}
-const contentRow = { ...flexRow, flexWrap: 'wrap' as string, marginBottom: '48rpx' }
-function contentChip(idx: number, item: string) {
-  const selected = isContentSelected(item)
-  return {
-    minWidth: '140rpx', height: '72rpx', borderRadius: radius.full, paddingLeft: '24rpx', paddingRight: '24rpx',
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: selected ? brand[600] : n.value.surface,
-    marginRight: '16rpx', marginBottom: '16rpx',
-  }
-}
-function contentText(item: string) {
-  return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: isContentSelected(item) ? baseColors.white : n.value.textSecondary }
-}
-const resetRow = { alignItems: 'center', paddingTop: '24rpx', paddingBottom: '24rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const introCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '28rpx' }))
+const introTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const introDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx', marginTop: '10rpx' }))
+const pitRow = { ...flexRow, marginBottom: '36rpx' }
+function pitChip(idx: number, item: string) { const selected = isPitSelected(item); return { width: '200rpx', height: '100rpx', borderRadius: CARD_RADIUS, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? brand[50] : n.value.surface, borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200], marginRight: idx < 2 ? GROUP_GAP : '0' } }
+function pitText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand[700] : n.value.textSecondary } }
+const resetRow = { alignItems: 'center', paddingTop: '20rpx', paddingBottom: '20rpx' }
 const resetText = { fontSize: fontSize.sm, color: brand[600] }
-const footerNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', marginTop: '24rpx' }))
+const footerNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', marginTop: '28rpx' }))
 </script>
