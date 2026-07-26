@@ -182,7 +182,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     errorMessage.value = ''
     try {
       if (DEBUG_FORCE_ERROR) throw new Error('网络连接失败，请重试')
-      const page = await fetchFeedPage(0)
+      const page = await fetchFeedPage(0, currentChannel.value, currentCategory.value)
       allItems.value = page.items
       currentPage.value = 1
       hasMore.value = page.hasMore
@@ -198,7 +198,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     if (isLoadingMore.value || !hasMore.value || state.value !== 'loaded') return
     isLoadingMore.value = true
     try {
-      const page = await fetchFeedPage(currentPage.value)
+      const page = await fetchFeedPage(currentPage.value, currentChannel.value, currentCategory.value)
       if (page.items.length === 0) {
         hasMore.value = false
       } else {
@@ -225,12 +225,13 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
   function setChannel(ch: string) {
     if (ch === currentChannel.value) return
     currentChannel.value = ch
-    // displayItems computed 自动重算，hasMore 基于全量数据
+    loadFirstPage()
   }
 
   function setCategory(category: string) {
     if (category === currentCategory.value) return
     currentCategory.value = category
+    loadFirstPage()
   }
 
   // 重试
