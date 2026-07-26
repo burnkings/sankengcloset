@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
+import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM, NOTICE_REMINDER } from '@/domain/notification/app-notification'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 const READ_IDS_KEY = 'v21_notification_read_ids'
@@ -13,7 +13,14 @@ function readIds(): string[] {
   }
 }
 
-function mockNotifications(): AppNotification[] {
+function readEnabled(key: string): boolean {
+  try {
+    const raw: any = uni.getStorageSync('v25_notification_preferences')
+    return raw == null || typeof raw !== 'object' || raw[key] !== false
+  } catch (e) { return true }
+}
+
+function buildLocalNotifications(): AppNotification[] {
   const now = Date.now()
   const items: AppNotification[] = []
 
@@ -35,6 +42,15 @@ function mockNotifications(): AppNotification[] {
   price.actionTarget = '/pages/favorites/index'
   items.push(price)
 
+  const reminder = new AppNotification()
+  reminder.id = 'notice_reminder_01'
+  reminder.type = NOTICE_REMINDER
+  reminder.title = '你有一条待办提醒'
+  reminder.body = '请检查即将到期的尾款、发售或穿搭计划。'
+  reminder.createdAt = String(now - 3 * 3600000)
+  reminder.actionTarget = '/pages/reminder/index'
+  items.push(reminder)
+
   const social = new AppNotification()
   social.id = 'notice_social_01'
   social.type = NOTICE_SOCIAL
@@ -47,8 +63,8 @@ function mockNotifications(): AppNotification[] {
   const system = new AppNotification()
   system.id = 'notice_system_01'
   system.type = NOTICE_SYSTEM
-  system.title = 'V2.1 后端就绪体验已开启'
-  system.body = '账号、通知与同步目前使用本地 Mock，不代表云端已经保存。'
+  system.title = '服务与体验更新'
+  system.body = '通知偏好已生效；系统推送权限请在手机设置中管理。'
   system.createdAt = String(now - 24 * 3600000)
   system.actionTarget = '/pages/preferences/index'
   items.push(system)
@@ -59,11 +75,21 @@ export const useNotificationCenterStore = defineStore('notificationCenter', () =
   const items = ref([]) as Ref<AppNotification[]>
   const activeType = ref('all')
   const unreadCount = computed((): number => items.value.filter((item) => !item.read).length)
-  const visibleItems = computed((): AppNotification[] => activeType.value === 'all' ? items.value : items.value.filter((item) => item.type === activeType.value))
+  function isEnabled(item: AppNotification): boolean {
+    if (item.type === NOTICE_PRICE) return readEnabled('priceDrop')
+    if (item.type === NOTICE_RELEASE) return readEnabled('release')
+    if (item.type === NOTICE_REMINDER) return readEnabled('reminder')
+    if (item.type === NOTICE_SOCIAL) return readEnabled('interaction')
+    return readEnabled('system')
+  }
+  const visibleItems = computed((): AppNotification[] => {
+    const enabled = items.value.filter((item) => isEnabled(item))
+    return activeType.value === 'all' ? enabled : enabled.filter((item) => item.type === activeType.value)
+  })
 
   function reload() {
     const savedReadIds = readIds()
-    const next = mockNotifications()
+    const next = buildLocalNotifications()
     for (let i = 0; i < next.length; i++) next[i].read = savedReadIds.indexOf(next[i].id) >= 0
     items.value = next
   }
