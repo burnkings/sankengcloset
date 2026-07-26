@@ -2,6 +2,7 @@ export const NOTICE_RELEASE = 'release'
 export const NOTICE_PRICE = 'price'
 export const NOTICE_SOCIAL = 'social'
 export const NOTICE_SYSTEM = 'system'
+export const NOTICE_REMINDER = 'reminder'
 
 export class AppNotification {
   id: string = ''
