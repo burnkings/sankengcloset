@@ -33,7 +33,7 @@
         </view>
 
         <view :style="publishButton" @tap="publishLook">
-          <text :style="publishText">发布到圈子</text>
+          <text :style="publishText">{{ isPublishing ? '发布中…' : '发布到圈子' }}</text>
         </view>
         <text :style="privacyNote">当前内容仅保存在本机；登录同步上线后可在多端继续查看。</text>
       </view>
@@ -65,6 +65,7 @@ const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服', '混搭']
 const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const library = useContentLibraryStore()
+const isPublishing = ref(false)
 
 function choosePhoto() {
   uni.chooseImage({
@@ -78,16 +79,18 @@ function choosePhoto() {
 }
 
 function publishLook() {
-  if (selectedImage.value === '') {
-    showFeedback('先选一张想分享的美照')
-    return
-  }
-  const completePublish = (imagePath: string) => {
-    library.saveOutfit(imagePath, caption.value, category.value, topic.value)
+  // Android 点击事件可能在页面跳转前连续触发；提交期间必须直接拦截。
+  if (isPublishing.value) return
+  if (selectedImage.value === '') { showFeedback('先选一张想分享的美照'); return }
+  isPublishing.value = true
+  try {
+    library.saveOutfit(selectedImage.value, caption.value, category.value, topic.value)
     showFeedback('已发布到圈子')
     setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
+  } finally {
+    // 留出导航和存储落盘时间，避免快速连点产生两条记录。
+    setTimeout(() => { isPublishing.value = false }, 700)
   }
-  completePublish(selectedImage.value)
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
@@ -105,7 +108,7 @@ function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight
 const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
 function topicChip(idx: number, item: string) { return { minHeight: '64rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value === item ? brand[50] : n.value.surface, borderWidth: topic.value === item ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200], marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
 function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: topic.value === item ? brand[700] : n.value.textSecondary } }
-const publishButton = { width: '670rpx', height: '88rpx', borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }
+const publishButton = computed((): any => ({ width: '670rpx', height: '88rpx', opacity: isPublishing.value ? 0.6 : 1, borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }))
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
 </script>
