@@ -129,7 +129,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
   const currentChannel = ref('推荐')
   const currentCategory = ref('全部')
   const allItems = ref([]) as Ref<FeedItem[]>
-  const currentPage = ref(0)
+  const nextCursor = ref('0')
   const isLoadingMore = ref(false)
   const hasMore = ref(true)
   const errorMessage = ref('')
@@ -208,14 +208,14 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     errorMessage.value = ''
     try {
       if (DEBUG_FORCE_ERROR) throw new Error('网络连接失败，请重试')
-      const page = await fetchFeedPage(0, currentChannel.value, currentCategory.value)
+      const page = await fetchFeedPage('0', currentChannel.value, currentCategory.value)
       allItems.value = page.items
-      currentPage.value = 1
+      nextCursor.value = page.nextCursor
       hasMore.value = page.hasMore
       state.value = 'loaded'
     } catch (e) {
       state.value = 'error'
-      errorMessage.value = e instanceof Error ? e.message : '加载失败'
+      errorMessage.value = e instanceof Error ? e.message : '加载失败，请检查网络后重试'
     }
   }
 
@@ -224,7 +224,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     if (isLoadingMore.value || !hasMore.value || state.value !== 'loaded') return
     isLoadingMore.value = true
     try {
-      const page = await fetchFeedPage(currentPage.value, currentChannel.value, currentCategory.value)
+      const page = await fetchFeedPage(nextCursor.value, currentChannel.value, currentCategory.value)
       if (page.items.length === 0) {
         hasMore.value = false
       } else {
@@ -237,7 +237,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
         } else {
           allItems.value = merged
         }
-        currentPage.value += 1
+        nextCursor.value = page.nextCursor
         hasMore.value = page.hasMore
       }
     } catch (e) {
@@ -297,6 +297,7 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
       errorMessage,
       currentChannel,
       currentCategory,
+      nextCursor,
       allItems,
       displayItems,
       feedRows,
