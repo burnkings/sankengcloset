@@ -117,7 +117,7 @@ function logout() {
   showFeedback('已退出，设备数据仍保留')
 }
 function goPage(url: string) { uni.navigateTo({ url }) }
-function openCommunity() { openPrimaryTab('/pages/community/index') }
+function openCommunity() { goPage('/pages/my-posts/index') }
 function onManageTap(id: string) {
   if (id === 'favorites') goPage('/pages/favorites/index')
   if (id === 'orders') goPage('/pages/purchase/index')
@@ -130,7 +130,7 @@ function onSettingTap(id: string) {
     showFeedback(themeMode.value === 'dark' ? '已切换为深色模式' : '已切换为浅色模式')
     return
   }
-  if (id === 'notification') { showFeedback('通知设置功能即将开放'); return }
+  if (id === 'notification') {\n    goPage('/pages/notification-settings/index')\n    return\n  }
   if (id === 'preferences') {
     uni.navigateTo({ url: '/pages/preferences/index' })
     return
