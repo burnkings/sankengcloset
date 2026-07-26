@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="uts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -210,7 +210,6 @@ const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 
-const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '48rpx' }
 const settingsItems = computed(() => {
   const items: Array<{id: string, icon: string, label: string, value: string, section: string}> = [
     { id: 'dark', icon: 'moon', label: '深色模式', value: getThemeLabel(), section: 'settings' },
