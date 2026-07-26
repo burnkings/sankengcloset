@@ -112,15 +112,6 @@ function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
 }
 
 
-function matchesContentPreference(item: FeedItem, types: string[]): boolean {
-  if (types.indexOf(item.badgeText) >= 0) return true
-  // 「预约」也包含定金阶段；「穿搭」对应 outfit 内容卡。
-  if (item.badgeText === '定金' && types.indexOf('预约') >= 0) return true
-  if (item.feedType === FEED_OUTFIT && types.indexOf('穿搭') >= 0) return true
-  // 图透数据没有独立 feedType 时，后端会以 badgeText 返回。
-  return false
-}
-
 // ====== Store ======
 
 export const useHomeFeedStore = defineStore('homeFeed', () => {
@@ -158,15 +149,6 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     // 这样偏好不再只是无感排序，而会真实减少不感兴趣的 Feed 项。
     if (ch === '推荐' && (category === '' || category === '全部')) {
       const pitTypes = prefs.preferences.pitTypes
-      const contentTypes = prefs.preferences.contentTypes
-      // 默认“全选”与“暂不选择”均视为不过滤，避免首屏丢掉无 badge 的正常商品。
-      // 只有用户明确缩小选择范围时，才按偏好收窄推荐内容。
-      if (pitTypes.length > 0 && pitTypes.length < 3) {
-        result = result.filter((item) => pitTypes.indexOf(item.category) >= 0)
-      }
-      if (contentTypes.length > 0 && contentTypes.length < 6) {
-        result = result.filter((item) => matchesContentPreference(item, contentTypes))
-      }
     }
 
     // 在已过滤的内容中，继续将关注品牌和偏好更强的单品排在前面。
