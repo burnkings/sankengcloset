@@ -1,0 +1,84 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="我的圈子" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view :style="summaryCard">
+          <view :style="summaryCopy"><text :style="summaryTitle">我发布的动态</text><text :style="summaryDesc">{{ library.outfitCount }} 条内容保存在这里</text></view>
+          <view :style="publishButton" @tap="goCreate"><text :style="publishText">发布</text></view>
+        </view>
+        <view v-if="library.outfitCount === 0" :style="emptyCard">
+          <AppIcon name="camera" :size="52" :active="true" />
+          <text :style="emptyTitle">还没有发布过动态</text>
+          <text :style="emptyDesc">记录今天的穿搭，让你的圈子慢慢丰富起来</text>
+          <view :style="emptyAction" @tap="goCreate"><text :style="emptyActionText">去发布第一条</text></view>
+        </view>
+        <view v-else v-for="post in library.outfitPosts" :key="post.id" :style="postCard">
+          <view :style="postImage"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
+          <view :style="postBody">
+            <view :style="metaRow"><text :style="tagText">#{{ post.topic }}</text><text :style="categoryText">{{ post.category }}</text></view>
+            <text :style="captionText">{{ post.caption !== '' ? post.caption : '今天也认真搭配了' }}</text>
+            <view :style="footerRow"><text :style="timeText">{{ formatTime(post.createdAt) }}</text><text :style="deleteText(post.id)" @tap="removePost(post.id)">{{ pendingDeleteId === post.id ? '再次点击确认删除' : '删除' }}</text></view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n, isDark } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { showFeedback } from '@/utils/feedback'
+
+const library = useContentLibraryStore()
+const pendingDeleteId = ref('')
+function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
+function removePost(id: string) {
+  if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
+  library.removeOutfit(id)
+  pendingDeleteId.value = ''
+  showFeedback('已删除这条动态')
+}
+function formatTime(raw: string): string {
+  const value = Number(raw)
+  if (isNaN(value) || value <= 0) return '刚刚发布'
+  const diff = Date.now() - value
+  if (diff < 60000) return '刚刚发布'
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前'
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前'
+  return Math.floor(diff / 86400000) + ' 天前'
+}
+onShow(() => { library.reload(); pendingDeleteId.value = '' })
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const summaryCopy = { ...flexFill }
+const summaryTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const summaryDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+const publishButton = { minWidth: '104rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
+const publishText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const emptyCard = computed((): any => ({ alignItems: 'center', paddingTop: '100rpx', paddingBottom: '84rpx', paddingLeft: '40rpx', paddingRight: '40rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '24rpx' }))
+const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, textAlign: 'center', lineHeight: '40rpx', marginTop: '10rpx' }))
+const emptyAction = { minWidth: '220rpx', height: '68rpx', borderRadius: '34rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center', marginTop: '32rpx' }
+const emptyActionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[700] }
+const postCard = computed((): any => ({ borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginTop: '24rpx' }))
+const postImage = { width: '670rpx', height: '620rpx' }
+const postBody = { padding: CARD_PADDING }
+const metaRow = { ...flexRow, alignItems: 'center' }
+const tagText = { ...flexFill, fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
+const categoryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const captionText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '12rpx' }))
+const footerRow = { ...flexRow, alignItems: 'center', marginTop: '18rpx' }
+const timeText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary }))
+function deleteText(id: string) { return { fontSize: fontSize.xs, color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary } }
+</script>
