@@ -17,7 +17,7 @@
           </view>
           <AppIcon name="chevron-right" :size="30" />
         </view>
-        <view :style="sourceNote"><text :style="sourceText">当前通知由本地 Mock 生成，用于验证分类、已读和跳转；系统推送将在服务端接入后启用。</text></view>
+        <view :style="sourceNote"><text :style="sourceText">通知中心会按你的通知偏好展示商品、提醒、互动与系统消息；系统推送权限在手机设置中管理。</text></view>
       </view>
     </template>
   </MainLayout>
@@ -25,7 +25,7 @@
 
 <script setup lang="uts">
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
-import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL } from '@/domain/notification/app-notification'
+import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_REMINDER } from '@/domain/notification/app-notification'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -40,11 +40,12 @@ import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 
 const notices = useNotificationCenterStore()
 const activeLabel = ref('全部')
-const filterLabels = ['全部', '发售', '降价', '互动', '系统']
+const filterLabels = ['全部', '发售', '降价', '提醒', '互动', '系统']
 
 function typeForLabel(label: string): string {
   if (label === '发售') return 'release'
   if (label === '降价') return 'price'
+  if (label === '提醒') return 'reminder'
   if (label === '互动') return 'social'
   if (label === '系统') return 'system'
   return 'all'
@@ -61,6 +62,7 @@ function iconName(type: string): string {
   if (type === NOTICE_RELEASE) return 'notification'
   if (type === NOTICE_PRICE) return 'budget'
   if (type === NOTICE_SOCIAL) return 'heart'
+  if (type === NOTICE_REMINDER) return 'reminder'
   return 'info'
 }
 function formatTime(value: string): string {
