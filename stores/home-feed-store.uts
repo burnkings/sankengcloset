@@ -159,10 +159,12 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     if (ch === '推荐' && (category === '' || category === '全部')) {
       const pitTypes = prefs.preferences.pitTypes
       const contentTypes = prefs.preferences.contentTypes
-      if (pitTypes.length > 0) {
+      // 默认“全选”与“暂不选择”均视为不过滤，避免首屏丢掉无 badge 的正常商品。
+      // 只有用户明确缩小选择范围时，才按偏好收窄推荐内容。
+      if (pitTypes.length > 0 && pitTypes.length < 3) {
         result = result.filter((item) => pitTypes.indexOf(item.category) >= 0)
       }
-      if (contentTypes.length > 0) {
+      if (contentTypes.length > 0 && contentTypes.length < 6) {
         result = result.filter((item) => matchesContentPreference(item, contentTypes))
       }
     }
