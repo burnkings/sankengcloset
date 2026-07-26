@@ -94,7 +94,7 @@ const visibleUserLooks = computed((): SavedOutfitPost[] => {
 function onTopicChange(topic: string) { activeTopic.value = topic }
 function onPitTypeChange(pit: string) { activePitType.value = pit }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
-function toggleLike(id: string) { library.togglePostLike(id) }
+function toggleLike(id: string) { if (!library.isOwnPost(id)) library.togglePostLike(id) }
 function likeCount(id: string, baseCount: number): number { return baseCount + (library.isPostLiked(id) ? 1 : 0) }
 function deleteOwnPost(id: string) {
   if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
