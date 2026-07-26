@@ -7,6 +7,7 @@ const STATE_KEY = 'v21_session_state'
 const USER_ID_KEY = 'v21_session_user_id'
 const NICKNAME_KEY = 'v21_session_nickname'
 const AVATAR_KEY = 'v25_session_avatar'
+const DEVICE_ID_KEY = 'v25_installation_id'
 
 export class SessionProfile {
   userId: string = ''
@@ -73,10 +74,15 @@ export const useSessionStore = defineStore('session', () => {
       if (code === '') throw new Error('微信授权未返回临时 code')
 
       // 2. 获取设备标识
-      let deviceId = ''
-      try {
-        deviceId = String((uni.getSystemInfoSync() as any).deviceId ?? '')
-      } catch (_) { /* deviceId 非必需 */ }
+      let deviceId = readString(DEVICE_ID_KEY)
+      if (deviceId === '') {
+        try { deviceId = String((uni.getSystemInfoSync() as any).deviceId ?? '') } catch (_) {}
+      }
+      // Android 上 deviceId 可能不可用；服务端仍要求稳定的安装标识，不能因此发送空字符串。
+      if (deviceId === '') {
+        deviceId = `sk-${Date.now()}-${Math.floor(Math.random() * 1000000000)}`
+        uni.setStorageSync(DEVICE_ID_KEY, deviceId)
+      }
 
       // 3. POST /api/v1/sessions/wechat
       const response = await apiPost('/api/v1/sessions/wechat', { code, deviceId })
