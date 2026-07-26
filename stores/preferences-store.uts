@@ -12,7 +12,7 @@ const STORAGE_KEY = 'v2_user_preferences'
 // ====== 默认值 ======
 
 const DEFAULT_PIT_TYPES = ['JK', 'LOLITA', 'HANFU']
-const DEFAULT_CONTENT_TYPES = ['新品', '预约', '现货', '降价', '图透', '穿搭']
+const DEFAULT_CONTENT_TYPES: string[] = []
 const DEFAULT_PRICE_RANGE = 'all'
 
 // ====== 持久化工具 ======
@@ -25,7 +25,7 @@ function readPreferences(): PreferencesData {
     if (parsed == null) return new PreferencesData()
     const data = new PreferencesData()
     if (parsed.pitTypes != null) data.pitTypes = parsed.pitTypes as string[]
-    if (parsed.contentTypes != null) data.contentTypes = parsed.contentTypes as string[]
+    // V2.5 只保留坑向偏好；兼容旧数据但不再使用具体内容类型。
     if (parsed.followedBrands != null) data.followedBrands = parsed.followedBrands as string[]
     if (parsed.priceRange != null) data.priceRange = String(parsed.priceRange)
     return data
@@ -95,21 +95,6 @@ export const usePreferencesStore = defineStore('preferences', () => {
     savePreferences()
   }
 
-  function toggleContentType(type: string) {
-    if (type === '') return
-    const prefs = preferences.value
-    const values = [] as string[]
-    for (let i = 0; i < prefs.contentTypes.length; i++) values.push(prefs.contentTypes[i])
-    const idx = values.indexOf(type)
-    if (idx >= 0) {
-      values.splice(idx, 1)
-    } else {
-      values.push(type)
-    }
-    preferences.value.contentTypes = values
-    savePreferences()
-  }
-
   function resetPreferences() {
     const defaults = new PreferencesData()
     // preserve followed brands on reset
@@ -127,15 +112,6 @@ export const usePreferencesStore = defineStore('preferences', () => {
     for (let i = 0; i < pitTypes.length; i++) {
       if (item.category === pitTypes[i]) {
         score += 100
-        break
-      }
-    }
-
-    // Badge text matches selected content types: +50
-    const contentTypes = prefs.contentTypes
-    for (let i = 0; i < contentTypes.length; i++) {
-      if (item.badgeText === contentTypes[i]) {
-        score += 50
         break
       }
     }
@@ -162,7 +138,6 @@ export const usePreferencesStore = defineStore('preferences', () => {
     setPitTypes,
     setContentTypes,
     togglePitType,
-    toggleContentType,
     resetPreferences,
     computeScore,
   }
