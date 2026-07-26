@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM, NOTICE_REMINDER } from '@/domain/notification/app-notification'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { useReminderStore } from '@/stores/reminder-store'
 
 const READ_IDS_KEY = 'v21_notification_read_ids'
 
@@ -21,52 +22,29 @@ function readEnabled(key: string): boolean {
 }
 
 function buildLocalNotifications(): AppNotification[] {
-  const now = Date.now()
   const items: AppNotification[] = []
-
-  const release = new AppNotification()
-  release.id = 'notice_release_01'
-  release.type = NOTICE_RELEASE
-  release.title = '月光曲 JSK 定金即将开始'
-  release.body = '明天 20:00 开定，建议提前确认尺码与预算。'
-  release.createdAt = String(now - 20 * 60000)
-  release.actionTarget = '/pages/reminder/index'
-  items.push(release)
-
-  const price = new AppNotification()
-  price.id = 'notice_price_01'
-  price.type = NOTICE_PRICE
-  price.title = '收藏商品出现价格变化'
-  price.body = '田园碎花 OP 当前展示价较上次记录降低 ¥90。'
-  price.createdAt = String(now - 2 * 3600000)
-  price.actionTarget = '/pages/favorites/index'
-  items.push(price)
-
-  const reminder = new AppNotification()
-  reminder.id = 'notice_reminder_01'
-  reminder.type = NOTICE_REMINDER
-  reminder.title = '你有一条待办提醒'
-  reminder.body = '请检查即将到期的尾款、发售或穿搭计划。'
-  reminder.createdAt = String(now - 3 * 3600000)
-  reminder.actionTarget = '/pages/reminder/index'
-  items.push(reminder)
-
-  const social = new AppNotification()
-  social.id = 'notice_social_01'
-  social.type = NOTICE_SOCIAL
-  social.title = '你的晒搭收到了新的喜欢'
-  social.body = '茶会风格晒搭新增 3 个喜欢。'
-  social.createdAt = String(now - 5 * 3600000)
-  social.actionTarget = '/pages/community/index'
-  items.push(social)
-
+  // 通知中心只展示应用当前已有数据能真实支持的内容；不再生成虚构商品、降价或互动通知。
+  const reminders = useReminderStore()
+  reminders.fetchItems()
+  const active = reminders.activeItems.value
+  for (let i = 0; i < active.length && i < 5; i++) {
+    const source = active[i]
+    const notice = new AppNotification()
+    notice.id = 'notice_reminder_' + source.id
+    notice.type = NOTICE_REMINDER
+    notice.title = '提醒：' + source.title
+    notice.body = source.remindDate !== '' ? '计划日期：' + source.remindDate : '请查看这条提醒的详情。'
+    notice.createdAt = source.updatedAt !== '' ? source.updatedAt : String(Date.now())
+    notice.actionTarget = '/pages/reminder/index'
+    items.push(notice)
+  }
   const system = new AppNotification()
-  system.id = 'notice_system_01'
+  system.id = 'notice_system_notification_preferences'
   system.type = NOTICE_SYSTEM
-  system.title = '服务与体验更新'
-  system.body = '通知偏好已生效；系统推送权限请在手机设置中管理。'
-  system.createdAt = String(now - 24 * 3600000)
-  system.actionTarget = '/pages/preferences/index'
+  system.title = '通知设置已生效'
+  system.body = '你可以随时在通知设置中管理商品、提醒、互动和系统消息。'
+  system.createdAt = String(Date.now())
+  system.actionTarget = '/pages/notification-settings/index'
   items.push(system)
   return items
 }
