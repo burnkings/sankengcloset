@@ -49,7 +49,7 @@
 
 <script setup lang="uts">
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
-import { fetchFeedPage } from '@/services/content/feed-service'
+import { searchProducts } from '@/services/content/feed-service'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -66,7 +66,7 @@ import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 const keyword = ref('')
 // 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
 const inputFocused = ref(false)
-const sourceItems = ref([]) as Ref<FeedItem[]>
+const results = ref([]) as Ref<FeedItem[]>
 const sourceState = ref('loading')
 const sourceError = ref('')
 const hotKeywords = ['月光曲', '格裙', '宋制', '新品预约', 'Lolita 茶会', '汉服通勤']
@@ -84,44 +84,58 @@ function itemSearchText(item: FeedItem): string {
   return `${item.title} ${item.brandName} ${item.subtitle} ${categoryLabel}`.toLowerCase()
 }
 
-const results = computed((): FeedItem[] => {
-  const q = normalizedQuery(keyword.value)
-  if (q === '') return []
-  return sourceItems.value.filter((item) => {
-    if (item.feedType !== FEED_PRODUCT) return false
-    return itemSearchText(item).includes(q)
-  })
-})
-
-function onSubmit() { inputFocused.value = false }
-function onClear() { keyword.value = ''; inputFocused.value = false }
-function selectKeyword(value: string) { keyword.value = value }
+function onSubmit() {
+  inputFocused.value = false
+  loadSearchSource()
+}
+function onClear() {
+  keyword.value = ''
+  results.value = []
+  sourceState.value = 'idle'
+  sourceError.value = ''
+  inputFocused.value = false
+}
+function selectKeyword(value: string) {
+  keyword.value = value
+  loadSearchSource()
+}
 function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 
 async function loadSearchSource() {
+  const query = keyword.value.trim()
+  if (query === '') {
+    results.value = []
+    sourceState.value = 'idle'
+    return
+  }
   sourceState.value = 'loading'
   sourceError.value = ''
   try {
-    const first = await fetchFeedPage(0, '推荐', '全部')
-    sourceItems.value = first.items
+    const page = await searchProducts(query)
+    results.value = page.items
     sourceState.value = 'loaded'
   } catch (e) {
+    results.value = []
     sourceState.value = 'error'
     sourceError.value = e instanceof Error ? e.message : '请检查网络后重试'
   }
 }
 
 onMounted(() => {
-  loadSearchSource()
   try {
     const pending = uni.getStorageSync('pending_search_keyword') as string
     if (pending !== '') {
       keyword.value = pending
       uni.removeStorageSync('pending_search_keyword')
+      loadSearchSource()
+    } else {
+      sourceState.value = 'idle'
     }
-  } catch (e) {}
+  } catch (e) {
+    sourceState.value = 'idle'
+  }
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
