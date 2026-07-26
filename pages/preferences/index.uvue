@@ -1,27 +1,8 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="设置与偏好" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="内容偏好" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-
-        <!-- 外观 -->
-        <V2SectionHeader title="外观" :compact="true" />
-        <text :style="hintText">选择显示主题</text>
-        <view :style="radioRow">
-          <view
-            v-for="(item, idx) in themeOptions"
-            :key="item.mode"
-            :style="radioItem(idx)"
-            @tap="onThemeChange(item.mode)"
-          >
-            <view :style="radioOuter(item.mode)">
-              <view v-if="currentTheme === item.mode" :style="radioInner" />
-            </view>
-            <text :style="radioLabel(item.mode)">{{ item.label }}</text>
-          </view>
-        </view>
-
-        <view :style="themeDivider" />
 
         <!-- 坑向偏好 -->
         <V2SectionHeader title="坑向偏好" :compact="true" />
@@ -56,51 +37,12 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, GROUP_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, themeMode, setThemeMode } from '@/theme/use-theme'
+import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { usePreferencesStore } from '@/stores/preferences-store'
-
-interface ThemeOption { mode: string; label: string }
-const themeOptions: ThemeOption[] = [
-  { mode: 'system', label: '跟随系统' },
-  { mode: 'light', label: '浅色' },
-  { mode: 'dark', label: '深色' },
-]
-
-const currentTheme = computed((): string => themeMode.value)
-
-function onThemeChange(mode: string) {
-  setThemeMode(mode as 'system' | 'light' | 'dark')
-  showFeedback(mode === 'system' ? '已跟随系统主题' : mode === 'light' ? '已切换为浅色模式' : '已切换为深色模式')
-}
-
-// ====== 外观样式 ======
-
-const radioRow = { ...flexRow, marginBottom: '40rpx' }
-function radioItem(idx: number) {
-  return { ...flexRow, alignItems: 'center', marginRight: idx < 2 ? '40rpx' : '0' }
-}
-function radioOuter(mode: string) {
-  const selected = currentTheme.value === mode
-  return {
-    width: '36rpx', height: '36rpx', borderRadius: radius.full,
-    borderWidth: '3rpx', borderStyle: 'solid' as string,
-    borderColor: selected ? brand[600] : (n.value.textTertiary as string),
-    alignItems: 'center' as string, justifyContent: 'center' as string,
-    marginRight: '12rpx',
-  }
-}
-const radioInner = {
-  width: '18rpx', height: '18rpx', borderRadius: '50%',
-  backgroundColor: brand[600],
-}
-function radioLabel(mode: string) {
-  return { fontSize: fontSize.sm, color: currentTheme.value === mode ? n.value.text : n.value.textSecondary }
-}
-const themeDivider = { height: '2rpx', backgroundColor: n.value.divider, marginBottom: '32rpx', marginRight: PAGE_GUTTER_REGULAR }
 
 // ====== 现有偏好逻辑 ======
 
