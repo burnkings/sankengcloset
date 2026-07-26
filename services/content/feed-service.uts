@@ -54,9 +54,10 @@ function categoryCode(category: string): string {
   return category === '全部' ? '' : category
 }
 
-async function fetchRemoteFeed(pageIndex: number, channel: string, category: string): Promise<FeedPage> {
-  const offset = Math.max(pageIndex, 0) * 20
-  const path = `/api/v1/feed?cursor=${offset}&limit=20&channel=${encodeQuery(channelCode(channel))}&category=${encodeQuery(categoryCode(category))}`
+async function fetchRemoteFeed(cursor: string, channel: string, category: string): Promise<FeedPage> {
+  // 后端返回的不透明游标必须原样回传；不能按客户端页码换算偏移。
+  const safeCursor = cursor === '' ? '0' : cursor
+  const path = `/api/v1/feed?cursor=${encodeQuery(safeCursor)}&limit=20&channel=${encodeQuery(channelCode(channel))}&category=${encodeQuery(categoryCode(category))}`
   if (__DEV__) console.log('[Feed] request:', getRuntimeConfig().apiBaseUrl + path)
   const response = await apiGet(path)
   if (__DEV__) {
@@ -74,8 +75,8 @@ async function fetchRemoteFeed(pageIndex: number, channel: string, category: str
   return result
 }
 
-export async function fetchFeedPage(pageIndex: number, channel: string = '推荐', category: string = '全部'): Promise<FeedPage> {
-  return await fetchRemoteFeed(pageIndex, channel, category)
+export async function fetchFeedPage(cursor: string = '0', channel: string = '推荐', category: string = '全部'): Promise<FeedPage> {
+  return await fetchRemoteFeed(cursor, channel, category)
 }
 
 /** 服务端全文搜索：覆盖真实商品库，不依赖首页缓存。 */
