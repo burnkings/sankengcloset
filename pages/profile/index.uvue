@@ -129,7 +129,10 @@ function onSettingTap(id: string) {
     showFeedback(themeMode.value === 'dark' ? '已切换为深色模式' : '已切换为浅色模式')
     return
   }
-  if (id === 'notification') {\n    goPage('/pages/notification-settings/index')\n    return\n  }
+  if (id === 'notification') {
+    goPage('/pages/notification-settings/index')
+    return
+  }
   if (id === 'preferences') {
     uni.navigateTo({ url: '/pages/preferences/index' })
     return
@@ -219,7 +222,7 @@ const settingsItems = computed(() => {
     { id: 'privacy', icon: 'info', label: '隐私与权限', value: '', section: 'about' },
     { id: 'agreement', icon: 'info', label: '用户协议', value: '', section: 'about' },
     { id: 'policy', icon: 'info', label: '隐私政策', value: '', section: 'about' },
-    { id: 'about', icon: 'info', label: '关于', value: 'V2.3', section: 'about' },
+    { id: 'about', icon: 'info', label: '关于', value: 'V2.5', section: 'about' },
     { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '', section: 'about' },
     { id: 'cache', icon: 'database', label: '清理缓存', value: '', section: 'about' },
   ]
