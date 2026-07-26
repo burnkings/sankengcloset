@@ -172,12 +172,17 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     reload()
   }
 
+  function isOwnPost(postId: string): boolean {
+    return outfitPosts.value.some((post) => post.id === postId)
+  }
+
   function isPostLiked(postId: string): boolean {
     return likedPostIds.value.indexOf(postId) >= 0
   }
 
   function togglePostLike(postId: string): boolean {
-    if (postId === '') return false
+    // 自己发布的内容不参与“点赞自己”的交互。
+    if (postId === '' || isOwnPost(postId)) return false
     const values = [...likedPostIds.value]
     const idx = values.indexOf(postId)
     if (idx >= 0) values.splice(idx, 1)
@@ -206,6 +211,7 @@ export const useContentLibraryStore = defineStore('contentLibrary', () => {
     toggleBrandFollow,
     saveOutfit,
     removeOutfit,
+    isOwnPost,
     isPostLiked,
     togglePostLike,
   }
