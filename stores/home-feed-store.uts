@@ -145,10 +145,13 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
       result = channelItems.filter((item) => item.category === code)
     }
 
-    // 内容偏好只在「推荐 + 全部」下生效；用户手动选频道或坑向时，手动筛选优先。
-    // 这样偏好不再只是无感排序，而会真实减少不感兴趣的 Feed 项。
+    // 坑向偏好只在「推荐 + 全部」下生效；手动筛选优先。
     if (ch === '推荐' && (category === '' || category === '全部')) {
       const pitTypes = prefs.preferences.pitTypes
+      // 默认三项全选、或用户全部取消时均不过滤，避免空首页。
+      if (pitTypes.length > 0 && pitTypes.length < 3) {
+        result = result.filter((item) => pitTypes.indexOf(item.category) >= 0)
+      }
     }
 
     // 在已过滤的内容中，继续将关注品牌和偏好更强的单品排在前面。
