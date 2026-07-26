@@ -52,9 +52,10 @@ const pitItems = ['JK', 'Lolita', '汉服']
 const contentItems = ['新品', '预约', '现货', '降价', '图透', '穿搭']
 
 function isPitSelected(name: string): boolean {
+  const code = name === 'Lolita' ? 'LOLITA' : name
   const values = prefs.preferences.pitTypes
   for (let i = 0; i < values.length; i++) {
-    if (values[i] === name) return true
+    if (values[i] === code) return true
   }
   return false
 }
