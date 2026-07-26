@@ -10,7 +10,6 @@
             <text :style="userName">{{ session.profile.nickname }}</text>
             <text :style="accountId">ID: {{ session.profile.userId }}</text>
           </view>
-          <view :style="editButton" @tap="onEdit"><text :style="editText">编辑</text></view>
         </view>
         <view v-else :style="profileCard" @tap="goLogin">
           <view :style="guestAvatar"><AppIcon name="profile" :size="44" /></view>
@@ -28,7 +27,6 @@
             <text :style="closetValue">{{ wardrobe.itemCount }} 件心爱单品</text>
             <text :style="closetDesc">JK、Lolita 与汉服正在等你搭配</text>
           </view>
-          <view :style="closetImage"><AppImage src="/static/demo/prod-editorial-01.png" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
         </view>
 
         <view :style="manageRow">
@@ -43,14 +41,6 @@
           <view :style="outfitAssetIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
           <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的圈子</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
           <AppIcon name="chevron-right" :size="32" />
-        </view>
-
-        <V2SectionHeader title="推荐偏好" />
-        <view :style="tasteRow">
-          <view v-for="(item, idx) in tasteItems" :key="item.name" :style="tasteChip(idx, item.name)" @tap="toggleTaste(item.name)">
-            <AppIcon :name="item.icon" :size="38" :active="isTasteSelected(item.name)" />
-            <text :style="tasteName(item.name)">{{ item.name }}</text>
-          </view>
         </view>
 
         <V2SectionHeader title="设置" />
@@ -76,16 +66,15 @@
 </template>
 
 <script setup lang="uts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, themeMode, initPageTheme } from '@/theme/use-theme'
+import { n, isDark, themeMode, setThemeMode, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppImage from '@/components/base/AppImage.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
@@ -104,7 +93,6 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const pageHeight = getWindowHeight()
-const selectedTastes = ref(['JK', 'Lolita', '汉服'])
 const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
 const reminders = useReminderStore()
@@ -119,8 +107,11 @@ function getThemeLabel(): string {
   return '浅色'
 }
 
-function onEdit() { showFeedback('个人资料编辑即将开放') }
-function goLogin() { showFeedback('登录功能即将开放') }
+async function goLogin() {
+  const ok = await session.loginWithWechat()
+  if (ok) showFeedback('登录成功')
+  else showFeedback(session.errorMessage !== '' ? session.errorMessage : '登录失败，请重试')
+}
 function logout() {
   session.logout()
   showFeedback('已退出，设备数据仍保留')
@@ -135,7 +126,8 @@ function onManageTap(id: string) {
 }
 function onSettingTap(id: string) {
   if (id === 'dark') {
-    goPage('/pages/preferences/index')
+    setThemeMode(themeMode.value === 'dark' ? 'light' : 'dark')
+    showFeedback(themeMode.value === 'dark' ? '已切换为深色模式' : '已切换为浅色模式')
     return
   }
   if (id === 'notification') { showFeedback('通知设置功能即将开放'); return }
@@ -179,27 +171,6 @@ function onSettingTap(id: string) {
   if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
   if (id === 'logout') { logout(); return }
 }
-function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
-function toggleTaste(name: string) {
-  const idx = selectedTastes.value.indexOf(name)
-  if (idx >= 0) {
-    if (selectedTastes.value.length === 1) {
-      showFeedback('至少保留一个推荐偏好')
-      return
-    }
-    selectedTastes.value.splice(idx, 1)
-  } else {
-    selectedTastes.value.push(name)
-  }
-  uni.setStorageSync('content_preferences', selectedTastes.value.join(','))
-}
-
-onMounted(() => {
-  try {
-    const saved = uni.getStorageSync('content_preferences') as string
-    if (saved !== '') selectedTastes.value = saved.split(',')
-  } catch (e) {}
-})
 onLoad(() => { initPageTheme() })
 onShow(() => { session.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
 
@@ -223,7 +194,6 @@ const closetTop = { ...flexRow, alignItems: 'center' }
 const closetLabel = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[700], marginLeft: '12rpx' }
 const closetValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, marginTop: '14rpx' }))
 const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
-const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
 const manageItems = computed(() => [
   { id: 'favorites', icon: 'wardrobe', label: '收藏', value: `${library.favoriteCount} 件` },
@@ -241,27 +211,11 @@ const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 
-const tasteItems = [
-  { name: 'JK', icon: 'jk-collar' },
-  { name: 'Lolita', icon: 'lolita-dress' },
-  { name: '汉服', icon: 'hanfu-collar' },
-]
-const tasteRow = { ...flexRow }
-function tasteChip(idx: number, name: string) {
-  const selected = isTasteSelected(name)
-  return {
-    width: '210rpx', height: '88rpx', ...flexRow, alignItems: 'center', justifyContent: 'center',
-    borderRadius: CARD_RADIUS, backgroundColor: selected ? (isDark.value ? n.value.surfaceRaised : brand[50]) : n.value.surface,
-    borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: selected ? brand[200] : 'transparent',
-    marginRight: idx < 2 ? GROUP_GAP : '0',
-  }
-}
-function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isTasteSelected(name) ? brand[700] : n.value.textSecondary, marginLeft: '10rpx' } }
 
 const settingsItems = computed(() => {
   const items: Array<{id: string, icon: string, label: string, value: string, section: string}> = [
     { id: 'dark', icon: 'moon', label: '深色模式', value: getThemeLabel(), section: 'settings' },
-    { id: 'preferences', icon: 'heart', label: '推荐偏好', value: '', section: 'settings' },
+    { id: 'preferences', icon: 'heart', label: '内容偏好', value: '', section: 'settings' },
     { id: 'notification', icon: 'notification', label: '通知设置', value: '', section: 'settings' },
     { id: 'privacy', icon: 'info', label: '隐私与权限', value: '', section: 'about' },
     { id: 'agreement', icon: 'info', label: '用户协议', value: '', section: 'about' },
