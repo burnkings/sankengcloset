@@ -17,6 +17,9 @@
         </view>
 
         <view v-else>
+          <view v-if="sourceState === 'loading'" :style="loadingWrap"><text :style="loadingText">正在搜索商品库…</text></view>
+          <view v-else-if="sourceState === 'error'" :style="emptyWrap"><AppIcon name="info" :size="56" /><text :style="emptyTitle">搜索暂不可用</text><text :style="emptyDesc">{{ sourceError }}</text><view :style="retryButton" @tap="loadSearchSource"><text :style="retryText">重新加载</text></view></view>
+          <view v-else>
           <V2SectionHeader :title="'搜索结果 · ' + String(results.length)" :compact="true" />
           <view v-if="results.length > 0" :style="resultGrid">
             <view v-for="(item, idx) in results" :key="item.id" :style="productShell(idx)">
@@ -37,6 +40,7 @@
             <text :style="emptyTitle">没有找到相关内容</text>
             <text :style="emptyDesc">换个商品名、品牌或坑向试试</text>
           </view>
+          </view>
         </view>
       </view>
     </template>
@@ -45,6 +49,7 @@
 
 <script setup lang="uts">
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { fetchFeedPage } from '@/services/content/feed-service'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -62,6 +67,8 @@ const keyword = ref('')
 // 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
 const inputFocused = ref(false)
 const sourceItems = ref([]) as Ref<FeedItem[]>
+const sourceState = ref('loading')
+const sourceError = ref('')
 const hotKeywords = ['月光曲', '格裙', '宋制', '新品预约', 'Lolita 茶会', '汉服通勤']
 
 function normalizedQuery(value: string): string {
@@ -93,7 +100,21 @@ function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 
+async function loadSearchSource() {
+  sourceState.value = 'loading'
+  sourceError.value = ''
+  try {
+    const first = await fetchFeedPage(0, '推荐', '全部')
+    sourceItems.value = first.items
+    sourceState.value = 'loaded'
+  } catch (e) {
+    sourceState.value = 'error'
+    sourceError.value = e instanceof Error ? e.message : '请检查网络后重试'
+  }
+}
+
 onMounted(() => {
+  loadSearchSource()
   try {
     const pending = uni.getStorageSync('pending_search_keyword') as string
     if (pending !== '') {
@@ -109,9 +130,13 @@ function hotChip(idx: number) { return { minHeight: '64rpx', paddingLeft: '24rpx
 const hotText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
 const resultGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+const loadingWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
+const loadingText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
-const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx', textAlign: 'center' }))
+const retryButton = { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginTop: '24rpx' }
+const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#A83254' }
 </script>
 
 
