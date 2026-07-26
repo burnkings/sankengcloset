@@ -26,7 +26,7 @@ function buildLocalNotifications(): AppNotification[] {
   // 通知中心只展示应用当前已有数据能真实支持的内容；不再生成虚构商品、降价或互动通知。
   const reminders = useReminderStore()
   reminders.fetchItems()
-  const active = reminders.activeItems.value
+  const active = reminders.activeItems
   for (let i = 0; i < active.length && i < 5; i++) {
     const source = active[i]
     const notice = new AppNotification()
