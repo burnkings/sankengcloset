@@ -50,7 +50,10 @@ export function apiGet(path: string): Promise<ApiResponse> {
         try { resolve(parseResponse(Number(res.statusCode), res.data)) }
         catch (e) { reject(e) }
       },
-      fail: (error: any) => reject(new Error(error != null && error.errMsg != null ? String(error.errMsg) : '无法连接服务')),
+      fail: (error: any) => {
+        const reason = error != null && error.errMsg != null ? String(error.errMsg) : '网络不可用'
+        reject(new Error(`无法连接服务：${reason}`))
+      },
     })
   })
 }
