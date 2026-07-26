@@ -3,7 +3,7 @@ import { createRequestId } from '@/domain/platform/api-contract'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 import { getRuntimeConfig } from '@/config/runtime'
 
-const __DEV__ = false
+const __DEV__ = true
 
 export class FeedPage {
   items: FeedItem[] = []

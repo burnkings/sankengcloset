@@ -45,14 +45,6 @@
           <AppIcon name="chevron-right" :size="32" />
         </view>
 
-        <V2SectionHeader title="推荐偏好" />
-        <view :style="tasteRow">
-          <view v-for="(item, idx) in tasteItems" :key="item.name" :style="tasteChip(idx, item.name)" @tap="toggleTaste(item.name)">
-            <AppIcon :name="item.icon" :size="38" :active="isTasteSelected(item.name)" />
-            <text :style="tasteName(item.name)">{{ item.name }}</text>
-          </view>
-        </view>
-
         <V2SectionHeader title="设置" />
         <V2ListGroup>
           <view v-for="(item, idx) in settingsGroup" :key="item.id" :style="settingShell(idx, settingsGroup.length)" @tap="onSettingTap(item.id)">
@@ -104,20 +96,12 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const pageHeight = getWindowHeight()
-const selectedTastes = ref(['JK', 'Lolita', '汉服'])
 const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
 const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
-
-function getThemeLabel(): string {
-  const mode = themeMode.value
-  if (mode === 'system') return '跟随系统'
-  if (mode === 'dark') return '深色'
-  return '浅色'
-}
 
 function onEdit() { showFeedback('功能开发中') }
 function goLogin() {
@@ -184,27 +168,7 @@ function onSettingTap(id: string) {
   if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
   if (id === 'logout') { logout(); return }
 }
-function isTasteSelected(name: string): boolean { return selectedTastes.value.indexOf(name) >= 0 }
-function toggleTaste(name: string) {
-  const idx = selectedTastes.value.indexOf(name)
-  if (idx >= 0) {
-    if (selectedTastes.value.length === 1) {
-      showFeedback('至少保留一个推荐偏好')
-      return
-    }
-    selectedTastes.value.splice(idx, 1)
-  } else {
-    selectedTastes.value.push(name)
-  }
-  uni.setStorageSync('content_preferences', selectedTastes.value.join(','))
-}
 
-onMounted(() => {
-  try {
-    const saved = uni.getStorageSync('content_preferences') as string
-    if (saved !== '') selectedTastes.value = saved.split(',')
-  } catch (e) {}
-})
 onLoad(() => { initPageTheme() })
 onShow(() => { session.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
 
@@ -246,23 +210,7 @@ const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 
-const tasteItems = [
-  { name: 'JK', icon: 'jk-collar' },
-  { name: 'Lolita', icon: 'lolita-dress' },
-  { name: '汉服', icon: 'hanfu-collar' },
-]
-const tasteRow = { ...flexRow }
-function tasteChip(idx: number, name: string) {
-  const selected = isTasteSelected(name)
-  return {
-    width: '210rpx', height: '88rpx', ...flexRow, alignItems: 'center', justifyContent: 'center',
-    borderRadius: CARD_RADIUS, backgroundColor: selected ? (isDark.value ? n.value.surfaceRaised : brand[50]) : n.value.surface,
-    borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: selected ? brand[200] : 'transparent',
-    marginRight: idx < 2 ? GROUP_GAP : '0',
-  }
-}
-function tasteName(name: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isTasteSelected(name) ? brand[700] : n.value.textSecondary, marginLeft: '10rpx' } }
-
+const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '48rpx' }
 const settingsItems = computed(() => {
   const items: Array<{id: string, icon: string, label: string, value: string, section: string}> = [
     { id: 'dark', icon: 'moon', label: '深色模式', value: getThemeLabel(), section: 'settings' },
@@ -271,7 +219,7 @@ const settingsItems = computed(() => {
     { id: 'privacy', icon: 'info', label: '隐私与权限', value: '', section: 'about' },
     { id: 'agreement', icon: 'info', label: '用户协议', value: '', section: 'about' },
     { id: 'policy', icon: 'info', label: '隐私政策', value: '', section: 'about' },
-    { id: 'about', icon: 'info', label: '关于', value: 'V2.3', section: 'about' },
+    { id: 'about', icon: 'info', label: '关于', value: 'V2.5', section: 'about' },
     { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '', section: 'about' },
     { id: 'cache', icon: 'database', label: '清理缓存', value: '', section: 'about' },
   ]

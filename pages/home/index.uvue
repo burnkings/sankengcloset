@@ -290,7 +290,7 @@ const searchBox = computed((): any => ({
   ...flexRow, alignItems: 'center',
   paddingLeft: '28rpx', paddingRight: '24rpx',
 }))
-const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
+const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx', lines: 1, textOverflow: 'ellipsis' }))
 const searchTabsSpacer = { height: '12rpx' }
 
 // --- Styles ---

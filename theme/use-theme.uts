@@ -215,6 +215,13 @@ export function useTheme() {
   }
 }
 
+export function getThemeLabel(): string {
+  const mode = _state.themeMode
+  if (mode === 'system') return '跟随系统'
+  if (mode === 'dark') return '深色'
+  return '浅色'
+}
+
 /** Getter — Vue 可追踪 _state.isDark 的变化 */
 export const isDark = {
   get value(): boolean {
