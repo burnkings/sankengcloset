@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="uts">
-import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { FeedItem } from '@/domain/content/feed-item'
 import { searchProducts } from '@/services/content/feed-service'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { radius } from '@/theme/tokens/radius'
@@ -70,19 +70,6 @@ const results = ref([]) as Ref<FeedItem[]>
 const sourceState = ref('loading')
 const sourceError = ref('')
 const hotKeywords = ['月光曲', '格裙', '宋制', '新品预约', 'Lolita 茶会', '汉服通勤']
-
-function normalizedQuery(value: string): string {
-  let q = value.trim().toLowerCase()
-  q = q.replace('洛丽塔', 'lolita').replace('洛莉塔', 'lolita').replace('lo裙', 'lolita')
-  q = q.replace('水手服', 'jk').replace('格裙', 'jk').replace('制服', 'jk')
-  q = q.replace('华服', '汉服').replace('汉元素', '汉服')
-  return q
-}
-
-function itemSearchText(item: FeedItem): string {
-  const categoryLabel = item.category === 'HANFU' ? '汉服 华服 汉元素' : (item.category === 'LOLITA' ? 'lolita 洛丽塔 洛莉塔 lo裙' : 'jk 制服 水手服 格裙')
-  return `${item.title} ${item.brandName} ${item.subtitle} ${categoryLabel}`.toLowerCase()
-}
 
 function onSubmit() {
   inputFocused.value = false
@@ -149,7 +136,7 @@ const loadingText = computed((): any => ({ fontSize: fontSize.sm, color: n.value
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
 const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx', textAlign: 'center' }))
-const retryButton = { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginTop: '24rpx' }
+const retryButton = computed((): any => ({ height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginTop: '24rpx' }))
 const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: '#A83254' }
 </script>
 
