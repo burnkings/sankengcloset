@@ -125,8 +125,7 @@ function onManageTap(id: string) {
 }
 function onSettingTap(id: string) {
   if (id === 'dark') {
-    setThemeMode(themeMode.value === 'dark' ? 'light' : 'dark')
-    showFeedback(themeMode.value === 'dark' ? '已切换为深色模式' : '已切换为浅色模式')
+    goPage('/pages/theme-settings/index')
     return
   }
   if (id === 'notification') {
@@ -138,7 +137,7 @@ function onSettingTap(id: string) {
     return
   }
   if (id === 'privacy') {
-    showFeedback('隐私与权限设置即将开放')
+    goPage('/pages/privacy-permissions/index')
     return
   }
   if (id === 'agreement') {
