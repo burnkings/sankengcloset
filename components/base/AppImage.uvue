@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="uts">
-import { neutralLight } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { semanticRadius } from '@/theme/tokens/radius'
 import { n } from '@/theme/use-theme'
 
@@ -77,33 +77,33 @@ const placeholderStyle = computed((): any => ({
   borderRadius: props.radiusToken,
 }))
 
-const skeletonPulseStyle = {
+const skeletonPulseStyle = computed((): any => ({
   width: '100%', height: '100%',
-  backgroundColor: 'rgba(0,0,0,0.04)',
-}
+  backgroundColor: n.value.divider,
+}))
 
 const errorStyle = computed((): any => ({
   position: 'absolute',
   top: '0', left: '0', right: '0', bottom: '0',
   alignItems: 'center', justifyContent: 'center',
-  backgroundColor: neutralLight.bgTertiary,
+  backgroundColor: n.value.bgTertiary,
   borderRadius: props.radiusToken,
 }))
 
-const errorTextStyle = {
+const errorTextStyle = computed((): any => ({
   fontSize: '22rpx',
-  color: 'rgba(82,55,64,0.48)',
+  color: n.value.textTertiary,
   fontWeight: '600',
   marginTop: '18rpx',
-}
+}))
 
 const errorArtStyle = {
   width: '112rpx', height: '88rpx',
   alignItems: 'center', justifyContent: 'center',
 }
-const errorArtTop = { width: '42rpx', height: '12rpx', borderRadius: '8rpx', backgroundColor: '#D9A9B8' }
-const errorArtMiddle = { width: '88rpx', height: '42rpx', borderRadius: '12rpx', backgroundColor: '#E9D4DB', marginTop: '8rpx' }
-const errorArtBottom = { width: '64rpx', height: '8rpx', borderRadius: '8rpx', backgroundColor: '#B9C9C2', marginTop: '8rpx' }
+const errorArtTop = computed((): any => ({ width: '42rpx', height: '12rpx', borderRadius: '8rpx', backgroundColor: brand[300] }))
+const errorArtMiddle = computed((): any => ({ width: '88rpx', height: '42rpx', borderRadius: '12rpx', backgroundColor: n.value.surfaceRaised, marginTop: '8rpx' }))
+const errorArtBottom = computed((): any => ({ width: '64rpx', height: '8rpx', borderRadius: '8rpx', backgroundColor: n.value.textDisabled, marginTop: '8rpx' }))
 
 function onLoad() {
   loaded.value = true
