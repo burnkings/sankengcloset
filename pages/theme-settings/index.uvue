@@ -1,0 +1,44 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="显示与主题" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <text :style="intro">选择 App 的显示方式。选择后立即全局生效，并在下次启动时保持。</text>
+        <view :style="previewCard">
+          <view :style="previewDot" /><view><text :style="previewTitle">{{ currentLabel }}</text><text :style="previewDesc">页面、卡片、搜索框与底部栏会同步切换</text></view>
+        </view>
+        <V2ListGroup>
+          <view v-for="(item, idx) in modes" :key="item.id" :style="rowShell(idx)" @tap="choose(item.id)">
+            <view :style="row"><view :style="copy"><text :style="label">{{ item.label }}</text><text :style="desc">{{ item.desc }}</text></view><text :style="check(item.id)">{{ themeMode.value === item.id ? '✓' : '' }}</text></view>
+          </view>
+        </V2ListGroup>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n, themeMode, setThemeMode, getThemeLabel } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import { showFeedback } from '@/utils/feedback'
+const modes = [{ id: 'system', label: '跟随系统', desc: '根据手机系统的深浅色设置自动切换' }, { id: 'light', label: '浅色模式', desc: '始终使用浅色界面' }, { id: 'dark', label: '深色模式', desc: '始终使用深色界面' }]
+const currentLabel = computed((): string => getThemeLabel())
+function choose(mode: string) { setThemeMode(mode as any); showFeedback('已切换为' + getThemeLabel() + '模式') }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const intro = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx', marginBottom: '24rpx' }))
+const previewCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '28rpx' }))
+const previewDot = computed((): any => ({ width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: brand[500], marginRight: '16rpx' }))
+const previewTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const previewDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+function rowShell(index: number) { return { borderBottomWidth: index < modes.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
+const row = { ...flexRow, alignItems: 'center', minHeight: '116rpx', paddingLeft: '20rpx', paddingRight: '20rpx' }
+const copy = { ...flexFill }
+const label = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const desc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+function check(mode: string) { return { width: '44rpx', fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: themeMode.value === mode ? brand[600] : n.value.textTertiary, textAlign: 'right' } }
+</script>
