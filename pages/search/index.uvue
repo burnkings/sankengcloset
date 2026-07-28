@@ -3,15 +3,29 @@
     <template #navbar><AppNavbar title="搜索" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit" @clear="onClear">
-          <template #prefix><AppIcon name="search" :size="34" /></template>
-        </AppInput>
+        <view :style="searchRow">
+          <view :style="inputFlex">
+            <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit" @clear="onClear">
+              <template #prefix><AppIcon name="search" :size="34" /></template>
+            </AppInput>
+          </view>
+          <text :style="cancelText" @tap="onCancel">取消</text>
+        </view>
 
         <view v-if="keyword === ''">
-          <V2SectionHeader title="热门搜索" :compact="true" />
-          <view :style="hotWrap">
-            <view v-for="(item, idx) in hotKeywords" :key="item" :style="hotChip(idx)" @tap="selectKeyword(item)">
-              <text :style="hotText">{{ item }}</text>
+          <V2SectionHeader title="最近搜索" actionText="清空" @action="clearRecent" />
+          <view :style="recentWrap">
+            <view v-for="(kw, idx) in recent" :key="kw" :style="recentChip(idx)" @tap="selectKeyword(kw)">
+              <text :style="recentChipText">{{ kw }}</text>
+            </view>
+          </view>
+
+          <V2SectionHeader title="热门搜索" />
+          <view :style="hotList">
+            <view v-for="(item, idx) in hotRank" :key="item.keyword" :style="hotRow" @tap="selectKeyword(item.keyword)">
+              <text :style="rankText(idx)">{{ idx + 1 }}</text>
+              <text :style="hotKeywordText">{{ item.keyword }}</text>
+              <text :style="heatText">{{ item.heat }}</text>
             </view>
           </view>
         </view>
@@ -46,9 +60,9 @@
 <script setup lang="uts">
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
-import { radius } from '@/theme/tokens/radius'
+import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow } from '@/theme/layout/flex'
+import { flexRow, flexFill } from '@/theme/layout/flex'
 import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -62,7 +76,28 @@ const keyword = ref('')
 // 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
 const inputFocused = ref(false)
 const sourceItems = ref([]) as Ref<FeedItem[]>
-const hotKeywords = ['月光曲', '格裙', '宋制', '新品预约', 'Lolita 茶会', '汉服通勤']
+
+// 最近搜索：本地存储，首次无记录时用设计稿示例填充
+function loadRecent(): string[] {
+  try {
+    const raw = uni.getStorageSync('search_recent') as string
+    if (raw && raw.length) return JSON.parse(raw) as string[]
+  } catch (e) {}
+  return ['樱茶JK', '梦境Lolita', 'JK制服上新', '汉服秋冬', '绮灵搭配', '甜系Lolita']
+}
+const recent = ref<string[]>(loadRecent())
+function saveRecent() {
+  try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
+}
+
+// 热门搜索：design 编号榜 + 热度
+const hotRank = [
+  { keyword: '樱茶JK制服 秋冬系列', heat: '18.2万' },
+  { keyword: '梦境蝴蝶结 Lolita裙', heat: '15.6万' },
+  { keyword: '绮灵AI 搭配方案', heat: '12.8万' },
+  { keyword: '汉服明制 上新', heat: '9.4万' },
+  { keyword: '甜系 JK小物', heat: '7.1万' },
+]
 
 function normalizedQuery(value: string): string {
   let q = value.trim().toLowerCase()
@@ -86,9 +121,19 @@ const results = computed((): FeedItem[] => {
   })
 })
 
+function selectKeyword(value: string) {
+  keyword.value = value
+  const next = [value, ...recent.value.filter((k) => k !== value)].slice(0, 10)
+  recent.value = next
+  saveRecent()
+}
+function clearRecent() { recent.value = []; saveRecent() }
 function onSubmit() { inputFocused.value = false }
 function onClear() { keyword.value = ''; inputFocused.value = false }
-function selectKeyword(value: string) { keyword.value = value }
+function onCancel() {
+  if (keyword.value !== '') { keyword.value = ''; inputFocused.value = false }
+  else { uni.navigateBack() }
+}
 function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
@@ -104,14 +149,28 @@ onMounted(() => {
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const hotWrap = { ...flexRow, flexWrap: 'wrap' as string }
-function hotChip(idx: number) { return { minHeight: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: idx % 3 < 2 ? '12rpx' : '0', marginBottom: '12rpx' } }
-const hotText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
+const searchRow = { ...flexRow, alignItems: 'center', marginTop: '8rpx', marginBottom: '8rpx' } as any
+const inputFlex = { ...flexFill } as any
+const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[300], flexShrink: 0, marginLeft: '16rpx' } as any
+
+const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, gap: '16rpx', marginTop: '4rpx' } as any
+function recentChip(idx: number) {
+  return { minHeight: '61rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as any
+}
+const recentChipText = { fontSize: '25rpx', fontWeight: '400', color: n.value.textSecondary } as any
+
+const hotList = { marginTop: '8rpx' } as any
+const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as any
+function rankText(idx: number) {
+  const color = idx === 0 ? brand[500] : idx === 1 ? semantic.warning : idx === 2 ? accent[500] : n.value.textSecondary
+  return { width: '44rpx', fontSize: '33rpx', fontWeight: '600', color } as any
+}
+const hotKeywordText = { ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text } as any
+const heatText = { fontSize: '21rpx', fontWeight: '400', color: semantic.warning, marginLeft: '16rpx', flexShrink: 0 } as any
+
 const resultGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
-const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
+const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }
+const emptyDesc = { fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }
 </script>
-
-
