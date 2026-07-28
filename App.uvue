@@ -41,6 +41,20 @@ onAppHide(() => {
   font-display: swap;
 }
 @font-face {
+  font-family: 'Inter';
+  src: url('/static/fonts/Inter-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/static/fonts/Inter-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Noto Sans SC';
   src: url('/static/fonts/NotoSansSC-Regular.ttf') format('truetype');
   font-weight: 400;
