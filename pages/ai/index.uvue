@@ -2,46 +2,39 @@
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
       <template #navbar>
-        <V2PageHeader title="绮灵AI" subtitle="你的三坑造型助手" />
+        <V2PageHeader title="绮灵AI" />
       </template>
       <template #default>
         <view class="page-canvas" :style="pageWrap">
-          <!-- AI Hero 渐变 -->
-          <view :style="heroCard">
-            <view :style="heroBadge">
-              <text :style="heroBadgeText">✦ 绮灵已就绪</text>
-            </view>
-            <text :style="heroTitle">想穿什么？告诉我场景，我来搭</text>
-            <text :style="heroSubtitle">JK · Lolita · 汉服混搭 —— 任选坑向，我会从你的衣橱里挑最合适的。</text>
+          <!-- 提示卡：design surfacePink #FCEFF2，圆角 16，黑字 -->
+          <view :style="hintCard">
+            <text :style="hintTitle">把想法变成购买与搭配决策</text>
+            <text :style="hintDesc">写清场合、预算或发售节点，先由本机规则给出可解释建议</text>
           </view>
 
-          <!-- 快捷提问 -->
-          <V2SectionHeader title="可以这样问我" />
-          <view :style="chipsWrap">
-            <view
-              v-for="(prompt, idx) in prompts"
-              :key="idx"
-              :style="chip(idx)"
-              @tap="onPick(prompt)"
-            >
-              <text :style="chipText">{{ prompt }}</text>
-            </view>
-          </view>
-
-          <!-- 历史对话占位 -->
-          <V2SectionHeader title="最近对话" />
-          <view :style="emptyCard">
-            <view :style="emptyIconWrap"><text :style="emptyIcon">✦</text></view>
-            <text :style="emptyTitle">还没有对话</text>
-            <text :style="emptyDesc">挑一个上面的问题，或在下方输入你想搭的场合。</text>
-          </view>
-
-          <!-- 输入区 -->
+          <!-- 输入行：design 输入框 inputFill #E8E0D6 圆角24 + 发送 brand[300] #E891A8 圆 48 -->
           <view :style="composerWrap">
             <view :style="composerInput">
               <text :style="composerPlaceholder">输入场景、坑向或心情…</text>
             </view>
-            <view :style="composerSend"><text :style="composerSendText">发送</text></view>
+            <view :style="composerSend" @tap="onSend">
+              <AppIcon name="arrow-right" :size="40" :active="true" />
+            </view>
+          </view>
+
+          <!-- 六项专属能力 -->
+          <V2SectionHeader title="六项专属能力" />
+          <view :style="capGrid">
+            <view
+              v-for="(item, idx) in capabilities"
+              :key="item.id"
+              :style="capTile(idx)"
+              @tap="onCapTap(item)"
+            >
+              <view :style="capIconWrap"><AppIcon :name="item.icon" :size="32" :active="true" /></view>
+              <text :style="capTitle">{{ item.title }}</text>
+              <text :style="capDesc">{{ item.desc }}</text>
+            </view>
           </view>
         </view>
       </template>
@@ -53,14 +46,15 @@
 </template>
 
 <script setup lang="uts">
-import { brand, gradient } from '@/theme/tokens/colors'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { computed } from 'vue'
+import { brand } from '@/theme/tokens/colors'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
+import { CARD_RADIUS, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
 import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
@@ -69,130 +63,89 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 
 const pageHeight = getWindowHeight()
 
-const prompts = [
-  '今天茶会怎么搭？',
-  '想找一条和这条格裙配的衬衫',
-  '下周通勤，低饱和一点的搭配',
-  '帮我看看衣橱里缺什么',
-  '预算 800 内能搭出什么？',
+const capabilities = [
+  { id: 'image', icon: 'import', title: '图片识款', desc: '识别草稿逐字段确认后再导入' },
+  { id: 'wardrobe', icon: 'wardrobe', title: '衣橱搭配', desc: '按场合复用已有单品' },
+  { id: 'dupe', icon: 'search', title: '平替雷达', desc: '按版型、总价与状态比较' },
+  { id: 'profile', icon: 'heart', title: '收藏画像', desc: '识别偏好与重复购买风险' },
+  { id: 'budget', icon: 'budget', title: '预算守门', desc: '把定金和尾款一起计算' },
+  { id: 'release', icon: 'notification', title: '发售雷达', desc: '拆分图透、定金、尾款与现货' },
 ]
 
 initPageTheme()
 onShow(() => { syncTabBarChrome() })
 
-const pageWrap = { ...pageGutter, paddingTop: '16rpx', paddingBottom: '48rpx' } as any
+const pageWrap = { ...pageGutter(), paddingTop: '16rpx', paddingBottom: '48rpx' } as any
 
-// Hero 渐变卡片：design gradient.brand [#F0A8BF → #D45F7E]，圆角 20rpx
-// uvue 部分版本不支持 backgroundImage 字符串，特地冗余铺一层 solid 作为兜底
-const heroCard = {
+// 提示卡：design bg #FCEFF2 (surfacePink)，圆角 16
+const hintCard = computed((): any => ({
   borderRadius: CARD_RADIUS,
-  padding: '32rpx',
+  backgroundColor: isDark.value ? n.value.surfaceWarm : n.value.surfacePink,
+  padding: '24rpx',
   marginBottom: '32rpx',
-  backgroundColor: brand[500],
-  backgroundImage: `linear-gradient(135deg, ${gradient.brand[0]}, ${gradient.brand[1]})`,
-} as any
+}))
+const hintTitle = { display: 'block', color: n.value.text, fontSize: '31rpx', fontWeight: '700', lineHeight: '40rpx', marginBottom: '8rpx' } as any
+const hintDesc = { display: 'block', color: n.value.textSecondary, fontSize: '25rpx', fontWeight: '400', lineHeight: '34rpx' } as any
 
-const heroBadge = {
-  alignSelf: 'flex-start',
-  paddingHorizontal: '16rpx',
-  paddingVertical: '8rpx',
-  borderRadius: '9999rpx',
-  backgroundColor: 'rgba(255, 255, 255, 0.30)',
-  marginBottom: '20rpx',
-} as any
-const heroBadgeText = { color: brand[600], fontSize: fontSize.xs, fontWeight: fontWeight.semibold } as any
-
-const heroTitle = {
-  display: 'block',
-  color: '#FFFFFF',
-  fontSize: '40rpx',
-  fontWeight: fontWeight.bold,
-  lineHeight: '52rpx',
-  marginBottom: '12rpx',
-} as any
-
-const heroSubtitle = {
-  display: 'block',
-  color: 'rgba(255, 255, 255, 0.92)',
-  fontSize: fontSize.sm,
-  lineHeight: '36rpx',
-} as any
-
-// 快捷 chip：表面 #FCEFF2，文字 brand[500]，交错浅粉/纯白
-const chipsWrap = {
-  display: 'flex',
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  gap: '16rpx',
-  marginBottom: '32rpx',
-} as any
-
-function chip(idx: number) {
-  const isAlt = idx % 2 === 1
-  return {
-    paddingHorizontal: '24rpx',
-    paddingVertical: '16rpx',
-    borderRadius: '9999rpx',
-    backgroundColor: isAlt ? brand[50] : n.value.surfacePink,
-    borderWidth: '1rpx',
-    borderStyle: 'solid',
-    borderColor: n.value.cardBorder,
-  } as any
-}
-const chipText = { color: brand[600], fontSize: fontSize.sm, fontWeight: fontWeight.medium } as any
-
-// 空状态卡
-const emptyCard = {
-  backgroundColor: n.value.surfaceWarm,
-  borderRadius: CARD_RADIUS,
-  padding: CARD_PADDING,
-  alignItems: 'center',
-  marginBottom: '32rpx',
-  borderWidth: '1rpx',
-  borderStyle: 'solid',
-  borderColor: n.value.cardBorder,
-} as any
-const emptyIconWrap = {
-  width: '96rpx',
-  height: '96rpx',
-  borderRadius: '9999rpx',
-  backgroundColor: n.value.surfacePink,
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: '20rpx',
-} as any
-const emptyIcon = { color: brand[500], fontSize: '56rpx', lineHeight: '56rpx' } as any
-const emptyTitle = { color: n.value.text, fontSize: fontSize.base, fontWeight: fontWeight.semibold, marginBottom: '8rpx' } as any
-const emptyDesc = { color: n.value.textSecondary, fontSize: fontSize.sm, textAlign: 'center', lineHeight: '36rpx' } as any
-
-// 底部输入
-const composerWrap = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: '16rpx',
-  paddingTop: '8rpx',
-} as any
+// 输入行
+const composerWrap = { ...flexRow, alignItems: 'center', gap: '16rpx', marginBottom: '40rpx' } as any
 const composerInput = {
   ...flexFill,
   height: '88rpx',
   borderRadius: '9999rpx',
   backgroundColor: n.value.inputFill,
+  borderWidth: '1rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.cardBorder,
   paddingHorizontal: '28rpx',
   justifyContent: 'center',
 } as any
-const composerPlaceholder = { color: n.value.textSecondary, fontSize: fontSize.base } as any
+const composerPlaceholder = { color: n.value.textSecondary, fontSize: '27rpx' } as any
 const composerSend = {
+  width: '88rpx',
   height: '88rpx',
-  paddingHorizontal: '32rpx',
   borderRadius: '9999rpx',
-  backgroundColor: brand[500],
+  backgroundColor: brand[300],
   alignItems: 'center',
   justifyContent: 'center',
+  flexShrink: 0,
 } as any
-const composerSendText = { color: '#FFFFFF', fontSize: fontSize.base, fontWeight: fontWeight.semibold } as any
 
-function onPick(text: string) {
-  showFeedback({ message: `已选择：${text}`, type: 'info' })
+// 能力网格：2×3，每卡 170×96（≈327×184rpx），白底 + cardBorder 描边，圆角 16
+const capGrid = { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16rpx' } as any
+function capTile(idx: number) {
+  return {
+    width: '327rpx',
+    height: '184rpx',
+    borderRadius: CARD_RADIUS,
+    backgroundColor: n.value.surface,
+    borderWidth: '1rpx',
+    borderStyle: 'solid',
+    borderColor: n.value.cardBorder,
+    padding: '20rpx',
+    flexShrink: 0,
+  } as any
+}
+const capIconWrap = {
+  width: '56rpx',
+  height: '56rpx',
+  borderRadius: '9999rpx',
+  backgroundColor: n.value.surface,
+  borderWidth: '1rpx',
+  borderStyle: 'solid',
+  borderColor: brand[300],
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: '14rpx',
+} as any
+const capTitle = { display: 'block', color: n.value.text, fontSize: '27rpx', fontWeight: '700', lineHeight: '34rpx', marginBottom: '6rpx' } as any
+const capDesc = { display: 'block', color: n.value.textSecondary, fontSize: '21rpx', fontWeight: '400', lineHeight: '28rpx' } as any
+
+function onSend() {
+  showFeedback({ message: '已收到，正在生成本机建议…', type: 'info' })
+}
+function onCapTap(item: { id: string, icon: string, title: string, desc: string }) {
+  showFeedback({ message: `${item.title}：功能开发中`, type: 'info' })
 }
 
 function pageGutter() {

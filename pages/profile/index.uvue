@@ -176,9 +176,9 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTE
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
-const guestAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
+const guestAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
-const loginButton = { minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
+const loginButton = { minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: brand[300], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
 const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))

@@ -9,7 +9,7 @@
           <text :style="emptyTitle">当前没有这类通知</text>
         </view>
         <view v-for="notice in notices.visibleItems" :key="notice.id" :style="noticeCard(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
-          <view :style="noticeIcon(notice.type)"><AppIcon :name="iconName(notice.type)" :size="40" :active="!notice.read" /></view>
+          <view :style="noticeIcon(notice.type)"><text :style="noticeChar(notice.type)">{{ noticeVisual(notice.type).char }}</text></view>
           <view :style="noticeCopy">
             <view :style="noticeTop"><text :style="noticeTitle(notice.read)">{{ notice.title }}</text><view v-if="!notice.read" :style="unreadDot" /></view>
             <text :style="noticeBody">{{ notice.body }}</text>
@@ -26,7 +26,7 @@
 <script setup lang="uts">
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL } from '@/domain/notification/app-notification'
-import { brand, semantic } from '@/theme/tokens/colors'
+import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
@@ -57,11 +57,14 @@ function openNotice(id: string, target: string) {
   if (target === '/pages/community/index') { openPrimaryTab(target); return }
   uni.navigateTo({ url: target })
 }
-function iconName(type: string): string {
-  if (type === NOTICE_RELEASE) return 'notification'
-  if (type === NOTICE_PRICE) return 'budget'
-  if (type === NOTICE_SOCIAL) return 'heart'
-  return 'info'
+function noticeVisual(type: string): { char: string, bg: string, fg: string } {
+  if (type === NOTICE_PRICE) return { char: '降', bg: '#FCE4D6', fg: semantic.warning }
+  if (type === NOTICE_SOCIAL) return { char: '赞', bg: '#EFE4F2', fg: accent[500] }
+  if (type === NOTICE_SYSTEM) return { char: '橱', bg: '#FDE2EA', fg: brand[600] }
+  return { char: '售', bg: '#FDE7EC', fg: brand[500] }
+}
+function noticeChar(type: string): any {
+  return { fontSize: '38rpx', fontWeight: '600', color: noticeVisual(type).fg }
 }
 function formatTime(value: string): string {
   const time = parseInt(value)
@@ -77,7 +80,10 @@ onShow(() => notices.reload())
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
 function noticeCard(read: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx' } }
-function noticeIcon(type: string) { return { width: '72rpx', height: '72rpx', borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : (type === NOTICE_PRICE ? semantic.warningLight : brand[100]), alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 } }
+function noticeIcon(type: string) {
+  const v = noticeVisual(type)
+  return { width: '88rpx', height: '88rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : v.bg, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
+}
 const noticeCopy = { ...flexFill }
 const noticeTop = { ...flexRow, alignItems: 'center' }
 function noticeTitle(read: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: read ? fontWeight.medium : fontWeight.semibold, color: n.value.text } }
