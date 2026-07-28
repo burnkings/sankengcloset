@@ -9,9 +9,9 @@
 <script setup lang="uts">
 /**
  * AppIcon — 统一线性图标组件 V2
- * 
+ *
  * 24px 视觉尺寸，2px stroke，round caps/joins
- * 默认 #8A8184，激活 #D65378
+ * 默认 #8C847E (neutralLight.icon)，激活 #D45F7E (brand[500]) — 已对齐设计稿
  */
 const props = withDefaults(defineProps<{
   name: string

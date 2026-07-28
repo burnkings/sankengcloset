@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="uts">
-import { neutralLight } from '@/theme/tokens/colors'
+import { brand, neutralLight } from '@/theme/tokens/colors'
 import { semanticRadius } from '@/theme/tokens/radius'
 import { n } from '@/theme/use-theme'
 
@@ -101,9 +101,9 @@ const errorArtStyle = {
   width: '112rpx', height: '88rpx',
   alignItems: 'center', justifyContent: 'center',
 }
-const errorArtTop = { width: '42rpx', height: '12rpx', borderRadius: '8rpx', backgroundColor: '#D9A9B8' }
-const errorArtMiddle = { width: '88rpx', height: '42rpx', borderRadius: '12rpx', backgroundColor: '#E9D4DB', marginTop: '8rpx' }
-const errorArtBottom = { width: '64rpx', height: '8rpx', borderRadius: '8rpx', backgroundColor: '#B9C9C2', marginTop: '8rpx' }
+const errorArtTop = { width: '42rpx', height: '12rpx', borderRadius: '8rpx', backgroundColor: brand[300] }
+const errorArtMiddle = { width: '88rpx', height: '42rpx', borderRadius: '12rpx', backgroundColor: brand[100], marginTop: '8rpx' }
+const errorArtBottom = { width: '64rpx', height: '8rpx', borderRadius: '8rpx', backgroundColor: brand[200], marginTop: '8rpx' }
 
 function onLoad() {
   loaded.value = true

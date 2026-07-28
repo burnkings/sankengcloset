@@ -26,7 +26,7 @@
 <script setup lang="uts">
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL } from '@/domain/notification/app-notification'
-import { brand } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
@@ -77,7 +77,7 @@ onShow(() => notices.reload())
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
 function noticeCard(read: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx' } }
-function noticeIcon(type: string) { return { width: '72rpx', height: '72rpx', borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : (type === NOTICE_PRICE ? '#FFF2EA' : brand[100]), alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 } }
+function noticeIcon(type: string) { return { width: '72rpx', height: '72rpx', borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : (type === NOTICE_PRICE ? semantic.warningLight : brand[100]), alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 } }
 const noticeCopy = { ...flexFill }
 const noticeTop = { ...flexRow, alignItems: 'center' }
 function noticeTitle(read: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: read ? fontWeight.medium : fontWeight.semibold, color: n.value.text } }

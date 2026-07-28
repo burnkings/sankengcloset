@@ -1,6 +1,7 @@
 <template>
-  <view :style="barStyle">
-    <view v-for="item in items" :key="item.id" :style="itemStyle" @tap="open(item.id, item.url)">
+  <view :style="containerStyle">
+    <view v-for="item in items" :key="item.id" :style="itemStyle" @tap="open(item.url)">
+      <view :style="activePillStyle(item.id)" />
       <image :src="iconPath(item.id)" :style="iconStyle" mode="aspectFit" />
       <text :style="labelStyle(item.id)">{{ item.label }}</text>
     </view>
@@ -8,29 +9,89 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
-import { fontSize } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
+import { brand, neutralLight } from '@/theme/tokens/colors'
+import { TAB_BAR_HEIGHT, TAB_ICON_SIZE, TAB_LABEL_FONT } from '@/theme/tokens/responsive'
 import { zIndex } from '@/theme/tokens/z-index'
 import { n } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'
+import { openPrimaryTab } from '@/utils/tab-navigation'
 
+/**
+ * 底部 TabBar — 浮岛胶囊
+ * 设计稿「三坑绮橱-UI优化设计」
+ *  - 居中浮空胶囊 (留 24rpx 边距)，圆角 = 半高 (pill)
+ *  - 激活项：图标 + 标签背景 #FCEFF2 圆角药丸 (rounded-52rpx, 设计稿 26)
+ *  - 5 项：首页 / 发现 / 绮灵AI / 圈子 / 我的
+ *  - 浮岛阴影 0 8rpx 32rpx rgba(0,0,0,0.08) (设计稿 y:4 r:16 ×2)
+ *
+ * 仅 App 平台渲染（H5/小程序走 pages.json 原生 tabBar）。
+ */
 const props = withDefaults(defineProps<{ active?: string }>(), { active: 'home' })
+
 const items = [
   { id: 'home', label: '首页', url: '/pages/home/index' },
   { id: 'discover', label: '发现', url: '/pages/discover/index' },
+  { id: 'ai', label: '绮灵AI', url: '/pages/ai/index' },
   { id: 'community', label: '圈子', url: '/pages/community/index' },
   { id: 'profile', label: '我的', url: '/pages/profile/index' },
-]
+] as const
+
 const safeBottom = getSafeBottomInset()
-const barStyle = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.tabbar, height: '110rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'center', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))
-const itemStyle = { ...flexFill, height: '110rpx', alignItems: 'center', justifyContent: 'center' }
-const iconStyle = { width: '48rpx', height: '48rpx' }
-function iconPath(id: string): string { return `/static/tabbar/tab-${id}${id === props.active ? '-active' : ''}.png` }
-function labelStyle(id: string) { return { fontSize: fontSize['2xs'], color: id === props.active ? brand[500] : n.value.textTertiary, marginTop: '4rpx' } }
-function open(id: string, url: string) {
-  if (id === props.active) return
-  // App 一级导航页不是原生 tabBar 页面；替换当前页即可，无需重启整个页面栈。
-  uni.redirectTo({ url })
+// 浮岛距 home indicator 16px 呼吸
+const containerStyle = computed((): any => ({
+  position: 'fixed',
+  left: '24rpx',
+  right: '24rpx',
+  bottom: `${safeBottom + 16}px`,
+  height: TAB_BAR_HEIGHT,
+  borderRadius: '56rpx',
+  backgroundColor: n.value.surfaceRaised,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  zIndex: zIndex.tabbar,
+  // 设计稿浮岛阴影 (rgba(0,0,0,0.08) y:4 r:16 → rpx ×2)
+  boxShadow: '0 8rpx 32rpx rgba(0,0,0,0.08)',
+}))
+
+const itemStyle = (): any => ({
+  flexGrow: 1,
+  flexShrink: 1,
+  flexBasis: 0,
+  height: '100%',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  position: 'relative',
+})
+
+const iconStyle = { width: TAB_ICON_SIZE, height: TAB_ICON_SIZE }
+function iconPath(id: string): string {
+  return `/static/tabbar/tab-${id}${id === props.active ? '-active' : ''}.png`
+}
+function labelStyle(id: string) {
+  return {
+    fontSize: TAB_LABEL_FONT,
+    color: id === props.active ? brand[500] : n.value.textTertiary,
+    marginTop: '4rpx',
+    fontWeight: id === props.active ? '600' : '400',
+  }
+}
+// 激活背景药丸：96rpx × 72rpx 圆角 9999rpx #FCEFF2，居中盖在图标下方
+function activePillStyle(id: string): any {
+  if (id !== props.active) return { display: 'none' }
+  return {
+    position: 'absolute',
+    top: '10rpx',
+    left: '50%',
+    width: '96rpx',
+    height: '72rpx',
+    marginLeft: '-48rpx',
+    borderRadius: '9999rpx',
+    backgroundColor: neutralLight.surfacePink,
+  }
+}
+function open(url: string) {
+  openPrimaryTab(url)
 }
 </script>

@@ -1,42 +1,48 @@
 /**
- * Colors — V2 柔和蔷薇配色
+ * Colors — V2 柔和蔷薇配色（对齐「三坑绮橱-UI优化设计」导出稿）
  * 三坑绮橱品牌色系
  * Phase 2A.2 — Visual Foundation Gate
+ *
+ * 与主稿一致的取值：
+ *   主玫粉 #D45F7E / 浅玫 #E891A8 / 深玫 #C4607F
+ *   橙 #D4865C / 紫 #9B6FAE / 绿 #5BAE7F
+ *   墨字 #2E2A28 / 灰字 #8C847E
+ *   页面底 #FBF6F3 / 浅粉底 #FCEFF2 / 输入填充 #E8E0D6 / 卡片描边 #F0E8E2
  */
 
-/** 品牌主色 — 柔和蔷薇 */
+/** 品牌主色 — 柔和蔷薇（主玫粉 #D45F7E） */
 export const brand = {
   50: '#F7E7EC',
   100: '#F0D0D9',
   200: '#E2A1B3',
-  300: '#D4728D',
-  400: '#D65378',
-  500: '#D65378', // 主色 — 柔和蔷薇
-  600: '#BD3F65',
+  300: '#E891A8', // 浅玫（激活药丸 / 激活 Tab 背景 / 柔和按钮）
+  400: '#D45F7E', // 主玫粉
+  500: '#D45F7E', // 主色 — 主玫粉
+  600: '#C4607F', // 深玫
   700: '#A83254',
   800: '#8C2745',
   900: '#6E1D36',
 }
 
-/** 辅助色 — 灰紫 (低饱和) */
+/** 辅助色 — 灰紫（低饱和，紫 #9B6FAE） */
 export const accent = {
   50: '#F3F0F7',
   100: '#E6E1EF',
   200: '#CDC3DF',
-  300: '#B4A5CF',
-  400: '#9B87BF',
-  500: '#8269AF',
-  600: '#6B5299',
+  300: '#B49BC4',
+  400: '#AE9CC4',
+  500: '#9B6FAE', // 紫
+  600: '#7E63A8',
   700: '#553F7D',
   800: '#412F60',
   900: '#2E1F45',
 }
 
-/** 语义色 (低饱和) */
+/** 语义色（低饱和） */
 export const semantic = {
-  success: '#5B9A6E',
+  success: '#5BAE7F', // 绿
   successLight: '#E8F2EA',
-  warning: '#C4924A',
+  warning: '#D4865C', // 橙
   warningLight: '#FBF2E8',
   error: '#C4666B',
   errorLight: '#F9ECED',
@@ -53,28 +59,31 @@ export const baseColors = {
   overlayLight: 'rgba(63,45,51,0.20)',
 }
 
-/** 中性色 (V2 柔和灰) */
+/** 中性色（V2 柔和灰，页面底 #FBF6F3） */
 export const neutralLight = {
-  bg: '#FAF8F7',
+  bg: '#FBF6F3',
   bgSecondary: '#F7F1F3',
   bgTertiary: '#EDE8E9',
   surface: '#FFFFFF',
   surfaceRaised: '#FFFFFF',
   surfaceWarm: '#FDFAF9',
+  surfacePink: '#FCEFF2', // 浅粉底（激活态 / Hero / 统计卡）
   border: '#E0DCDC',
   borderLight: '#EDE8E9',
-  borderFocus: '#D65378',
-  text: '#2D2729',
-  textSecondary: '#756D70',
+  borderFocus: '#D45F7E',
+  cardBorder: '#F0E8E2', // 卡片描边
+  text: '#2E2A28', // 墨字
+  textSecondary: '#8C847E', // 灰字
   textTertiary: '#A0989B',
   textDisabled: '#C4BFC1',
   textInverse: '#FFFFFF',
   placeholder: '#C4BFC1',
   icon: '#756D70',
   iconLight: '#A0989B',
-  iconActive: '#D65378',
+  iconActive: '#D45F7E',
   divider: 'rgba(63,45,51,0.08)',
   overlay: 'rgba(63,45,51,0.40)',
+  inputFill: '#E8E0D6', // 输入填充
 }
 
 /** 中性色 (Dark) */
@@ -87,7 +96,7 @@ export const neutralDark = {
   surfaceWarm: '#2A2022',
   border: '#3D3638',
   borderLight: '#302A2C',
-  borderFocus: '#D65378',
+  borderFocus: '#D45F7E',
   text: '#F5F2F3',
   textSecondary: '#B8AEB1',
   textTertiary: '#8A8184',
@@ -96,24 +105,24 @@ export const neutralDark = {
   placeholder: '#60595B',
   icon: '#B8AEB1',
   iconLight: '#8A8184',
-  iconActive: '#D65378',
+  iconActive: '#D45F7E',
   divider: 'rgba(255,255,255,0.08)',
   overlay: 'rgba(0,0,0,0.60)',
 }
 
-/** 三坑类别色 (低饱和) */
+/** 三坑类别色（低饱和） */
 export const jkColors = {
-  primary: '#D65378',
+  primary: '#D45F7E',
   secondary: '#E2A1B3',
   bg: '#F7E7EC',
-  accent: '#BD3F65',
+  accent: '#C4607F',
 }
 
 export const lolitaColors = {
-  primary: '#8269AF',
-  secondary: '#B4A5CF',
+  primary: '#9B6FAE',
+  secondary: '#B49BC4',
   bg: '#F3F0F7',
-  accent: '#6B5299',
+  accent: '#7E63A8',
 }
 
 export const hanfuColors = {
@@ -133,7 +142,7 @@ export const categoryColors = {
 export const warm = {
   peach: '#D4A88C',
   coral: '#C4867A',
-  rose: '#D65378',
+  rose: '#D45F7E',
   gold: '#C4A86A',
   champagne: '#E8DFD4',
   cream: '#FDFAF9',
@@ -143,8 +152,8 @@ export const warm = {
 
 /** 渐变色 */
 export const gradient = {
-  brand: ['#D65378', '#BD3F65'],
-  soft: ['#FDFAF9', '#F7E7EC'],
+  brand: ['#F0A8BF', '#D45F7E'], // Hero：浅粉 → 主玫粉
+  soft: ['#FDFAF9', '#FCEFF2'], // 浅粉底过渡
   lavender: ['#F3F0F7', '#E6E1EF'],
   peach: ['#FBF2E8', '#FDFAF9'],
 }

@@ -38,6 +38,7 @@ const emit = defineEmits<{
 const variantColors = computed(() => {
   const map = {
     primary: { bg: brand[500], text: baseColors.white, border: brand[500] },
+    soft: { bg: brand[300], text: baseColors.white, border: brand[300] },
     secondary: { bg: accent[500], text: baseColors.white, border: accent[500] },
     outline: { bg: 'transparent', text: brand[500], border: brand[500] },
     ghost: { bg: 'transparent', text: brand[500], border: 'transparent' },

@@ -25,6 +25,12 @@
       }
     },
     {
+      "path": "pages/ai/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationStyle": "custom"
@@ -158,6 +164,12 @@
         "text": "发现",
         "iconPath": "static/tabbar/tab-discover.png",
         "selectedIconPath": "static/tabbar/tab-discover-active.png"
+      },
+      {
+        "pagePath": "pages/ai/index",
+        "text": "绮灵AI",
+        "iconPath": "static/tabbar/tab-ai.png",
+        "selectedIconPath": "static/tabbar/tab-ai-active.png"
       },
       {
         "pagePath": "pages/community/index",

@@ -38,6 +38,7 @@ const windowHeight = getWindowHeight()
 const layoutStyle = computed((): any => ({
   height: `${windowHeight}px`,
   backgroundColor: n.value.bg,
+  fontFamily: "'Inter', 'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif",
 }))
 
 const bodyStyle = computed((): any => ({

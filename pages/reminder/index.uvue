@@ -55,7 +55,7 @@ const focusStats = { alignItems: 'flex-end' }
 const focusMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx' }))
 const listWrap = { marginTop: '22rpx' }
 const reminderCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '160rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '20rpx' }))
-function dateBlock(today: boolean, overdue: boolean) { return { width: '104rpx', borderRadius: '18rpx', backgroundColor: overdue ? '#FCEBEC' : (today ? brand[100] : n.value.bgTertiary), alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 } }
+function dateBlock(today: boolean, overdue: boolean) { return { width: '104rpx', borderRadius: '18rpx', backgroundColor: overdue ? semantic.errorLight : (today ? brand[100] : n.value.bgTertiary), alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 } }
 const dateMain = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: n.value.text }))
 const dateSub = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 const reminderCopy = { ...flexFill, justifyContent: 'center' }

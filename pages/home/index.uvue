@@ -195,7 +195,7 @@ import { zIndex } from '@/theme/tokens/z-index'
 import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight, upx2px } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
-import { CARD_PADDING, CARD_RADIUS, BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_FONT_SIZE, SEARCH_HEIGHT, SEARCH_RADIUS, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, CARD_RADIUS, BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_FONT_SIZE, SEARCH_HEIGHT, SEARCH_RADIUS, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH, PAGE_GUTTER_REGULAR, TAB_BAR_HEIGHT_NUM } from '@/theme/tokens/responsive'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -217,7 +217,7 @@ const statusBarH = getStatusBarHeight()
 const homeNavbarPx = upx2px(288)
 let appTabBarPx = 0
 // #ifdef APP
-appTabBarPx = upx2px(110)
+appTabBarPx = upx2px(TAB_BAR_HEIGHT_NUM)
 // #endif
 const homeViewportPx = ref(Math.max(getWindowHeight() - statusBarH - homeNavbarPx - appTabBarPx, 240))
 function refreshViewport() { homeViewportPx.value = Math.max(getWindowHeight() - statusBarH - homeNavbarPx - appTabBarPx, 240) }

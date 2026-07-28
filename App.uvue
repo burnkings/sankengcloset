@@ -18,3 +18,33 @@ onAppHide(() => {
   console.log('App Hide')
 })
 </script>
+
+<style>
+/*
+ * 全局字体 — 「三坑绮橱-UI优化设计」设计稿
+ *   Inter + Noto Sans SC，两者均为 OFL（自由商用）
+ *   Noto Sans SC 经过按需子集化（923 个 UI 实际用到的 CJK 字 + ASCII），
+ *   缺字回落 PingFang SC / 系统中文（font-family 栈在 MainLayout 中）。
+ */
+@font-face {
+  font-family: 'Inter';
+  src: url('/static/fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/static/fonts/Inter-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('/static/fonts/NotoSansSC-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+</style>

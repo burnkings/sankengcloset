@@ -1,0 +1,201 @@
+<template>
+  <view :style="{ height: pageHeight + 'px', position: 'relative' }">
+    <MainLayout>
+      <template #navbar>
+        <V2PageHeader title="绮灵AI" subtitle="你的三坑造型助手" />
+      </template>
+      <template #default>
+        <view class="page-canvas" :style="pageWrap">
+          <!-- AI Hero 渐变 -->
+          <view :style="heroCard">
+            <view :style="heroBadge">
+              <text :style="heroBadgeText">✦ 绮灵已就绪</text>
+            </view>
+            <text :style="heroTitle">想穿什么？告诉我场景，我来搭</text>
+            <text :style="heroSubtitle">JK · Lolita · 汉服混搭 —— 任选坑向，我会从你的衣橱里挑最合适的。</text>
+          </view>
+
+          <!-- 快捷提问 -->
+          <V2SectionHeader title="可以这样问我" />
+          <view :style="chipsWrap">
+            <view
+              v-for="(prompt, idx) in prompts"
+              :key="idx"
+              :style="chip(idx)"
+              @tap="onPick(prompt)"
+            >
+              <text :style="chipText">{{ prompt }}</text>
+            </view>
+          </view>
+
+          <!-- 历史对话占位 -->
+          <V2SectionHeader title="最近对话" />
+          <view :style="emptyCard">
+            <view :style="emptyIconWrap"><text :style="emptyIcon">✦</text></view>
+            <text :style="emptyTitle">还没有对话</text>
+            <text :style="emptyDesc">挑一个上面的问题，或在下方输入你想搭的场合。</text>
+          </view>
+
+          <!-- 输入区 -->
+          <view :style="composerWrap">
+            <view :style="composerInput">
+              <text :style="composerPlaceholder">输入场景、坑向或心情…</text>
+            </view>
+            <view :style="composerSend"><text :style="composerSendText">发送</text></view>
+          </view>
+        </view>
+      </template>
+    </MainLayout>
+    <!-- #ifdef APP -->
+    <AppBottomNav active="ai" />
+    <!-- #endif -->
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand, gradient } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import { showFeedback } from '@/utils/feedback'
+// #ifdef APP
+import { getWindowHeight } from '@/utils/window-info'
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
+// #endif
+
+const pageHeight = getWindowHeight()
+
+const prompts = [
+  '今天茶会怎么搭？',
+  '想找一条和这条格裙配的衬衫',
+  '下周通勤，低饱和一点的搭配',
+  '帮我看看衣橱里缺什么',
+  '预算 800 内能搭出什么？',
+]
+
+initPageTheme()
+onShow(() => { syncTabBarChrome() })
+
+const pageWrap = { ...pageGutter, paddingTop: '16rpx', paddingBottom: '48rpx' } as any
+
+// Hero 渐变卡片：design gradient.brand [#F0A8BF → #D45F7E]，圆角 20rpx
+// uvue 部分版本不支持 backgroundImage 字符串，特地冗余铺一层 solid 作为兜底
+const heroCard = {
+  borderRadius: CARD_RADIUS,
+  padding: '32rpx',
+  marginBottom: '32rpx',
+  backgroundColor: brand[500],
+  backgroundImage: `linear-gradient(135deg, ${gradient.brand[0]}, ${gradient.brand[1]})`,
+} as any
+
+const heroBadge = {
+  alignSelf: 'flex-start',
+  paddingHorizontal: '16rpx',
+  paddingVertical: '8rpx',
+  borderRadius: '9999rpx',
+  backgroundColor: 'rgba(255, 255, 255, 0.30)',
+  marginBottom: '20rpx',
+} as any
+const heroBadgeText = { color: brand[600], fontSize: fontSize.xs, fontWeight: fontWeight.semibold } as any
+
+const heroTitle = {
+  display: 'block',
+  color: '#FFFFFF',
+  fontSize: '40rpx',
+  fontWeight: fontWeight.bold,
+  lineHeight: '52rpx',
+  marginBottom: '12rpx',
+} as any
+
+const heroSubtitle = {
+  display: 'block',
+  color: 'rgba(255, 255, 255, 0.92)',
+  fontSize: fontSize.sm,
+  lineHeight: '36rpx',
+} as any
+
+// 快捷 chip：表面 #FCEFF2，文字 brand[500]，交错浅粉/纯白
+const chipsWrap = {
+  display: 'flex',
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: '16rpx',
+  marginBottom: '32rpx',
+} as any
+
+function chip(idx: number) {
+  const isAlt = idx % 2 === 1
+  return {
+    paddingHorizontal: '24rpx',
+    paddingVertical: '16rpx',
+    borderRadius: '9999rpx',
+    backgroundColor: isAlt ? brand[50] : n.value.surfacePink,
+    borderWidth: '1rpx',
+    borderStyle: 'solid',
+    borderColor: n.value.cardBorder,
+  } as any
+}
+const chipText = { color: brand[600], fontSize: fontSize.sm, fontWeight: fontWeight.medium } as any
+
+// 空状态卡
+const emptyCard = {
+  backgroundColor: n.value.surfaceWarm,
+  borderRadius: CARD_RADIUS,
+  padding: CARD_PADDING,
+  alignItems: 'center',
+  marginBottom: '32rpx',
+  borderWidth: '1rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.cardBorder,
+} as any
+const emptyIconWrap = {
+  width: '96rpx',
+  height: '96rpx',
+  borderRadius: '9999rpx',
+  backgroundColor: n.value.surfacePink,
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: '20rpx',
+} as any
+const emptyIcon = { color: brand[500], fontSize: '56rpx', lineHeight: '56rpx' } as any
+const emptyTitle = { color: n.value.text, fontSize: fontSize.base, fontWeight: fontWeight.semibold, marginBottom: '8rpx' } as any
+const emptyDesc = { color: n.value.textSecondary, fontSize: fontSize.sm, textAlign: 'center', lineHeight: '36rpx' } as any
+
+// 底部输入
+const composerWrap = {
+  ...flexRow,
+  alignItems: 'center',
+  gap: '16rpx',
+  paddingTop: '8rpx',
+} as any
+const composerInput = {
+  ...flexFill,
+  height: '88rpx',
+  borderRadius: '9999rpx',
+  backgroundColor: n.value.inputFill,
+  paddingHorizontal: '28rpx',
+  justifyContent: 'center',
+} as any
+const composerPlaceholder = { color: n.value.textSecondary, fontSize: fontSize.base } as any
+const composerSend = {
+  height: '88rpx',
+  paddingHorizontal: '32rpx',
+  borderRadius: '9999rpx',
+  backgroundColor: brand[500],
+  alignItems: 'center',
+  justifyContent: 'center',
+} as any
+const composerSendText = { color: '#FFFFFF', fontSize: fontSize.base, fontWeight: fontWeight.semibold } as any
+
+function onPick(text: string) {
+  showFeedback({ message: `已选择：${text}`, type: 'info' })
+}
+
+function pageGutter() {
+  return { paddingHorizontal: PAGE_GUTTER_REGULAR }
+}
+</script>
