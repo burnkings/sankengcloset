@@ -3,17 +3,37 @@
     <template #navbar><AppNavbar title="购买记录" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view :style="summaryCard"><view :style="summaryPrimary"><text :style="summaryLabel">累计记录</text><text :style="summaryAmount">¥{{ store.totalSpent }}</text></view><view :style="summarySide"><text :style="sideValue">{{ store.itemCount }} 笔</text><text :style="sideLabel">待结清 ¥{{ store.remainingTotal }}</text></view></view>
+        <view :style="summaryCard">
+          <view :style="summaryPrimary">
+            <text :style="summaryLabel">累计记录</text>
+            <text :style="summaryCount">{{ store.itemCount }} 笔</text>
+            <text :style="summaryAmount">¥{{ store.totalSpent }}</text>
+          </view>
+          <view :style="summarySide">
+            <text :style="sideLabel">待结清 ¥{{ store.remainingTotal }}</text>
+            <view :style="progressTrack"><view :style="progressFill" /></view>
+          </view>
+        </view>
         <V2SectionHeader title="记录明细" :compact="true" />
-        <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
+        <V2Segmented :items="filters" :active="activeFilter" variant="solid" :active-color="brand[500]" @change="onFilter" />
         <AppLoading v-if="store.loading" />
         <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="order" :size="64" /><text :style="emptyTitle">暂无符合条件的记录</text></view>
         <view v-else :style="listWrap">
           <view v-for="item in store.displayItems" :key="item.id" :style="recordCard" @tap="openItem(item.id)">
-            <view :style="recordTop"><view :style="recordCopy"><text :style="recordTitle">{{ item.name }}</text><text :style="recordBrand">{{ item.brand !== '' ? item.brand : item.shopName }}</text></view><text :style="statusText(item.statusColor)">{{ item.statusText }}</text></view>
-            <view :style="amountRow"><text :style="totalText">{{ item.totalText }}</text><text :style="remainingText">{{ item.remainingText }}</text></view>
-            <view :style="progressTrack"><view :style="progressFill(item.progressPercent, item.statusColor)" /></view>
-            <view :style="dateRow"><text :style="dateText">{{ item.purchaseDateText }}</text><text :style="dateText">{{ item.deadlineLabel }}</text></view>
+            <view :style="recordTop">
+              <view :style="recordCopy">
+                <text :style="recordTitle">{{ item.name }}</text>
+                <text :style="recordBrand">{{ item.brand !== '' ? item.brand : item.shopName }}</text>
+              </view>
+              <text :style="statusText(item.statusColor)">{{ item.statusText }}</text>
+            </view>
+            <view :style="amountRow">
+              <text :style="totalText">{{ item.totalText }}</text>
+              <text :style="remainingText(item.statusColor)">{{ item.remainingText }}</text>
+            </view>
+            <view :style="progressTrack"><view :style="progressFillPct(item.progressPercent, item.statusColor)" /></view>
+            <text v-if="item.note !== ''" :style="noteText">{{ item.note }}</text>
+            <text v-if="item.deadlineLabel !== ''" :style="dueText">{{ item.deadlineLabel }}</text>
           </view>
         </view>
       </view>
@@ -27,20 +47,20 @@ import { usePurchaseStore } from '@/stores/purchase-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = usePurchaseStore()
 const safeBottom = getSafeBottomInset()
 const activeFilter = ref('全部')
-const filters = ['全部', '预售中', '已付定金', '待付款', '已完成', '已取消']
+const filters = ['全部', '预售中', '已付定金', '待付款', '已完成']
 function onFilter(label: string) {
   activeFilter.value = label
   let status = ''
@@ -48,7 +68,6 @@ function onFilter(label: string) {
   if (label === '已付定金') status = 'DEPOSIT_PAID'
   if (label === '待付款') status = 'PENDING_PAYMENT'
   if (label === '已完成') status = 'COMPLETED'
-  if (label === '已取消') status = 'CANCELLED'
   store.setFilterStatus(status)
 }
 function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
@@ -56,30 +75,33 @@ function openItem(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id
 onMounted(() => { store.fetchPurchases() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
-const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
-const summaryPrimary = { ...flexFill }
-const summaryLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
-const summaryAmount = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[600], marginTop: '8rpx' }
-const summarySide = { alignItems: 'flex-end' }
-const sideValue = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const sideLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2' }))
+const summaryPrimary = { ...flexFill, justifyContent: 'center' }
+const summaryLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
+const summaryCount = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary, marginTop: '6rpx' }))
+const summaryAmount = { fontSize: '44rpx', fontWeight: fontWeight.semibold, color: brand[500], marginTop: '6rpx' }
+const summarySide = { alignItems: 'flex-end', justifyContent: 'center' }
+const sideLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
+const progressTrack = computed((): any => ({ width: '220rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: '#F0E8E2', overflow: 'hidden', marginTop: '12rpx' }))
+const progressFill = computed((): any => {
+  const total = store.totalSpent > 0 ? store.totalSpent : 1
+  const pct = Math.min(100, Math.round(store.remainingTotal / total * 100))
+  return { width: `${pct}%`, height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[500] }
+})
 const listWrap = { marginTop: '22rpx' }
-const recordCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '20rpx' }))
+const recordCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', marginBottom: '20rpx' }))
 const recordTop = { ...flexRow, alignItems: 'flex-start' }
 const recordCopy = { ...flexFill }
-const recordTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const recordBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
-function statusText(color: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color, marginLeft: '12rpx' } }
-const amountRow = { ...flexRow, alignItems: 'center', marginTop: '22rpx' }
-const totalText = computed((): any => ({ ...flexFill, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text }))
-const remainingText = { fontSize: fontSize.sm, color: brand[600] }
-const progressTrack = computed((): any => ({ height: '8rpx', borderRadius: '4rpx', backgroundColor: n.value.bgTertiary, overflow: 'hidden', marginTop: '18rpx' }))
-function progressFill(percent: number, color: string) { return { width: `${percent}%`, height: '8rpx', borderRadius: '4rpx', backgroundColor: color } }
-const dateRow = { ...flexRow, justifyContent: 'space-between', marginTop: '14rpx' }
-const dateText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const recordTitle = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const recordBrand = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
+function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fontWeight.semibold, color, marginLeft: '12rpx', flexShrink: 0 } }
+const amountRow = { ...flexRow, alignItems: 'center', marginTop: '18rpx' }
+const totalText = computed((): any => ({ ...flexFill, fontSize: '32rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+function remainingText(color: string) { return { fontSize: '28rpx', fontWeight: fontWeight.semibold, color } }
+function progressFillPct(percent: number, color: string) { return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color } }
+const noteText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '14rpx' }))
+const dueText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 </script>
-

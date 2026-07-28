@@ -1,0 +1,71 @@
+<template>
+  <scroll-view direction="horizontal" :show-scrollbar="false" :style="scrollStyle">
+    <view :style="rowStyle">
+      <view v-for="(item, idx) in items" :key="item" :style="shellStyle(idx)">
+        <view :style="chipStyle(item)" @tap="onTap(item)">
+          <text :style="chipText(item)">{{ item }}</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</template>
+
+<script setup lang="uts">
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{
+  items?: Array<string>
+  active?: string
+  variant?: string   // 'solid' | 'soft' | 'text'
+  activeColor?: string
+  edgeInset?: boolean
+}>(), { items: () => [], active: '', variant: 'solid', activeColor: '', edgeInset: false })
+
+const emit = defineEmits<{ change: [value: string] }>()
+function onTap(item: string) { emit('change', item) }
+
+const CARD_BORDER = '#F0E8E2'
+
+const scrollStyle = { width: '100%' }
+const rowStyle = computed((): any => ({
+  ...flexRow,
+  minWidth: '100%',
+  height: '64rpx',
+  paddingLeft: props.edgeInset ? '40rpx' : '0',
+  paddingRight: props.edgeInset ? '40rpx' : '0',
+  alignItems: 'center',
+}))
+function shellStyle(idx: number) { return { marginRight: idx < props.items.length - 1 ? '16rpx' : '0', flexShrink: 0 } }
+
+function chipStyle(item: string) {
+  const active = item === props.active
+  if (props.variant === 'text') {
+    return { height: '60rpx', paddingLeft: '8rpx', paddingRight: '8rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }
+  }
+  if (props.variant === 'soft') {
+    const bg = active ? n.value.surfacePink : baseColors.white
+    return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: CARD_BORDER }
+  }
+  // solid
+  const ac = props.activeColor !== '' ? props.activeColor : brand[600]
+  return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center', backgroundColor: active ? ac : baseColors.white, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: CARD_BORDER }
+}
+
+function chipText(item: string) {
+  const active = item === props.active
+  if (props.variant === 'text') {
+    const col = active ? (props.activeColor !== '' ? props.activeColor : brand[300]) : n.value.textSecondary
+    return { fontSize: fontSize.xs, fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: col }
+  }
+  if (props.variant === 'soft') {
+    const col = active ? (props.activeColor !== '' ? props.activeColor : brand[500]) : n.value.text
+    return { fontSize: fontSize.xs, fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: col }
+  }
+  const col = active ? baseColors.white : n.value.text
+  return { fontSize: fontSize.xs, fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: col }
+}
+</script>

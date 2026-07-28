@@ -6,19 +6,30 @@
         <view :style="summaryCard">
           <text :style="summaryEyebrow">{{ currentMonth }} 已记录承诺金额</text>
           <text :style="spentText">¥{{ formatAmount(monthSpent) }}</text>
-          <view :style="progressTrack"><view :style="progressFill" /></view>
-          <view :style="summaryRow"><text :style="summaryMeta">月预算 ¥{{ formatAmount(limitValue) }}</text><text :style="summaryMeta">剩余 ¥{{ formatAmount(remaining) }}</text></view>
+          <view :style="summaryRow">
+            <text :style="summaryMeta">月预算 ¥{{ formatAmount(limitValue) }}</text>
+            <text :style="summaryMeta">剩余 ¥{{ formatAmount(remaining) }}</text>
+          </view>
         </view>
 
-        <text :style="fieldLabel">月预算上限</text><AppInput v-model="limitText" placeholder="例如：2000" type="digit" />
-        <text :style="fieldLabel">提醒阈值</text><V2FilterChips :items="alertLabels" :active="activeAlert" @change="onAlert" />
-        <view :style="ruleCard"><AppIcon name="budget" :size="36" :active="true" /><text :style="ruleText">按购买记录中的商品总额计算，包含尚未支付的尾款；不会读取外部平台账单。</text></view>
+        <text :style="fieldLabel">月预算上限</text>
+        <AppInput v-model="limitText" placeholder="例如：2000" type="digit" />
+
+        <text :style="fieldLabel">提醒阈值</text>
+        <V2Segmented :items="alertLabels" :active="activeAlert" variant="solid" :active-color="brand[500]" @change="onAlert" />
+
+        <view :style="ruleCard">
+          <view :style="ruleIcon"><text :style="ruleMark">!</text></view>
+          <view :style="ruleTextWrap">
+            <text :style="ruleText">按购买记录中的商品总额计算，包含尚未支付的尾款；</text>
+            <text :style="ruleText">不会读取外部平台账单。</text>
+          </view>
+        </view>
+
+        <view :style="saveButton" @tap="save"><text :style="saveText">保存预算</text></view>
       </view>
     </template>
   </MainLayout>
-  <view :style="budgetBottomBar">
-    <view :style="budgetSaveButton" @tap="save"><text :style="budgetSaveText">保存预算</text></view>
-  </view>
 </template>
 
 <script setup lang="uts">
@@ -27,15 +38,14 @@ import { usePurchaseStore } from '@/stores/purchase-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
-import AppIcon from '@/components/base/AppIcon.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
-import { getSafeBottomInset } from '@/utils/window-info'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const budget = useBudgetStore(); const purchases = usePurchaseStore()
 const limitText = ref(budget.monthlyLimit > 0 ? String(budget.monthlyLimit) : '')
@@ -46,27 +56,24 @@ const now = new Date(); const monthNumber = now.getMonth() + 1; const currentMon
 const monthSpent = computed((): number => purchases.filteredItems.filter((item) => item.purchaseDate.indexOf(monthCode) === 0).reduce((sum, item) => sum + item.totalAmount, 0))
 const limitValue = computed((): number => { const value = limitText.value.trim() === '' ? 0 : parseFloat(limitText.value); return isNaN(value) ? 0 : value })
 const remaining = computed((): number => Math.max(0, limitValue.value - monthSpent.value))
-const progress = computed((): number => limitValue.value <= 0 ? 0 : Math.min(100, Math.round(monthSpent.value / limitValue.value * 100)))
 function onAlert(label: string) { alertValue.value = parseInt(label.replace('%', '')) }
 function formatAmount(value: number): string { return value === Math.floor(value) ? String(Math.floor(value)) : value.toFixed(2) }
 function save() { if (limitValue.value <= 0) { showFeedback('请填写大于 0 的月预算'); return }; budget.save(limitValue.value, alertValue.value); showFeedback('月预算已保存'); setTimeout(() => { uni.navigateBack() }, 220) }
 const safeBottom = getSafeBottomInset()
 onMounted(() => { purchases.fetchPurchases() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const budgetBottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${safeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
-const budgetSaveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
-const budgetSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
-const summaryCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
-const summaryEyebrow = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
-const spentText = computed((): any => ({ fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: n.value.text, marginTop: '10rpx' }))
-const progressTrack = computed((): any => ({ height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.surface, overflow: 'hidden', marginTop: '22rpx' }))
-const progressFill = computed((): any => ({ width: `${progress.value}%`, height: '12rpx', borderRadius: '6rpx', backgroundColor: progress.value >= alertValue.value ? brand[700] : brand[500] }))
-const summaryRow = { ...flexRow, marginTop: '12rpx' }
-const summaryMeta = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary }))
-const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
-const ruleCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '24rpx' }))
-const ruleText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginLeft: '12rpx' }))
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 60}px` , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+const summaryCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surfacePink }))
+const summaryEyebrow = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
+const spentText = computed((): any => ({ fontSize: '56rpx', fontWeight: fontWeight.bold, color: n.value.text, marginTop: '10rpx' }))
+const summaryRow = { ...flexRow, marginTop: '16rpx', justifyContent: 'space-between' }
+const summaryMeta = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
+const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '40rpx', marginBottom: '14rpx' }))
+const ruleCard = computed((): any => ({ ...flexRow, alignItems: 'flex-start', padding: '24rpx', borderRadius: '24rpx', backgroundColor: '#F5EFEC', marginTop: '24rpx' }))
+const ruleIcon = computed((): any => ({ width: '48rpx', height: '48rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '14rpx' }))
+const ruleMark = { fontSize: '32rpx', fontWeight: fontWeight.bold, color: brand[500], lineHeight: '48rpx' }
+const ruleTextWrap = { ...flexFill }
+const ruleText = computed((): any => ({ fontSize: '22rpx', color: n.value.text, lineHeight: '34rpx' }))
+const saveButton = computed((): any => ({ width: '100%', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '48rpx' }))
+const saveText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
-
-

@@ -1,32 +1,45 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="商品详情" :show-back="true" /></template>
+  <MainLayout navbar-content-height="0rpx">
     <template #default>
       <view v-if="loading" :style="emptyWrap"><text :style="emptyText">正在加载商品信息…</text></view>
-      <view v-else-if="item !== null" :style="pageWrap">
-        <view :style="galleryWrap">
-          <swiper :style="hero" :circular="detailImages.length > 1" :indicator-dots="detailImages.length > 1" :indicator-color="n.divider" :indicator-active-color="brand[500]" @change="onGalleryChange">
+      <view v-else-if="item !== null">
+        <view :style="heroWrap">
+          <swiper :style="hero" :circular="detailImages.length > 1" :indicator-dots="false" @change="onGalleryChange">
             <swiper-item v-for="imageUrl in detailImages" :key="imageUrl">
               <AppImage :src="imageUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             </swiper-item>
           </swiper>
+          <view :style="heroBack" @tap="onBack">
+            <view :style="heroChevron" />
+          </view>
           <view v-if="detailImages.length > 1" :style="imageCounter"><text :style="imageCounterText">{{ currentImageIndex + 1 }} / {{ detailImages.length }}</text></view>
         </view>
-        <view class="page-canvas">
+
+        <view class="page-canvas" :style="pageWrap">
           <view :style="summaryCard">
             <view :style="priceRow"><text :style="priceText">{{ formatPrice(item!.price) }}</text><text v-if="item!.originalPrice > item!.price" :style="oldPrice">{{ formatPrice(item!.originalPrice) }}</text></view>
             <text :style="titleText">{{ item!.title }}</text>
             <text :style="brandText">{{ item!.brandName }}</text>
-            <view :style="statusRow"><view :style="statusDot" /><text :style="statusText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text><text v-if="formatDeadline(item!.eventEndAt) !== ''" :style="deadlineText">{{ formatDeadline(item!.eventEndAt) }}</text></view>
+            <view :style="statusTag">
+              <view :style="statusDot" />
+              <text :style="statusTagText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text>
+            </view>
             <view :style="decisionRow">
-              <view :style="decisionAction(false)" @tap="createReminder"><AppIcon name="reminder" :size="32" :active="true" /><text :style="decisionText">设置提醒</text></view>
-              <view :style="decisionAction(true)" @tap="createPurchase"><AppIcon name="order" :size="32" :active="true" /><text :style="decisionText">记入购买</text></view>
+              <view :style="decisionBtn(false)" @tap="createReminder"><AppIcon name="reminder" :size="32" :active="true" /><text :style="decisionText">设置提醒</text></view>
+              <view :style="decisionBtn(true)" @tap="createPurchase"><image :src="orderWhiteIcon" :style="decisionIcon" mode="aspectFit" /><text :style="decisionTextLight">记入购买</text></view>
             </view>
           </view>
 
           <V2SectionHeader title="发售进度" />
-          <view :style="timelineCard">
-            <view v-for="(stage, idx) in stages" :key="stage" :style="stageItem(idx)"><view :style="stageDot(idx)" /><text :style="stageText(idx)">{{ stage }}</text></view>
+          <view :style="stepCard">
+            <view :style="stepLine" />
+            <view :style="stepLineFill" />
+            <view :style="stepRow">
+              <view v-for="(stage, idx) in stages" :key="stage" :style="stepItem(idx)">
+                <view :style="stepDot(idx)" />
+                <text :style="stepLabel(idx)">{{ stage }}</text>
+              </view>
+            </view>
           </view>
 
           <V2SectionHeader title="商品说明" />
@@ -40,16 +53,23 @@
       </view>
     </template>
   </MainLayout>
-  <view v-if="item !== null" :style="actionBar">
-    <view :style="minorButton" @tap="toggleSaved"><AppIcon name="wardrobe" :size="36" :active="isSaved" /><text :style="minorText">{{ isSaved ? '已收藏' : '收藏' }}</text></view>
-    <view :style="officialButton" @tap="openOfficial"><text :style="officialText">前往官方渠道</text></view>
+  <view v-if="item !== null" :style="botBar">
+    <view :style="botItem" @tap="toggleSaved">
+      <view :style="botIcon"><AppIcon name="wardrobe" :size="40" :active="isSaved" /></view>
+      <text :style="botLabel">{{ isSaved ? '已收藏' : '收藏' }}</text>
+    </view>
+    <view :style="botItem" @tap="askQiling">
+      <view :style="botIcon"><AppIcon name="sparkles" :size="40" :active="false" /></view>
+      <text :style="botLabel">问绮灵</text>
+    </view>
+    <view :style="goBtn" @tap="openOfficial"><text :style="goBtnText">前往官方渠道</text></view>
   </view>
 </template>
 
 <script setup lang="uts">
 import { FeedItem } from '@/domain/content/feed-item'
 import { fetchProductDetail } from '@/services/content/product-service'
-import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
+import { formatPrice } from '@/stores/home-feed-store'
 import { apiGet, apiPost, apiDelete } from '@/services/platform/api-client'
 import { getCachedAccessToken } from '@/config/runtime'
 import { brand, baseColors } from '@/theme/tokens/colors'
@@ -59,13 +79,13 @@ import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR } from '@/theme/tokens/r
 import { n } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
-import { openPrimaryTab } from '@/utils/tab-navigation'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
+
+const orderWhiteIcon = '/static/icons/order-white.svg'
 
 const itemId = ref('')
 const item = ref(null) as Ref<FeedItem | null>
@@ -74,12 +94,13 @@ const errorMessage = ref('')
 const description = ref('')
 const shopUrl = ref('')
 const isSaved = ref(false)
-const stages = ['图透', '定金', '尾款', '现货']
+const stages = ['圈透', '定金', '尾款', '现货']
 const currentImageIndex = ref(0)
 const detailImages = ref([]) as Ref<string[]>
 let savedEntityIds: string[] = []
 
 function onGalleryChange(e: any) { currentImageIndex.value = (e.detail as any).current ?? 0 }
+function onBack() { uni.navigateBack() }
 
 function isLoggedIn(): boolean {
   return getCachedAccessToken() !== ''
@@ -113,7 +134,6 @@ async function toggleSaved() {
   const currentSaved = isSaved.value
   try {
     if (currentSaved) {
-      // 查找 wishlist 中对应的 ID
       const targetId = findWishlistId(entityId)
       if (targetId !== '') {
         await apiDelete(`/api/v1/wishlist/${encodeURIComponent(targetId)}`)
@@ -129,21 +149,22 @@ async function toggleSaved() {
       showFeedback('已收进心动收藏')
     }
   } catch (e) {
-    // 网络错误回滚状态
     isSaved.value = currentSaved
     showFeedback(e instanceof Error ? e.message : '操作失败，请重试')
   }
 }
 
 function findWishlistId(entityId: string): string {
-  // 从之前缓存的结果中找对应 ID
-  // 实际场景需要保存 wishlist 项的完整映射，这里简化处理
   return entityId
 }
 
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录官方购买地址'); return }
   uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('官方地址已复制，可在浏览器打开') } })
+}
+
+function askQiling() {
+  uni.navigateTo({ url: '/pages/ai/index' })
 }
 
 function dateOnly(value: string): string {
@@ -180,7 +201,6 @@ async function loadDetail() {
     detailImages.value = result.images
     description.value = result.description
     shopUrl.value = result.shopUrl
-    // 加载收藏状态
     if (isLoggedIn()) {
       await fetchWishlist()
     }
@@ -201,38 +221,77 @@ onMounted(() => {
 })
 
 const safeBottom = getSafeBottomInset()
-const pageWrap = { paddingBottom: '0' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const galleryWrap = { width: '750rpx', height: '750rpx', position: 'relative' as string }
-const hero = computed((): any => ({ width: '750rpx', height: '750rpx', backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
-const imageCounter = { position: 'absolute' as string, right: '28rpx', bottom: '28rpx', minWidth: '82rpx', height: '44rpx', paddingLeft: '14rpx', paddingRight: '14rpx', borderRadius: '22rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,18,19,0.58)' }
-const imageCounterText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.medium, color: baseColors.white }
-const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const pageWrap = { paddingTop: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const heroWrap = { width: '750rpx', height: '720rpx', position: 'relative' as string, backgroundColor: n.value.bgSecondary, overflow: 'hidden' }
+const hero = { width: '750rpx', height: '720rpx' }
+const heroBack = { position: 'absolute' as string, left: '32rpx', top: '28rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: baseColors.black, alignItems: 'center', justifyContent: 'center', zIndex: zIndex.navbar + 1 }
+const heroChevron = { width: '26rpx', height: '26rpx', borderRightWidth: '4rpx', borderBottomWidth: '4rpx', borderStyle: 'solid', borderColor: baseColors.white, transform: 'rotate(135deg)' }
+const imageCounter = { position: 'absolute' as string, right: '30rpx', bottom: '32rpx', minWidth: '84rpx', height: '48rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: baseColors.black }
+const imageCounterText = { fontSize: '22rpx', fontWeight: fontWeight.medium, color: baseColors.white }
+const summaryCard = { marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
-const priceText = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[600] }
-const oldPrice = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }))
-const titleText = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '48rpx', marginTop: '14rpx' }))
-const brandText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '8rpx' }))
-const statusRow = { ...flexRow, alignItems: 'center', marginTop: '18rpx' }
-const statusDot = { width: '10rpx', height: '10rpx', borderRadius: '5rpx', backgroundColor: brand[500], marginRight: '8rpx' }
-const statusText = { fontSize: fontSize.xs, color: brand[600] }
-const deadlineText = { fontSize: fontSize.xs, color: brand[600], marginLeft: '16rpx' }
+const priceText = { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: brand[500] }
+const oldPrice = { fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }
+const titleText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }
+const brandText = { fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }
+const statusTag = { ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: baseColors.white, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }
+const statusDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '8rpx' }
+const statusTagText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500] }
 const decisionRow = { ...flexRow, marginTop: '22rpx' }
-function decisionAction(last: boolean) { return { ...flexFill, height: '68rpx', borderRadius: '34rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center', marginRight: last ? '0' : '12rpx' } }
-const decisionText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600], marginLeft: '8rpx' }))
-const timelineCard = computed((): any => ({ ...flexRow, padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
-function stageItem(idx: number) { return { ...flexFill, alignItems: 'center' } }
-function stageDot(idx: number) { return { width: '22rpx', height: '22rpx', borderRadius: '11rpx', backgroundColor: idx < 2 ? brand[500] : n.value.divider, borderWidth: idx === 2 ? '4rpx' : '0', borderStyle: 'solid', borderColor: brand[200] } }
-function stageText(idx: number) { return { fontSize: fontSize.xs, color: idx < 2 ? brand[600] : n.value.textTertiary, marginTop: '12rpx' } }
-const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
-const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
-const actionSpacer = { height: `${upx2px(160) + safeBottom}px`, flexShrink: 0 }
+function decisionBtn(primary: boolean) {
+  return {
+    ...flexFill,
+    height: '88rpx',
+    borderRadius: '22rpx',
+    backgroundColor: primary ? brand[500] : baseColors.white,
+    borderWidth: primary ? '0' : '3rpx',
+    borderStyle: 'solid' as string,
+    borderColor: primary ? baseColors.white : brand[500],
+    ...flexRow,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: primary ? '0' : '28rpx',
+  }
+}
+const decisionIcon = { width: '32rpx', height: '32rpx', marginRight: '8rpx' }
+const decisionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[500], marginLeft: '8rpx' }
+const decisionTextLight = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white, marginLeft: '8rpx' }
+const stepCard = { ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }
+const stepLine = { position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.cardBorder }
+const stepLineFill = { position: 'absolute' as string, left: '110rpx', width: '257rpx', top: '71rpx', height: '2rpx', backgroundColor: brand[500] }
+const stepRow = { ...flexFill, ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between' }
+function stepItem(idx: number) { return { flex: 1, alignItems: 'center' } }
+function stepDot(idx: number) {
+  const filled = idx < 2
+  const outline = idx === 2
+  const idle = idx === 3
+  return {
+    width: '24rpx',
+    height: '24rpx',
+    borderRadius: '12rpx',
+    backgroundColor: filled ? brand[500] : (idle ? n.value.cardBorder : baseColors.white),
+    borderWidth: outline ? '4rpx' : '0',
+    borderStyle: 'solid' as string,
+    borderColor: outline ? brand[500] : baseColors.white,
+    marginTop: '36rpx',
+  }
+}
+function stepLabel(idx: number) {
+  const active = idx < 2
+  const next = idx === 2
+  return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: active ? n.value.text : (next ? '#5C5550' : n.value.textSecondary), marginTop: '12rpx' }
+}
+const detailCard = { padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }
+const detailText = { fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }
+const actionSpacer = { height: `${upx2px(180) + safeBottom}px`, flexShrink: 0 }
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
-const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary })); const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }; const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
-const actionBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, minHeight: '112rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'center', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))
-const minorButton = { width: '112rpx', alignItems: 'center', justifyContent: 'center' }
-const minorText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textSecondary, marginTop: '4rpx' }))
-const officialButton = { ...flexFill, height: '76rpx', borderRadius: '38rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
-const officialText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
+const emptyText = { fontSize: fontSize.sm, color: n.value.textTertiary }
+const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }
+const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
+const botBar = { position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, height: '192rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '20rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'flex-start', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }
+const botItem = { width: '100rpx', alignItems: 'center' }
+const botIcon = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' }
+const botLabel = { fontSize: '20rpx', color: '#5C5550', marginTop: '8rpx' }
+const goBtn = { ...flexFill, height: '104rpx', borderRadius: '26rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }
+const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
-
-

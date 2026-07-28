@@ -3,15 +3,34 @@
     <template #navbar><AppNavbar title="提醒" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view :style="focusCard"><view :style="focusCopy"><text :style="focusLabel">近期需要关注</text><text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text></view><view :style="focusStats"><text :style="focusMeta">今天 {{ store.todayCount }}</text><text :style="focusMeta">逾期 {{ store.overdueCount }}</text></view></view>
+        <view :style="focusCard">
+          <view :style="focusCopy">
+            <text :style="focusLabel">近期需要关注</text>
+            <text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text>
+          </view>
+          <view :style="focusStats">
+            <text :style="focusMetaToday">今天 {{ store.todayCount }}</text>
+            <text :style="focusMetaOverdue">逾期 {{ store.overdueCount }}</text>
+          </view>
+        </view>
         <V2SectionHeader title="提醒列表" :compact="true" />
-        <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
+        <V2Segmented :items="filters" :active="activeFilter" variant="solid" :active-color="brand[300]" @change="onFilter" />
         <AppLoading v-if="store.loading" />
         <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
         <view v-else :style="listWrap">
           <view v-for="item in store.displayItems" :key="item.id" :style="reminderCard" @tap="openItem(item.id)">
-            <view :style="dateBlock(item.isToday, item.isOverdue)"><text :style="dateMain">{{ item.dateText.length >= 10 ? item.dateText.substring(8, 10) : '--' }}</text><text :style="dateSub">{{ item.timeText !== '' ? item.timeText : '全天' }}</text></view>
-            <view :style="reminderCopy"><view :style="titleRow"><text :style="reminderTitle">{{ item.title }}</text><text :style="statusText(item.statusColor)">{{ item.statusText }}</text></view><text :style="typeText">{{ item.typeText }} · {{ item.dateText }}</text><text v-if="item.note !== ''" :style="noteText">{{ item.note }}</text></view>
+            <view :style="dateBlock">
+              <text :style="dateMain">{{ item.dateText.length >= 10 ? item.dateText.substring(8, 10) : '--' }}</text>
+              <text :style="dateSub">{{ item.timeText !== '' ? item.timeText : '全天' }}</text>
+            </view>
+            <view :style="reminderCopy">
+              <view :style="titleRow">
+                <text :style="reminderTitle">{{ item.title }}</text>
+                <text :style="statusText(item.statusColor)">{{ item.statusText }}</text>
+              </view>
+              <text :style="subLine">{{ item.typeText }} · {{ item.dateText }}</text>
+              <text v-if="item.note !== ''" :style="subLine">{{ item.note }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -25,14 +44,14 @@ import { useReminderStore } from '@/stores/reminder-store'
 import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark } from '@/theme/use-theme'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useReminderStore()
@@ -45,26 +64,24 @@ function openItem(id: string) { uni.navigateTo({ url: `/pages/reminder/edit?id=$
 onMounted(() => { store.fetchItems() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
-const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
+const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surfacePink }))
 const focusCopy = { ...flexFill }
-const focusLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
-const focusValue = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: brand[700], marginTop: '8rpx' }
+const focusLabel = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary }))
+const focusValue = { fontSize: '56rpx', fontWeight: fontWeight.bold, color: brand[500], marginTop: '8rpx' }
 const focusStats = { alignItems: 'flex-end' }
-const focusMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx' }))
+const focusMetaToday = computed((): any => ({ fontSize: '26rpx', fontWeight: fontWeight.medium, color: n.value.text, marginTop: '6rpx' }))
+const focusMetaOverdue = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const listWrap = { marginTop: '22rpx' }
-const reminderCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '160rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '20rpx' }))
-function dateBlock(today: boolean, overdue: boolean) { return { width: '104rpx', borderRadius: '18rpx', backgroundColor: overdue ? semantic.errorLight : (today ? brand[100] : n.value.bgTertiary), alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 } }
-const dateMain = computed((): any => ({ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: n.value.text }))
-const dateSub = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+const reminderCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', marginBottom: '20rpx' }))
+const dateBlock = { width: '96rpx', marginRight: '20rpx', flexShrink: 0, alignItems: 'center' }
+const dateMain = computed((): any => ({ fontSize: '44rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const dateSub = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '4rpx' }))
 const reminderCopy = { ...flexFill, justifyContent: 'center' }
 const titleRow = { ...flexRow, alignItems: 'center' }
-const reminderTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
-function statusText(color: string) { return { fontSize: fontSize.xs, color, marginLeft: '12rpx' } }
-const typeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
-const noteText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
+const reminderTitle = computed((): any => ({ ...flexFill, fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fontWeight.semibold, color, marginLeft: '12rpx' } }
+const subLine = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[300], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 </script>
-

@@ -1,7 +1,7 @@
 <template>
   <MainLayout>
     <template #navbar>
-      <AppNavbar title="种草清单" :show-back="false">
+      <AppNavbar title="愿望单" :show-back="false">
         <template #right>
           <text :style="addBtnStyle" @tap="onAddTap">+ 新种草</text>
         </template>
@@ -12,367 +12,85 @@
       <AppLoading v-if="store.loading" />
 
       <scroll-view v-else :style="scrollStyle">
+        <V2Segmented :items="viewTabs" :active="activeTab" variant="soft" :active-color="brand[500]" @change="onTab" />
 
-        <!-- 愿望 Hero 区域 -->
-        <view :style="heroSection">
-          <view :style="heroInner">
-            <text :style="heroTitle">我的愿望清单 ✨</text>
-            <text :style="heroSub">{{ heroSubText }}</text>
-          </view>
-          <!-- 预算条 -->
-          <view v-if="store.estimatedTotal > 0" :style="budgetRow">
-            <text :style="budgetLabel">预计花费</text>
-            <text :style="budgetAmount">¥{{ store.estimatedTotal }}</text>
-            <view v-if="store.highPriorityCount > 0" :style="budgetBadge">
-              <text :style="budgetBadgeText">{{ store.highPriorityCount }} 件必买</text>
+        <view v-if="viewItems.length === 0" :style="emptyWrap">
+          <text :style="emptyTitle">这个分类还是空的</text>
+          <text :style="emptySub">去添加一件想拥有的三坑宝贝吧~</text>
+        </view>
+
+        <view v-else :style="gridWrap">
+          <view v-for="(item, idx) in viewItems" :key="item.id" :style="itemCard(idx)" @tap="onItemTap(item.id)">
+            <view :style="itemImage">
+              <AppImage v-if="item.coverImage !== ''" :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             </view>
-          </view>
-          <!-- 统计胶囊 -->
-          <view :style="heroStatsRow">
-            <view :style="heroStatItem">
-              <text :style="heroStatNum(accent[500])">{{ store.wishCount }}</text>
-              <text :style="heroStatLabel">种草</text>
-            </view>
-            <view :style="heroStatDivider" />
-            <view :style="heroStatItem">
-              <text :style="heroStatNum(warm.lavender)">{{ store.watchingCount }}</text>
-              <text :style="heroStatLabel">观望</text>
-            </view>
-            <view :style="heroStatDivider" />
-            <view :style="heroStatItem">
-              <text :style="heroStatNum(semantic.success)">{{ store.decidedCount }}</text>
-              <text :style="heroStatLabel">决定买</text>
-            </view>
-            <view :style="heroStatDivider" />
-            <view :style="heroStatItem">
-              <text :style="heroStatNum(n.value.textTertiary)">{{ store.purchasedCount }}</text>
-              <text :style="heroStatLabel">已入手</text>
+            <view :style="itemBody">
+              <text :style="itemName">{{ item.name }}</text>
+              <text :style="itemPrice">¥{{ item.estimatedPrice }}</text>
             </view>
           </view>
         </view>
 
-        <!-- 筛选 + 收藏 + 排序 -->
-        <view :style="toolbarSection">
-          <scroll-view direction="horizontal" :show-scrollbar="false" :style="chipScrollStyle">
-            <view :style="chipRowStyle">
-              <AppTag
-                v-for="opt in filterOptions"
-                :key="opt.value"
-                :label="opt.label"
-                :variant="TAG_CHIP"
-                :active="opt.value === store.filterStatus"
-                @tap="store.setFilterStatus(opt.value)"
-              />
-            </view>
-          </scroll-view>
-          <view :style="favToggleStyle" @tap="store.setShowFavoritesOnly(!store.showFavoritesOnly)">
-            <text :style="favToggleText">{{ store.showFavoritesOnly ? '❤️' : '🤍' }}</text>
-          </view>
-          <view :style="sortBtnStyle" @tap="onSortTap">
-            <text :style="sortIconStyle">↕</text>
-          </view>
-        </view>
-
-        <!-- Empty -->
-        <AppEmptyState
-          v-if="!store.loading && store.displayItems.length === 0"
-          icon="🌱"
-          :title="store.searchKeyword ? '没有找到匹配的心愿' : (store.filterStatus ? '该状态下没有心愿' : '你的愿望清单还是空的')"
-          :description="store.searchKeyword ? '换个关键词试试' : (store.filterStatus ? '换一个筛选看看' : '记录下一件想拥有的三坑宝贝吧~')"
-          :action-text="store.searchKeyword || store.filterStatus ? '' : '添加心愿'"
-          @action="onAddTap"
-        />
-
-        <!-- 灵感板列表 -->
-        <view v-if="store.displayItems.length > 0" :style="listSection">
-          <WishCard
-            v-for="item in store.displayItems"
-            :key="item.id"
-            :item="item"
-            @click="onItemTap(item.id)"
-          />
-        </view>
-
-        <!-- 底部留白 -->
         <view :style="bottomSpacer" />
       </scroll-view>
     </template>
   </MainLayout>
-
-  <!-- 排序弹窗 -->
-  <AppDialog
-    v-model:visible="sortSheetVisible"
-    title="排序方式"
-    :show-cancel="false"
-    confirm-text="关闭"
-  >
-    <view :style="sortListStyle">
-      <view
-        v-for="opt in sortOptions"
-        :key="opt.value"
-        :style="sortItemStyle(opt.value === store.currentSort)"
-        @tap="onSortSelect(opt.value)"
-      >
-        <text :style="sortItemText(opt.value === store.currentSort)">{{ opt.label }}</text>
-        <text v-if="opt.value === store.currentSort" :style="checkStyle">✓</text>
-      </view>
-    </view>
-  </AppDialog>
 </template>
 
 <script setup lang="uts">
 import { useWishListStore } from '@/stores/wishlist-store'
-import { WISH_FILTER_OPTIONS } from '@/domain/wish-item'
-import { brand, accent, warm, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
-import { spacing, semanticSpacing } from '@/theme/tokens/spacing'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { radius, semanticRadius } from '@/theme/tokens/radius'
-import { shadow } from '@/theme/tokens/shadow'
-import { flexRow, flexRowBetween, flexCenter, flexColumnCenter, flexFill } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import AppTag from '@/components/base/AppTag.uvue'
-import { TAG_CHIP } from '@/components/base/app-tag-types'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
-import AppDialog from '@/components/base/AppDialog.uvue'
-import WishCard from '@/components/business/WishCard.uvue'
-
+import AppImage from '@/components/base/AppImage.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const store = useWishListStore()
+const viewTabs = ['商品', '搭配', '品牌']
+const activeTab = ref('商品')
+function onTab(label: string) { activeTab.value = label }
 
-const filterOptions = WISH_FILTER_OPTIONS
-const sortSheetVisible = ref(false)
-
-const sortOptions = [
-  { label: '优先级', value: 'priority' },
-  { label: '价格从高到低', value: 'price-high' },
-  { label: '价格从低到高', value: 'price-low' },
-  { label: '最新添加', value: 'newest' },
-]
-
-const currentSortLabel = computed((): string => {
-  const found = sortOptions.find((o) => o.value == store.currentSort)
-  return found ? found.label : '排序'
-})
-
-// Hero 文案
-const heroSubText = computed((): string => {
-  const total = store.itemCount
-  if (total === 0) return '开始记录你的心愿吧'
-  const active = store.wishCount + store.watchingCount + store.decidedCount
-  if (active > 0) return `共 ${total} 件心愿，${active} 件还在路上`
-  return `共 ${total} 件心愿，已全部达成 🎉`
+const viewItems = computed((): any[] => {
+  const all = store.displayItems
+  if (activeTab.value === '搭配') return all.filter((w: any) => w.status === 'WISH' || w.status === 'DECIDED')
+  if (activeTab.value === '品牌') return all.filter((w: any) => w.status === 'WATCHING' || w.status === 'PURCHASED')
+  return all
 })
 
 function onItemTap(id: string) {
   uni.navigateTo({ url: `/pages/wishlist/detail?id=${id}` })
 }
-
 function onAddTap() {
   uni.navigateTo({ url: '/pages/wishlist/edit' })
 }
-
-function onSortTap() {
-  sortSheetVisible.value = true
-}
-
-function onSortSelect(sort: string) {
-  store.setSort(sort)
-  sortSheetVisible.value = false
-}
-
 onMounted(() => {
   store.fetchItems()
 })
 
-// ====== 样式 ======
-
 const scrollStyle = {
   flex: 1,
-  backgroundColor: neutralLight.bg,
+  backgroundColor: n.value.bg,
 }
-
 const addBtnStyle = {
   fontSize: fontSize.sm,
   color: brand[500],
   fontWeight: fontWeight.semibold,
 }
-
-// --- Hero 区域 ---
-const heroSection = {
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  paddingTop: spacing[4],
-  paddingBottom: spacing[4],
-  backgroundColor: accent[500],
+const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+function itemCard(idx: number) {
+  return { width: '335rpx', marginRight: idx % 2 === 0 ? '16rpx' : '0', marginBottom: '16rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', overflow: 'hidden' as string }
 }
-
-const heroInner = {
-  marginBottom: spacing[3],
-}
-
-const heroTitle = {
-  fontSize: fontSize.xl,
-  fontWeight: fontWeight.bold,
-  color: baseColors.white,
-  marginBottom: spacing[0.5],
-}
-
-const heroSub = {
-  fontSize: fontSize.sm,
-  color: 'rgba(255,255,255,0.75)',
-}
-
-// 预算条
-const budgetRow = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[2],
-  marginBottom: spacing[3],
-  paddingHorizontal: spacing[3],
-  paddingVertical: spacing[2],
-  backgroundColor: 'rgba(255,255,255,0.15)',
-  borderRadius: semanticRadius.card,
-}
-
-const budgetLabel = {
-  fontSize: fontSize.sm,
-  color: 'rgba(255,255,255,0.8)',
-}
-
-const budgetAmount = {
-  fontSize: fontSize.lg,
-  fontWeight: fontWeight.bold,
-  color: baseColors.white,
-}
-
-const budgetBadge = {
-  marginLeft: 'auto',
-  backgroundColor: 'rgba(255,255,255,0.25)',
-  borderRadius: radius.full,
-  paddingHorizontal: spacing[2],
-  paddingVertical: '4rpx',
-}
-
-const budgetBadgeText = {
-  fontSize: fontSize.xs,
-  fontWeight: fontWeight.medium,
-  color: baseColors.white,
-}
-
-// 统计行
-const heroStatsRow = {
-  ...flexRow,
-  justifyContent: 'space-around',
-  paddingVertical: spacing[2],
-  backgroundColor: 'rgba(255,255,255,0.12)',
-  borderRadius: semanticRadius.card,
-}
-
-const heroStatItem = {
-  ...flexColumnCenter,
-  gap: spacing[0.5],
-}
-
-function heroStatNum(color: string) {
-  return {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: baseColors.white,
-    lineHeight: 1,
-  }
-}
-
-const heroStatLabel = {
-  fontSize: fontSize.xs,
-  color: 'rgba(255,255,255,0.65)',
-}
-
-const heroStatDivider = {
-  width: '1rpx',
-  height: '48rpx',
-  backgroundColor: 'rgba(255,255,255,0.15)',
-  alignSelf: 'center',
-}
-
-// --- 工具栏 ---
-const toolbarSection = {
-  ...flexRow,
-  alignItems: 'center',
-  gap: spacing[2],
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  paddingVertical: spacing[3],
-}
-
-const chipScrollStyle = {
-  ...flexFill,
-  overflow: 'hidden',
-}
-
-const chipRowStyle = {
-  ...flexRow,
-  gap: spacing[2],
-}
-
-const favToggleStyle = {
-  ...flexCenter,
-  width: '56rpx',
-  height: '56rpx',
-  flexShrink: 0,
-}
-
-const favToggleText = {
-  fontSize: fontSize.lg,
-}
-
-const sortBtnStyle = {
-  ...flexCenter,
-  width: '56rpx',
-  height: '56rpx',
-  borderRadius: radius.md,
-  backgroundColor: n.value.bgTertiary,
-  flexShrink: 0,
-}
-
-const sortIconStyle = {
-  fontSize: fontSize.lg,
-  color: n.value.textSecondary,
-}
-
-// --- 列表区域 ---
-const listSection = {
-  paddingHorizontal: semanticSpacing.pageHorizontal,
-  gap: spacing[3],
-}
-
-// --- 底部留白 ---
-const bottomSpacer = {
-  height: spacing[8],
-}
-
-// --- 排序弹窗 ---
-const sortListStyle = {
-  ...gap.xs }
-
-function sortItemStyle(active: boolean) {
-  return {
-    ...flexRowBetween,
-    alignItems: 'center',
-    padding: spacing[3],
-    borderRadius: radius.md,
-    backgroundColor: active ? n.value.bgTertiary : 'transparent' }
-}
-
-function sortItemText(active: boolean) {
-  return {
-    fontSize: fontSize.base,
-    color: active ? brand[500] : n.value.text,
-    fontWeight: active ? fontWeight.medium : fontWeight.regular }
-}
-
-const checkStyle = {
-  fontSize: fontSize.base,
-  color: brand[500] }
+const itemImage = { width: '335rpx', height: '420rpx', backgroundColor: '#EDE7E1' }
+const itemBody = { padding: '20rpx' }
+const itemName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
+const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[300], marginTop: '8rpx' }
+const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }
+const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }
+const bottomSpacer = { height: '60rpx' }
 </script>

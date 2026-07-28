@@ -10,11 +10,13 @@
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
           <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
         </view>
-        <V2FilterChips :items="pitTypes" :active="activePitType" @change="onPitTypeChange" />
-        <V2FilterChips :items="topics" :active="activeTopic" @change="onTopicChange" />
+        <V2Segmented :items="pitTypes" :active="activePitType" variant="text" :active-color="brand[300]" @change="onPitTypeChange" />
+        <V2Segmented :items="topics" :active="activeTopic" variant="text" :active-color="brand[300]" @change="onTopicChange" />
 
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+            <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
+          </view>
           <view :style="lookBody">
             <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
@@ -23,7 +25,9 @@
         </view>
 
         <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
+          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+            <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
+          </view>
           <view :style="lookBody">
             <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.author }}</text><text :style="timeText">{{ look.time }}</text></view>
             <text :style="lookCaption">{{ look.caption }}</text>
@@ -44,13 +48,13 @@
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
 import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
@@ -63,7 +67,7 @@ const activePitType = ref('全部')
 const pendingDeleteId = ref('')
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
-const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
+const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑']
 const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']
 const looks = [
   { id: 'l1', image: '/static/demo/outfit-editorial-01.png', author: '栗子酱', initial: '栗', time: '2小时前', caption: '奶油玫瑰茶会搭配，轻量裙撑也很出片。', topic: '茶会搭配', pitType: 'Lolita', likes: 126 },
@@ -116,28 +120,29 @@ onShow(() => {
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
-const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '116rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: '8rpx' }))
-const composerIcon = computed((): any => ({ width: '68rpx', height: '68rpx', borderRadius: '22rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '24rpx', backgroundColor: '#E8E0D6', marginBottom: '8rpx' }))
+const composerIcon = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: baseColors.white, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const composerCopy = { ...flexFill }
 const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const composerDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '5rpx' }))
-const composerButton = { minWidth: '104rpx', height: '58rpx', borderRadius: '29rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center' }
-const composerButtonText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
-const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface }))
-const heroImage = { width: '670rpx', height: '760rpx' }
+const composerDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '5rpx' }))
+const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }
+const composerButtonText = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
+const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2' }))
+const heroImage = { width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: '#E8DDD0' }
+const badge = { position: 'absolute' as string, left: '28rpx', top: '28rpx', height: '52rpx', paddingLeft: '16rpx', paddingRight: '20rpx', borderRadius: '26rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center' as string }
+const badgeDot = { width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: brand[500], marginRight: '8rpx' }
+const badgeText = { fontSize: '22rpx', color: n.value.text }
 const lookBody = { padding: CARD_PADDING }
 const authorRow = { ...flexRow, alignItems: 'center' }
-const avatar = computed((): any => ({ width: '52rpx', height: '52rpx', borderRadius: '26rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
-const avatarText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }
-const authorName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const timeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
-const lookCaption = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
-const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx' }
-const topicText = { fontSize: fontSize.xs, color: brand[600], marginTop: '10rpx' }
+const avatar = computed((): any => ({ width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const avatarText = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text }
+const authorName = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const timeText = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary }))
+const lookCaption = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
+const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx', alignItems: 'center' }
+const topicText = { fontSize: '24rpx', color: brand[500], marginTop: '10rpx' }
 const likeAction = { ...flexRow, alignItems: 'center', minWidth: '76rpx', height: '52rpx', justifyContent: 'flex-end' }
-function likeText(id: string) { return { fontSize: fontSize.xs, color: library.isPostLiked(id) ? brand[600] : n.value.textTertiary, marginLeft: '6rpx' } }
-const categoryText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
-function deleteOwnText(id: string) { return { fontSize: fontSize['2xs'], color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
+function likeText(id: string) { return { fontSize: '24rpx', color: library.isPostLiked(id) ? brand[500] : n.value.textTertiary, marginLeft: '6rpx' } }
+const categoryText = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary, marginTop: '10rpx' }))
+function deleteOwnText(id: string) { return { fontSize: '20rpx', color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 </script>
-
-

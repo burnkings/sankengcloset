@@ -7,7 +7,7 @@
         <AppInput v-model="form.title" placeholder="例如：月光曲 JSK 尾款截止" :clearable="true" />
 
         <text :style="fieldLabel">提醒类型</text>
-        <V2FilterChips :items="typeLabels" :active="activeTypeLabel" @change="onTypeChange" />
+        <V2Segmented :items="typeLabels" :active="activeTypeLabel" variant="solid" :active-color="brand[500]" @change="onTypeChange" />
 
         <view :style="twoColumnRow">
           <view :style="dateField">
@@ -22,7 +22,7 @@
 
         <view v-if="isEdit">
           <text :style="fieldLabel">状态</text>
-          <V2FilterChips :items="statusLabels" :active="activeStatusLabel" @change="onStatusChange" />
+          <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" :active-color="brand[500]" @change="onStatusChange" />
         </view>
 
         <text :style="fieldLabel">备注</text>
@@ -30,35 +30,36 @@
           <textarea :value="form.note" placeholder="补款金额、官方渠道或其他信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
         </view>
 
-        <view :style="sourceHint"><AppIcon name="notification" :size="34" :active="true" /><text :style="sourceHintText">提醒保存在本机；系统通知权限将在发布前统一申请</text></view>
+        <view :style="sourceHint">
+          <view :style="hintIcon"><text :style="hintMark">!</text></view>
+          <text :style="sourceHintText">提醒保存在本机；系统通知权限将在发布前统一申请</text>
+        </view>
 
         <view v-if="isEdit" :style="deleteArea">
           <view v-if="!showDeleteConfirm" :style="deleteButton" @tap="showDeleteConfirm = true"><text :style="deleteText">删除这条提醒</text></view>
           <view v-else :style="confirmRow"><text :style="confirmText">确认删除？</text><view :style="cancelDelete" @tap="showDeleteConfirm = false"><text :style="cancelDeleteText">取消</text></view><view :style="confirmDelete" @tap="deleteItem"><text :style="confirmDeleteText">删除</text></view></view>
         </view>
+
+        <view :style="saveButton" @tap="save"><text :style="saveText">{{ isEdit ? '保存修改' : '创建提醒' }}</text></view>
       </view>
     </template>
   </MainLayout>
-  <view :style="reminderBottomBar">
-    <view :style="reminderSaveButton" @tap="save"><text :style="reminderSaveText">{{ isEdit ? '保存修改' : '创建提醒' }}</text></view>
-  </view>
 </template>
 
 <script setup lang="uts">
 import { useReminderStore } from '@/stores/reminder-store'
 import { Reminder, ReminderUpdateData } from '@/domain/reminder'
-import { brand, baseColors, semantic } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
-import AppIcon from '@/components/base/AppIcon.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const store = useReminderStore()
 const isEdit = ref(false)
@@ -137,31 +138,29 @@ onMounted(() => {
   form.value.note = safeParam(options.note)
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
-const reminderSafeBottom = getSafeBottomInset()
-const reminderBottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${reminderSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
-const reminderSaveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
-const reminderSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
-const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
-const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
-const twoColumnRow = { ...flexRow, marginTop: '30rpx' }
+const safeBottom = getSafeBottomInset()
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 60}px` , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '40rpx', marginBottom: '14rpx' }))
+const fieldLabelCompact = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
+const twoColumnRow = { ...flexRow, marginTop: '40rpx' }
 const dateField = { width: '404rpx', marginRight: '16rpx' }
 const timeField = { ...flexFill }
-const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgTertiary }))
-const noteInput = computed((): any => ({ width: '100%', minHeight: '150rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
+const noteShell = computed((): any => ({ minHeight: '280rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: '#F5EFEC' }))
+const noteInput = computed((): any => ({ width: '100%', minHeight: '240rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
-const sourceHint = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], marginTop: '24rpx' }))
-const sourceHintText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginLeft: '12rpx' }))
+const sourceHint = computed((): any => ({ ...flexRow, alignItems: 'flex-start', padding: '24rpx', borderRadius: '24rpx', backgroundColor: '#F5EFEC', marginTop: '24rpx' }))
+const hintIcon = computed((): any => ({ width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '14rpx' }))
+const hintMark = { fontSize: '30rpx', fontWeight: fontWeight.bold, color: brand[500], lineHeight: '44rpx' }
+const sourceHintText = computed((): any => ({ ...flexFill, fontSize: '22rpx', color: n.value.text, lineHeight: '34rpx' }))
 const deleteArea = { marginTop: '56rpx' }
 const deleteButton = { height: '76rpx', alignItems: 'center', justifyContent: 'center' }
-const deleteText = { fontSize: fontSize.sm, color: semantic.error }
-const confirmRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '88rpx', paddingLeft: '20rpx', paddingRight: '12rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const deleteText = { fontSize: fontSize.sm, color: brand[500] }
+const confirmRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '88rpx', paddingLeft: '20rpx', paddingRight: '12rpx', borderRadius: '24rpx', backgroundColor: n.value.surface }))
 const confirmText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, color: n.value.text }))
 const cancelDelete = computed((): any => ({ height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
-const cancelDeleteText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
-const confirmDelete = { height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center' }
-const confirmDeleteText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
+const cancelDeleteText = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
+const confirmDelete = { height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }
+const confirmDeleteText = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
+const saveButton = computed((): any => ({ width: '100%', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '48rpx' }))
+const saveText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
-
-

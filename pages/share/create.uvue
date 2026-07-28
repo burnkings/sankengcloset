@@ -47,7 +47,7 @@ import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -91,21 +91,21 @@ function publishLook() {
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const photoCard = computed((): any => ({ width: '670rpx', height: '760rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden' }))
-const previewWrap = { width: '670rpx', height: '760rpx', position: 'relative' as string }
+const photoCard = computed((): any => ({ width: '686rpx', height: '560rpx', borderRadius: '24rpx', backgroundColor: '#F5EFEC', overflow: 'hidden' }))
+const previewWrap = { width: '686rpx', height: '560rpx', position: 'relative' as string }
 const replaceAction = computed((): any => ({ position: 'absolute', right: '20rpx', bottom: '20rpx', height: '64rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: radius.full, backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
 const replaceText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '8rpx' }))
 const uploadEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
-const uploadIcon = { width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[50], alignItems: 'center', justifyContent: 'center' }
+const uploadIcon = { width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }
 const uploadTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx' }))
-const uploadDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
-const categoryRow = { ...flexRow }
-function categoryChip(idx: number, item: string) { return { width: '155rpx', height: '72rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? brand[600] : n.value.surface, marginRight: idx < 3 ? '16rpx' : '0' } }
-function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? baseColors.white : n.value.textSecondary } }
+const uploadDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
+const categoryRow = { ...flexRow, flexWrap: 'wrap' as string }
+function categoryChip(idx: number, item: string) { return { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? brand[500] : n.value.surface, borderWidth: category.value === item ? '0' : '1rpx', borderStyle: 'solid', borderColor: category.value === item ? baseColors.white : n.value.cardBorder, marginRight: '12rpx', marginBottom: '12rpx' } }
+function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? baseColors.white : '#5C5550' } }
 const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
-function topicChip(idx: number, item: string) { return { minHeight: '64rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value === item ? brand[50] : n.value.surface, borderWidth: topic.value === item ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200], marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
-function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: topic.value === item ? brand[700] : n.value.textSecondary } }
-const publishButton = { width: '670rpx', height: '88rpx', borderRadius: radius.full, backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }
+function topicChip(idx: number, item: string) { return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value === item ? n.value.surfacePink : n.value.surface, borderWidth: topic.value === item ? '0' : '1rpx', borderStyle: 'solid', borderColor: topic.value === item ? n.value.surfacePink : n.value.cardBorder, marginRight: '12rpx', marginBottom: '12rpx' } }
+function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: topic.value === item ? brand[500] : '#5C5550' } }
+const publishButton = { width: '686rpx', height: '104rpx', borderRadius: '26rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
 </script>

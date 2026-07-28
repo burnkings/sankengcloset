@@ -5,16 +5,17 @@
       <view class="page-canvas" :style="pageWrap">
         <text :style="fieldLabel">商品</text>
         <AppInput v-model="form.name" placeholder="商品名称" :clearable="true" />
+
         <view :style="twoColumnRow">
           <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
           <view :style="halfFieldLast"><text :style="fieldLabelCompact">官方渠道</text><AppInput v-model="form.shopName" placeholder="店铺或渠道" /></view>
         </view>
 
         <text :style="fieldLabel">坑向</text>
-        <V2FilterChips :items="categoryLabels" :active="activeCategoryLabel" @change="onCategoryChange" />
+        <V2Segmented :items="categoryLabels" :active="activeCategoryLabel" variant="solid" :active-color="brand[500]" @change="onCategoryChange" />
 
         <text :style="fieldLabel">付款状态</text>
-        <V2FilterChips :items="statusLabels" :active="activeStatusLabel" @change="onStatusChange" />
+        <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" :active-color="brand[500]" @change="onStatusChange" />
 
         <view :style="amountCard">
           <view :style="amountColumn"><text :style="amountLabel">总金额</text><AppInput v-model="form.totalAmountStr" placeholder="0" type="digit" /></view>
@@ -29,30 +30,27 @@
 
         <text :style="fieldLabel">备注</text>
         <view :style="noteShell"><textarea :value="form.note" placeholder="记录定金、尾款或订单说明" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
-        <view :style="boundaryCard"><AppIcon name="order" :size="34" :active="true" /><text :style="boundaryText">这里只管理消费进度；支付、售后与物流仍由官方渠道负责</text></view>
+
+        <view :style="saveButton" @tap="save"><text :style="saveText">{{ isEdit ? '保存修改' : '保存记录' }}</text></view>
       </view>
     </template>
   </MainLayout>
-  <view :style="purchaseBottomBar">
-    <view :style="purchaseSaveButton" @tap="save"><text :style="purchaseSaveText">{{ isEdit ? '保存修改' : '保存记录' }}</text></view>
-  </view>
 </template>
 
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { PurchaseRecord } from '@/domain/purchase-record'
-import { brand, baseColors, semantic } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark } from '@/theme/use-theme'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
-import AppIcon from '@/components/base/AppIcon.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const store = usePurchaseStore()
 const isEdit = ref(false)
@@ -134,26 +132,20 @@ onMounted(() => {
   form.value.purchaseDate = now.toISOString().substring(0, 10)
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
-const purchaseSafeBottom = getSafeBottomInset()
-const purchaseBottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${purchaseSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
-const purchaseSaveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '44rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string }))
-const purchaseSaveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
-const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
-const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
-const twoColumnRow = { ...flexRow, marginTop: '30rpx' }
+const safeBottom = getSafeBottomInset()
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 60}px` , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '40rpx', marginBottom: '14rpx' }))
+const fieldLabelCompact = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
+const twoColumnRow = { ...flexRow, marginTop: '40rpx' }
 const halfField = { width: '327rpx', marginRight: '16rpx' }
 const halfFieldLast = { ...flexFill }
-const amountCard = computed((): any => ({ ...flexRow, padding: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '30rpx' }))
+const amountCard = computed((): any => ({ ...flexRow, padding: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, marginTop: '40rpx' }))
 const amountColumn = { width: '198rpx', marginRight: '12rpx' }
 const amountColumnLast = { ...flexFill }
-const amountLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginBottom: '10rpx' }))
-const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgTertiary }))
-const noteInput = computed((): any => ({ width: '100%', minHeight: '150rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
+const amountLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginBottom: '10rpx' }))
+const noteShell = computed((): any => ({ minHeight: '220rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: '#F5EFEC' }))
+const noteInput = computed((): any => ({ width: '100%', minHeight: '180rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
-const boundaryCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], marginTop: '24rpx' }))
-const boundaryText = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginLeft: '12rpx' }))
+const saveButton = computed((): any => ({ width: '100%', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '48rpx' }))
+const saveText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
-
-
