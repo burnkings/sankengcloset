@@ -1,10 +1,25 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="我的衣橱" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="衣橱" :show-back="true"><template #right><view :style="addBtn" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view></template></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <AppInput v-model="searchValue" placeholder="搜索衣物名称或品牌" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
-        <view :style="summaryRow"><text :style="summaryTitle">{{ store.itemCount }} 件单品</text><view :style="sortBadge" @tap="showSortSheet"><text :style="sortBadgeText">{{ store.sortLabel }}</text></view><view v-if="store.activeFilterCount > 0" :style="filterBadge"><text :style="filterBadgeText">{{ store.activeFilterCount }}</text></view></view>
+        <AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
+        <view :style="statsCard">
+          <view :style="statsHead">
+            <text :style="statsTitle">衣橱共 {{ store.itemCount }} 件</text>
+            <text :style="statsSub">三坑穿搭 全记录</text>
+          </view>
+          <view :style="statsRow">
+            <view v-for="s in categoryStats" :key="s.label" :style="statCol">
+              <text :style="statNum">{{ s.count }}</text>
+              <text :style="statLabel">{{ s.label }}</text>
+            </view>
+          </view>
+        </view>
+        <view :style="summaryRow">
+          <view :style="sortBadge" @tap="showSortSheet"><text :style="sortBadgeText">{{ store.sortLabel }}</text></view>
+          <view v-if="store.activeFilterCount > 0" :style="filterBadge"><text :style="filterBadgeText">{{ store.activeFilterCount }}</text></view>
+        </view>
         <V2FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
         <V2FilterChips :items="statusFilters" :active="activeStatus" @change="onStatusFilter" />
 
@@ -19,7 +34,6 @@
       </view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
 </template>
 
 <script setup lang="uts">
@@ -37,17 +51,19 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
 import { showFeedback } from '@/utils/feedback'
-import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWardrobeStore()
-const safeBottom = getSafeBottomInset()
 const searchValue = ref('')
 const activeFilter = ref('全部')
 const activeStatus = ref('全部')
-const filters = ['全部', 'JK', 'Lolita', '汉服']
+const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
 const statusFilters = ['全部', '收藏', '未穿', '常穿']
 function applySearch() { store.setSearch(searchValue.value) }
-function onFilter(label: string) { activeFilter.value = label; store.setCategory(label === '全部' ? '' : (label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : 'JK'))) }
+function onFilter(label: string) {
+  activeFilter.value = label
+  const map: Record<string, string> = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
+  store.setCategory(label === '全部' ? '' : (map[label] || ''))
+}
 function onStatusFilter(label: string) { activeStatus.value = label; store.setStatus(label === '全部' ? '' : (label === '收藏' ? 'favorite' : (label === '未穿' ? 'UNWORN' : 'FREQUENT'))) }
 const hasActiveFilters = computed((): boolean => store.activeFilterCount > 0)
 const visibleItems = computed((): any[] => store.sortedItems)
@@ -64,8 +80,28 @@ onShow(() => { store.fetchItems() })
 watch(searchValue, (value) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const addText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '112rpx', height: '112rpx', borderRadius: '56rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const addBtn = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' } as any
+const statsCard = { borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' } as any
+const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as any
+const statsTitle = { fontSize: '31rpx', fontWeight: '700', color: n.value.text } as any
+const statsSub = { fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' } as any
+const statsRow = { ...flexRow, alignItems: 'center' } as any
+const statCol = { ...flexFill, flexDirection: 'column' as string, alignItems: 'center' } as any
+const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as any
+const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as any
+const categoryStats = computed((): any[] => {
+  const counts = store.categoryCounts as Record<string, number>
+  const jk = counts['JK'] || 0
+  const lolita = counts['LOLITA'] || 0
+  const hanfu = counts['HANFU'] || 0
+  const other = Math.max(0, store.itemCount - jk - lolita - hanfu)
+  return [
+    { label: 'JK制服', count: jk },
+    { label: 'Lolita', count: lolita },
+    { label: '汉服', count: hanfu },
+    { label: '其他', count: other },
+  ]
+})
 const summaryRow = { ...flexRow, alignItems: 'center', marginTop: '24rpx', marginBottom: '16rpx' }
 const summaryTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const sortBadge = computed((): any => ({ ...flexRow, alignItems: 'center', paddingLeft: '16rpx', paddingRight: '12rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary }))
