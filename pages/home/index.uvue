@@ -54,7 +54,7 @@
         <list-item :type="'categoryFilters'">
         <!-- #endif -->
           <view :style="categoryFilterWrap">
-            <V2FilterChips :items="categories" :active="store.currentCategory" :edge-inset="true" @change="onCategoryTap" />
+            <V2Segmented :items="categories" :active="store.currentCategory" variant="solid" :active-color="brand[500]" :edge-inset="true" @change="onCategoryTap" />
           </view>
         <!-- #ifdef MP-WEIXIN -->
         </view>
@@ -201,7 +201,7 @@ import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 // #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'

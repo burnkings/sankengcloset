@@ -3,7 +3,7 @@
     <template #navbar><AppNavbar title="通知中心" :show-back="true"><template #right><text v-if="notices.unreadCount > 0" :style="readAllText" @tap="readAll">全部已读</text></template></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <V2FilterChips :items="filterLabels" :active="activeLabel" @change="onFilter" />
+        <V2Segmented :items="filterLabels" :active="activeLabel" variant="solid" :active-color="brand[500]" @change="onFilter" />
         <view v-if="notices.visibleItems.length === 0" :style="emptyCard">
           <AppIcon name="notification" :size="52" />
           <text :style="emptyTitle">当前没有这类通知</text>
@@ -36,7 +36,7 @@ import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const notices = useNotificationCenterStore()
 const activeLabel = ref('全部')

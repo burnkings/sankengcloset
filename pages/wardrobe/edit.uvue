@@ -9,7 +9,7 @@
         </view>
 
         <text :style="fieldLabel">单品名称</text><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
-        <text :style="fieldLabel">坑向</text><V2FilterChips :items="categories" :active="activeCategory" @change="onCategory" />
+        <text :style="fieldLabel">坑向</text><V2Segmented :items="categories" :active="activeCategory" variant="solid" :active-color="brand[500]" @change="onCategory" />
 
         <view :style="twoColumnRow">
           <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
@@ -20,7 +20,7 @@
           <view :style="halfFieldLast"><text :style="fieldLabelCompact">尺码</text><AppInput v-model="form.size" placeholder="尺码" /></view>
         </view>
 
-        <text :style="fieldLabel">穿着状态</text><V2FilterChips :items="wearLabels" :active="activeWearLabel" @change="onWear" />
+        <text :style="fieldLabel">穿着状态</text><V2Segmented :items="wearLabels" :active="activeWearLabel" variant="solid" :active-color="brand[500]" @change="onWear" />
         <text :style="fieldLabel">备注</text><view :style="noteShell"><textarea :value="form.note" placeholder="搭配想法、版型或养护信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
 
         <view v-if="isEdit" :style="deleteArea">
@@ -50,7 +50,7 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import V2FilterChips from '@/components/v2/V2FilterChips.uvue'
+import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const store = useWardrobeStore()
 const isEdit = ref(false)
