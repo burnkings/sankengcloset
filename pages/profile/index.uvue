@@ -16,17 +16,17 @@
           <view :style="guestAvatar"><AppIcon name="profile" :size="44" /></view>
           <view :style="profileCopy">
             <text :style="userName">登录三坑绮橱</text>
-            <text :style="guestDesc">收藏、圈子、衣橱与提醒</text>
+            <text :style="guestDesc">同步收藏、圈子、衣橱与提醒</text>
           </view>
           <view :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
 
-        <V2SectionHeader title="管理中心" />
+        <V2SectionHeader title="数据&服务" />
         <view :style="closetCard" @tap="goPage('/pages/wardrobe/index')">
           <view :style="closetCopy">
             <view :style="closetTop"><AppIcon name="wardrobe" :size="44" :active="true" /><text :style="closetLabel">衣橱</text></view>
             <text :style="closetValue">{{ wardrobe.itemCount }} 件心爱单品</text>
-            <text :style="closetDesc">JK、Lolita 与汉服正在等你搭配</text>
+            <text :style="closetDesc">JK Lolita 与汉服正在等你搭配</text>
           </view>
           <view :style="closetImage"><AppImage src="/static/demo/prod-editorial-01.png" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
         </view>
@@ -117,7 +117,7 @@ function logout() {
 function goPage(url: string) { uni.navigateTo({ url }) }
 function openCommunity() { openPrimaryTab('/pages/community/index') }
 function onManageTap(id: string) {
-  if (id === 'favorites') goPage('/pages/favorites/index')
+  if (id === 'favorites') goPage('/pages/wishlist/index')
   if (id === 'orders') goPage('/pages/purchase/index')
   if (id === 'reminders') goPage('/pages/reminder/index')
   if (id === 'budget') goPage('/pages/budget/index')
@@ -195,7 +195,7 @@ const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.
 const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
 const manageItems = computed(() => [
-  { id: 'favorites', icon: 'wardrobe', label: '收藏', value: `${library.favoriteCount} 件` },
+  { id: 'favorites', icon: 'wardrobe', label: '愿望单', value: `${library.favoriteCount} 件` },
   { id: 'orders', icon: 'order', label: '购买记录', value: `${purchases.itemCount} 笔` },
   { id: 'reminders', icon: 'reminder', label: '提醒', value: `${reminders.pendingCount} 条待办` },
   { id: 'budget', icon: 'budget', label: '预算', value: budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置' },

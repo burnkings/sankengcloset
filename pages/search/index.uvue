@@ -1,17 +1,21 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="搜索" :show-back="true" /></template>
-    <template #default>
-      <view class="page-canvas" :style="pageWrap">
-        <view :style="searchRow">
+    <template #navbar>
+      <AppNavbar :show-back="true">
+        <template #default>
           <view :style="inputFlex">
             <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit" @clear="onClear">
               <template #prefix><AppIcon name="search" :size="34" /></template>
             </AppInput>
           </view>
+        </template>
+        <template #right>
           <text :style="cancelText" @tap="onCancel">取消</text>
-        </view>
-
+        </template>
+      </AppNavbar>
+    </template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
         <view v-if="keyword === ''">
           <V2SectionHeader title="最近搜索" actionText="清空" @action="clearRecent" />
           <view :style="recentWrap">
@@ -149,7 +153,6 @@ onMounted(() => {
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const searchRow = { ...flexRow, alignItems: 'center', marginTop: '8rpx', marginBottom: '8rpx' } as any
 const inputFlex = { ...flexFill } as any
 const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[300], flexShrink: 0, marginLeft: '16rpx' } as any
 

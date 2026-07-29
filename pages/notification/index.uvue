@@ -1,14 +1,14 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="通知中心" :show-back="true"><template #right><text v-if="notices.unreadCount > 0" :style="readAllText" @tap="readAll">全部已读</text></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="通知" :show-back="true"><template #right><text v-if="notices.unreadCount > 0" :style="readAllText" @tap="readAll">全部已读</text></template></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <V2Segmented :items="filterLabels" :active="activeLabel" variant="solid" :active-color="brand[500]" @change="onFilter" />
+        <V2Segmented :items="filterLabels" :active="activeLabel" variant="soft" :active-color="brand[500]" @change="onFilter" />
         <view v-if="notices.visibleItems.length === 0" :style="emptyCard">
           <AppIcon name="notification" :size="52" />
           <text :style="emptyTitle">当前没有这类通知</text>
         </view>
-        <view v-for="notice in notices.visibleItems" :key="notice.id" :style="noticeCard(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
+        <view v-for="notice in visibleNotices" :key="notice.id" :style="noticeCard(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
           <view :style="noticeIcon(notice.type)"><text :style="noticeChar(notice.type)">{{ noticeVisual(notice.type).char }}</text></view>
           <view :style="noticeCopy">
             <view :style="noticeTop"><text :style="noticeTitle(notice.read)">{{ notice.title }}</text><view v-if="!notice.read" :style="unreadDot" /></view>
@@ -16,6 +16,7 @@
             <text :style="noticeTime">{{ formatTime(notice.createdAt) }}</text>
           </view>
           <AppIcon name="chevron-right" :size="30" />
+          <view :style="noticeClose" @tap.stop="dismissNotice(notice.id)"><text :style="noticeCloseText">×</text></view>
         </view>
         <view :style="sourceNote"><text :style="sourceText">当前通知由本地 Mock 生成，用于验证分类、已读和跳转；系统推送将在服务端接入后启用。</text></view>
       </view>
@@ -41,6 +42,9 @@ import V2Segmented from '@/components/v2/V2Segmented.uvue'
 const notices = useNotificationCenterStore()
 const activeLabel = ref('全部')
 const filterLabels = ['全部', '发售', '降价', '互动', '系统']
+const dismissedIds = ref<string[]>([])
+const visibleNotices = computed((): any[] => notices.visibleItems.filter((n: any) => dismissedIds.value.indexOf(n.id) < 0))
+function dismissNotice(id: string) { dismissedIds.value = [...dismissedIds.value, id] }
 
 function typeForLabel(label: string): string {
   if (label === '发售') return 'release'
@@ -79,7 +83,7 @@ onShow(() => notices.reload())
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
-function noticeCard(read: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx' } }
+function noticeCard(read: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx', position: 'relative' as string } }
 function noticeIcon(type: string) {
   const v = noticeVisual(type)
   return { width: '88rpx', height: '88rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : v.bg, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
@@ -94,6 +98,8 @@ const emptyCard = computed((): any => ({ height: '320rpx', borderRadius: CARD_RA
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '18rpx' }))
 const sourceNote = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
 const sourceText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
+const noticeClose = { position: 'absolute' as string, top: '10rpx', right: '12rpx', width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', zIndex: 3 }
+const noticeCloseText = { fontSize: '34rpx', fontWeight: '300', color: n.value.textTertiary, lineHeight: '34rpx' }
 </script>
 
 

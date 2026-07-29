@@ -14,7 +14,7 @@
           </view>
         </view>
         <V2SectionHeader title="提醒列表" :compact="true" />
-        <V2Segmented :items="filters" :active="activeFilter" variant="solid" :active-color="brand[300]" @change="onFilter" />
+        <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[300]" @change="onFilter" />
         <AppLoading v-if="store.loading" />
         <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
         <view v-else :style="listWrap">

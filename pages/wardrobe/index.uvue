@@ -21,7 +21,6 @@
           <view v-if="store.activeFilterCount > 0" :style="filterBadge"><text :style="filterBadgeText">{{ store.activeFilterCount }}</text></view>
         </view>
         <V2Segmented :items="filters" :active="activeFilter" variant="solid" :active-color="brand[500]" @change="onFilter" />
-        <V2Segmented :items="statusFilters" :active="activeStatus" variant="solid" :active-color="brand[500]" @change="onStatusFilter" />
 
         <AppLoading v-if="store.loading" />
         <view v-else-if="visibleItems.length === 0" :style="emptyWrap"><AppIcon name="wardrobe" :size="64" /><text :style="emptyTitle">{{ hasActiveFilters ? '没有匹配的单品' : '衣橱里还没有单品' }}</text><text :style="emptyDesc">{{ hasActiveFilters ? '试试调整筛选条件' : '添加你的第一件三坑单品' }}</text></view>
@@ -55,16 +54,13 @@ import { showFeedback } from '@/utils/feedback'
 const store = useWardrobeStore()
 const searchValue = ref('')
 const activeFilter = ref('全部')
-const activeStatus = ref('全部')
 const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
-const statusFilters = ['全部', '收藏', '未穿', '常穿']
 function applySearch() { store.setSearch(searchValue.value) }
 function onFilter(label: string) {
   activeFilter.value = label
   const map: Record<string, string> = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
   store.setCategory(label === '全部' ? '' : (map[label] || ''))
 }
-function onStatusFilter(label: string) { activeStatus.value = label; store.setStatus(label === '全部' ? '' : (label === '收藏' ? 'favorite' : (label === '未穿' ? 'UNWORN' : 'FREQUENT'))) }
 const hasActiveFilters = computed((): boolean => store.activeFilterCount > 0)
 const visibleItems = computed((): any[] => store.sortedItems)
 const sortOptions = ['newest', 'earliest', 'priceHigh', 'priceLow', 'name']

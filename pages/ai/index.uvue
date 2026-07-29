@@ -15,7 +15,7 @@
           <!-- 输入行：design 输入框 inputFill #E8E0D6 圆角24 + 发送 brand[300] #E891A8 圆 48 -->
           <view :style="composerWrap">
             <view :style="composerInput">
-              <text :style="composerPlaceholder">输入场景、坑向或心情…</text>
+              <text :style="composerPlaceholder">例如:800元内的夏日茶会搭配</text>
             </view>
             <view :style="composerSend" @tap="onSend">
               <AppIcon name="arrow-right" :size="40" :active="true" />

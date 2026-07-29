@@ -20,7 +20,7 @@
         <view class="nav-canvas" :style="layer2Wrap">
           <view :style="searchBox" @tap="onSearch">
             <AppIcon name="search" :size="36" />
-            <text :style="searchPlaceholder">搜索商品、品牌、穿搭</text>
+            <text :style="searchPlaceholder">搜索你喜欢的风格</text>
           </view>
         </view>
         <view :style="searchTabsSpacer" />
