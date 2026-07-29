@@ -20,16 +20,7 @@ function categoryCode(category: string): string {
   return category
 }
 
-// ====== 调试常量 ======
-// Mock 阶段可通过调试常量触发失败和空状态
-// 正式用户界面不暴露这些入口
 
-/** 设为 true 模拟加载失败 */
-const DEBUG_FORCE_ERROR = false
-/** 设为 true 模拟空频道 */
-const DEBUG_FORCE_EMPTY = false
-/** 设为某个频道名模拟该频道为空 */
-const DEBUG_EMPTY_CHANNEL = ''
 
 // ====== 格式化工具 ======
 
@@ -132,8 +123,6 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
   // 筛选后的展示列表
   const displayItems = computed((): FeedItem[] => {
     const ch = currentChannel.value
-    if (DEBUG_EMPTY_CHANNEL !== '' && ch === DEBUG_EMPTY_CHANNEL) return []
-    if (DEBUG_FORCE_EMPTY) return []
     const channelItems = filterFeedByChannel(allItems.value, ch)
     const category = currentCategory.value
     let result = channelItems
@@ -181,7 +170,6 @@ export const useHomeFeedStore = defineStore('homeFeed', () => {
     state.value = 'loading'
     errorMessage.value = ''
     try {
-      if (DEBUG_FORCE_ERROR) throw new Error('网络连接失败，请重试')
       const page = await fetchFeedPage(0)
       allItems.value = page.items
       currentPage.value = 1
