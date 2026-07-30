@@ -12,7 +12,7 @@ let _tokenCache: { access: string; refresh: string } | null = null
 
 export class RuntimeConfig {
   mode: string = DATA_MODE_REMOTE
-  apiBaseUrl: string = 'http://8.133.168.216:8787'
+  apiBaseUrl: string = 'https://api.sankengcloset.icu'
 }
 
 function readString(key: string): string {

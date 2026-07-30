@@ -7,7 +7,7 @@ export class ApiResponse {
   statusCode: number = 0
 }
 
-const FALLBACK_API_BASE = 'http://8.133.168.216:8787'
+const FALLBACK_API_BASE = 'https://api.sankengcloset.icu'
 
 function endpoint(path: string): string {
   const base = getRuntimeConfig().apiBaseUrl || FALLBACK_API_BASE
