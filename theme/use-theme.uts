@@ -238,6 +238,7 @@ export const themeMode = {
 
 export const n = {
   get value(): any {
-    return _state.isDark ? neutralDark : neutralLight
+    const v = _state.isDark ? neutralDark : neutralLight
+    return v != null ? v : neutralLight
   }
 }
