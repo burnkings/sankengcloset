@@ -8,7 +8,12 @@ const REFRESH_TOKEN_KEY = 'v24_session_refresh_token'
 // ====== 启动缓存（避免多次 getStorageSync 串行） ======
 
 let _configCache: RuntimeConfig | null = null
-let _tokenCache: { access: string; refresh: string } | null = null
+export class TokenCache {
+  access: string = ''
+  refresh: string = ''
+}
+
+let _tokenCache: TokenCache | null = null
 
 export class RuntimeConfig {
   mode: string = DATA_MODE_REMOTE
@@ -33,7 +38,10 @@ export function warmRuntimeCache(): RuntimeConfig {
   const config = new RuntimeConfig()
   _configCache = config
   // 预热 Token
-  _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
+  const tc = new TokenCache()
+  tc.access = readString(ACCESS_TOKEN_KEY)
+  tc.refresh = readString(REFRESH_TOKEN_KEY)
+  _tokenCache = tc
   return config
 }
 
@@ -44,12 +52,22 @@ export function getRuntimeConfig(): RuntimeConfig {
 }
 
 export function getCachedAccessToken(): string {
-  if (_tokenCache == null) _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
+  if (_tokenCache == null) {
+    const tc = new TokenCache()
+    tc.access = readString(ACCESS_TOKEN_KEY)
+    tc.refresh = readString(REFRESH_TOKEN_KEY)
+    _tokenCache = tc
+  }
   return _tokenCache.access
 }
 
 export function getCachedRefreshToken(): string {
-  if (_tokenCache == null) _tokenCache = { access: readString(ACCESS_TOKEN_KEY), refresh: readString(REFRESH_TOKEN_KEY) }
+  if (_tokenCache == null) {
+    const tc = new TokenCache()
+    tc.access = readString(ACCESS_TOKEN_KEY)
+    tc.refresh = readString(REFRESH_TOKEN_KEY)
+    _tokenCache = tc
+  }
   return _tokenCache.refresh
 }
 
@@ -57,7 +75,10 @@ export function getAccessToken(): string { return getCachedAccessToken() }
 export function getRefreshToken(): string { return getCachedRefreshToken() }
 
 export function saveSessionTokens(accessToken: string, refreshToken: string) {
-  _tokenCache = { access: accessToken, refresh: refreshToken }
+  const tc = new TokenCache()
+  tc.access = accessToken
+  tc.refresh = refreshToken
+  _tokenCache = tc
   uni.setStorageSync(ACCESS_TOKEN_KEY, accessToken)
   uni.setStorageSync(REFRESH_TOKEN_KEY, refreshToken)
 }
