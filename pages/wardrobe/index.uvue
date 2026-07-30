@@ -59,7 +59,7 @@ function applySearch() { store.setSearch(searchValue.value) }
 function onFilter(label: string) {
   activeFilter.value = label
   const map: Record<string, string> = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
-  store.setCategory(label === '全部' ? '' : (map[label] || ''))
+  store.setCategory(label === '全部' ? '' : (map[label] ?? ''))
 }
 const hasActiveFilters = computed((): boolean => store.activeFilterCount > 0)
 const visibleItems = computed((): any[] => store.sortedItems)
@@ -87,9 +87,9 @@ const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as
 const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as any
 const categoryStats = computed((): any[] => {
   const counts = store.categoryCounts as Record<string, number>
-  const jk = counts['JK'] || 0
-  const lolita = counts['LOLITA'] || 0
-  const hanfu = counts['HANFU'] || 0
+  const jk = counts['JK'] ?? 0
+  const lolita = counts['LOLITA'] ?? 0
+  const hanfu = counts['HANFU'] ?? 0
   const other = Math.max(0, store.itemCount - jk - lolita - hanfu)
   return [
     { label: 'JK制服', count: jk },

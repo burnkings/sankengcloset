@@ -22,8 +22,8 @@ function writeOperation(op: SyncOperation) {
 function readOperation(id: string): SyncOperation {
   const op = new SyncOperation(); op.opId = id; op.userId = readString(key(id, 'user')); op.deviceId = readString(key(id, 'device'))
   op.entityType = readString(key(id, 'entity_type')); op.entityId = readString(key(id, 'entity_id')); op.action = readString(key(id, 'action'))
-  op.payload = readString(key(id, 'payload')); op.createdAt = readString(key(id, 'created_at')); op.retryCount = parseInt(readString(key(id, 'retry'))) || 0
-  op.status = readString(key(id, 'status')) || SYNC_PENDING; return op
+  op.payload = readString(key(id, 'payload')); op.createdAt = readString(key(id, 'created_at')); op.retryCount = parseInt(readString(key(id, 'retry'))) ?? 0
+  op.status = readString(key(id, 'status')) ?? SYNC_PENDING; return op
 }
 function removeOperation(id: string) { const fields = ['user','device','entity_type','entity_id','action','payload','created_at','retry','status']; for (let i = 0; i < fields.length; i++) uni.removeStorageSync(key(id, fields[i])) }
 function safePayload(value: string): string { if (value === '' || value.charAt(0) !== '{') return JSON.stringify({ value }); try { JSON.parse(value); return value } catch (e) { return JSON.stringify({ value }) } }

@@ -6,7 +6,7 @@ const READ_IDS_KEY = 'v21_notification_read_ids'
 
 function readIds(): string[] {
   try {
-    const raw = String(uni.getStorageSync(READ_IDS_KEY) || '')
+    const raw = String(uni.getStorageSync(READ_IDS_KEY) ?? '')
     return raw === '' ? [] : raw.split(',').filter((id) => id !== '')
   } catch (e) {
     return []

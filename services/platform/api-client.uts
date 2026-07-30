@@ -10,7 +10,8 @@ export class ApiResponse {
 const FALLBACK_API_BASE = 'https://api.sankengcloset.icu'
 
 function endpoint(path: string): string {
-  const base = getRuntimeConfig().apiBaseUrl || FALLBACK_API_BASE
+  const runtimeBase = getRuntimeConfig().apiBaseUrl
+  const base = runtimeBase !== '' ? runtimeBase : FALLBACK_API_BASE
   return `${base}${path.startsWith('/') ? path : '/' + path}`
 }
 

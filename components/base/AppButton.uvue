@@ -61,7 +61,7 @@ const buttonStyle = computed((): any => ({
   fontSize: sizeMap.value.fs,
   fontWeight: sizeMap.value.fw,
   borderRadius: semanticRadius.button,
-  backgroundColor: props.color || variantColors.value.bg,
+  backgroundColor: props.color ?? variantColors.value.bg,
   color: variantColors.value.text,
   borderWidth: props.variant == 'outline' ? '2rpx' : '0',
   borderStyle: 'solid',
