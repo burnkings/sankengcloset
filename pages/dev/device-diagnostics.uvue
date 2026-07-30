@@ -68,9 +68,9 @@ import { spacing } from '@/theme/tokens/spacing'
 import { brand, baseColors, neutralLight } from '@/theme/tokens/colors'
 import { flexFill, flexRow } from '@/theme/layout/flex'
 
-interface TestResult {
-  status: string // 'pass' | 'fail' | 'running'
-  message: string
+class TestResult {
+  status: string = '' // 'pass' | 'fail' | 'running'
+  message: string = ''
 }
 
 class DeviceInfoItem {
@@ -259,14 +259,20 @@ function exportResults() {
 
 function addResult(status: string, message: string) {
   const list = results.value.slice()
-  list.push({ status, message } as TestResult)
+  const r = new TestResult()
+  r.status = status
+  r.message = message
+  list.push(r)
   results.value = list
 }
 
 function updateLastResult(status: string, message: string) {
   const list = results.value.slice()
   if (list.length > 0) {
-    list[list.length - 1] = { status, message } as TestResult
+    const r = new TestResult()
+    r.status = status
+    r.message = message
+    list[list.length - 1] = r
     results.value = list
   }
 }

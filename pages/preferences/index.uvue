@@ -63,11 +63,22 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { usePreferencesStore } from '@/stores/preferences-store'
 
-interface ThemeOption { mode: string; label: string }
+class ThemeOption {
+  mode: string = ''
+  label: string = ''
+}
+
+function createThemeOption(m: string, l: string): ThemeOption {
+  const t = new ThemeOption()
+  t.mode = m
+  t.label = l
+  return t
+}
+
 const themeOptions: ThemeOption[] = [
-  { mode: 'system', label: '跟随系统' },
-  { mode: 'light', label: '浅色' },
-  { mode: 'dark', label: '深色' },
+  createThemeOption('system', '跟随系统'),
+  createThemeOption('light', '浅色'),
+  createThemeOption('dark', '深色'),
 ]
 
 const currentTheme = computed((): string => themeMode.value)
