@@ -73,36 +73,41 @@ interface TestResult {
   message: string
 }
 
+class DeviceInfoItem {
+  key: string = ''
+  value: string = ''
+}
+
 const results = ref<TestResult[]>([]) as Ref<TestResult[]>
 const exportText = ref('')
-const deviceInfo = ref<{ key: string, value: string }[]>([]) as Ref<{ key: string, value: string }[]>
+const deviceInfo = ref<DeviceInfoItem[]>([]) as Ref<DeviceInfoItem[]>
 
 // 初始化设备信息 — 使用新 API 替代废弃的 getSystemInfoSync
 function initDeviceInfo() {
-  const info: { key: string, value: string }[] = []
+  const info: DeviceInfoItem[] = []
   try {
     const win = uni.getWindowInfo()
-    info.push({ key: '屏幕宽度', value: String(win.windowWidth) })
-    info.push({ key: '屏幕高度', value: String(win.windowHeight) })
-    info.push({ key: '像素比', value: String(win.pixelRatio) })
+    const item1 = new DeviceInfoItem(); item1.key = '屏幕宽度'; item1.value = String(win.windowWidth); info.push(item1)
+    const item2 = new DeviceInfoItem(); item2.key = '屏幕高度'; item2.value = String(win.windowHeight); info.push(item2)
+    const item3 = new DeviceInfoItem(); item3.key = '像素比'; item3.value = String(win.pixelRatio); info.push(item3)
     const sa = win.safeArea
     if (sa != null) {
-      info.push({ key: '安全区 top', value: String(sa.top) })
-      info.push({ key: '安全区 bottom', value: String(sa.bottom) })
+      const item4 = new DeviceInfoItem(); item4.key = '安全区 top'; item4.value = String(sa.top); info.push(item4)
+      const item5 = new DeviceInfoItem(); item5.key = '安全区 bottom'; item5.value = String(sa.bottom); info.push(item5)
     }
-  } catch (e) { info.push({ key: '屏幕信息', value: '获取失败' }) }
+  } catch (e) { const item = new DeviceInfoItem(); item.key = '屏幕信息'; item.value = '获取失败'; info.push(item) }
   try {
     const dev = uni.getDeviceInfo()
-    info.push({ key: '平台', value: dev.platform ?? 'unknown' })
-    info.push({ key: '品牌', value: dev.brand ?? 'unknown' })
-    info.push({ key: '型号', value: dev.model ?? 'unknown' })
-    info.push({ key: '系统', value: dev.system ?? 'unknown' })
-  } catch (e) { info.push({ key: '设备信息', value: '获取失败' }) }
+    const item6 = new DeviceInfoItem(); item6.key = '平台'; item6.value = dev.platform ?? 'unknown'; info.push(item6)
+    const item7 = new DeviceInfoItem(); item7.key = '品牌'; item7.value = dev.brand ?? 'unknown'; info.push(item7)
+    const item8 = new DeviceInfoItem(); item8.key = '型号'; item8.value = dev.model ?? 'unknown'; info.push(item8)
+    const item9 = new DeviceInfoItem(); item9.key = '系统'; item9.value = dev.system ?? 'unknown'; info.push(item9)
+  } catch (e) { const item = new DeviceInfoItem(); item.key = '设备信息'; item.value = '获取失败'; info.push(item) }
   try {
     const app = uni.getAppBaseInfo()
-    info.push({ key: 'App 版本', value: app.appVersion ?? 'unknown' })
-    info.push({ key: 'App 渠道', value: app.appChannel ?? 'unknown' })
-  } catch (e) { info.push({ key: 'App 信息', value: '获取失败' }) }
+    const item10 = new DeviceInfoItem(); item10.key = 'App 版本'; item10.value = app.appVersion ?? 'unknown'; info.push(item10)
+    const item11 = new DeviceInfoItem(); item11.key = 'App 渠道'; item11.value = app.appChannel ?? 'unknown'; info.push(item11)
+  } catch (e) { const item = new DeviceInfoItem(); item.key = 'App 信息'; item.value = '获取失败'; info.push(item) }
   deviceInfo.value = info
 }
 

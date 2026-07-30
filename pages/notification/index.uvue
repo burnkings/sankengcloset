@@ -46,6 +46,12 @@ const dismissedIds = ref<string[]>([])
 const visibleNotices = computed((): any[] => notices.visibleItems.filter((n: any) => dismissedIds.value.indexOf(n.id) < 0))
 function dismissNotice(id: string) { dismissedIds.value = [...dismissedIds.value, id] }
 
+class NoticeVisual {
+  char: string = ''
+  bg: string = ''
+  fg: string = ''
+}
+
 function typeForLabel(label: string): string {
   if (label === '发售') return 'release'
   if (label === '降价') return 'price'
@@ -61,11 +67,13 @@ function openNotice(id: string, target: string) {
   if (target === '/pages/community/index') { openPrimaryTab(target); return }
   uni.navigateTo({ url: target })
 }
-function noticeVisual(type: string): { char: string, bg: string, fg: string } {
-  if (type === NOTICE_PRICE) return { char: '降', bg: '#FCE4D6', fg: semantic.warning }
-  if (type === NOTICE_SOCIAL) return { char: '赞', bg: '#EFE4F2', fg: accent[500] }
-  if (type === NOTICE_SYSTEM) return { char: '橱', bg: '#FDE2EA', fg: brand[600] }
-  return { char: '售', bg: '#FDE7EC', fg: brand[500] }
+function noticeVisual(type: string): NoticeVisual {
+  const v = new NoticeVisual()
+  if (type === NOTICE_PRICE) { v.char = '降'; v.bg = '#FCE4D6'; v.fg = semantic.warning; return v }
+  if (type === NOTICE_SOCIAL) { v.char = '赞'; v.bg = '#EFE4F2'; v.fg = accent[500]; return v }
+  if (type === NOTICE_SYSTEM) { v.char = '橱'; v.bg = '#FDE2EA'; v.fg = brand[600]; return v }
+  v.char = '售'; v.bg = '#FDE7EC'; v.fg = brand[500]
+  return v
 }
 function noticeChar(type: string): any {
   return { fontSize: '38rpx', fontWeight: '600', color: noticeVisual(type).fg }

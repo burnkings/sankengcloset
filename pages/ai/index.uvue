@@ -144,7 +144,7 @@ const capDesc = { display: 'block', color: n.value.textSecondary, fontSize: '21r
 function onSend() {
   showFeedback({ message: '已收到，正在生成本机建议…', type: 'info' })
 }
-function onCapTap(item: { id: string, icon: string, title: string, desc: string }) {
+function onCapTap(item: any) {
   showFeedback({ message: `${item.title}：功能开发中`, type: 'info' })
 }
 
