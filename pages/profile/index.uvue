@@ -95,6 +95,24 @@ import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
+class SettingsItem {
+  id: string = ''
+  icon: string = ''
+  label: string = ''
+  value: string = ''
+  section: string = ''
+}
+
+function createSettingsItem(id: string, icon: string, label: string, value: string, section: string): SettingsItem {
+  const item = new SettingsItem()
+  item.id = id
+  item.icon = icon
+  item.label = label
+  item.value = value
+  item.section = section
+  return item
+}
+
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
@@ -211,18 +229,18 @@ const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeigh
 const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 
 const settingsItems = computed(() => {
-  const items: Array<{id: string, icon: string, label: string, value: string, section: string}> = [
-    { id: 'dark', icon: 'moon', label: '深色模式', value: getThemeLabel(), section: 'settings' },
-    { id: 'preferences', icon: 'heart', label: '推荐偏好', value: '', section: 'settings' },
-    { id: 'notification', icon: 'notification', label: '通知设置', value: '', section: 'settings' },
-    { id: 'privacy', icon: 'info', label: '隐私与权限', value: '', section: 'about' },
-    { id: 'agreement', icon: 'info', label: '用户协议', value: '', section: 'about' },
-    { id: 'policy', icon: 'info', label: '隐私政策', value: '', section: 'about' },
-    { id: 'about', icon: 'info', label: '关于', value: 'V2.5', section: 'about' },
-    { id: 'help', icon: 'help-circle', label: '帮助与反馈', value: '', section: 'about' },
-    { id: 'cache', icon: 'database', label: '清理缓存', value: '', section: 'about' },
+  const items: SettingsItem[] = [
+    createSettingsItem('dark', 'moon', '深色模式', getThemeLabel(), 'settings'),
+    createSettingsItem('preferences', 'heart', '推荐偏好', '', 'settings'),
+    createSettingsItem('notification', 'notification', '通知设置', '', 'settings'),
+    createSettingsItem('privacy', 'info', '隐私与权限', '', 'about'),
+    createSettingsItem('agreement', 'info', '用户协议', '', 'about'),
+    createSettingsItem('policy', 'info', '隐私政策', '', 'about'),
+    createSettingsItem('about', 'info', '关于', 'V2.5', 'about'),
+    createSettingsItem('help', 'help-circle', '帮助与反馈', '', 'about'),
+    createSettingsItem('cache', 'database', '清理缓存', '', 'about'),
   ]
-  if (session.isLoggedIn) items.push({ id: 'logout', icon: 'profile', label: '退出登录', value: '', section: 'about' })
+  if (session.isLoggedIn) items.push(createSettingsItem('logout', 'profile', '退出登录', '', 'about'))
   return items
 })
 const settingsGroup = computed(() => settingsItems.value.filter((item) => item.section === 'settings'))
