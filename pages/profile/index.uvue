@@ -212,11 +212,27 @@ const closetValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fo
 const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
 const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
 
+class ManageItem {
+  id: string = ''
+  icon: string = ''
+  label: string = ''
+  value: string = ''
+}
+
+function createManageItem(id: string, icon: string, label: string, value: string): ManageItem {
+  const item = new ManageItem()
+  item.id = id
+  item.icon = icon
+  item.label = label
+  item.value = value
+  return item
+}
+
 const manageItems = computed(() => [
-  { id: 'favorites', icon: 'wardrobe', label: '愿望单', value: `${library.favoriteCount} 件` },
-  { id: 'orders', icon: 'order', label: '购买记录', value: `${purchases.itemCount} 笔` },
-  { id: 'reminders', icon: 'reminder', label: '提醒', value: `${reminders.pendingCount} 条待办` },
-  { id: 'budget', icon: 'budget', label: '预算', value: budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置' },
+  createManageItem('favorites', 'wardrobe', '愿望单', `${library.favoriteCount} 件`),
+  createManageItem('orders', 'order', '购买记录', `${purchases.itemCount} 笔`),
+  createManageItem('reminders', 'reminder', '提醒', `${reminders.pendingCount} 条待办`),
+  createManageItem('budget', 'budget', '预算', budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置'),
 ])
 const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '48rpx' }
 function manageCard(idx: number) { return { width: '325rpx', height: '142rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }

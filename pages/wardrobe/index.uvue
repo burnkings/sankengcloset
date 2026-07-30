@@ -85,6 +85,18 @@ const statsRow = { ...flexRow, alignItems: 'center' } as any
 const statCol = { ...flexFill, flexDirection: 'column' as string, alignItems: 'center' } as any
 const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as any
 const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as any
+class CategoryStat {
+  label: string = ''
+  count: number = 0
+}
+
+function createCategoryStat(label: string, count: number): CategoryStat {
+  const s = new CategoryStat()
+  s.label = label
+  s.count = count
+  return s
+}
+
 const categoryStats = computed((): any[] => {
   const counts = store.categoryCounts as Record<string, number>
   const jk = counts['JK'] ?? 0
@@ -92,10 +104,10 @@ const categoryStats = computed((): any[] => {
   const hanfu = counts['HANFU'] ?? 0
   const other = Math.max(0, store.itemCount - jk - lolita - hanfu)
   return [
-    { label: 'JK制服', count: jk },
-    { label: 'Lolita', count: lolita },
-    { label: '汉服', count: hanfu },
-    { label: '其他', count: other },
+    createCategoryStat('JK制服', jk),
+    createCategoryStat('Lolita', lolita),
+    createCategoryStat('汉服', hanfu),
+    createCategoryStat('其他', other),
   ]
 })
 const summaryRow = { ...flexRow, alignItems: 'center', marginTop: '24rpx', marginBottom: '16rpx' }
