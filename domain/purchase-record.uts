@@ -65,11 +65,18 @@ export class FilterOption {
   value: string = ''
 }
 
-export const FILTER_OPTIONS: FilterOption[] = [
-  { label: '全部', value: '' } as FilterOption,
-  { label: '预售中', value: 'PRE_ORDER' } as FilterOption,
-  { label: '已付定金', value: 'DEPOSIT_PAID' } as FilterOption,
-  { label: '待付款', value: 'BALANCE_PENDING' } as FilterOption,
-  { label: '已完成', value: 'COMPLETED' } as FilterOption,
-  { label: '已取消', value: 'CANCELLED' } as FilterOption,
+function createFilterOption(l: string, v: string): FilterOption {
+  const o = new FilterOption()
+  o.label = l
+  o.value = v
+  return o
+}
+
+export const PURCHASE_FILTER_OPTIONS: FilterOption[] = [
+  createFilterOption('全部', ''),
+  createFilterOption('预售中', 'PRE_ORDER'),
+  createFilterOption('已付定金', 'DEPOSIT_PAID'),
+  createFilterOption('待付款', 'BALANCE_PENDING'),
+  createFilterOption('已完成', 'COMPLETED'),
+  createFilterOption('已取消', 'CANCELLED'),
 ]

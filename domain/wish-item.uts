@@ -56,14 +56,21 @@ export class WishFilterOption {
   value: string = ''
 }
 
+function createWishFilterOption(l: string, v: string): WishFilterOption {
+  const o = new WishFilterOption()
+  o.label = l
+  o.value = v
+  return o
+}
+
 export const WISH_FILTER_OPTIONS: WishFilterOption[] = [
-  { label: '全部', value: '' } as WishFilterOption,
-  { label: '种草', value: 'WISH' } as WishFilterOption,
-  { label: '观望', value: 'WATCHING' } as WishFilterOption,
-  { label: '决定买', value: 'DECIDED' } as WishFilterOption,
-  { label: '已买', value: 'PURCHASED' } as WishFilterOption,
-  { label: '搁置', value: 'PAUSED' } as WishFilterOption,
-  { label: '拔草', value: 'CANCELED' } as WishFilterOption,
+  createWishFilterOption('全部', ''),
+  createWishFilterOption('种草', 'WISH'),
+  createWishFilterOption('观望', 'WATCHING'),
+  createWishFilterOption('决定买', 'DECIDED'),
+  createWishFilterOption('已买', 'PURCHASED'),
+  createWishFilterOption('搁置', 'PAUSED'),
+  createWishFilterOption('拔草', 'CANCELED'),
 ]
 
 // ====== 优先级 ======

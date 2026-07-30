@@ -56,11 +56,18 @@ export class ReminderFilterOption {
   value: string = ''
 }
 
+function createReminderFilterOption(l: string, v: string): ReminderFilterOption {
+  const o = new ReminderFilterOption()
+  o.label = l
+  o.value = v
+  return o
+}
+
 export const REMINDER_FILTER_OPTIONS: ReminderFilterOption[] = [
-  { label: '全部', value: '' } as ReminderFilterOption,
-  { label: '待提醒', value: 'PENDING' } as ReminderFilterOption,
-  { label: '已完成', value: 'DONE' } as ReminderFilterOption,
-  { label: '已过期', value: 'MISSED' } as ReminderFilterOption,
+  createReminderFilterOption('全部', ''),
+  createReminderFilterOption('待提醒', 'PENDING'),
+  createReminderFilterOption('已完成', 'DONE'),
+  createReminderFilterOption('已过期', 'MISSED'),
 ]
 
 // ====== 数据模型 ======

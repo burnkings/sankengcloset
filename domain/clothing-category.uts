@@ -36,9 +36,16 @@ export class CategoryOption {
   value: string = ''
 }
 
+function createCategoryOption(l: string, v: string): CategoryOption {
+  const o = new CategoryOption()
+  o.label = l
+  o.value = v
+  return o
+}
+
 export const ALL_CATEGORIES: CategoryOption[] = [
-  { label: '全部', value: '' } as CategoryOption,
-  { label: 'JK制服', value: 'JK' } as CategoryOption,
-  { label: 'Lolita', value: 'LOLITA' } as CategoryOption,
-  { label: '汉服', value: 'HANFU' } as CategoryOption,
+  createCategoryOption('全部', ''),
+  createCategoryOption('JK制服', 'JK'),
+  createCategoryOption('Lolita', 'LOLITA'),
+  createCategoryOption('汉服', 'HANFU'),
 ]

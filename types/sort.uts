@@ -16,11 +16,18 @@ export class SortOption {
   label: string = ''
 }
 
+function createSortOption(v: string, l: string): SortOption {
+  const o = new SortOption()
+  o.value = v
+  o.label = l
+  return o
+}
+
 export const SORT_OPTIONS: SortOption[] = [
-  { value: SortType.NEWEST, label: '最近添加' } as SortOption,
-  { value: SortType.PRICE_HIGH, label: '价格从高到低' } as SortOption,
-  { value: SortType.PRICE_LOW, label: '价格从低到高' } as SortOption,
-  { value: SortType.NAME, label: '按名称排序' } as SortOption,
+  createSortOption(SortType.NEWEST, '最近添加'),
+  createSortOption(SortType.PRICE_HIGH, '价格从高到低'),
+  createSortOption(SortType.PRICE_LOW, '价格从低到高'),
+  createSortOption(SortType.NAME, '按名称排序'),
 ]
 
 export function getSortLabel(sort: string): string {
