@@ -80,26 +80,10 @@ function openEditorial(item: any) {
 }
 
 const pageHeight = getWindowHeight()
-const features = [
-  { id: 'f1', image: '/static/demo/outfit-editorial-01.png', title: '夏日盐系JK', desc: '从面料到版型的编辑选择', keyword: 'JK', category: 'JK' },
-  { id: 'f2', image: '/static/demo/prod-editorial-01.png', title: '初入Lolita的第一条裙', desc: '官方节点与时间一次看清', keyword: 'Lolita', category: 'LOLITA' },
-]
-const brands = [
-  { name: '兔缝缝', initial: '兔', meta: 'JK · 格裙' },
-  { name: '星辰猫', initial: '星', meta: 'Lolita · 甜美' },
-  { name: '花筵', initial: '花', meta: '汉服 · 宋制' },
-  { name: '仲夏物语', initial: '夏', meta: 'Lolita · 田园' },
-]
-const calendar = [
-  { id: 'c1', day: '18', title: '月光曲 JSK 定金开售', brand: '星辰猫', tag: '定金' },
-  { id: 'c2', day: '20', title: '新色格裙开放预览', brand: '兔缝缝', tag: '图透' },
-  { id: 'c3', day: '22', title: '宋制套装尾款截止', brand: '花筵', tag: '尾款' },
-]
-const topics = [
-  { id: 't1', name: '今日穿搭', meta: '1,286 篇圈子' },
-  { id: 't2', name: '茶会搭配', meta: '863 篇圈子' },
-  { id: 't3', name: '通勤三坑', meta: '742 篇圈子' },
-]
+const features: any[] = []
+const brands: any[] = []
+const calendar: any[] = []
+const topics: any[] = []
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const searchBox = computed((): any => ({ width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: n.value.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))

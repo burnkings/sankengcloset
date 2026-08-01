@@ -18,6 +18,8 @@ let _tokenCache: TokenCache | null = null
 export class RuntimeConfig {
   mode: string = DATA_MODE_REMOTE
   apiBaseUrl: string = 'https://api.sankengcloset.icu'
+  mockOnline: boolean = false
+  mockLatencyMs: number = 0
 }
 
 function readString(key: string): string {
