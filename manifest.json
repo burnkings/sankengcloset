@@ -6,7 +6,7 @@
     "versionCode" : "25001",
     "uni-app-x" : {
         "styleIsolationVersion" : "2",
-        "vapor" : true
+        "vapor" : false
     },
     /* 快应用特有相关 */
     "quickapp" : {},

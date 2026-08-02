@@ -10,6 +10,7 @@
  * reactive 对象在 vapor 模式下可被 Vue 追踪变化。
  */
 
+import { reactive } from 'vue'
 import { neutralLight, neutralDark, brand } from './tokens/colors'
 
 const THEME_MODE_KEY = 'v2_theme_mode'
