@@ -7,7 +7,7 @@
         <AppInput v-model="form.title" placeholder="例如：月光曲 JSK 尾款截止" :clearable="true" />
 
         <text :style="fieldLabel">提醒类型</text>
-        <V2Segmented :items="typeLabels" :active="activeTypeLabel" variant="solid" :active-color="brand[500]" @change="onTypeChange" />
+        <V2Segmented :items="typeLabels" :active="activeTypeLabel" variant="solid" :active-color="brand[600]" @change="onTypeChange" />
 
         <view :style="twoColumnRow">
           <view :style="dateField">
@@ -22,7 +22,7 @@
 
         <view v-if="isEdit">
           <text :style="fieldLabel">状态</text>
-          <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" :active-color="brand[500]" @change="onStatusChange" />
+          <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" :active-color="brand[600]" @change="onStatusChange" />
         </view>
 
         <text :style="fieldLabel">备注</text>
@@ -119,16 +119,15 @@ function save() {
 }
 
 function deleteItem() {
-  if (editId.value !== '') store.deleteItem(editId.value)
+  if (editId.value === '') { showFeedback('删除失败，请重试'); return }
+  if (!store.deleteItem(editId.value)) { showFeedback('删除失败，请重试'); return }
   showFeedback('提醒已删除')
   setTimeout(() => { uni.navigateBack() }, 220)
 }
 
-onMounted(() => {
+onLoad((options) => {
+  // 先确保 store 有数据，再读取路由参数初始化编辑项
   store.fetchItems()
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  const options = currentPage.options
   if (options != null) {
     const id = options['id'] != null ? options['id'] as string : ''
     if (id !== '') {
@@ -145,11 +144,11 @@ onMounted(() => {
       }
       return
     }
-    form.value.title = options['title'] != null ? options['title'] as string : ''
+    form.value.title = options['title'] != null ? safeParam(options['title'] as string) : ''
     const typeRaw = options['type'] != null ? options['type'] as string : ''
     form.value.type = typeRaw !== '' ? typeRaw : 'CUSTOM'
-    form.value.remindDate = options['date'] != null ? options['date'] as string : ''
-    form.value.note = options['note'] != null ? options['note'] as string : ''
+    form.value.remindDate = options['date'] != null ? safeParam(options['date'] as string) : ''
+    form.value.note = options['note'] != null ? safeParam(options['note'] as string) : ''
   }
 })
 
@@ -160,10 +159,10 @@ const fieldLabelCompact = computed((): any => ({ fontSize: '28rpx', fontWeight: 
 const twoColumnRow = { ...flexRow, marginTop: '40rpx' }
 const dateField = { width: '404rpx', marginRight: '16rpx' }
 const timeField = { ...flexFill }
-const noteShell = computed((): any => ({ minHeight: '280rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: '#F5EFEC' }))
+const noteShell = computed((): any => ({ minHeight: '280rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '240rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
-const sourceHint = computed((): any => ({ ...flexRow, alignItems: 'flex-start', padding: '24rpx', borderRadius: '24rpx', backgroundColor: '#F5EFEC', marginTop: '24rpx' }))
+const sourceHint = computed((): any => ({ ...flexRow, alignItems: 'flex-start', padding: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginTop: '24rpx' }))
 const hintIcon = computed((): any => ({ width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '14rpx' }))
 const hintMark = { fontSize: '30rpx', fontWeight: fontWeight.bold, color: brand[500], lineHeight: '44rpx' }
 const sourceHintText = computed((): any => ({ ...flexFill, fontSize: '22rpx', color: n.value.text, lineHeight: '34rpx' }))

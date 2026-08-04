@@ -46,6 +46,21 @@
         </view>
 
         <V2SectionHeader title="设置" />
+        <view :style="chipSection">
+          <text :style="chipSectionLabel">主题模式</text>
+          <view :style="chipRow">
+            <view v-for="mode in themeModes" :key="mode.id" :style="themeChip(mode.id)" @tap="onThemeModeTap(mode.id)">
+              <text :style="themeChipText(mode.id)">{{ mode.label }}</text>
+            </view>
+          </view>
+          <text :style="chipSectionLabel">坑向偏好</text>
+          <text :style="chipHint">可多选；全不选表示首页展示全部</text>
+          <view :style="chipRow">
+            <view v-for="pit in pitTypeOptions" :key="pit" :style="pitChip(pit)" @tap="onPitToggle(pit)">
+              <text :style="pitChipText(pit)">{{ pit }}</text>
+            </view>
+          </view>
+        </view>
         <V2ListGroup>
           <view v-for="(item, idx) in settingsGroup" :key="item.id" :style="settingShell(idx, settingsGroup.length)" @tap="onSettingTap(item.id)">
             <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
@@ -74,7 +89,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, themeMode, initPageTheme, toggleDarkMode, getThemeLabel } from '@/theme/use-theme'
+import { n, isDark, themeMode, initPageTheme, setThemeMode } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -90,6 +105,8 @@ import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
+import { usePreferencesStore } from '@/stores/preferences-store'
+import { useHomeFeedStore } from '@/stores/home-feed-store'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
@@ -120,6 +137,40 @@ const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
+const prefs = usePreferencesStore()
+const homeFeed = useHomeFeedStore()
+
+// ====== 主题三态 Chip（跟随系统 / 浅色 / 深色，互斥） ======
+type ThemeModeOption = {
+  id: string
+  label: string
+}
+const themeModes: ThemeModeOption[] = [
+  { id: 'system', label: '跟随系统' },
+  { id: 'light', label: '浅色' },
+  { id: 'dark', label: '深色' },
+]
+function onThemeModeTap(mode: string) {
+  if (mode === 'system') { setThemeMode('system'); return }
+  if (mode === 'dark') { setThemeMode('dark'); return }
+  setThemeMode('light')
+}
+
+// ====== 坑向偏好 Chip（JK / Lolita / 汉服，可多选可全不选） ======
+const pitTypeOptions = ['JK', 'Lolita', '汉服']
+function isPitSelected(pit: string): boolean {
+  const values = prefs.preferences.pitTypes
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] === pit) return true
+  }
+  return false
+}
+function onPitToggle(pit: string) {
+  // store 内即时更新 reactive 状态（立即重渲染）并写入 v2_user_preferences
+  prefs.togglePitType(pit)
+  // 首页下次刷新按最新坑向转换为 API 分类参数重新请求
+  homeFeed.refreshPreferences()
+}
 
 function onEdit() { showFeedback('功能开发中') }
 function goLogin() {
@@ -144,15 +195,7 @@ function onManageTap(id: string) {
   if (id === 'budget') goPage('/pages/budget/index')
 }
 function onSettingTap(id: string) {
-  if (id === 'dark') {
-    toggleDarkMode()
-    return
-  }
   if (id === 'notification') { showFeedback('功能开发中'); return }
-  if (id === 'preferences') {
-    uni.navigateTo({ url: '/pages/preferences/index' })
-    return
-  }
   if (id === 'privacy') {
     showFeedback('功能开发中')
     return
@@ -263,8 +306,6 @@ const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.
 
 const settingsItems = computed(() => {
   const items: SettingsItem[] = [
-    createSettingsItem('dark', 'moon', '深色模式', getThemeLabel(), 'settings'),
-    createSettingsItem('preferences', 'heart', '推荐偏好', '', 'settings'),
     createSettingsItem('notification', 'notification', '通知设置', '', 'settings'),
     createSettingsItem('privacy', 'info', '隐私与权限', '', 'about'),
     createSettingsItem('agreement', 'info', '用户协议', '', 'about'),
@@ -279,4 +320,25 @@ const settingsItems = computed(() => {
 const settingsGroup = computed(() => settingsItems.value.filter((item) => item.section === 'settings'))
 const aboutGroup = computed(() => settingsItems.value.filter((item) => item.section === 'about'))
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+
+// ====== 主题 / 坑向 Chip 样式（选中=深色底+白字，浅色深色模式均清晰） ======
+const chipSection = { marginTop: '4rpx', marginBottom: '8rpx' }
+const chipSectionLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx', marginBottom: '14rpx' }))
+const chipHint = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginBottom: '14rpx' }))
+const chipRow = { ...flexRow, flexWrap: 'wrap' as string }
+function selectedChip(selected: boolean) {
+  return {
+    minWidth: '150rpx', height: '64rpx', borderRadius: radius.full, paddingLeft: '24rpx', paddingRight: '24rpx',
+    alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', marginBottom: '16rpx',
+    backgroundColor: selected ? brand[600] : n.value.surface,
+    borderWidth: selected ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border,
+  }
+}
+function selectedChipText(selected: boolean) {
+  return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: selected ? baseColors.white : n.value.textSecondary }
+}
+function themeChip(mode: string) { return selectedChip(themeMode.value === mode) }
+function themeChipText(mode: string) { return selectedChipText(themeMode.value === mode) }
+function pitChip(pit: string) { return selectedChip(isPitSelected(pit)) }
+function pitChipText(pit: string) { return selectedChipText(isPitSelected(pit)) }
 </script>

@@ -14,7 +14,7 @@ import { reactive, computed } from 'vue'
 import { neutralLight, neutralDark, brand, NeutralPalette } from './tokens/colors'
 
 const THEME_MODE_KEY = 'v2_theme_mode'
-type ThemeMode = 'system' | 'light' | 'dark'
+export type ThemeMode = 'system' | 'light' | 'dark'
 
 const OLD_THEME_KEYS = ['sk_dark_mode', 'app_theme_mode', 'theme_dark_mode', 'sankeng_theme_mode']
 
@@ -112,15 +112,19 @@ function syncFromGlobal(): boolean {
 function applySystemChrome() {
   // #ifdef MP-WEIXIN
   const palette = _state.isDark ? neutralDark : neutralLight
-  uni.setNavigationBarColor({
-    frontColor: _state.isDark ? '#ffffff' : '#000000',
-    backgroundColor: palette.bg,
-  })
-  uni.setBackgroundColor({
-    backgroundColor: palette.bg,
-    backgroundColorTop: palette.bg,
-    backgroundColorBottom: palette.bg,
-  })
+  try {
+    uni.setNavigationBarColor({
+      frontColor: _state.isDark ? '#ffffff' : '#000000',
+      backgroundColor: palette.bg,
+    })
+  } catch (e) {}
+  try {
+    uni.setBackgroundColor({
+      backgroundColor: palette.bg,
+      backgroundColorTop: palette.bg,
+      backgroundColorBottom: palette.bg,
+    })
+  } catch (e) {}
   // #endif
 }
 

@@ -5,14 +5,12 @@
  */
 
 import { reactive } from 'vue'
-import { FeedItem } from '@/domain/content/feed-item'
 
 const STORAGE_KEY = 'v2_user_preferences'
 
 // ====== 默认值 ======
 
 const DEFAULT_PIT_TYPES = ['JK', 'Lolita', '汉服']
-const DEFAULT_CONTENT_TYPES = ['新品', '预约', '现货', '降价', '图透', '穿搭']
 const DEFAULT_PRICE_RANGE = 'all'
 
 // ====== 持久化工具 ======
@@ -41,7 +39,6 @@ function readPreferences(): PreferencesData {
       }
       data.pitTypes = normalized
     }
-    if (parsed['contentTypes'] != null) data.contentTypes = parsed['contentTypes'] as string[]
     if (parsed['followedBrands'] != null) data.followedBrands = parsed['followedBrands'] as string[]
     if (parsed['priceRange'] != null) data.priceRange = parsed['priceRange'] as string
     return data
@@ -63,7 +60,6 @@ function writePreferences(data: PreferencesData) {
 
 export class PreferencesData {
   pitTypes: string[] = DEFAULT_PIT_TYPES
-  contentTypes: string[] = DEFAULT_CONTENT_TYPES
   followedBrands: string[] = []
   priceRange: string = DEFAULT_PRICE_RANGE
 }
@@ -100,14 +96,6 @@ function setPitTypes(types: string[]) {
   notifyChanged()
 }
 
-function setContentTypes(types: string[]) {
-  const copy = [] as string[]
-  for (let i = 0; i < types.length; i++) copy.push(types[i])
-  _state.preferences.contentTypes = copy
-  savePreferences()
-  notifyChanged()
-}
-
 function togglePitType(type: string) {
   if (type === '') return
   const prefs = _state.preferences
@@ -124,22 +112,6 @@ function togglePitType(type: string) {
   notifyChanged()
 }
 
-function toggleContentType(type: string) {
-  if (type === '') return
-  const prefs = _state.preferences
-  const values = [] as string[]
-  for (let i = 0; i < prefs.contentTypes.length; i++) values.push(prefs.contentTypes[i])
-  const idx = values.indexOf(type)
-  if (idx >= 0) {
-    values.splice(idx, 1)
-  } else {
-    values.push(type)
-  }
-  _state.preferences.contentTypes = values
-  savePreferences()
-  notifyChanged()
-}
-
 function resetPreferences() {
   const defaults = new PreferencesData()
   // preserve followed brands on reset
@@ -147,47 +119,6 @@ function resetPreferences() {
   _state.preferences = defaults
   savePreferences()
   notifyChanged()
-}
-
-function computeScore(item: FeedItem): number {
-  const prefs = _state.preferences
-  let score = item.rankingScore
-
-  // Category matches selected pit types: +100
-  const pitTypes = prefs.pitTypes
-  for (let i = 0; i < pitTypes.length; i++) {
-    // pitTypes 存 UI 文案（JK/Lolita/汉服），FeedItem.category 为大写（JK/LOLITA/HANFU），归一化后再比较
-    let target = pitTypes[i]
-    if (target === 'Lolita') {
-      target = 'LOLITA'
-    } else if (target === '汉服') {
-      target = 'HANFU'
-    }
-    if (item.category === target) {
-      score += 100
-      break
-    }
-  }
-
-  // Badge text matches selected content types: +50
-  const contentTypes = prefs.contentTypes
-  for (let i = 0; i < contentTypes.length; i++) {
-    if (item.badgeText === contentTypes[i]) {
-      score += 50
-      break
-    }
-  }
-
-  // Brand is in followed brands: +80
-  const brands = prefs.followedBrands
-  for (let i = 0; i < brands.length; i++) {
-    if (item.brandName === brands[i]) {
-      score += 80
-      break
-    }
-  }
-
-  return score
 }
 
 // 初始化
@@ -200,11 +131,8 @@ class PreferencesStoreHandle {
   loadPreferences(): void { loadPreferences() }
   savePreferences(): void { savePreferences() }
   setPitTypes(types: string[]): void { setPitTypes(types) }
-  setContentTypes(types: string[]): void { setContentTypes(types) }
   togglePitType(type: string): void { togglePitType(type) }
-  toggleContentType(type: string): void { toggleContentType(type) }
   resetPreferences(): void { resetPreferences() }
-  computeScore(item: FeedItem): number { return computeScore(item) }
 }
 
 let _handle: PreferencesStoreHandle | null = null

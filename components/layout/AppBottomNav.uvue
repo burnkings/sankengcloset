@@ -1,28 +1,27 @@
 <template>
   <view :style="containerStyle">
     <view v-for="item in items" :key="item.id" :style="itemStyle" @tap="open(item.url)">
-      <view :style="activePillStyle(item.id)" />
       <image :src="iconPath(item.id)" :style="iconStyle" mode="aspectFit" />
       <text :style="labelStyle(item.id)">{{ item.label }}</text>
+      <view v-if="item.id === active" :style="indicatorStyle" />
     </view>
   </view>
 </template>
 
 <script setup lang="uts">
-import { brand, neutralLight } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { TAB_BAR_HEIGHT, TAB_ICON_SIZE, TAB_LABEL_FONT } from '@/theme/tokens/responsive'
 import { zIndex } from '@/theme/tokens/z-index'
-import { n, isDark } from '@/theme/use-theme'
+import { n } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 
 /**
- * 底部 TabBar — 浮岛胶囊
- * 设计稿「三坑绮橱-UI优化设计」
- *  - 居中浮空胶囊 (留 24rpx 边距)，圆角 = 半高 (pill)
- *  - 激活项：整项背景胶囊 128rpx × 96rpx、圆角 9999rpx（浅色 #FCEFF2 / 深色 surfaceWarm）
- *  - 5 项：首页 / 发现 / 绮灵AI / 圈子 / 我的
- *  - 浮岛阴影 0 8rpx 32rpx rgba(0,0,0,0.08) (设计稿 y:4 r:16 ×2)
+ * 底部 TabBar — App 唯一可见导航（pages.json APP tabBar custom:true 隐藏原生导航）
+ *  - 规则五等分布局：首页 / 发现 / 绮灵AI / 圈子 / 我的
+ *  - 图标 44rpx、文字 20rpx，水平垂直居中
+ *  - 选中态：图标与文字变 brand[600] + 底部 4rpx 指示条
+ *  - 整条底栏（非浮岛），上边框 n.value.divider，随主题变化
  *
  * 仅 App 平台渲染（H5/小程序走 pages.json 原生 tabBar）。
  */
@@ -43,24 +42,23 @@ const items: NavItem[] = [
 ]
 
 const safeBottom = getSafeBottomInset()
-// 浮岛距 home indicator 16px 呼吸
 const containerStyle = computed((): any => ({
   position: 'fixed',
-  left: '24rpx',
-  right: '24rpx',
-  bottom: `${safeBottom + 16}px`,
+  left: '0',
+  right: '0',
+  bottom: '0',
   height: TAB_BAR_HEIGHT,
-  borderRadius: '56rpx',
+  paddingBottom: `${safeBottom}px`,
   backgroundColor: n.value.surfaceRaised,
+  borderTopWidth: '1rpx',
+  borderTopStyle: 'solid',
+  borderTopColor: n.value.divider,
   flexDirection: 'row',
   alignItems: 'center',
-  justifyContent: 'space-between',
   zIndex: zIndex.tabbar,
-  // 设计稿浮岛阴影 (rgba(0,0,0,0.08) y:4 r:16 → rpx ×2)
-  boxShadow: '0 8rpx 32rpx rgba(0,0,0,0.08)',
 }))
 
-const itemStyle = (): any => ({
+const itemStyle = {
   flexGrow: 1,
   flexShrink: 1,
   flexBasis: 0,
@@ -69,7 +67,7 @@ const itemStyle = (): any => ({
   alignItems: 'center',
   justifyContent: 'center',
   position: 'relative',
-})
+}
 
 const iconStyle = { width: TAB_ICON_SIZE, height: TAB_ICON_SIZE }
 function iconPath(id: string): string {
@@ -78,24 +76,19 @@ function iconPath(id: string): string {
 function labelStyle(id: string) {
   return {
     fontSize: TAB_LABEL_FONT,
-    color: id === props.active ? (isDark.value ? brand[300] : brand[700]) : n.value.textTertiary,
+    color: id === props.active ? brand[600] : n.value.textTertiary,
     marginTop: '4rpx',
     fontWeight: id === props.active ? '600' : '400',
   }
 }
-// 激活整项胶囊：128rpx × 96rpx 圆角 9999rpx，垂直居中盖住图标+标签（absolute 不参与 flex 布局）
-function activePillStyle(id: string): any {
-  if (id !== props.active) return { display: 'none' }
-  return {
-    position: 'absolute',
-    top: '8rpx',
-    left: '50%',
-    width: '128rpx',
-    height: '96rpx',
-    marginLeft: '-64rpx',
-    borderRadius: '9999rpx',
-    backgroundColor: isDark.value ? n.value.surfaceWarm : neutralLight.surfacePink,
-  }
+// 选中指示条：底部 4rpx 圆角条，替代旧版 128rpx×96rpx 碎片胶囊
+const indicatorStyle = {
+  position: 'absolute',
+  bottom: '8rpx',
+  width: '40rpx',
+  height: '4rpx',
+  borderRadius: '2rpx',
+  backgroundColor: brand[600],
 }
 function open(url: string) {
   openPrimaryTab(url)

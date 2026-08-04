@@ -13,14 +13,6 @@
           </view>
         </view>
 
-        <V2SectionHeader title="内容偏好" :compact="true" />
-        <text :style="hintText">选择你关注的内容类型</text>
-        <view :style="contentRow">
-          <view v-for="(item, idx) in contentItems" :key="item" :style="contentChip(idx, item)" @tap="toggleContent(item)">
-            <text :style="contentText(item)">{{ item }}</text>
-          </view>
-        </view>
-
         <view :style="resetRow" @tap="onReset">
           <text :style="resetText">重置为默认偏好</text>
         </view>
@@ -49,7 +41,6 @@ import { usePreferencesStore } from '@/stores/preferences-store'
 const prefs = usePreferencesStore()
 
 const pitItems = ['JK', 'Lolita', '汉服']
-const contentItems = ['新品', '预约', '现货', '降价', '图透', '穿搭']
 
 function isPitSelected(name: string): boolean {
   const values = prefs.preferences.pitTypes
@@ -59,20 +50,8 @@ function isPitSelected(name: string): boolean {
   return false
 }
 
-function isContentSelected(name: string): boolean {
-  const values = prefs.preferences.contentTypes
-  for (let i = 0; i < values.length; i++) {
-    if (values[i] === name) return true
-  }
-  return false
-}
-
 function togglePit(name: string) {
   prefs.togglePitType(name)
-}
-
-function toggleContent(name: string) {
-  prefs.toggleContentType(name)
 }
 
 function onReset() {
@@ -98,19 +77,6 @@ function pitChip(idx: number, item: string) {
 }
 function pitText(item: string) {
   return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand[700] : n.value.textSecondary }
-}
-const contentRow = { ...flexRow, flexWrap: 'wrap' as string, marginBottom: '48rpx' }
-function contentChip(idx: number, item: string) {
-  const selected = isContentSelected(item)
-  return {
-    minWidth: '140rpx', height: '72rpx', borderRadius: radius.full, paddingLeft: '24rpx', paddingRight: '24rpx',
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: selected ? brand[600] : n.value.surface,
-    marginRight: '16rpx', marginBottom: '16rpx',
-  }
-}
-function contentText(item: string) {
-  return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: isContentSelected(item) ? baseColors.white : n.value.textSecondary }
 }
 const resetRow = { alignItems: 'center', paddingTop: '24rpx', paddingBottom: '24rpx' }
 const resetText = { fontSize: fontSize.sm, color: brand[600] }

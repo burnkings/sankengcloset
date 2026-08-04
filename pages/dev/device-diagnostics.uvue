@@ -118,12 +118,12 @@ async function testMockFeed() {
   addResult('running', '正在测试远程 Feed...')
 
   try {
-    const page = await fetchFeedPage(0, '推荐', '全部')
+    const page = await fetchFeedPage('', '推荐', '全部')
     if (page.items.length === 0) {
-      addResult('fail', 'fetchFeedPage(0) 返回空数组')
+      addResult('fail', 'fetchFeedPage 返回空数组')
       return
     }
-    addResult('pass', `fetchFeedPage(0) 返回 ${page.items.length} 条`)
+    addResult('pass', `fetchFeedPage 返回 ${page.items.length} 条`)
 
     // 检查字段完整性
     let missingCover = 0
@@ -148,7 +148,7 @@ async function testImages() {
   results.value = []
   addResult('running', '正在测试图片...')
 
-  const page = await fetchFeedPage(0, '推荐', '全部')
+  const page = await fetchFeedPage('', '推荐', '全部')
   const urls: string[] = []
   for (let i = 0; i < page.items.length; i++) {
     const url = page.items[i].coverUrl
@@ -196,7 +196,7 @@ async function testImages() {
   }
 }
 
-// 测试分页 — 由于远程分页基于 cursor，一次性最多拉 3 页验证连续性
+// 测试分页 — 服务端 cursor 驱动，最多拉 3 页验证游标连续性
 async function testPagination() {
   results.value = []
   addResult('running', '正在测试分页...')
@@ -204,14 +204,14 @@ async function testPagination() {
   try {
     let total = 0
     let pageCount = 0
-    let cursor = 0
+    let cursor = ''
     for (let i = 0; i < 3; i++) {
-      const page = await fetchFeedPage(i, '推荐', '全部')
+      const page = await fetchFeedPage(cursor, '推荐', '全部')
       if (page.items.length === 0) break
       total += page.items.length
       pageCount++
-      cursor = page.nextCursor !== '' ? Number(page.nextCursor) : cursor + 1
-      if (!page.hasMore) break
+      cursor = page.nextCursor
+      if (!page.hasMore || page.nextCursor === '') break
     }
     addResult(pageCount > 0 ? 'pass' : 'fail', `分页加载完成: ${pageCount} 页, ${total} 条`)
     addResult('pass', '远程分页测试完成')

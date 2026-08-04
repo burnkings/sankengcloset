@@ -103,8 +103,8 @@ type HomeFeedState = {
   state: string
   currentChannel: string
   currentCategory: string
+  nextCursor: string
   allItems: FeedItem[]
-  currentPage: number
   isLoadingMore: boolean
   hasMore: boolean
   errorMessage: string
@@ -115,8 +115,8 @@ const _state = reactive<HomeFeedState>({
   state: 'idle',
   currentChannel: '推荐',
   currentCategory: '全部',
+  nextCursor: '',
   allItems: [] as FeedItem[],
-  currentPage: 0,
   isLoadingMore: false,
   hasMore: true,
   errorMessage: '',
@@ -125,24 +125,34 @@ const _state = reactive<HomeFeedState>({
 // 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
 const prefs = usePreferencesStore()
 
+// 把已选坑向（UI 文案 JK/Lolita/汉服）转换为服务端分类参数（JK/LOLITA/HANFU）
+// 全不选 = 空串 = 不限制分类（展示全部）
+function buildCategoriesParam(): string {
+  const values = prefs.preferences.pitTypes
+  const codes: string[] = []
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]
+    if (v === 'Lolita') {
+      codes.push('LOLITA')
+    } else if (v === '汉服') {
+      codes.push('HANFU')
+    } else if (v === 'JK') {
+      codes.push('JK')
+    }
+  }
+  return codes.join(',')
+}
+
 const _loading = computed((): boolean => _state.state === 'loading')
 
-// 筛选后的展示列表
+// 筛选后的展示列表（频道/分类的客户端兜底过滤；排序由服务端 finalScore 决定）
 const _displayItems = computed((): FeedItem[] => {
   const ch = _state.currentChannel
   const channelItems = filterFeedByChannel(_state.allItems, ch)
   const category = _state.currentCategory
-  let result = channelItems
-  if (category === '' || category === '全部') {
-    result = channelItems
-  } else {
-    const code = categoryCode(category)
-    result = channelItems.filter((item) => item.category === code)
-  }
-  // Preference-based sorting
-  const sorted = [...result]
-  sorted.sort((a, b) => prefs.computeScore(b) - prefs.computeScore(a))
-  return sorted
+  if (category === '' || category === '全部') return channelItems
+  const code = categoryCode(category)
+  return channelItems.filter((item) => item.category === code)
 })
 
 const _isEmpty = computed((): boolean => {
@@ -177,14 +187,17 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
-// 首屏加载
+// 首屏加载（重置分页游标后从第一页重新请求）
 async function loadFirstPage() {
   _state.state = 'loading'
   _state.errorMessage = ''
+  _state.allItems = []
+  _state.nextCursor = ''
+  _state.hasMore = true
   try {
-    const page = await fetchFeedPage(0)
+    const page = await fetchFeedPage('', _state.currentChannel, _state.currentCategory, buildCategoriesParam())
     _state.allItems = page.items
-    _state.currentPage = 1
+    _state.nextCursor = page.nextCursor
     _state.hasMore = page.hasMore
     _state.state = 'loaded'
   } catch (e) {
@@ -194,18 +207,35 @@ async function loadFirstPage() {
   notifyChanged()
 }
 
-// 加载更多（防重入）
+// 加载更多（防重入；游标驱动，nextCursor 为空或 hasMore=false 即结束）
 async function loadMore() {
   if (_state.isLoadingMore || !_state.hasMore || _state.state !== 'loaded') return
+  if (_state.nextCursor === '') {
+    _state.hasMore = false
+    return
+  }
   _state.isLoadingMore = true
   try {
-    const page = await fetchFeedPage(_state.currentPage)
-    if (page.items.length === 0) {
+    const page = await fetchFeedPage(_state.nextCursor, _state.currentChannel, _state.currentCategory, buildCategoriesParam())
+    if (page.items.length === 0 || page.nextCursor === '') {
+      // 服务端没有下一页
       _state.hasMore = false
     } else {
-      // 追加新页到全量列表（不裁剪，避免分页追加的较旧数据被丢弃）
-      _state.allItems = [..._state.allItems, ...page.items]
-      _state.currentPage += 1
+      // 按 id 去重后追加（服务端分页在并发/重复请求下可能返回重叠项）
+      const merged = [..._state.allItems]
+      for (let i = 0; i < page.items.length; i++) {
+        const item = page.items[i]
+        let exists = false
+        for (let j = 0; j < merged.length; j++) {
+          if (merged[j].id === item.id) {
+            exists = true
+            break
+          }
+        }
+        if (!exists) merged.push(item)
+      }
+      _state.allItems = merged
+      _state.nextCursor = page.nextCursor
       _state.hasMore = page.hasMore
     }
   } catch (e) {
@@ -216,18 +246,18 @@ async function loadMore() {
   notifyChanged()
 }
 
-// 切换频道（重置分页状态，不重新加载数据）
+// 切换频道：重置分页状态后重新请求
 function setChannel(ch: string) {
   if (ch === _state.currentChannel) return
   _state.currentChannel = ch
-  // displayItems computed 自动重算，hasMore 基于全量数据
-  notifyChanged()
+  loadFirstPage()
 }
 
+// 切换分类：重置分页状态后重新请求
 function setCategory(category: string) {
   if (category === _state.currentCategory) return
   _state.currentCategory = category
-  notifyChanged()
+  loadFirstPage()
 }
 
 // 重试
@@ -259,7 +289,9 @@ function toggleSave(itemId: string) {
 }
 
 function refreshPreferences() {
+  // 重新读取偏好后按最新坑向分类参数重新请求首页
   prefs.loadPreferences()
+  loadFirstPage()
 }
 
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
