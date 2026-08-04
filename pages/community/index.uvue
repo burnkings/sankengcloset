@@ -4,6 +4,10 @@
       <template #navbar><V2PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
+        <view v-if="viewMode === 'mine'" :style="mineTitleWrap">
+          <text :style="mineTitle">我的发布</text>
+        </view>
+        <view v-if="viewMode !== 'mine'">
         <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
         <view :style="composerCard" @tap="goCreate">
           <view :style="composerIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
@@ -12,6 +16,7 @@
         </view>
         <V2Segmented :items="pitTypes" :active="activePitType" variant="text" :active-color="brand[300]" @change="onPitTypeChange" />
         <V2Segmented :items="topics" :active="activeTopic" variant="text" :active-color="brand[300]" @change="onTopicChange" />
+        </view>
 
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
           <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
@@ -24,6 +29,7 @@
           </view>
         </view>
 
+        <view v-if="viewMode !== 'mine'">
         <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
           <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
@@ -33,6 +39,7 @@
             <text :style="lookCaption">{{ look.caption }}</text>
             <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ likeCount(look.id, look.likes) }}</text></view></view>
           </view>
+        </view>
         </view>
 
       </view>
@@ -62,25 +69,38 @@ import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
+type LookItem = {
+  id: string
+  image: string
+  topic: string
+  pitType: string
+  initial: string
+  author: string
+  time: string
+  caption: string
+  likes: number
+}
+
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
 const pendingDeleteId = ref('')
+const viewMode = ref('') // '' | 'mine'
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑']
 const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']
-const looks: any[] = []
-function filterByPitAndTopic(items: any[]): any[] {
+const looks: LookItem[] = []
+function filterByPitAndTopic(items: LookItem[]): LookItem[] {
   let result = items
   if (activePitType.value !== '全部') {
-    result = result.filter((item) => (item.pitType ?? '') === activePitType.value)
+    result = result.filter((item: LookItem): boolean => item.pitType === activePitType.value)
   }
   if (activeTopic.value !== '全部') {
-    result = result.filter((item) => item.topic === activeTopic.value)
+    result = result.filter((item: LookItem): boolean => item.topic === activeTopic.value)
   }
   return result
 }
-const visibleLooks = computed(() => filterByPitAndTopic(looks))
+const visibleLooks = computed((): LookItem[] => filterByPitAndTopic(looks))
 const visibleUserLooks = computed((): SavedOutfitPost[] => {
   let result: SavedOutfitPost[] = library.outfitPosts
   if (activePitType.value !== '全部') {
@@ -104,7 +124,15 @@ function deleteOwnPost(id: string) {
 }
 onLoad(() => { initPageTheme() })
 onShow(() => {
+  initPageTheme()
   library.reload()
+  try {
+    const pendingView = uni.getStorageSync('community_view') as string
+    if (pendingView !== '') {
+      viewMode.value = pendingView
+      uni.removeStorageSync('community_view')
+    }
+  } catch (e) {}
   try {
     const pendingTopic = uni.getStorageSync('community_topic') as string
     if (pendingTopic !== '') {
@@ -115,6 +143,8 @@ onShow(() => {
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+const mineTitleWrap = { marginBottom: '12rpx' }
+const mineTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
 const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '24rpx', backgroundColor: '#E8E0D6', marginBottom: '8rpx' }))
 const composerIcon = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: baseColors.white, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))

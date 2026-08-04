@@ -1,5 +1,5 @@
 <template>
-  <MainLayout>
+  <MainLayout navbar-content-height="88rpx">
     <template #navbar><AppNavbar :title="pageTitle" show-back /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
@@ -53,7 +53,7 @@ const pageTitle = ref('')
 const pageDesc = ref('')
 const pageCategory = ref('')
 const heroImage = ref('')
-const filteredItems = ref([]) as Ref<FeedItem[]>
+  const filteredItems = ref<FeedItem[]>([])
 
 function formatPrice(cents: number): string {
   if (cents <= 0) return ''
@@ -68,10 +68,10 @@ function onProductTap(entityId: string) {
 
 onLoad((query) => {
   if (query != null) {
-    if (query['title'] != null) pageTitle.value = decodeURIComponent(String(query['title']))
-    if (query['category'] != null) pageCategory.value = String(query['category'])
+      if (query['title'] != null) pageTitle.value = (decodeURIComponent(query['title'] as string) ?? '')
+    if (query['category'] != null) pageCategory.value = query['category'] as string
     if (query['image'] != null) {
-      const img = String(query['image'])
+      const img = query['image'] as string
       if (img !== '') heroImage.value = img
     }
   }

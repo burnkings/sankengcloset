@@ -44,11 +44,11 @@ const emit = defineEmits<{ click: [] }>()
 const cardStyle = computed((): any => ({ width: PRODUCT_CARD_WIDTH, flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden' }))
 const imageStyle = { width: PRODUCT_CARD_WIDTH, height: PRODUCT_CARD_IMAGE_HEIGHT, position: 'relative', overflow: 'hidden' }
 function statusColor(): string {
-  if (props.badge === '现货' || props.badge === '新品') return semantic.success
-  if (props.badge === '预览' || props.badge === '图透') return accent[600]
-  if (props.badge === '尾款') return semantic.warning
-  if (props.badge === '降价') return semantic.error
-  return brand[700]
+  if (props.badge === '现货' || props.badge === '新品') return semantic.success as string
+  if (props.badge === '预览' || props.badge === '图透') return accent[600] as string
+  if (props.badge === '尾款') return semantic.warning as string
+  if (props.badge === '降价') return semantic.error as string
+  return brand[700] as string
 }
 const infoStyle = { padding: CARD_PADDING, minHeight: PRODUCT_CARD_INFO_MIN_HEIGHT }
 const brandStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))

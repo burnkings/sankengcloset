@@ -7,7 +7,7 @@ const PREFIX = 'v21_sync_op_'
 const DEVICE_KEY = 'v21_device_id'
 
 function readString(key: string): string {
-  try { const value = uni.getStorageSync(key); return value == null ? '' : String(value) } catch (e) { return '' }
+  try { const value = uni.getStorageSync(key); return value == null ? '' : value as string } catch (e) { return '' }
 }
 function readIds(): string[] { const raw = readString(QUEUE_IDS_KEY); return raw === '' ? [] : raw.split(',').filter((id) => id !== '') }
 function writeIds(ids: string[]) { uni.setStorageSync(QUEUE_IDS_KEY, ids.join(',')) }
@@ -16,7 +16,7 @@ function writeOperation(op: SyncOperation) {
   uni.setStorageSync(key(op.opId, 'user'), op.userId); uni.setStorageSync(key(op.opId, 'device'), op.deviceId)
   uni.setStorageSync(key(op.opId, 'entity_type'), op.entityType); uni.setStorageSync(key(op.opId, 'entity_id'), op.entityId)
   uni.setStorageSync(key(op.opId, 'action'), op.action); uni.setStorageSync(key(op.opId, 'payload'), op.payload)
-  uni.setStorageSync(key(op.opId, 'created_at'), op.createdAt); uni.setStorageSync(key(op.opId, 'retry'), String(op.retryCount))
+  uni.setStorageSync(key(op.opId, 'created_at'), op.createdAt); uni.setStorageSync(key(op.opId, 'retry'), op.retryCount.toString())
   uni.setStorageSync(key(op.opId, 'status'), op.status)
 }
 function readOperation(id: string): SyncOperation {
@@ -32,7 +32,7 @@ export function getCurrentSyncUserId(): string { const saved = readString('v21_s
 export function getOrCreateDeviceId(): string { const saved = readString(DEVICE_KEY); if (saved !== '') return saved; const id = `device_${Date.now()}_${Math.floor(Math.random() * 10000)}`; uni.setStorageSync(DEVICE_KEY, id); return id }
 export function enqueueLocalOperation(userId: string, entityType: string, entityId: string, action: string, payload: string): string {
   const op = new SyncOperation(); op.opId = `op_${Date.now()}_${Math.floor(Math.random() * 10000)}`; op.userId = userId; op.deviceId = getOrCreateDeviceId()
-  op.entityType = entityType; op.entityId = entityId; op.action = action; op.payload = safePayload(payload); op.createdAt = String(Date.now()); op.status = SYNC_PENDING
+  op.entityType = entityType; op.entityId = entityId; op.action = action; op.payload = safePayload(payload); op.createdAt = Date.now().toString(); op.status = SYNC_PENDING
   writeOperation(op); const ids = readIds(); ids.push(op.opId); writeIds(ids); return op.opId
 }
 export function readPendingOperations(): SyncOperation[] { const ids = readIds(); const result: SyncOperation[] = []; for (let i = 0; i < ids.length; i++) result.push(readOperation(ids[i])); return result }
@@ -45,14 +45,14 @@ async function flushRemote(ids: string[]): Promise<number> {
     operations.push({ opId: op.opId, deviceId: op.deviceId, entityType: op.entityType, entityId: op.entityId, action: op.action === 'migrate' ? 'import' : op.action, payload: safePayload(op.payload), createdAt: op.createdAt })
   }
   const response = await apiPostAuthorized('/api/v1/sync/operations:batch', { operations })
-  const data = response.data as any
-  const receipts = data != null ? data.receipts as any[] : []
+  const data = response.data != null ? response.data as UTSJSONObject : null
+  const receipts = data != null && data['receipts'] != null ? data['receipts'] as any[] : []
   const accepted: string[] = []
-  if (receipts != null) for (let i = 0; i < receipts.length; i++) if (receipts[i].result === 'accepted') accepted.push(String(receipts[i].opId))
+  if (receipts != null) for (let i = 0; i < receipts.length; i++) if (receipts[i] as UTSJSONObject != null && (receipts[i] as UTSJSONObject)['result'] === 'accepted') accepted.push((receipts[i] as UTSJSONObject)['opId'] as string)
   const remaining: string[] = []
   for (let i = 0; i < ids.length; i++) { if (accepted.indexOf(ids[i]) >= 0) removeOperation(ids[i]); else remaining.push(ids[i]) }
   writeIds(remaining)
-  if (accepted.length > 0) uni.setStorageSync('v21_sync_last_success_at', String(Date.now()))
+  if (accepted.length > 0) uni.setStorageSync('v21_sync_last_success_at', Date.now().toString())
   return accepted.length
 }
 
@@ -62,7 +62,7 @@ export async function flushLocalOperations(): Promise<number> {
     if (config.mode === DATA_MODE_REMOTE) return await flushRemote(ids)
     if (!config.mockOnline) throw new Error('当前为离线模拟，操作已保留')
     await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
-    for (let i = 0; i < ids.length; i++) removeOperation(ids[i]); writeIds([]); uni.setStorageSync('v21_sync_last_success_at', String(Date.now())); return ids.length
+    for (let i = 0; i < ids.length; i++) removeOperation(ids[i]); writeIds([]); uni.setStorageSync('v21_sync_last_success_at', Date.now().toString()); return ids.length
   } catch (e) {
     for (let i = 0; i < ids.length; i++) { const op = readOperation(ids[i]); op.status = SYNC_FAILED; op.retryCount += 1; writeOperation(op) }
     throw e

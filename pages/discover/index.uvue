@@ -55,6 +55,8 @@ import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIS
 import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useHomeFeedStore } from '@/stores/home-feed-store'
+import { FEED_EDITORIAL, FEED_BRAND_POST, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -67,6 +69,31 @@ import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
+class FeatureItem {
+  id: string = ''
+  image: string = ''
+  title: string = ''
+  desc: string = ''
+  category: string = ''
+}
+class BrandItem {
+  name: string = ''
+  initial: string = ''
+  meta: string = ''
+}
+class CalendarEvent {
+  id: string = ''
+  day: string = ''
+  title: string = ''
+  brand: string = ''
+  tag: string = ''
+}
+class TopicItem {
+  id: string = ''
+  name: string = ''
+  meta: string = ''
+}
+
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
 function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); openPrimaryTab('/pages/community/index') }
@@ -75,22 +102,70 @@ function toggleBrand(brandName: string) {
   const followed = library.toggleBrandFollow(brandName)
   showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
 }
-function openEditorial(item: any) {
+function openEditorial(item: FeatureItem) {
   uni.navigateTo({ url: `/pages/editorial/detail?id=${item.id}&title=${encodeURIComponent(item.title)}&category=${item.category}` })
 }
 
 const pageHeight = getWindowHeight()
-const features: any[] = []
-const brands: any[] = []
-const calendar: any[] = []
-const topics: any[] = []
+const feedStore = useHomeFeedStore()
+
+function extractDay(iso: string): string {
+  if (iso.length < 10) return '--'
+  return iso.substring(8, 10)
+}
+function brandInitialOf(name: string): string {
+  if (name == '') return '#'
+  return name.substring(0, 1)
+}
+
+const features = computed((): FeatureItem[] => {
+  return feedStore.allItems.filter((item) => item.feedType === FEED_EDITORIAL).map((item) => {
+    const f = new FeatureItem()
+    f.id = item.id
+    f.image = item.coverUrl
+    f.title = item.title
+    f.desc = item.subtitle
+    f.category = item.category
+    return f
+  })
+})
+const brands = computed((): BrandItem[] => {
+  return feedStore.allItems.filter((item) => item.feedType === FEED_BRAND_POST).map((item) => {
+    const b = new BrandItem()
+    const name = item.brandName !== '' ? item.brandName : item.title
+    b.name = name
+    b.initial = brandInitialOf(name)
+    b.meta = item.sourceLabel
+    return b
+  })
+})
+const calendar = computed((): CalendarEvent[] => {
+  return feedStore.allItems.filter((item) => item.feedType === FEED_RELEASE_EVENT).map((item) => {
+    const c = new CalendarEvent()
+    c.id = item.id
+    c.day = extractDay(item.eventStartAt)
+    c.title = item.title
+    c.brand = item.brandName
+    c.tag = item.badgeText !== '' ? item.badgeText : item.subtitle
+    return c
+  })
+})
+const topics = computed((): TopicItem[] => {
+  return feedStore.allItems.filter((item) => item.feedType === FEED_AI_RECOMMENDATION || item.feedType === FEED_OUTFIT).map((item) => {
+    const t = new TopicItem()
+    t.id = item.id
+    t.name = item.title
+    t.meta = item.sourceLabel !== '' ? item.sourceLabel : item.subtitle
+    return t
+  })
+})
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const searchBox = computed((): any => ({ width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: n.value.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
 const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
 const featureScroll = { width: '710rpx', marginRight: '-40rpx' }
 const featureRow = { ...flexRow, width: '1060rpx' }
-function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.length - 1 ? '20rpx' : '0' } }
+function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.value.length - 1 ? '20rpx' : '0' } }
 const featureImage = { width: '500rpx', height: '280rpx' }
 const featureCopy = { padding: '20rpx' }
 const featureTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -109,16 +184,19 @@ const calendarRow = { ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'cente
 const calendarDate = { width: '96rpx', alignItems: 'center', flexShrink: 0 }
 const calendarDay = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
 const calendarMonth = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary }))
-function calendarMain(idx: number) { return { ...flexFill, ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '20rpx', borderBottomWidth: idx < calendar.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
+function calendarMain(idx: number) { return { ...flexFill, ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '20rpx', borderBottomWidth: idx < calendar.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
 const calendarCopy = { ...flexFill }
 const calendarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const calendarBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[600], marginLeft: '12rpx' }))
-function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.length - 1 ? '12rpx' : '0' } }
+function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.value.length - 1 ? '12rpx' : '0' } }
 const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
 onLoad(() => { initPageTheme() })
-onShow(() => { library.reload() })
+onMounted(() => {
+  if (feedStore.state === 'idle' || feedStore.state === 'error') feedStore.loadFirstPage()
+})
+onShow(() => { initPageTheme(); library.reload() })
 </script>
 
 

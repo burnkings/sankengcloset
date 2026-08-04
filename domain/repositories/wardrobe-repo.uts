@@ -5,23 +5,27 @@ const STORAGE_KEY = 'wardrobe_items'
 function loadAll(): WardrobeItem[] {
   try {
     const raw = uni.getStorageSync(STORAGE_KEY)
-    if (!raw) return []
-    const arr = JSON.parse(raw) as any[]
-    return arr.map((obj) => {
+    if (raw == null || raw as string === '') return []
+    const arr = JSON.parseArray<UTSJSONObject>(raw as string)
+    if (arr == null) return []
+    const result: WardrobeItem[] = []
+    for (let i = 0; i < arr.length; i++) {
+      const obj = arr[i]
       const item = new WardrobeItem()
-      item.id = obj.id ?? ''; item.name = obj.name ?? ''; item.category = obj.category ?? 'OTHER'; item.style = obj.style ?? ''; item.brand = obj.brand ?? ''
-      item.color = obj.color ?? ''; item.size = obj.size ?? ''; item.wearStatus = obj.wearStatus ?? 'UNWORN'; item.seasons = obj.seasons ?? []
-      item.images = obj.images ?? []; item.tags = obj.tags ?? []; item.purchaseDate = obj.purchaseDate ?? ''; item.purchasePrice = obj.purchasePrice ?? 0
-      item.purchaseSource = obj.purchaseSource ?? ''; item.note = obj.note ?? ''; item.isFavorite = obj.isFavorite ?? false; item.isDeleted = obj.isDeleted ?? false
-      item.createdAt = obj.createdAt ?? ''; item.updatedAt = obj.updatedAt ?? ''
-      return item
-    })
+      item.id = obj['id'] != null ? obj['id'] as string : ''; item.name = obj['name'] != null ? obj['name'] as string : ''; item.category = obj['category'] != null ? obj['category'] as string : 'OTHER'; item.style = obj['style'] != null ? obj['style'] as string : ''; item.brand = obj['brand'] != null ? obj['brand'] as string : ''
+      item.color = obj['color'] != null ? obj['color'] as string : ''; item.size = obj['size'] != null ? obj['size'] as string : ''; item.wearStatus = obj['wearStatus'] != null ? obj['wearStatus'] as string : 'UNWORN'; item.seasons = obj['seasons'] != null ? obj['seasons'] as string[] : []
+      item.images = obj['images'] != null ? obj['images'] as string[] : []; item.tags = obj['tags'] != null ? obj['tags'] as string[] : []; item.purchaseDate = obj['purchaseDate'] != null ? obj['purchaseDate'] as string : ''; item.purchasePrice = obj['purchasePrice'] != null ? obj['purchasePrice'] as number : 0
+      item.purchaseSource = obj['purchaseSource'] != null ? obj['purchaseSource'] as string : ''; item.note = obj['note'] != null ? obj['note'] as string : ''; item.isFavorite = obj['isFavorite'] != null ? obj['isFavorite'] as boolean : false; item.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
+      item.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''; item.updatedAt = obj['updatedAt'] != null ? obj['updatedAt'] as string : ''
+      result.push(item)
+    }
+    return result
   } catch (e) { return [] }
 }
 function saveAll(items: WardrobeItem[]) { uni.setStorageSync(STORAGE_KEY, JSON.stringify(items)) }
 function generateId(): string { return `${Date.now()}-${Math.floor(Math.random() * 10000)}` }
 export function getAll(): WardrobeItem[] { return loadAll().filter((item) => !item.isDeleted) }
-export function getById(id: string): WardrobeItem | undefined { return loadAll().find((item) => item.id == id && !item.isDeleted) }
+export function getById(id: string): WardrobeItem | null { return loadAll().find((item) => item.id == id && !item.isDeleted) }
 
 export function add(item: WardrobeItem): WardrobeItem {
   const items = loadAll(); item.id = generateId(); item.createdAt = new Date().toISOString(); item.updatedAt = item.createdAt; items.push(item); saveAll(items); return item

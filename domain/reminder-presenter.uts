@@ -63,12 +63,12 @@ export function toDisplayModel(item: Reminder): ReminderDisplayModel {
   dm.id = item.id
   dm.title = item.title
   // 类型
-  dm.typeText = TYPE_LABELS[item.type] ?? '自定义'
-  dm.typeEmoji = TYPE_EMOJI[item.type] ?? '⏰'
-  dm.typeColor = TYPE_COLORS[item.type] ?? '#6B7280'
+  dm.typeText = TYPE_LABELS[item.type] != null ? TYPE_LABELS[item.type] as string : '自定义'
+  dm.typeEmoji = TYPE_EMOJI[item.type] != null ? TYPE_EMOJI[item.type] as string : '⏰'
+  dm.typeColor = TYPE_COLORS[item.type] != null ? TYPE_COLORS[item.type] as string : '#6B7280'
   // 状态
-  dm.statusText = STATUS_LABELS[item.status] ?? '待提醒'
-  dm.statusColor = STATUS_COLORS[item.status] ?? '#3B82F6'
+  dm.statusText = STATUS_LABELS[item.status] != null ? STATUS_LABELS[item.status] as string : '待提醒'
+  dm.statusColor = STATUS_COLORS[item.status] != null ? STATUS_COLORS[item.status] as string : '#3B82F6'
   // 时间
   dm.dateText = formatDate(item.remindDate)
   dm.timeText = formatTime(item.remindTime)
@@ -86,5 +86,5 @@ export function toDisplayModel(item: Reminder): ReminderDisplayModel {
 }
 
 export function toDisplayModels(items: Reminder[]): ReminderDisplayModel[] {
-  return items.map(toDisplayModel)
+  return items.map((item) => toDisplayModel(item))
 }

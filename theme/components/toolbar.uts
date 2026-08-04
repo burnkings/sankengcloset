@@ -23,7 +23,7 @@ export const toolbarSection = {
   gap: spacing[2],
   paddingHorizontal: semanticSpacing.pageHorizontal,
   paddingVertical: spacing[3],
-} as any
+} as UTSJSONObject
 
 // ====== 筛选 Chips ======
 
@@ -31,13 +31,13 @@ export const toolbarSection = {
 export const chipScroll = {
   ...flexFill,
   overflow: 'hidden',
-} as any
+} as UTSJSONObject
 
 /** Chip 行 */
 export const chipRow = {
   ...flexRow,
   gap: spacing[2],
-} as any
+} as UTSJSONObject
 
 // ====== 排序按钮 ======
 
@@ -48,12 +48,12 @@ export const sortBtn = {
   height: '56rpx',
   borderRadius: radius.md,
   flexShrink: 0,
-} as any
+} as UTSJSONObject
 
 /** 排序图标 */
 export const sortIcon = {
   fontSize: fontSize.lg,
-} as any
+} as UTSJSONObject
 
 // ====== 收藏切换 ======
 
@@ -63,12 +63,12 @@ export const favToggle = {
   width: '56rpx',
   height: '56rpx',
   flexShrink: 0,
-} as any
+} as UTSJSONObject
 
 /** 收藏切换文字 */
 export const favToggleText = {
   fontSize: fontSize.lg,
-} as any
+} as UTSJSONObject
 
 // ====== 工具函数 ======
 

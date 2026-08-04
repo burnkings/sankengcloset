@@ -9,29 +9,33 @@ const STORAGE_KEY = 'wishlist_items'
 function loadAll(): WishItem[] {
   try {
     const raw = uni.getStorageSync(STORAGE_KEY)
-    if (!raw) return []
-    const arr = JSON.parse(raw) as any[]
-    return arr.map((obj) => {
+    if (raw == null || raw as string === '') return []
+    const arr = JSON.parseArray<UTSJSONObject>(raw as string)
+    if (arr == null) return []
+    const result: WishItem[] = []
+    for (let i = 0; i < arr.length; i++) {
+      const obj = arr[i]
       const w = new WishItem()
-      w.id = obj.id ?? ''
-      w.name = obj.name ?? ''
-      w.coverImage = obj.coverImage ?? ''
-      w.brand = obj.brand ?? ''
-      w.estimatedPrice = obj.estimatedPrice ?? 0
-      w.priority = obj.priority ?? 'MEDIUM'
-      w.status = obj.status ?? 'WISH'
-      w.source = obj.source ?? 'MANUAL'
-      w.wardrobeId = obj.wardrobeId ?? ''
-      w.purchaseId = obj.purchaseId ?? ''
-      w.convertedAt = obj.convertedAt ?? ''
-      w.note = obj.note ?? ''
-      w.url = obj.url ?? ''
-      w.isFavorite = obj.isFavorite ?? false
-      w.isDeleted = obj.isDeleted ?? false
-      w.createdAt = obj.createdAt ?? ''
-      w.updatedAt = obj.updatedAt ?? ''
-      return w
-    })
+      w.id = obj['id'] != null ? obj['id'] as string : ''
+      w.name = obj['name'] != null ? obj['name'] as string : ''
+      w.coverImage = obj['coverImage'] != null ? obj['coverImage'] as string : ''
+      w.brand = obj['brand'] != null ? obj['brand'] as string : ''
+      w.estimatedPrice = obj['estimatedPrice'] != null ? obj['estimatedPrice'] as number : 0
+      w.priority = obj['priority'] != null ? obj['priority'] as string : 'MEDIUM'
+      w.status = obj['status'] != null ? obj['status'] as string : 'WISH'
+      w.source = obj['source'] != null ? obj['source'] as string : 'MANUAL'
+      w.wardrobeId = obj['wardrobeId'] != null ? obj['wardrobeId'] as string : ''
+      w.purchaseId = obj['purchaseId'] != null ? obj['purchaseId'] as string : ''
+      w.convertedAt = obj['convertedAt'] != null ? obj['convertedAt'] as string : ''
+      w.note = obj['note'] != null ? obj['note'] as string : ''
+      w.url = obj['url'] != null ? obj['url'] as string : ''
+      w.isFavorite = obj['isFavorite'] != null ? obj['isFavorite'] as boolean : false
+      w.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
+      w.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''
+      w.updatedAt = obj['updatedAt'] != null ? obj['updatedAt'] as string : ''
+      result.push(w)
+    }
+    return result
   } catch {
     return []
   }
@@ -49,7 +53,7 @@ export function getAll(): WishItem[] {
   return loadAll().filter((w) => !w.isDeleted)
 }
 
-export function getById(id: string): WishItem | undefined {
+export function getById(id: string): WishItem | null {
   return loadAll().find((w) => w.id == id && !w.isDeleted)
 }
 
@@ -84,7 +88,7 @@ export function update(id: string, data: WishUpdateData): boolean {
 export function softDelete(id: string): boolean {
   const items = loadAll()
   const w = items.find((item) => item.id == id)
-  if (!w) return false
+  if (w == null) return false
   w.isDeleted = true
   w.updatedAt = new Date().toISOString()
   saveAll(items)
@@ -94,7 +98,7 @@ export function softDelete(id: string): boolean {
 export function changeStatus(id: string, newStatus: string): boolean {
   const items = loadAll()
   const w = items.find((item) => item.id == id)
-  if (!w) return false
+  if (w == null) return false
   w.status = newStatus
   w.updatedAt = new Date().toISOString()
   saveAll(items)
@@ -104,7 +108,7 @@ export function changeStatus(id: string, newStatus: string): boolean {
 export function markPurchased(id: string, purchaseId: string): boolean {
   const items = loadAll()
   const w = items.find((item) => item.id == id)
-  if (!w) return false
+  if (w == null) return false
   w.status = 'PURCHASED'
   w.purchaseId = purchaseId
   w.convertedAt = new Date().toISOString()
@@ -116,7 +120,7 @@ export function markPurchased(id: string, purchaseId: string): boolean {
 export function linkWardrobe(id: string, wardrobeId: string): boolean {
   const items = loadAll()
   const w = items.find((item) => item.id == id)
-  if (!w) return false
+  if (w == null) return false
   w.wardrobeId = wardrobeId
   w.updatedAt = new Date().toISOString()
   saveAll(items)
@@ -126,7 +130,7 @@ export function linkWardrobe(id: string, wardrobeId: string): boolean {
 export function toggleFavorite(id: string): boolean {
   const items = loadAll()
   const w = items.find((item) => item.id == id)
-  if (!w) return false
+  if (w == null) return false
   w.isFavorite = !w.isFavorite
   w.updatedAt = new Date().toISOString()
   saveAll(items)
@@ -136,7 +140,8 @@ export function toggleFavorite(id: string): boolean {
 export function addMany(newItems: WishItem[]): WishItem[] {
   const items = loadAll()
   const now = new Date().toISOString()
-  for (const w of newItems) {
+  for (let i = 0; i < newItems.length; i++) {
+    const w = newItems[i]
     w.id = generateId()
     w.createdAt = now
     w.updatedAt = now
@@ -149,9 +154,10 @@ export function addMany(newItems: WishItem[]): WishItem[] {
 export function updateMany(ids: string[], data: WishUpdateData): number {
   const items = loadAll()
   let count = 0
-  for (const id of ids) {
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i]
     const w = items.find((item) => item.id == id)
-    if (w) {
+    if (w != null) {
       if (data.status != '') w.status = data.status
       if (data.priority != '') w.priority = data.priority
       w.updatedAt = new Date().toISOString()
@@ -165,9 +171,10 @@ export function updateMany(ids: string[], data: WishUpdateData): number {
 export function deleteMany(ids: string[]): number {
   const items = loadAll()
   let count = 0
-  for (const id of ids) {
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i]
     const w = items.find((item) => item.id == id)
-    if (w) {
+    if (w != null) {
       w.isDeleted = true
       w.updatedAt = new Date().toISOString()
       count++

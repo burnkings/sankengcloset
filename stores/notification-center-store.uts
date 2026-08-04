@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import { reactive, computed } from 'vue'
 import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
@@ -6,7 +6,8 @@ const READ_IDS_KEY = 'v21_notification_read_ids'
 
 function readIds(): string[] {
   try {
-    const raw = String(uni.getStorageSync(READ_IDS_KEY) ?? '')
+    const stored = uni.getStorageSync(READ_IDS_KEY)
+    const raw = stored != null ? stored as string : ''
     return raw === '' ? [] : raw.split(',').filter((id) => id !== '')
   } catch (e) {
     return []
@@ -22,7 +23,7 @@ function mockNotifications(): AppNotification[] {
   release.type = NOTICE_RELEASE
   release.title = '月光曲 JSK 定金即将开始'
   release.body = '明天 20:00 开定，建议提前确认尺码与预算。'
-  release.createdAt = String(now - 20 * 60000)
+  release.createdAt = (now - 20 * 60000).toString()
   release.actionTarget = '/pages/reminder/index'
   items.push(release)
 
@@ -31,7 +32,7 @@ function mockNotifications(): AppNotification[] {
   price.type = NOTICE_PRICE
   price.title = '收藏商品出现价格变化'
   price.body = '田园碎花 OP 当前展示价较上次记录降低 ¥90。'
-  price.createdAt = String(now - 2 * 3600000)
+  price.createdAt = (now - 2 * 3600000).toString()
   price.actionTarget = '/pages/favorites/index'
   items.push(price)
 
@@ -40,7 +41,7 @@ function mockNotifications(): AppNotification[] {
   social.type = NOTICE_SOCIAL
   social.title = '你的晒搭收到了新的喜欢'
   social.body = '茶会风格晒搭新增 3 个喜欢。'
-  social.createdAt = String(now - 5 * 3600000)
+  social.createdAt = (now - 5 * 3600000).toString()
   social.actionTarget = '/pages/community/index'
   items.push(social)
 
@@ -49,50 +50,87 @@ function mockNotifications(): AppNotification[] {
   system.type = NOTICE_SYSTEM
   system.title = 'V2.1 后端就绪体验已开启'
   system.body = '账号、通知与同步目前使用本地 Mock，不代表云端已经保存。'
-  system.createdAt = String(now - 24 * 3600000)
+  system.createdAt = (now - 24 * 3600000).toString()
   system.actionTarget = '/pages/preferences/index'
   items.push(system)
   return items
 }
 
-export const useNotificationCenterStore = defineStore('notificationCenter', () => {
-  const items = ref([]) as Ref<AppNotification[]>
-  const activeType = ref('all')
-  const unreadCount = computed((): number => items.value.filter((item) => !item.read).length)
-  const visibleItems = computed((): AppNotification[] => activeType.value === 'all' ? items.value : items.value.filter((item) => item.type === activeType.value))
+// ====== 模块级 reactive 状态（单例）======
 
-  function reload() {
-    const savedReadIds = readIds()
-    const next = mockNotifications()
-    for (let i = 0; i < next.length; i++) next[i].read = savedReadIds.indexOf(next[i].id) >= 0
-    items.value = next
-  }
+type NotificationCenterState = {
+  items: AppNotification[]
+  activeType: string
+}
 
-  function persistReadState() {
-    uni.setStorageSync(READ_IDS_KEY, items.value.filter((item) => item.read).map((item) => item.id).join(','))
-  }
-
-  function markRead(id: string) {
-    let changed = false
-    for (let i = 0; i < items.value.length; i++) {
-      if (items.value[i].id === id && !items.value[i].read) {
-        items.value[i].read = true
-        changed = true
-      }
-    }
-    persistReadState()
-    if (changed) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}')
-  }
-
-  function markAllRead() {
-    const hadUnread = unreadCount.value > 0
-    for (let i = 0; i < items.value.length; i++) items.value[i].read = true
-    persistReadState()
-    if (hadUnread) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', 'all', 'upsert', '{"readAll":true}')
-  }
-
-  function setType(type: string) { activeType.value = type }
-
-  reload()
-  return { items, activeType, visibleItems, unreadCount, reload, markRead, markAllRead, setType }
+const _state = reactive<NotificationCenterState>({
+  items: [] as AppNotification[],
+  activeType: 'all',
 })
+
+const _unreadCount = computed((): number => _state.items.filter((item) => !item.read).length)
+const _visibleItems = computed((): AppNotification[] => _state.activeType === 'all' ? _state.items : _state.items.filter((item) => item.type === _state.activeType))
+
+const CHANGE_EVENT = 'store:notification-center-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+function reload() {
+  const savedReadIds = readIds()
+  const next = mockNotifications()
+  for (let i = 0; i < next.length; i++) next[i].read = savedReadIds.indexOf(next[i].id) >= 0
+  _state.items = next
+  notifyChanged()
+}
+
+function persistReadState() {
+  uni.setStorageSync(READ_IDS_KEY, _state.items.filter((item) => item.read).map((item) => item.id).join(','))
+}
+
+function markRead(id: string) {
+  let changed = false
+  for (let i = 0; i < _state.items.length; i++) {
+    if (_state.items[i].id === id && !_state.items[i].read) {
+      _state.items[i].read = true
+      changed = true
+    }
+  }
+  persistReadState()
+  if (changed) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}')
+  if (changed) notifyChanged()
+}
+
+function markAllRead() {
+  const hadUnread = _unreadCount.value > 0
+  for (let i = 0; i < _state.items.length; i++) _state.items[i].read = true
+  persistReadState()
+  if (hadUnread) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', 'all', 'upsert', '{"readAll":true}')
+  if (hadUnread) notifyChanged()
+}
+
+function setType(type: string) {
+  _state.activeType = type
+  notifyChanged()
+}
+
+reload()
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class NotificationCenterStoreHandle {
+  get items(): AppNotification[] { return _state.items }
+  get activeType(): string { return _state.activeType }
+  get visibleItems(): AppNotification[] { return _visibleItems.value }
+  get unreadCount(): number { return _unreadCount.value }
+  reload(): void { reload() }
+  markRead(id: string): void { markRead(id) }
+  markAllRead(): void { markAllRead() }
+  setType(type: string): void { setType(type) }
+}
+
+let _handle: NotificationCenterStoreHandle | null = null
+export function useNotificationCenterStore(): NotificationCenterStoreHandle {
+  if (_handle == null) _handle = new NotificationCenterStoreHandle()
+  return _handle!
+}

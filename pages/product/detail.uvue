@@ -17,7 +17,7 @@
 
         <view class="page-canvas" :style="pageWrap">
           <view :style="summaryCard">
-            <view :style="priceRow"><text :style="priceText">{{ formatPrice(item!.price) }}</text><text v-if="item!.originalPrice > item!.price" :style="oldPrice">{{ formatPrice(item!.originalPrice) }}</text></view>
+              <view :style="priceRow"><text :style="priceText">{{ formatMoney(item!.price) }}</text><text v-if="item!.originalPrice > item!.price" :style="oldPrice">{{ formatMoney(item!.originalPrice) }}</text></view>
             <text :style="titleText">{{ item!.title }}</text>
             <text :style="brandText">{{ item!.brandName }}</text>
             <view :style="statusTag">
@@ -96,10 +96,20 @@ const shopUrl = ref('')
 const isSaved = ref(false)
 const stages = ['图透', '定金', '尾款', '现货']
 const currentImageIndex = ref(0)
-const detailImages = ref([]) as Ref<string[]>
+function formatMoney(cents: number): string { return formatPrice(cents) }
+  const detailImages = ref<string[]>([])
 let savedEntityIds: string[] = []
 
-function onGalleryChange(e: any) { currentImageIndex.value = (e.detail as any).current ?? 0 }
+function findWishlistId(entityId: string): string {
+  return entityId
+}
+
+ function onGalleryChange(e: any) {
+   const eObj = e as UTSJSONObject
+   const detail = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+   const current = detail != null && detail['current'] != null ? detail['current'] as number : 0
+   currentImageIndex.value = current
+ }
 function onBack() { uni.navigateBack() }
 
 function isLoggedIn(): boolean {
@@ -111,7 +121,13 @@ async function fetchWishlist() {
     const response = await apiGet('/api/v1/wishlist')
     const items = response.data as any[]
     if (items != null) {
-      savedEntityIds = items.map((w: any) => String(w.entityId ?? w.id ?? ''))
+        savedEntityIds = items.map((w: any): string => {
+          const o = w as UTSJSONObject
+          const eid = o['entityId'] != null ? o['entityId'] as string : ''
+          if (eid != '') return eid
+          const wid = o['id'] != null ? o['id'] as string : ''
+          return wid
+        })
       if (item.value !== null) {
         isSaved.value = savedEntityIds.indexOf(item.value!.entityId) >= 0
       }
@@ -154,10 +170,6 @@ async function toggleSaved() {
   }
 }
 
-function findWishlistId(entityId: string): string {
-  return entityId
-}
-
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录官方购买地址'); return }
   uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('官方地址已复制，可在浏览器打开') } })
@@ -172,7 +184,7 @@ function dateOnly(value: string): string {
   return value.length >= 10 ? value.substring(0, 10) : value
 }
 
-function encoded(value: string): string { return encodeURIComponent(value) }
+function encoded(value: string): string { return encodeURIComponent(value) ?? '' }
 
 function createReminder() {
   if (item.value === null) return
@@ -184,7 +196,7 @@ function createReminder() {
 
 function createPurchase() {
   if (item.value === null) return
-  const amount = item.value!.price > 0 ? String(item.value!.price / 100) : ''
+  const amount = item.value!.price > 0 ? (item.value!.price / 100).toString() : ''
   const category = item.value!.category === 'LOLITA' ? 'LOLITA' : (item.value!.category === 'HANFU' ? 'HANFU' : 'JK')
   uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${dateOnly(item.value!.eventEndAt)}` })
 }
@@ -216,7 +228,8 @@ async function loadDetail() {
 onMounted(() => {
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]
-  itemId.value = (current as any).options?.id ?? ''
+  const options = current.options
+  itemId.value = options != null && options['id'] != null ? options['id'] as string : ''
   loadDetail()
 })
 
@@ -224,7 +237,7 @@ const safeBottom = getSafeBottomInset()
 const pageWrap = { paddingTop: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const heroWrap = { width: '750rpx', height: '720rpx', position: 'relative' as string, backgroundColor: n.value.bgSecondary, overflow: 'hidden' }
 const hero = { width: '750rpx', height: '720rpx' }
-const heroBack = { position: 'absolute' as string, left: '32rpx', top: '28rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: baseColors.black, alignItems: 'center', justifyContent: 'center', zIndex: zIndex.navbar + 1 }
+  const heroBack = { position: 'absolute' as string, left: '32rpx', top: '28rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: baseColors.black, alignItems: 'center', justifyContent: 'center', zIndex: (zIndex.navbar as number) + 1 }
 const heroChevron = { width: '26rpx', height: '26rpx', borderRightWidth: '4rpx', borderBottomWidth: '4rpx', borderStyle: 'solid', borderColor: baseColors.white, transform: 'rotate(135deg)' }
 const imageCounter = { position: 'absolute' as string, right: '30rpx', bottom: '32rpx', minWidth: '84rpx', height: '48rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: baseColors.black }
 const imageCounterText = { fontSize: '22rpx', fontWeight: fontWeight.medium, color: baseColors.white }

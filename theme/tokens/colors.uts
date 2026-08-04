@@ -60,6 +60,32 @@ export const baseColors = {
 }
 
 /** 中性色（V2 柔和灰，页面底 #FBF6F3） */
+export type NeutralPalette = {
+  bg: string
+  bgSecondary: string
+  bgTertiary: string
+  surface: string
+  surfaceRaised: string
+  surfaceWarm: string
+  surfacePink: string
+  border: string
+  borderLight: string
+  borderFocus: string
+  cardBorder: string
+  text: string
+  textSecondary: string
+  textTertiary: string
+  textDisabled: string
+  textInverse: string
+  placeholder: string
+  icon: string
+  iconLight: string
+  iconActive: string
+  divider: string
+  overlay: string
+  inputFill: string
+}
+
 export const neutralLight = {
   bg: '#FBF6F3',
   bgSecondary: '#F7F1F3',
@@ -84,7 +110,7 @@ export const neutralLight = {
   divider: 'rgba(63,45,51,0.08)',
   overlay: 'rgba(63,45,51,0.40)',
   inputFill: '#E8E0D6', // 输入填充
-}
+} as NeutralPalette
 
 /** 中性色 (Dark) */
 export const neutralDark = {
@@ -97,6 +123,7 @@ export const neutralDark = {
   border: '#3D3638',
   borderLight: '#302A2C',
   borderFocus: '#D45F7E',
+  cardBorder: '#302A2C',
   text: '#F5F2F3',
   textSecondary: '#B8AEB1',
   textTertiary: '#8A8184',
@@ -108,7 +135,9 @@ export const neutralDark = {
   iconActive: '#D45F7E',
   divider: 'rgba(255,255,255,0.08)',
   overlay: 'rgba(0,0,0,0.60)',
-}
+  surfacePink: '#3A2428',
+  inputFill: '#3D3638',
+} as NeutralPalette
 
 /** 三坑类别色（低饱和） */
 export const jkColors = {

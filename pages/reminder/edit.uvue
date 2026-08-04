@@ -65,7 +65,15 @@ const store = useReminderStore()
 const isEdit = ref(false)
 const editId = ref('')
 const showDeleteConfirm = ref(false)
-const form = ref({ title: '', type: 'CUSTOM', remindDate: '', remindTime: '', note: '', status: 'PENDING' })
+type ReminderFormState = {
+  title: string
+  type: string
+  remindDate: string
+  remindTime: string
+  note: string
+  status: string
+}
+const form = ref<ReminderFormState>({ title: '', type: 'CUSTOM', remindDate: '', remindTime: '', note: '', status: 'PENDING' })
 
 const typeLabels = ['到货', '尾款', '发售', '自定义']
 const statusLabels = ['待提醒', '已完成', '已过期']
@@ -74,10 +82,14 @@ const activeStatusLabel = computed((): string => form.value.status === 'DONE' ? 
 
 function onTypeChange(label: string) { form.value.type = label === '到货' ? 'ARRIVAL' : (label === '尾款' ? 'BALANCE' : (label === '发售' ? 'RELEASE' : 'CUSTOM')) }
 function onStatusChange(label: string) { form.value.status = label === '已完成' ? 'DONE' : (label === '已过期' ? 'MISSED' : 'PENDING') }
-function onNoteInput(e: any) { form.value.note = (e.detail as any).value ?? '' }
+function onNoteInput(e: any) {
+  const eObj = e as UTSJSONObject
+  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
+}
 function safeParam(value: any): string {
-  const text = value == null ? '' : String(value)
-  try { return text.indexOf('%') >= 0 ? decodeURIComponent(text) : text } catch (e) { return text }
+  const text = value == null ? '' : (value as string)
+  try { return text.indexOf('%') >= 0 ? (decodeURIComponent(text) ?? text) : text } catch (e) { return text }
 }
 
 function save() {
@@ -116,26 +128,29 @@ onMounted(() => {
   store.fetchItems()
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
-  const options = (currentPage as any).options ?? {}
-  const id = safeParam(options.id)
-  if (id !== '') {
-    editId.value = id
-    isEdit.value = true
-    const item = store.getById(id)
-    if (item != null) {
-      form.value.title = item.title
-      form.value.type = item.type
-      form.value.remindDate = item.remindDate
-      form.value.remindTime = item.remindTime
-      form.value.note = item.note
-      form.value.status = item.status
+  const options = currentPage.options
+  if (options != null) {
+    const id = options['id'] != null ? options['id'] as string : ''
+    if (id !== '') {
+      editId.value = id
+      isEdit.value = true
+      const item = store.getById(id)
+      if (item != null) {
+        form.value.title = item.title
+        form.value.type = item.type
+        form.value.remindDate = item.remindDate
+        form.value.remindTime = item.remindTime
+        form.value.note = item.note
+        form.value.status = item.status
+      }
+      return
     }
-    return
+    form.value.title = options['title'] != null ? options['title'] as string : ''
+    const typeRaw = options['type'] != null ? options['type'] as string : ''
+    form.value.type = typeRaw !== '' ? typeRaw : 'CUSTOM'
+    form.value.remindDate = options['date'] != null ? options['date'] as string : ''
+    form.value.note = options['note'] != null ? options['note'] as string : ''
   }
-  form.value.title = safeParam(options.title)
-  form.value.type = safeParam(options.type) !== '' ? safeParam(options.type) : 'CUSTOM'
-  form.value.remindDate = safeParam(options.date)
-  form.value.note = safeParam(options.note)
 })
 
 const safeBottom = getSafeBottomInset()

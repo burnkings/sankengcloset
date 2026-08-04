@@ -2,20 +2,20 @@
  * Flex Design System — UniApp X 统一布局系统
  */
 
-export const flexRow = { flexDirection: 'row' } as any
-export const flexRowCenter = { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' } as any
-export const flexRowBetween = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' } as any
-export const flexRowAround = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' } as any
-export const flexRowStart = { flexDirection: 'row', alignItems: 'center' } as any
-export const flexRowEnd = { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' } as any
+export const flexRow = { flexDirection: 'row' } as UTSJSONObject
+export const flexRowCenter = { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' } as UTSJSONObject
+export const flexRowBetween = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' } as UTSJSONObject
+export const flexRowAround = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' } as UTSJSONObject
+export const flexRowStart = { flexDirection: 'row', alignItems: 'center' } as UTSJSONObject
+export const flexRowEnd = { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' } as UTSJSONObject
 
-export const flexColumn = {} as any
-export const flexColumnCenter = { alignItems: 'center' } as any
-export const flexColumnBetween = { justifyContent: 'space-between' } as any
-export const flexColumnStretch = { alignItems: 'stretch' } as any
+export const flexColumn = {} as UTSJSONObject
+export const flexColumnCenter = { alignItems: 'center' } as UTSJSONObject
+export const flexColumnBetween = { justifyContent: 'space-between' } as UTSJSONObject
+export const flexColumnStretch = { alignItems: 'stretch' } as UTSJSONObject
 
-export const flexCenter = { alignItems: 'center', justifyContent: 'center' } as any
-export const flexFill = { flex: 1 } as any
+export const flexCenter = { alignItems: 'center', justifyContent: 'center' } as UTSJSONObject
+export const flexFill = { flex: 1 } as UTSJSONObject
 
 class FlexOptions {
   direction: string = ''
@@ -25,12 +25,12 @@ class FlexOptions {
   wrap: boolean = false
 }
 
-export function createFlex(options: FlexOptions): any {
-  const style: any = {}
-  if (options.direction == 'row') style.flexDirection = 'row'
-  if (options.align != '') style.alignItems = options.align
-  if (options.justify != '') style.justifyContent = options.justify
-  if (options.gap != '') style.gap = options.gap
-  if (options.wrap) style.flexWrap = 'wrap'
+export function createFlex(options: FlexOptions): UTSJSONObject {
+  const style: UTSJSONObject = {}
+  if (options.direction == 'row') style['flexDirection'] = 'row'
+  if (options.align != '') style['alignItems'] = options.align
+  if (options.justify != '') style['justifyContent'] = options.justify
+  if (options.gap != '') style['gap'] = options.gap
+  if (options.wrap) style['flexWrap'] = 'wrap'
   return style
 }

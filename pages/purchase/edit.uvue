@@ -39,7 +39,7 @@
 
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
-import { PurchaseRecord } from '@/domain/purchase-record'
+import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -55,7 +55,20 @@ import V2Segmented from '@/components/v2/V2Segmented.uvue'
 const store = usePurchaseStore()
 const isEdit = ref(false)
 const editId = ref('')
-const form = ref({ name: '', brand: '', shopName: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', note: '' })
+type FormState = {
+  name: string
+  brand: string
+  shopName: string
+  category: string
+  totalAmountStr: string
+  depositAmountStr: string
+  paidAmountStr: string
+  paymentStatus: string
+  purchaseDate: string
+  deadline: string
+  note: string
+}
+const form = ref<FormState>({ name: '', brand: '', shopName: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', note: '' })
 const categoryLabels = ['JK', 'Lolita', '汉服', '其他']
 const statusLabels = ['预售中', '已付定金', '待付款', '已完成']
 const activeCategoryLabel = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'OTHER' ? '其他' : 'JK')))
@@ -63,10 +76,14 @@ const activeStatusLabel = computed((): string => form.value.paymentStatus === 'D
 
 function onCategoryChange(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK')) }
 function onStatusChange(label: string) { form.value.paymentStatus = label === '已付定金' ? 'DEPOSIT_PAID' : (label === '待付款' ? 'BALANCE_PENDING' : (label === '已完成' ? 'COMPLETED' : (label === '已取消' ? 'CANCELLED' : 'PRE_ORDER'))) }
-function onNoteInput(e: any) { form.value.note = (e.detail as any).value ?? '' }
+function onNoteInput(e: any) {
+  const eObj = e as UTSJSONObject
+  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
+}
 function safeParam(value: any): string {
-  const text = value == null ? '' : String(value)
-  try { return text.indexOf('%') >= 0 ? decodeURIComponent(text) : text } catch (e) { return text }
+  const text = value == null ? '' : (value as string)
+  try { return text.indexOf('%') >= 0 ? (decodeURIComponent(text) ?? text) : text } catch (e) { return text }
 }
 function numberValue(value: string): number { return value.trim() === '' ? 0 : parseFloat(value) }
 
@@ -79,11 +96,19 @@ function save() {
   if (total < 0 || deposit < 0 || paid < 0) { showFeedback('金额不能小于 0'); return }
   if (paid > total && total > 0) { showFeedback('已支付金额不能大于总金额'); return }
   if (isEdit.value) {
-    const ok = store.updatePurchase(editId.value, {
-      name: form.value.name.trim(), brand: form.value.brand.trim(), shopName: form.value.shopName.trim(), category: form.value.category,
-      totalAmount: total, depositAmount: deposit, paidAmount: paid, paymentStatus: form.value.paymentStatus,
-      purchaseDate: form.value.purchaseDate.trim(), deadline: form.value.deadline.trim(), note: form.value.note.trim(),
-    })
+    const data = new PurchaseUpdateData()
+    data.name = form.value.name.trim()
+    data.brand = form.value.brand.trim()
+    data.shopName = form.value.shopName.trim()
+    data.category = form.value.category
+    data.totalAmount = total
+    data.depositAmount = deposit
+    data.paidAmount = paid
+    data.paymentStatus = form.value.paymentStatus
+    data.purchaseDate = form.value.purchaseDate.trim()
+    data.deadline = form.value.deadline.trim()
+    data.note = form.value.note.trim()
+    const ok = store.updatePurchase(editId.value, data)
     if (!ok) { showFeedback('保存失败，请重试'); return }
   } else {
     const record = new PurchaseRecord()
@@ -108,26 +133,29 @@ onMounted(() => {
   store.fetchPurchases()
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
-  const options = (currentPage as any).options ?? {}
-  const id = safeParam(options.id)
-  if (id !== '') {
-    editId.value = id
-    isEdit.value = true
-    const record = store.getPurchaseById(id)
-    if (record != null) {
-      form.value.name = record.name; form.value.brand = record.brand; form.value.shopName = record.shopName; form.value.category = record.category
-      form.value.totalAmountStr = record.totalAmount > 0 ? String(record.totalAmount) : ''
-      form.value.depositAmountStr = record.depositAmount > 0 ? String(record.depositAmount) : ''
-      form.value.paidAmountStr = record.paidAmount > 0 ? String(record.paidAmount) : ''
-      form.value.paymentStatus = record.paymentStatus; form.value.purchaseDate = record.purchaseDate; form.value.deadline = record.deadline; form.value.note = record.note
+  const options = currentPage.options
+  if (options != null) {
+    const id = options['id'] != null ? options['id'] as string : ''
+    if (id !== '') {
+      editId.value = id
+      isEdit.value = true
+      const record = store.getPurchaseById(id)
+      if (record != null) {
+        form.value.name = record.name; form.value.brand = record.brand; form.value.shopName = record.shopName; form.value.category = record.category
+        form.value.totalAmountStr = record.totalAmount > 0 ? record.totalAmount.toString() : ''
+        form.value.depositAmountStr = record.depositAmount > 0 ? record.depositAmount.toString() : ''
+        form.value.paidAmountStr = record.paidAmount > 0 ? record.paidAmount.toString() : ''
+        form.value.paymentStatus = record.paymentStatus; form.value.purchaseDate = record.purchaseDate; form.value.deadline = record.deadline; form.value.note = record.note
+      }
+      return
     }
-    return
+    form.value.name = options['name'] != null ? options['name'] as string : ''
+    form.value.brand = options['brand'] != null ? options['brand'] as string : ''
+    form.value.totalAmountStr = options['amount'] != null ? options['amount'] as string : ''
+    const cat = options['category'] != null ? options['category'] as string : ''
+    form.value.category = cat !== '' ? cat : 'JK'
+    form.value.deadline = options['deadline'] != null ? options['deadline'] as string : ''
   }
-  form.value.name = safeParam(options.name)
-  form.value.brand = safeParam(options.brand)
-  form.value.totalAmountStr = safeParam(options.amount)
-  form.value.category = safeParam(options.category) !== '' ? safeParam(options.category) : 'JK'
-  form.value.deadline = safeParam(options.deadline)
   const now = new Date()
   form.value.purchaseDate = now.toISOString().substring(0, 10)
 })

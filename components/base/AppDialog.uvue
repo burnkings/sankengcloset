@@ -106,13 +106,13 @@ const footerStyle = (() => {
   return s
 })()
 
-function onOverlayClick() {
-  if (props.closeOnOverlay) onCancel()
-}
-
 function onCancel() {
   emit('update:visible', false)
   emit('cancel')
+}
+
+function onOverlayClick() {
+  if (props.closeOnOverlay) onCancel()
 }
 
 function onConfirm() {

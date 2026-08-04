@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
 /** 本地月预算设置。服务端账号接入后可替换存储实现。 */
+import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 const LIMIT_KEY = 'v2_budget_monthly_limit'
@@ -8,32 +8,59 @@ const ALERT_KEY = 'v2_budget_alert_percent'
 function readNumber(key: string, fallback: number): number {
   try {
     const raw = uni.getStorageSync(key)
-    if (raw == null || String(raw) === '') return fallback
-    const value = parseFloat(String(raw))
+    if (raw == null || raw as string === '') return fallback
+    const value = parseFloat(raw as string) ?? fallback
     return isNaN(value) ? fallback : value
   } catch (e) {
     return fallback
   }
 }
 
-export const useBudgetStore = defineStore('budget', () => {
-  const monthlyLimit = ref(readNumber(LIMIT_KEY, 0))
-  const alertPercent = ref(readNumber(ALERT_KEY, 80))
-  const isConfigured = computed((): boolean => monthlyLimit.value > 0)
+// ====== 模块级 reactive 状态（单例）======
 
-  function save(limit: number, percent: number) {
-    monthlyLimit.value = Math.max(0, limit)
-    alertPercent.value = Math.min(100, Math.max(1, percent))
-    uni.setStorageSync(LIMIT_KEY, String(monthlyLimit.value))
-    uni.setStorageSync(ALERT_KEY, String(alertPercent.value))
-    enqueueLocalOperation(
-      getCurrentSyncUserId(),
-      'budget',
-      'monthly',
-      'upsert',
-      `{\"monthlyLimit\":${monthlyLimit.value},\"alertPercent\":${alertPercent.value}}`,
-    )
-  }
+type BudgetState = {
+  monthlyLimit: number
+  alertPercent: number
+}
 
-  return { monthlyLimit, alertPercent, isConfigured, save }
+const _state = reactive<BudgetState>({
+  monthlyLimit: readNumber(LIMIT_KEY, 0),
+  alertPercent: readNumber(ALERT_KEY, 80),
 })
+
+const _isConfigured = computed((): boolean => _state.monthlyLimit > 0)
+
+const CHANGE_EVENT = 'store:budget-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+function save(limit: number, percent: number) {
+  _state.monthlyLimit = Math.max(0, limit)
+  _state.alertPercent = Math.min(100, Math.max(1, percent))
+  uni.setStorageSync(LIMIT_KEY, _state.monthlyLimit.toString())
+  uni.setStorageSync(ALERT_KEY, _state.alertPercent.toString())
+  enqueueLocalOperation(
+    getCurrentSyncUserId(),
+    'budget',
+    'monthly',
+    'upsert',
+    `{\"monthlyLimit\":${_state.monthlyLimit},\"alertPercent\":${_state.alertPercent}}`,
+  )
+  notifyChanged()
+}
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class BudgetStoreHandle {
+  get monthlyLimit(): number { return _state.monthlyLimit }
+  get alertPercent(): number { return _state.alertPercent }
+  get isConfigured(): boolean { return _isConfigured.value }
+  save(limit: number, percent: number): void { save(limit, percent) }
+}
+
+let _handle: BudgetStoreHandle | null = null
+export function useBudgetStore(): BudgetStoreHandle {
+  if (_handle == null) _handle = new BudgetStoreHandle()
+  return _handle!
+}

@@ -1,7 +1,7 @@
 <template>
   <view>
     <view :style="wrapperStyle">
-      <view v-if="$slots.prefix" :style="prefixStyle"><slot name="prefix" /></view>
+      <view v-if="$slots.has('prefix')" :style="prefixStyle"><slot name="prefix" /></view>
       <input
         :style="inputStyle"
         :type="type"
@@ -20,7 +20,7 @@
       <view v-if="clearable && modelValue !== ''" :style="clearStyle" @tap="onClear">
         <text :style="clearIconStyle">×</text>
       </view>
-      <view v-if="$slots.suffix" :style="suffixStyle"><slot name="suffix" /></view>
+      <view v-if="$slots.has('suffix')" :style="suffixStyle"><slot name="suffix" /></view>
     </view>
     <text v-if="error" :style="errorTextStyle">{{ error }}</text>
   </view>
@@ -73,8 +73,9 @@ const clearStyle = { width: '64rpx', height: '64rpx', alignItems: 'center', just
 const clearIconStyle = computed((): any => ({ fontSize: fontSize.base, color: n.value.iconLight, textAlign: 'center' }))
 const errorTextStyle = { fontSize: fontSize.xs, color: semantic.error, marginTop: '4rpx', paddingLeft: '8rpx' }
 
-function onInput(e: any) {
-  const val = e.detail != null ? (e.detail as any).value : ''
+function onInput(e: UTSJSONObject) {
+  const detail = e['detail'] as UTSJSONObject | null
+  const val = detail != null ? (detail['value'] as string | null) : null
   emit('update:modelValue', val ?? '')
 }
 function onClear() {

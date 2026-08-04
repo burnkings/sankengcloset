@@ -13,10 +13,10 @@
                 :image="item.coverUrl"
                 :brand-name="item.brandName"
                 :title="item.title"
-                :price-text="formatPrice(item.price)"
-                :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''"
+                :price-text="productPriceText(item.price)"
+                :original-price-text="item.originalPrice > item.price ? productPriceText(item.originalPrice) : ''"
                 :badge="item.badgeText"
-                :deadline-text="formatDeadline(item.eventEndAt)"
+                :deadline-text="productDeadlineText(item.eventEndAt)"
                 @click="openProduct(item)"
               />
             </view>
@@ -47,10 +47,10 @@
                 :image="item.coverUrl"
                 :brand-name="item.brandName"
                 :title="item.title"
-                :price-text="formatPrice(item.price)"
-                :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''"
+                :price-text="productPriceText(item.price)"
+                :original-price-text="item.originalPrice > item.price ? productPriceText(item.originalPrice) : ''"
                 :badge="item.badgeText"
-                :deadline-text="formatDeadline(item.eventEndAt)"
+                :deadline-text="productDeadlineText(item.eventEndAt)"
                 @click="openProduct(item)"
               />
             </view>
@@ -85,8 +85,8 @@ const library = useContentLibraryStore()
 
 // 收藏数据将通过远程 API 获取，当前阶段展示基于本地收藏 ID 映射
 // 远程收藏数据获取将在后续迭代中集成
-const favoriteProducts = ref([]) as Ref<FeedItem[]>
-const recommendationProducts = ref([]) as Ref<FeedItem[]>
+  const favoriteProducts = ref<FeedItem[]>([])
+  const recommendationProducts = ref<FeedItem[]>([])
 
 const emptyTitleText = computed((): string => {
   if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
@@ -102,6 +102,8 @@ const emptyDescText = computed((): string => {
 })
 
 function onTabTap(tab: string) { activeTab.value = tab }
+function productPriceText(cents: number): string { return formatPrice(cents) }
+function productDeadlineText(iso: string): string { return formatDeadline(iso) }
 function goDiscover() { openPrimaryTab('/pages/discover/index') }
 function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
 function openBrand(brandName: string) {
@@ -109,7 +111,7 @@ function openBrand(brandName: string) {
   uni.navigateTo({ url: '/pages/search/index' })
 }
 onLoad(() => { initPageTheme() })
-onShow(() => { library.reload() })
+onShow(() => { initPageTheme(); library.reload() })
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
 const pageCanvasStyle = { paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }

@@ -1,5 +1,5 @@
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
-import { apiGet } from '@/services/platform/api-client'
+import { apiGet, encodeQuery } from '@/services/platform/api-client'
 
 export class ProductDetailModel {
   item: FeedItem = new FeedItem()
@@ -21,41 +21,41 @@ function addUniqueImage(images: string[], url: string) {
   if (url !== '' && images.indexOf(url) < 0) images.push(url)
 }
 
-function mapRemoteProduct(raw: any, requestId: string): ProductDetailModel {
+function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailModel {
   const result = new ProductDetailModel()
   const item = new FeedItem()
-  item.id = raw.id != null ? String(raw.id) : ''
+  item.id = raw['id'] != null ? raw['id'] as string : ''
   item.entityId = item.id
   item.feedType = FEED_PRODUCT
-  item.title = raw.title != null ? String(raw.title) : ''
-  item.subtitle = raw.description != null ? String(raw.description) : ''
-  item.brandId = raw.brandId != null ? String(raw.brandId) : ''
-  item.brandName = raw.brandName != null ? String(raw.brandName) : ''
-  item.category = raw.category != null ? String(raw.category) : ''
-  item.price = raw.priceCents != null ? Number(raw.priceCents) : 0
-  item.originalPrice = raw.originalPriceCents != null ? Number(raw.originalPriceCents) : item.price
-  item.badgeText = statusLabel(raw.status != null ? String(raw.status) : '')
-  item.coverUrl = raw.coverUrl != null ? String(raw.coverUrl) : ''
+  item.title = raw['title'] != null ? raw['title'] as string : ''
+  item.subtitle = raw['description'] != null ? raw['description'] as string : ''
+  item.brandId = raw['brandId'] != null ? raw['brandId'] as string : ''
+  item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
+  item.category = raw['category'] != null ? raw['category'] as string : ''
+  item.price = raw['priceCents'] != null ? raw['priceCents'] as number : 0
+  item.originalPrice = raw['originalPriceCents'] != null ? raw['originalPriceCents'] as number : item.price
+  item.badgeText = statusLabel(raw['status'] != null ? raw['status'] as string : '')
+  item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
   item.sourceLabel = '服务端'
-  item.createdAt = raw.createdAt != null ? String(raw.createdAt) : ''
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
 
-  const images = raw.images as any[]
+  const images = raw['images'] as any[]
   if (images != null) {
-    for (let i = 0; i < images.length; i++) addUniqueImage(result.images, String(images[i]))
+    for (let i = 0; i < images.length; i++) addUniqueImage(result.images, images[i] as string)
   }
   addUniqueImage(result.images, item.coverUrl)
   if (result.images.length > 1) item.secondaryCoverUrl = result.images[1]
 
   result.item = item
-  result.description = raw.description != null ? String(raw.description) : ''
-  result.shopUrl = raw.shopUrl != null ? String(raw.shopUrl) : ''
+  result.description = raw['description'] != null ? raw['description'] as string : ''
+  result.shopUrl = raw['shopUrl'] != null ? raw['shopUrl'] as string : ''
   result.requestId = requestId
   return result
 }
 
 export async function fetchProductDetail(id: string): Promise<ProductDetailModel | null> {
   if (id === '') return null
-  const response = await apiGet(`/api/v1/products/${encodeURIComponent(id)}`)
+  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}`)
   if (response.data == null) return null
-  return mapRemoteProduct(response.data, response.requestId)
+  return mapRemoteProduct(response.data as UTSJSONObject, response.requestId)
 }

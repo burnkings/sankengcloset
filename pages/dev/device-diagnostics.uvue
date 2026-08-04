@@ -59,7 +59,6 @@
 import { ref, computed } from 'vue'
 import { getWindowHeight } from '@/utils/window-info'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
-import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { FeedItem } from '@/domain/content/feed-item'
 import { fetchFeedPage } from '@/services/content/feed-service'
 import { n } from '@/theme/use-theme'
@@ -87,13 +86,13 @@ function initDeviceInfo() {
   const info: DeviceInfoItem[] = []
   try {
     const win = uni.getWindowInfo()
-    const item1 = new DeviceInfoItem(); item1.key = '屏幕宽度'; item1.value = String(win.windowWidth); info.push(item1)
-    const item2 = new DeviceInfoItem(); item2.key = '屏幕高度'; item2.value = String(win.windowHeight); info.push(item2)
-    const item3 = new DeviceInfoItem(); item3.key = '像素比'; item3.value = String(win.pixelRatio); info.push(item3)
+    const item1 = new DeviceInfoItem(); item1.key = '屏幕宽度'; item1.value = win.windowWidth.toString(); info.push(item1)
+    const item2 = new DeviceInfoItem(); item2.key = '屏幕高度'; item2.value = win.windowHeight.toString(); info.push(item2)
+    const item3 = new DeviceInfoItem(); item3.key = '像素比'; item3.value = win.pixelRatio.toString(); info.push(item3)
     const sa = win.safeArea
     if (sa != null) {
-      const item4 = new DeviceInfoItem(); item4.key = '安全区 top'; item4.value = String(sa.top); info.push(item4)
-      const item5 = new DeviceInfoItem(); item5.key = '安全区 bottom'; item5.value = String(sa.bottom); info.push(item5)
+      const item4 = new DeviceInfoItem(); item4.key = '安全区 top'; item4.value = sa.top.toString(); info.push(item4)
+      const item5 = new DeviceInfoItem(); item5.key = '安全区 bottom'; item5.value = sa.bottom.toString(); info.push(item5)
     }
   } catch (e) { const item = new DeviceInfoItem(); item.key = '屏幕信息'; item.value = '获取失败'; info.push(item) }
   try {
@@ -140,7 +139,7 @@ async function testMockFeed() {
     addResult('pass', `hasMore: ${page.hasMore}, nextCursor: ${page.nextCursor}`)
     addResult('pass', '远程 Feed 测试完成')
   } catch (e) {
-    updateLastResult('fail', `远程 Feed 异常: ${String(e)}`)
+    updateLastResult('fail', `远程 Feed 异常: ${e instanceof Error ? e.message : '未知错误'}`)
   }
 }
 
@@ -182,7 +181,7 @@ async function testImages() {
           tested++
           failed++
           failedUrls.push(url)
-          addResult('fail', `图片加载失败: ${url} — ${String(err)}`)
+          addResult('fail', `图片加载失败: ${url} — ${err instanceof Error ? err.message : (err as string)}`)
           if (tested === urls.length) {
             updateLastResult('fail', `图片测试完成: ${failed}/${urls.length} 失败`)
           }
@@ -192,7 +191,7 @@ async function testImages() {
       tested++
       failed++
       failedUrls.push(url)
-      addResult('fail', `图片测试异常: ${url} — ${String(e)}`)
+      addResult('fail', `图片测试异常: ${url} — ${e instanceof Error ? e.message : '未知异常'}`)
     }
   }
 }
@@ -217,7 +216,7 @@ async function testPagination() {
     addResult(pageCount > 0 ? 'pass' : 'fail', `分页加载完成: ${pageCount} 页, ${total} 条`)
     addResult('pass', '远程分页测试完成')
   } catch (e) {
-    addResult('fail', `分页异常: ${String(e)}`)
+    addResult('fail', `分页异常: ${e instanceof Error ? e.message : '未知异常'}`)
   }
 }
 

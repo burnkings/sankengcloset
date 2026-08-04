@@ -28,8 +28,6 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ change: [value: string] }>()
 function onTap(item: string) { emit('change', item) }
 
-const CARD_BORDER = '#F0E8E2'
-
 const scrollStyle = { width: '100%' }
 const rowStyle = computed((): any => ({
   ...flexRow,
@@ -47,12 +45,12 @@ function chipStyle(item: string) {
     return { height: '60rpx', paddingLeft: '8rpx', paddingRight: '8rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }
   }
   if (props.variant === 'soft') {
-    const bg = active ? n.value.surfacePink : baseColors.white
-    return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: CARD_BORDER }
+    const bg = active ? n.value.surfacePink : n.value.surface
+    return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }
   }
   // solid
   const ac = props.activeColor !== '' ? props.activeColor : brand[600]
-  return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center', backgroundColor: active ? ac : baseColors.white, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: CARD_BORDER }
+  return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center', backgroundColor: active ? ac : n.value.surface, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }
 }
 
 function chipText(item: string) {

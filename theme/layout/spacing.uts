@@ -4,42 +4,42 @@
 
 import { spacing, semanticSpacing } from '../tokens/spacing'
 
-export const gap = {
-  none: { gap: spacing[0] } as any,
-  xs: { gap: spacing[1] } as any,
-  sm: { gap: spacing[2] } as any,
-  md: { gap: spacing[3] } as any,
-  lg: { gap: spacing[4] } as any,
-  xl: { gap: spacing[5] } as any,
-}
+export const gap: UTSJSONObject = {
+  none: { gap: spacing[0] } as UTSJSONObject,
+  xs: { gap: spacing[1] } as UTSJSONObject,
+  sm: { gap: spacing[2] } as UTSJSONObject,
+  md: { gap: spacing[3] } as UTSJSONObject,
+  lg: { gap: spacing[4] } as UTSJSONObject,
+  xl: { gap: spacing[5] } as UTSJSONObject,
+} as UTSJSONObject
 
-export const pad = {
-  none: { padding: spacing[0] } as any,
-  xs: { padding: spacing[1] } as any,
-  sm: { padding: spacing[2] } as any,
-  md: { padding: spacing[3] } as any,
-  lg: { padding: spacing[4] } as any,
-  xl: { padding: spacing[5] } as any,
-}
+export const pad: UTSJSONObject = {
+  none: { padding: spacing[0] } as UTSJSONObject,
+  xs: { padding: spacing[1] } as UTSJSONObject,
+  sm: { padding: spacing[2] } as UTSJSONObject,
+  md: { padding: spacing[3] } as UTSJSONObject,
+  lg: { padding: spacing[4] } as UTSJSONObject,
+  xl: { padding: spacing[5] } as UTSJSONObject,
+} as UTSJSONObject
 
-export const pagePadding = {
+export const pagePadding: UTSJSONObject = {
   paddingHorizontal: semanticSpacing.pageHorizontal,
   paddingVertical: semanticSpacing.pageVertical,
-} as any
+} as UTSJSONObject
 
-export const cardPadding = { padding: semanticSpacing.cardPadding } as any
-export const safeBottom = { height: semanticSpacing.safeBottom } as any
+export const cardPadding: UTSJSONObject = { padding: semanticSpacing.cardPadding } as UTSJSONObject
+export const safeBottom: UTSJSONObject = { height: semanticSpacing.safeBottom } as UTSJSONObject
 
-export function createPadding(top: string, right?: string, bottom?: string, left?: string): any {
-  if (right === undefined) return { padding: top } as any
-  if (bottom === undefined) return { paddingTop: top, paddingBottom: top, paddingLeft: right, paddingRight: right } as any
-  if (left === undefined) return { paddingTop: top, paddingLeft: right, paddingRight: right, paddingBottom: bottom } as any
-  return { paddingTop: top, paddingRight: right, paddingBottom: bottom, paddingLeft: left } as any
+export function createPadding(top: string, right: string | null = null, bottom: string | null = null, left: string | null = null): UTSJSONObject {
+  if (right == null) return { padding: top } as UTSJSONObject
+  if (bottom == null) return { paddingTop: top, paddingBottom: top, paddingLeft: right, paddingRight: right } as UTSJSONObject
+  if (left == null) return { paddingTop: top, paddingLeft: right, paddingRight: right, paddingBottom: bottom } as UTSJSONObject
+  return { paddingTop: top, paddingRight: right, paddingBottom: bottom, paddingLeft: left } as UTSJSONObject
 }
 
-export function createMargin(top: string, right?: string, bottom?: string, left?: string): any {
-  if (right === undefined) return { margin: top } as any
-  if (bottom === undefined) return { marginTop: top, marginBottom: top, marginLeft: right, marginRight: right } as any
-  if (left === undefined) return { marginTop: top, marginLeft: right, marginRight: right, marginBottom: bottom } as any
-  return { marginTop: top, marginRight: right, marginBottom: bottom, marginLeft: left } as any
+export function createMargin(top: string, right: string | null = null, bottom: string | null = null, left: string | null = null): UTSJSONObject {
+  if (right == null) return { margin: top } as UTSJSONObject
+  if (bottom == null) return { marginTop: top, marginBottom: top, marginLeft: right, marginRight: right } as UTSJSONObject
+  if (left == null) return { marginTop: top, marginLeft: right, marginRight: right, marginBottom: bottom } as UTSJSONObject
+  return { marginTop: top, marginRight: right, marginBottom: bottom, marginLeft: left } as UTSJSONObject
 }

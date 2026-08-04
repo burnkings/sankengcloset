@@ -10,8 +10,8 @@
  * reactive 对象在 vapor 模式下可被 Vue 追踪变化。
  */
 
-import { reactive } from 'vue'
-import { neutralLight, neutralDark, brand } from './tokens/colors'
+import { reactive, computed } from 'vue'
+import { neutralLight, neutralDark, brand, NeutralPalette } from './tokens/colors'
 
 const THEME_MODE_KEY = 'v2_theme_mode'
 type ThemeMode = 'system' | 'light' | 'dark'
@@ -38,8 +38,9 @@ function readStorageThemeMode(): ThemeMode {
 
 function getSystemDark(): boolean {
   try {
-    const info = uni.getSystemInfoSync()
-    return info.theme === 'dark'
+    const info = uni.getSystemInfoSync() as UTSJSONObject
+    const theme = info['theme'] as string | null
+    return theme === 'dark'
   } catch (e) {
     return false
   }
@@ -53,9 +54,10 @@ function computeIsDark(mode: ThemeMode): boolean {
 
 function getGlobalDark(): boolean {
   try {
-    const app = getApp()
-    if (app != null && app.globalData != null) {
-      const val = app.globalData['isDark']
+    const app = getApp() as UTSJSONObject
+    const gd = app['globalData'] as UTSJSONObject | null
+    if (gd != null) {
+      const val = gd['isDark']
       if (val != null) return val as boolean
     }
   } catch (e) {}
@@ -64,21 +66,32 @@ function getGlobalDark(): boolean {
 
 function setGlobalDark(value: boolean) {
   try {
-    const app = getApp()
-    if (app != null) {
-      if (app.globalData == null) app.globalData = {}
-      app.globalData['isDark'] = value
+    const app = getApp() as UTSJSONObject
+    let gd = app['globalData'] as UTSJSONObject | null
+    if (gd == null) {
+      gd = {} as UTSJSONObject
+      app['globalData'] = gd
     }
+    gd['isDark'] = value
   } catch (e) {}
   try {
-    app.globalData['themeMode'] = _state.themeMode
+    const app = getApp() as UTSJSONObject
+    const gd = app['globalData'] as UTSJSONObject | null
+    if (gd != null) {
+      gd['themeMode'] = _state.themeMode
+    }
   } catch (e) {}
 }
 
 // ====== Vapor 兼容：reactive 状态 + getter ======
 
-const _state = reactive({
-  themeMode: 'system' as ThemeMode,
+type ThemeState = {
+  themeMode: ThemeMode
+  isDark: boolean
+}
+
+const _state = reactive<ThemeState>({
+  themeMode: 'system',
   isDark: false,
 })
 let lastTabBarMode = ''
@@ -181,7 +194,7 @@ export function initPageTheme() {
 export function setThemeMode(mode: ThemeMode) {
   _state.themeMode = mode
   _state.isDark = computeIsDark(mode)
-  setGlobalDark(_state.isDark)
+  setGlobalDark(_state.isDark as boolean)
   uni.setStorageSync(THEME_MODE_KEY, mode)
   lastTabBarMode = ''
   applySystemChrome()
@@ -204,42 +217,35 @@ export function setDarkMode(enabled: boolean) {
 export function toggleDarkMode(): boolean {
   const next = _state.themeMode === 'dark' ? 'light' : 'dark'
   setThemeMode(next)
-  return _state.isDark
+  return _state.isDark as boolean
 }
 
 export function useTheme() {
   syncFromGlobal()
   return {
-    get isDark(): boolean { return _state.isDark },
-    get themeMode(): ThemeMode { return _state.themeMode },
-    get neutral(): any { return _state.isDark ? neutralDark : neutralLight },
+    get isDark(): boolean { return _state.isDark as boolean },
+    get themeMode(): ThemeMode { return _state.themeMode as ThemeMode },
+    get neutral(): NeutralPalette { return (_state.isDark as boolean) ? neutralDark : neutralLight },
   }
 }
 
 export function getThemeLabel(): string {
-  const mode = _state.themeMode
+  const mode = _state.themeMode as ThemeMode
   if (mode === 'system') return '跟随系统'
   if (mode === 'dark') return '深色'
   return '浅色'
 }
 
-/** Getter — Vue 可追踪 _state.isDark 的变化 */
-export const isDark = {
-  get value(): boolean {
-    return _state.isDark
-  }
-}
+/** Computed — Vue 可追踪 _state.isDark 的变化 */
+export const isDark = computed((): boolean => {
+  return _state.isDark as boolean
+})
 
-/** Getter — Vue 可追踪 _state.themeMode 的变化 */
-export const themeMode = {
-  get value(): ThemeMode {
-    return _state.themeMode
-  }
-}
+/** Computed — Vue 可追踪 _state.themeMode 的变化 */
+export const themeMode = computed((): ThemeMode => {
+  return _state.themeMode as ThemeMode
+})
 
-export const n = {
-  get value(): any {
-    const v = _state.isDark ? neutralDark : neutralLight
-    return v != null ? v : neutralLight
-  }
-}
+export const n = computed((): NeutralPalette => {
+  return (_state.isDark as boolean) ? neutralDark : neutralLight
+})

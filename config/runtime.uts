@@ -25,7 +25,7 @@ export class RuntimeConfig {
 function readString(key: string): string {
   try {
     const value = uni.getStorageSync(key)
-    return value == null ? '' : String(value)
+    return value == null ? '' : value as string
   } catch (e) {
     return ''
   }
@@ -48,29 +48,30 @@ export function warmRuntimeCache(): RuntimeConfig {
 }
 
 export function getRuntimeConfig(): RuntimeConfig {
-  if (_configCache != null) return _configCache
+  const cached = _configCache
+  if (cached != null) return cached
   const config = new RuntimeConfig()
   return config
 }
 
 export function getCachedAccessToken(): string {
-  if (_tokenCache == null) {
-    const tc = new TokenCache()
-    tc.access = readString(ACCESS_TOKEN_KEY)
-    tc.refresh = readString(REFRESH_TOKEN_KEY)
-    _tokenCache = tc
-  }
-  return _tokenCache.access
+  const cached = _tokenCache
+  if (cached != null) return cached.access
+  const tc = new TokenCache()
+  tc.access = readString(ACCESS_TOKEN_KEY)
+  tc.refresh = readString(REFRESH_TOKEN_KEY)
+  _tokenCache = tc
+  return tc.access
 }
 
 export function getCachedRefreshToken(): string {
-  if (_tokenCache == null) {
-    const tc = new TokenCache()
-    tc.access = readString(ACCESS_TOKEN_KEY)
-    tc.refresh = readString(REFRESH_TOKEN_KEY)
-    _tokenCache = tc
-  }
-  return _tokenCache.refresh
+  const cached = _tokenCache
+  if (cached != null) return cached.refresh
+  const tc = new TokenCache()
+  tc.access = readString(ACCESS_TOKEN_KEY)
+  tc.refresh = readString(REFRESH_TOKEN_KEY)
+  _tokenCache = tc
+  return tc.refresh
 }
 
 export function getAccessToken(): string { return getCachedAccessToken() }

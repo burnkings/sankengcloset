@@ -20,12 +20,12 @@ export const heroSection = {
   paddingHorizontal: semanticSpacing.pageHorizontal,
   paddingTop: spacing[4],
   paddingBottom: spacing[4],
-} as any
+} as UTSJSONObject
 
 /** Hero 内容区 — 标题+副文案 */
 export const heroInner = {
   marginBottom: spacing[3],
-} as any
+} as UTSJSONObject
 
 /** Hero 标题 — 白色大号加粗 */
 export const heroTitle = {
@@ -33,13 +33,13 @@ export const heroTitle = {
   fontWeight: fontWeight.bold,
   color: baseColors.white,
   marginBottom: spacing[0.5],
-} as any
+} as UTSJSONObject
 
 /** Hero 副文案 — 半透明白色 */
 export const heroSub = {
   fontSize: fontSize.sm,
   color: 'rgba(255,255,255,0.75)',
-} as any
+} as UTSJSONObject
 
 // ====== 统计胶囊行 ======
 
@@ -50,13 +50,13 @@ export const heroStatBar = {
   paddingVertical: spacing[2],
   backgroundColor: 'rgba(255,255,255,0.12)',
   borderRadius: semanticRadius.card,
-} as any
+} as UTSJSONObject
 
 /** 单个统计项 */
 export const heroStatItem = {
   ...flexColumnCenter,
   gap: spacing[0.5],
-} as any
+} as UTSJSONObject
 
 /** 统计数字 — 白色加粗 */
 export const heroStatNum = {
@@ -64,13 +64,13 @@ export const heroStatNum = {
   fontWeight: fontWeight.bold,
   color: baseColors.white,
   lineHeight: 1,
-} as any
+} as UTSJSONObject
 
 /** 统计标签 — 半透明白色 */
 export const heroStatLabel = {
   fontSize: fontSize.xs,
   color: 'rgba(255,255,255,0.65)',
-} as any
+} as UTSJSONObject
 
 /** 统计列分隔线 */
 export const heroStatDivider = {
@@ -78,7 +78,7 @@ export const heroStatDivider = {
   height: '48rpx',
   backgroundColor: 'rgba(255,255,255,0.15)',
   alignSelf: 'center',
-} as any
+} as UTSJSONObject
 
 // ====== 数据条（预算/关键数据） ======
 
@@ -92,20 +92,20 @@ export const heroDataBar = {
   paddingVertical: spacing[2],
   backgroundColor: 'rgba(255,255,255,0.15)',
   borderRadius: semanticRadius.card,
-} as any
+} as UTSJSONObject
 
 /** 数据条标签 */
 export const heroDataLabel = {
   fontSize: fontSize.sm,
   color: 'rgba(255,255,255,0.8)',
-} as any
+} as UTSJSONObject
 
 /** 数据条数值 */
 export const heroDataValue = {
   fontSize: fontSize.lg,
   fontWeight: fontWeight.bold,
   color: baseColors.white,
-} as any
+} as UTSJSONObject
 
 /** 数据条胶囊标签 */
 export const heroDataBadge = {
@@ -114,14 +114,14 @@ export const heroDataBadge = {
   borderRadius: radius.full,
   paddingHorizontal: spacing[2],
   paddingVertical: '4rpx',
-} as any
+} as UTSJSONObject
 
 /** 数据条胶囊文字 */
 export const heroDataBadgeText = {
   fontSize: fontSize.xs,
   fontWeight: fontWeight.medium,
   color: baseColors.white,
-} as any
+} as UTSJSONObject
 
 // ====== Hero 背景色预设 ======
 
@@ -129,7 +129,7 @@ export const HERO_COLORS = {
   brand: brand[500],      // 蔷薇粉 — Home, Wardrobe, Purchase, Reminder
   accent: accent[500],    // 薰衣草紫 — Wishlist
   warm: warm.gold,        // 金色 — 特殊页面
-} as any
+} as UTSJSONObject
 
 // ====== 工具函数 ======
 

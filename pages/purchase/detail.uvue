@@ -16,13 +16,13 @@
       <!-- 名称 + 状态 -->
       <AppCard>
         <view :style="nameRowStyle">
-          <text :style="nameTextStyle">{{ item.name }}</text>
+          <text :style="nameTextStyle">{{ item!.name }}</text>
           <view :style="statusTagStyle">
-            <text :style="statusTagText">{{ item.statusText }}</text>
+            <text :style="statusTagText">{{ item!.statusText }}</text>
           </view>
         </view>
-        <text v-if="item.brand !== '' || item.shopName !== ''" :style="shopTextStyle">
-          {{ item.brand !== '' && item.shopName !== '' ? item.brand + ' · ' + item.shopName : (item.brand !== '' ? item.brand : item.shopName) }}
+        <text v-if="item!.brand !== '' || item!.shopName !== ''" :style="shopTextStyle">
+          {{ item!.brand !== '' && item!.shopName !== '' ? item!.brand + ' · ' + item!.shopName : (item!.brand !== '' ? item!.brand : item!.shopName) }}
         </text>
       </AppCard>
 
@@ -35,19 +35,19 @@
         <view :style="amountGridStyle">
           <view :style="amountItemStyle">
             <text :style="amountLabelStyle">总金额</text>
-            <text :style="amountValueStyle">{{ item.totalText }}</text>
+            <text :style="amountValueStyle">{{ item!.totalText }}</text>
           </view>
-          <view v-if="item.depositText" :style="amountItemStyle">
+          <view v-if="item!.depositText" :style="amountItemStyle">
             <text :style="amountLabelStyle">定金</text>
-            <text :style="amountValueSmallStyle">{{ item.depositText }}</text>
+            <text :style="amountValueSmallStyle">{{ item!.depositText }}</text>
           </view>
           <view :style="amountItemStyle">
             <text :style="amountLabelStyle">已付</text>
-            <text :style="amountValuePaidStyle">{{ item.paidText }}</text>
+            <text :style="amountValuePaidStyle">{{ item!.paidText }}</text>
           </view>
           <view :style="amountItemStyle">
             <text :style="amountLabelStyle">状态</text>
-            <text :style="amountValueRemainingStyle">{{ item.remainingText }}</text>
+            <text :style="amountValueRemainingStyle">{{ item!.remainingText }}</text>
           </view>
         </view>
 
@@ -56,7 +56,7 @@
           <view :style="progressTrackStyle">
             <view :style="progressFillStyle" />
           </view>
-          <text :style="progressLabelStyle">付款进度 {{ item.progressPercent }}%</text>
+          <text :style="progressLabelStyle">付款进度 {{ item!.progressPercent }}%</text>
         </view>
       </AppCard>
 
@@ -67,30 +67,30 @@
         </template>
 
         <view :style="infoListStyle">
-          <view v-if="item.category" :style="infoRowStyle">
+          <view v-if="item!.category" :style="infoRowStyle">
             <text :style="infoLabelStyle">分类</text>
-            <text :style="infoValueStyle">{{ item.category }}</text>
+            <text :style="infoValueStyle">{{ item!.category }}</text>
           </view>
           <view :style="infoRowStyle">
             <text :style="infoLabelStyle">购买日期</text>
-            <text :style="infoValueStyle">{{ item.purchaseDateText }}</text>
+            <text :style="infoValueStyle">{{ item!.purchaseDateText }}</text>
           </view>
-          <view v-if="item.deadlineText !== '—'" :style="infoRowStyle">
+          <view v-if="item!.deadlineText !== '—'" :style="infoRowStyle">
             <text :style="infoLabelStyle">截止日期</text>
-            <text :style="deadlineValueStyle">{{ item.deadlineLabel }}</text>
+            <text :style="deadlineValueStyle">{{ item!.deadlineLabel }}</text>
           </view>
-          <view v-if="item.isOverdue" :style="overdueBannerStyle">
+          <view v-if="item!.isOverdue" :style="overdueBannerStyle">
             <text :style="overdueTextStyle">⚠️ 已逾期</text>
           </view>
         </view>
       </AppCard>
 
       <!-- 备注 -->
-      <AppCard v-if="item.note">
+      <AppCard v-if="item!.note">
         <template #header>
           <text :style="sectionTitleStyle">备注</text>
         </template>
-        <text :style="noteTextStyle">{{ item.note }}</text>
+        <text :style="noteTextStyle">{{ item!.note }}</text>
       </AppCard>
     </view>
   </DetailLayout>
@@ -113,7 +113,6 @@ import { semanticRadius } from '@/theme/tokens/radius'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexRowBetween, flexCenter, flexColumnCenter, flexFill } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
 import { n } from '@/theme/use-theme'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
@@ -130,7 +129,7 @@ const itemId = ref('')
 const item = computed((): PurchaseDisplayModel | null => {
   if (!itemId.value) return null
   const record = store.getPurchaseById(itemId.value)
-  if (!record) return null
+  if (record == null) return null
   return toDisplayModel(record)
 })
 
@@ -153,7 +152,8 @@ function onConfirmDelete() {
 onMounted(() => {
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
-  const id = (currentPage as any).options?.id ?? ''
+  const options = currentPage.options
+  const id = options != null && options['id'] != null ? options['id'] as string : ''
   itemId.value = id
 })
 
@@ -179,8 +179,8 @@ const notFoundText = computed((): any => ({
   color: n.value.textTertiary }))
 
 const contentStyle = {
-  ...gap.sm,
-  padding: `${spacing[3]} ${spacing[4]}` }
+  gap: spacing[2],
+  padding: `${spacing[3] as string} ${spacing[4] as string}` }
 
 const nameRowStyle = {
   ...flexRowBetween,
@@ -269,8 +269,8 @@ const progressLabelStyle = computed((): any => ({
   color: n.value.textTertiary,
   textAlign: 'right' as string }))
 
-const infoListStyle = {
-  ...gap.sm }
+ const infoListStyle = {
+   gap: spacing[2] }
 
 const infoRowStyle = {
   ...flexRowBetween,

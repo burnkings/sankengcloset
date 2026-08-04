@@ -15,28 +15,28 @@ export class FeedPage {
 /** 图片加载失败时使用统一占位标识，AppImage 组件内部处理错误展示 */
 const IMAGE_UNAVAILABLE = ''
 
-function mapFeedItem(raw: any): FeedItem {
+function mapFeedItem(raw: UTSJSONObject): FeedItem {
   const item = new FeedItem()
-  item.id = raw.id != null ? String(raw.id) : ''
-  item.feedType = raw.feedType != null ? String(raw.feedType) : 'product'
-  item.entityId = raw.entityId != null ? String(raw.entityId) : ''
-  item.title = raw.title != null ? String(raw.title) : ''
-  item.subtitle = raw.subtitle != null ? String(raw.subtitle) : ''
-  item.coverUrl = raw.coverUrl != null ? String(raw.coverUrl) : IMAGE_UNAVAILABLE
-  item.secondaryCoverUrl = raw.secondaryCoverUrl != null ? String(raw.secondaryCoverUrl) : IMAGE_UNAVAILABLE
-  item.brandId = raw.brandId != null ? String(raw.brandId) : ''
-  item.brandName = raw.brandName != null ? String(raw.brandName) : ''
-  item.price = raw.price != null ? Number(raw.price) : 0
-  item.originalPrice = raw.originalPrice != null ? Number(raw.originalPrice) : 0
-  item.badgeText = raw.badgeText != null ? String(raw.badgeText) : ''
-  item.eventStartAt = raw.eventStartAt != null ? String(raw.eventStartAt) : ''
-  item.eventEndAt = raw.eventEndAt != null ? String(raw.eventEndAt) : ''
-  item.liked = raw.liked === true
-  item.saved = raw.saved === true
-  item.sourceLabel = raw.sourceLabel != null ? String(raw.sourceLabel) : ''
-  item.rankingScore = raw.rankingScore != null ? Number(raw.rankingScore) : 0
-  item.category = raw.category != null ? String(raw.category) : ''
-  item.createdAt = raw.createdAt != null ? String(raw.createdAt) : ''
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.feedType = raw['feedType'] != null ? raw['feedType'] as string : 'product'
+  item.entityId = raw['entityId'] != null ? raw['entityId'] as string : ''
+  item.title = raw['title'] != null ? raw['title'] as string : ''
+  item.subtitle = raw['subtitle'] != null ? raw['subtitle'] as string : ''
+  item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : IMAGE_UNAVAILABLE
+  item.secondaryCoverUrl = raw['secondaryCoverUrl'] != null ? raw['secondaryCoverUrl'] as string : IMAGE_UNAVAILABLE
+  item.brandId = raw['brandId'] != null ? raw['brandId'] as string : ''
+  item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
+  item.price = raw['price'] != null ? raw['price'] as number : 0
+  item.originalPrice = raw['originalPrice'] != null ? raw['originalPrice'] as number : 0
+  item.badgeText = raw['badgeText'] != null ? raw['badgeText'] as string : ''
+  item.eventStartAt = raw['eventStartAt'] != null ? raw['eventStartAt'] as string : ''
+  item.eventEndAt = raw['eventEndAt'] != null ? raw['eventEndAt'] as string : ''
+  item.liked = raw['liked'] === true
+  item.saved = raw['saved'] === true
+  item.sourceLabel = raw['sourceLabel'] != null ? raw['sourceLabel'] as string : ''
+  item.rankingScore = raw['rankingScore'] != null ? raw['rankingScore'] as number : 0
+  item.category = raw['category'] != null ? raw['category'] as string : ''
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
   return item
 }
 
@@ -62,15 +62,15 @@ async function fetchRemoteFeed(pageIndex: number, channel: string, category: str
   if (__DEV__) {
     console.log('[Feed] HTTP status:', response.statusCode)
     const first = Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : null
-    if (first != null) console.log('[Feed] first:', JSON.stringify({ id: first.id, title: first.title, coverUrl: first.coverUrl }))
+    if (first != null) console.log('[Feed] first:', JSON.stringify(first))
   }
   const rawItems = response.data as any[]
   const result = new FeedPage()
   result.requestId = response.requestId
-  if (rawItems != null) for (let i = 0; i < rawItems.length; i++) result.items.push(mapFeedItem(rawItems[i]))
-  const page = response.page as any
-  result.nextCursor = page != null && page.nextCursor != null ? String(page.nextCursor) : ''
-  result.hasMore = page != null && page.hasMore === true
+  if (rawItems != null) for (let i = 0; i < rawItems.length; i++) result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
+  const page = response.page as UTSJSONObject | null
+  result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
+  result.hasMore = page != null && page['hasMore'] === true
   return result
 }
 

@@ -1,35 +1,40 @@
 /** PurchaseRepo — 外部购买进度的本地数据仓库。 */
 
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
+import { getRuntimeConfig } from '@/config/runtime'
 
 const STORAGE_KEY = 'purchase_records'
 
 function loadAll(): PurchaseRecord[] {
   try {
     const raw = uni.getStorageSync(STORAGE_KEY)
-    if (!raw) return []
-    const arr = JSON.parse(raw) as any[]
-    return arr.map((obj) => {
+    if (raw == null || raw as string === '') return []
+    const arr = JSON.parseArray<UTSJSONObject>(raw as string)
+    if (arr == null) return []
+    const result: PurchaseRecord[] = []
+    for (let i = 0; i < arr.length; i++) {
+      const obj = arr[i]
       const r = new PurchaseRecord()
-      r.id = obj.id ?? ''
-      r.name = obj.name ?? ''
-      r.brand = obj.brand ?? ''
-      r.shopName = obj.shopName ?? ''
-      r.category = obj.category ?? ''
-      r.totalAmount = obj.totalAmount ?? 0
-      r.depositAmount = obj.depositAmount ?? 0
-      r.paidAmount = obj.paidAmount ?? 0
-      r.remainingAmount = obj.remainingAmount ?? 0
-      r.paymentStatus = obj.paymentStatus ?? 'PRE_ORDER'
-      r.purchaseDate = obj.purchaseDate ?? ''
-      r.deadline = obj.deadline ?? ''
-      r.note = obj.note ?? ''
-      r.isFavorite = obj.isFavorite ?? false
-      r.isDeleted = obj.isDeleted ?? false
-      r.createdAt = obj.createdAt ?? ''
-      r.updatedAt = obj.updatedAt ?? ''
-      return r
-    })
+      r.id = obj['id'] != null ? obj['id'] as string : ''
+      r.name = obj['name'] != null ? obj['name'] as string : ''
+      r.brand = obj['brand'] != null ? obj['brand'] as string : ''
+      r.shopName = obj['shopName'] != null ? obj['shopName'] as string : ''
+      r.category = obj['category'] != null ? obj['category'] as string : ''
+      r.totalAmount = obj['totalAmount'] != null ? obj['totalAmount'] as number : 0
+      r.depositAmount = obj['depositAmount'] != null ? obj['depositAmount'] as number : 0
+      r.paidAmount = obj['paidAmount'] != null ? obj['paidAmount'] as number : 0
+      r.remainingAmount = obj['remainingAmount'] != null ? obj['remainingAmount'] as number : 0
+      r.paymentStatus = obj['paymentStatus'] != null ? obj['paymentStatus'] as string : 'PRE_ORDER'
+      r.purchaseDate = obj['purchaseDate'] != null ? obj['purchaseDate'] as string : ''
+      r.deadline = obj['deadline'] != null ? obj['deadline'] as string : ''
+      r.note = obj['note'] != null ? obj['note'] as string : ''
+      r.isFavorite = obj['isFavorite'] != null ? obj['isFavorite'] as boolean : false
+      r.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
+      r.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''
+      r.updatedAt = obj['updatedAt'] != null ? obj['updatedAt'] as string : ''
+      result.push(r)
+    }
+    return result
   } catch (e) {
     return []
   }
@@ -39,7 +44,7 @@ function saveAll(records: PurchaseRecord[]) { uni.setStorageSync(STORAGE_KEY, JS
 function generateId(): string { return `${Date.now()}-${Math.floor(Math.random() * 10000)}` }
 
 export function getAll(): PurchaseRecord[] { return loadAll().filter((r) => !r.isDeleted) }
-export function getById(id: string): PurchaseRecord | undefined { return loadAll().find((r) => r.id == id && !r.isDeleted) }
+export function getById(id: string): PurchaseRecord | null { return loadAll().find((r) => r.id == id && !r.isDeleted) }
 
 export function add(record: PurchaseRecord): PurchaseRecord {
   const records = loadAll()
@@ -85,6 +90,7 @@ export function softDelete(id: string): boolean {
 }
 
 export function initMockData() {
+  if (!getRuntimeConfig().mockOnline) return
   if (loadAll().length > 0) return
   const now = new Date().toISOString()
   const records: PurchaseRecord[] = []

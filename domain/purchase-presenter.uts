@@ -34,7 +34,7 @@ export class PurchaseDisplayModel {
 
 /** UTS 兼容：Kotlin/Java 无 padStart */
 function padZero(n: number): string {
-  return n < 10 ? '0' + String(n) : String(n)
+  return n < 10 ? '0' + n.toString() : n.toString()
 }
 
 /** 日期格式化 */
@@ -70,8 +70,8 @@ export function toDisplayModel(record: PurchaseRecord): PurchaseDisplayModel {
   dm.brand = record.brand
   dm.shopName = record.shopName
   dm.category = record.category
-  dm.statusText = PAYMENT_STATUS_LABELS[record.paymentStatus] ?? '未知'
-  dm.statusColor = PAYMENT_STATUS_COLORS[record.paymentStatus] ?? '#9CA3AF'
+  dm.statusText = PAYMENT_STATUS_LABELS[record.paymentStatus] != null ? PAYMENT_STATUS_LABELS[record.paymentStatus] as string : '未知'
+  dm.statusColor = PAYMENT_STATUS_COLORS[record.paymentStatus] != null ? PAYMENT_STATUS_COLORS[record.paymentStatus] as string : '#9CA3AF'
   dm.totalText = `¥${record.totalAmount.toFixed(2)}`
   dm.depositText = record.depositAmount > 0 ? `定金 ¥${record.depositAmount.toFixed(2)}` : ''
   dm.paidText = `已付 ¥${record.paidAmount.toFixed(2)}`
@@ -93,5 +93,5 @@ export function toDisplayModel(record: PurchaseRecord): PurchaseDisplayModel {
 
 /** 批量转换 */
 export function toDisplayModels(records: PurchaseRecord[]): PurchaseDisplayModel[] {
-  return records.map(toDisplayModel)
+  return records.map((record) => toDisplayModel(record))
 }

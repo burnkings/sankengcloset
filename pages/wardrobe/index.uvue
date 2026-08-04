@@ -27,7 +27,7 @@
         <view v-else :style="grid">
           <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
             <view :style="imageWrap"><AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
-            <view :style="cardBody"><text :style="brandText">{{ item.brand !== '' ? item.brand : categoryLabel(item.category) }}</text><text :style="itemName">{{ item.name }}</text><view :style="bottomRow"><text :style="priceText">{{ item.purchasePrice > 0 ? '¥' + String(item.purchasePrice) : '未记录价格' }}</text><text :style="wearText">{{ wearLabel(item.wearStatus) }}</text></view></view>
+              <view :style="cardBody"><text :style="brandText">{{ item.brand !== '' ? item.brand : categoryLabel(item.category) }}</text><text :style="itemName">{{ item.name }}</text><view :style="bottomRow"><text :style="priceText">{{ item.purchasePrice > 0 ? `¥${item.purchasePrice}` : '未记录价格' }}</text><text :style="wearText">{{ wearLabel(item.wearStatus) }}</text></view></view>
           </view>
         </view>
       </view>
@@ -37,6 +37,7 @@
 
 <script setup lang="uts">
 import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { WardrobeItem } from '@/domain/wardrobe-item'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -58,11 +59,11 @@ const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
 function applySearch() { store.setSearch(searchValue.value) }
 function onFilter(label: string) {
   activeFilter.value = label
-  const map: Record<string, string> = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
-  store.setCategory(label === '全部' ? '' : (map[label] ?? ''))
+  const map = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
+  store.setCategory(label === '全部' ? '' : (map[label] != null ? map[label] as string : ''))
 }
 const hasActiveFilters = computed((): boolean => store.activeFilterCount > 0)
-const visibleItems = computed((): any[] => store.sortedItems)
+  const visibleItems = computed((): WardrobeItem[] => store.sortedItems)
 const sortOptions = ['newest', 'earliest', 'priceHigh', 'priceLow', 'name']
 const sortLabels = ['最近加入', '最早加入', '价格高→低', '价格低→高', '名称']
 function showSortSheet() {
@@ -73,18 +74,18 @@ function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿'
 function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
 onShow(() => { store.fetchItems() })
-watch(searchValue, (value) => { store.setSearch(value) })
+  watch(searchValue, (value: string) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const addBtn = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' } as any
-const statsCard = { borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' } as any
-const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as any
-const statsTitle = { fontSize: '31rpx', fontWeight: '700', color: n.value.text } as any
-const statsSub = { fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' } as any
-const statsRow = { ...flexRow, alignItems: 'center' } as any
-const statCol = { ...flexFill, flexDirection: 'column' as string, alignItems: 'center' } as any
-const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as any
-const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as any
+const addBtn = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' } as UTSJSONObject
+const statsCard = { borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' } as UTSJSONObject
+const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as UTSJSONObject
+const statsTitle = { fontSize: '31rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
+const statsSub = { fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' } as UTSJSONObject
+const statsRow = { ...flexRow, alignItems: 'center' } as UTSJSONObject
+const statCol = { ...flexFill, flexDirection: 'column' as string, alignItems: 'center' } as UTSJSONObject
+const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
+const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as UTSJSONObject
 class CategoryStat {
   label: string = ''
   count: number = 0
@@ -97,11 +98,11 @@ function createCategoryStat(label: string, count: number): CategoryStat {
   return s
 }
 
-const categoryStats = computed((): any[] => {
-  const counts = store.categoryCounts as Record<string, number>
-  const jk = counts['JK'] ?? 0
-  const lolita = counts['LOLITA'] ?? 0
-  const hanfu = counts['HANFU'] ?? 0
+const categoryStats = computed((): CategoryStat[] => {
+  const counts = store.categoryCounts
+  const jk = counts['JK'] != null ? counts['JK'] as number : 0
+  const lolita = counts['LOLITA'] != null ? counts['LOLITA'] as number : 0
+  const hanfu = counts['HANFU'] != null ? counts['HANFU'] as number : 0
   const other = Math.max(0, store.itemCount - jk - lolita - hanfu)
   return [
     createCategoryStat('JK制服', jk),

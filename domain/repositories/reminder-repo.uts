@@ -3,30 +3,35 @@
  */
 
 import { Reminder, ReminderUpdateData } from '@/domain/reminder'
+import { getRuntimeConfig } from '@/config/runtime'
 
 const STORAGE_KEY = 'reminder_items'
 
 function loadAll(): Reminder[] {
   try {
     const raw = uni.getStorageSync(STORAGE_KEY)
-    if (!raw) return []
-    const arr = JSON.parse(raw) as any[]
-    return arr.map((obj) => {
+    if (raw == null || raw as string === '') return []
+    const arr = JSON.parseArray<UTSJSONObject>(raw as string)
+    if (arr == null) return []
+    const result: Reminder[] = []
+    for (let i = 0; i < arr.length; i++) {
+      const obj = arr[i]
       const r = new Reminder()
-      r.id = obj.id ?? ''
-      r.title = obj.title ?? ''
-      r.type = obj.type ?? 'CUSTOM'
-      r.remindDate = obj.remindDate ?? ''
-      r.remindTime = obj.remindTime ?? ''
-      r.relatedPurchaseId = obj.relatedPurchaseId ?? ''
-      r.relatedWishId = obj.relatedWishId ?? ''
-      r.note = obj.note ?? ''
-      r.status = obj.status ?? 'PENDING'
-      r.isDeleted = obj.isDeleted ?? false
-      r.createdAt = obj.createdAt ?? ''
-      r.updatedAt = obj.updatedAt ?? ''
-      return r
-    })
+      r.id = obj['id'] != null ? obj['id'] as string : ''
+      r.title = obj['title'] != null ? obj['title'] as string : ''
+      r.type = obj['type'] != null ? obj['type'] as string : 'CUSTOM'
+      r.remindDate = obj['remindDate'] != null ? obj['remindDate'] as string : ''
+      r.remindTime = obj['remindTime'] != null ? obj['remindTime'] as string : ''
+      r.relatedPurchaseId = obj['relatedPurchaseId'] != null ? obj['relatedPurchaseId'] as string : ''
+      r.relatedWishId = obj['relatedWishId'] != null ? obj['relatedWishId'] as string : ''
+      r.note = obj['note'] != null ? obj['note'] as string : ''
+      r.status = obj['status'] != null ? obj['status'] as string : 'PENDING'
+      r.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
+      r.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''
+      r.updatedAt = obj['updatedAt'] != null ? obj['updatedAt'] as string : ''
+      result.push(r)
+    }
+    return result
   } catch {
     return []
   }
@@ -44,7 +49,7 @@ export function getAll(): Reminder[] {
   return loadAll().filter((r) => !r.isDeleted)
 }
 
-export function getById(id: string): Reminder | undefined {
+export function getById(id: string): Reminder | null {
   return loadAll().find((r) => r.id == id && !r.isDeleted)
 }
 
@@ -79,7 +84,7 @@ export function update(id: string, data: ReminderUpdateData): boolean {
 export function softDelete(id: string): boolean {
   const items = loadAll()
   const r = items.find((item) => item.id == id)
-  if (!r) return false
+  if (r == null) return false
   r.isDeleted = true
   r.updatedAt = new Date().toISOString()
   saveAll(items)
@@ -89,7 +94,7 @@ export function softDelete(id: string): boolean {
 export function markDone(id: string): boolean {
   const items = loadAll()
   const r = items.find((item) => item.id == id)
-  if (!r) return false
+  if (r == null) return false
   r.status = 'DONE'
   r.updatedAt = new Date().toISOString()
   saveAll(items)
@@ -97,6 +102,7 @@ export function markDone(id: string): boolean {
 }
 
 export function initMockData() {
+  if (!getRuntimeConfig().mockOnline) return
   const existing = loadAll()
   if (existing.length > 0) return
 

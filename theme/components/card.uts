@@ -22,7 +22,7 @@ export const cardContainer = {
   borderRadius: semanticRadius.card,
   boxShadow: shadow.card,
   overflow: 'hidden',
-} as any
+} as UTSJSONObject
 
 /** 带左侧色条的卡片容器 */
 export const cardWithAccent = {
@@ -30,7 +30,7 @@ export const cardWithAccent = {
   borderRadius: semanticRadius.card,
   boxShadow: shadow.card,
   overflow: 'hidden',
-} as any
+} as UTSJSONObject
 
 /** 左侧色条 */
 export function cardAccentBar(color: string): any {
@@ -47,7 +47,7 @@ export const cardContent = {
   padding: spacing[3],
   paddingLeft: spacing[3],
   gap: spacing[2],
-} as any
+} as UTSJSONObject
 
 // ====== 卡片内行 ======
 
@@ -56,20 +56,20 @@ export const cardTopRow = {
   ...flexRow,
   alignItems: 'flex-start',
   gap: spacing[2],
-} as any
+} as UTSJSONObject
 
 /** 日期行 */
 export const cardDateRow = {
   ...flexRow,
   alignItems: 'center',
   gap: spacing[1],
-} as any
+} as UTSJSONObject
 
 /** 操作行（右对齐） */
 export const cardActionRow = {
   ...flexRow,
   justifyContent: 'flex-end',
-} as any
+} as UTSJSONObject
 
 // ====== 状态 Pill ======
 
@@ -88,7 +88,7 @@ export function statusPill(color: string): any {
 export const statusPillText = {
   fontSize: fontSize.xs,
   fontWeight: fontWeight.medium,
-} as any
+} as UTSJSONObject
 
 // ====== 时间标签 ======
 
@@ -107,7 +107,7 @@ export function timeBadge(color: string): any {
 export const timeBadgeText = {
   fontSize: fontSize.xs,
   fontWeight: fontWeight.medium,
-} as any
+} as UTSJSONObject
 
 // ====== 操作按钮 ======
 
@@ -120,21 +120,21 @@ export const doneBtn = {
   paddingVertical: spacing[1.5],
   borderRadius: radius.full,
   backgroundColor: semantic.success + '12',
-} as any
+} as UTSJSONObject
 
 /** 完成按钮图标 */
 export const doneBtnIcon = {
   fontSize: fontSize.xs,
   color: semantic.success,
   fontWeight: fontWeight.bold,
-} as any
+} as UTSJSONObject
 
 /** 完成按钮文字 */
 export const doneBtnText = {
   fontSize: fontSize.xs,
   fontWeight: fontWeight.medium,
   color: semantic.success,
-} as any
+} as UTSJSONObject
 
 // ====== 封面卡片（Wishlist/Wardrobe Grid） ======
 
@@ -145,7 +145,7 @@ export const coverWrap = {
   position: 'relative',
   backgroundColor: neutralLight.bgTertiary,
   overflow: 'hidden',
-} as any
+} as UTSJSONObject
 
 /** 渐变遮罩（底部） */
 export const gradientOverlay = {
@@ -155,7 +155,7 @@ export const gradientOverlay = {
   right: '0',
   height: '120rpx',
   backgroundColor: 'rgba(0,0,0,0.35)',
-} as any
+} as UTSJSONObject
 
 /** 封面上名称容器 */
 export const overlayNameWrap = {
@@ -163,7 +163,7 @@ export const overlayNameWrap = {
   bottom: spacing[2],
   left: spacing[3],
   right: spacing[3],
-} as any
+} as UTSJSONObject
 
 /** 封面上名称文字 */
 export const overlayNameText = {
@@ -173,7 +173,7 @@ export const overlayNameText = {
   overflow: 'hidden',
   lines: 2,
   lineHeight: 1.3,
-} as any
+} as UTSJSONObject
 
 /** 无图占位区域 */
 export const placeholderWrap = {
@@ -184,7 +184,7 @@ export const placeholderWrap = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: spacing[2],
-} as any
+} as UTSJSONObject
 
 /** 优先级角标 */
 export function priorityCorner(color: string): any {
@@ -204,16 +204,16 @@ export const priorityCornerText = {
   fontSize: fontSize.xs,
   fontWeight: fontWeight.bold,
   color: baseColors.white,
-} as any
+} as UTSJSONObject
 
 /** 收藏角标 */
 export const favCorner = {
   position: 'absolute',
   top: spacing[2],
   left: spacing[2],
-} as any
+} as UTSJSONObject
 
 /** 收藏角标文字 */
 export const favCornerText = {
   fontSize: '28rpx',
-} as any
+} as UTSJSONObject

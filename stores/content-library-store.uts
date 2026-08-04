@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 /**
@@ -27,7 +27,7 @@ export class SavedOutfitPost {
 function readString(key: string): string {
   try {
     const value = uni.getStorageSync(key)
-    return value == null ? '' : String(value)
+    return value == null ? '' : value as string
   } catch (e) {
     return ''
   }
@@ -67,146 +67,172 @@ function removeOutfitStorage(id: string) {
   uni.removeStorageSync(outfitKey(id, 'created_at'))
 }
 
-export const useContentLibraryStore = defineStore('contentLibrary', () => {
-  const favoriteIds = ref([]) as Ref<string[]>
-  const followedBrands = ref([]) as Ref<string[]>
-  const outfitPosts = ref([]) as Ref<SavedOutfitPost[]>
-  const likedPostIds = ref([]) as Ref<string[]>
+// ====== 模块级 reactive 状态（单例）======
 
-  const favoriteCount = computed((): number => favoriteIds.value.length)
-  const followedBrandCount = computed((): number => followedBrands.value.length)
-  const outfitCount = computed((): number => outfitPosts.value.length)
-  const likedPostCount = computed((): number => likedPostIds.value.length)
+type ContentLibraryState = {
+  favoriteIds: string[]
+  followedBrands: string[]
+  outfitPosts: SavedOutfitPost[]
+  likedPostIds: string[]
+}
 
-  function reload() {
-    favoriteIds.value = readList(FAVORITE_IDS_KEY)
-    followedBrands.value = readList(FOLLOWED_BRANDS_KEY)
-    likedPostIds.value = readList(LIKED_POST_IDS_KEY)
-    const ids = readList(OUTFIT_IDS_KEY)
-    // Phase 1C 只保存一条圈子；首次进入 V2.0 时无损迁移到多条内容库。
-    if (ids.length === 0) {
-      const legacyImage = readString('local_outfit_image')
-      if (legacyImage !== '') {
-        const legacyId = `outfit_legacy_${Date.now()}`
-        ids.push(legacyId)
-        uni.setStorageSync(outfitKey(legacyId, 'image'), legacyImage)
-        uni.setStorageSync(outfitKey(legacyId, 'caption'), readString('local_outfit_caption'))
-        uni.setStorageSync(outfitKey(legacyId, 'category'), readString('local_outfit_category'))
-        const legacyTopic = readString('local_outfit_topic')
-        uni.setStorageSync(outfitKey(legacyId, 'topic'), legacyTopic !== '' ? legacyTopic : '今日穿搭')
-        uni.setStorageSync(outfitKey(legacyId, 'created_at'), String(Date.now()))
-        writeList(OUTFIT_IDS_KEY, ids)
-        uni.removeStorageSync('local_outfit_image')
-        uni.removeStorageSync('local_outfit_caption')
-        uni.removeStorageSync('local_outfit_category')
-        uni.removeStorageSync('local_outfit_topic')
-      }
-    }
-    const posts: SavedOutfitPost[] = []
-    for (let i = 0; i < ids.length; i++) {
-      const post = readOutfit(ids[i])
-      if (post.image !== '') posts.push(post)
-    }
-    outfitPosts.value = posts
-  }
-
-  function isFavorite(entityId: string): boolean {
-    return favoriteIds.value.indexOf(entityId) >= 0
-  }
-
-  function toggleFavorite(entityId: string): boolean {
-    if (entityId === '') return false
-    const values = [...favoriteIds.value]
-    const idx = values.indexOf(entityId)
-    if (idx >= 0) values.splice(idx, 1)
-    else values.unshift(entityId)
-    favoriteIds.value = values
-    writeList(FAVORITE_IDS_KEY, values)
-    enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, idx < 0 ? 'upsert' : 'delete', '')
-    return idx < 0
-  }
-
-  function isFollowingBrand(brandName: string): boolean {
-    return followedBrands.value.indexOf(brandName) >= 0
-  }
-
-  function toggleBrandFollow(brandName: string): boolean {
-    if (brandName === '') return false
-    const values = [...followedBrands.value]
-    const idx = values.indexOf(brandName)
-    if (idx >= 0) values.splice(idx, 1)
-    else values.unshift(brandName)
-    followedBrands.value = values
-    writeList(FOLLOWED_BRANDS_KEY, values)
-    enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
-    return idx < 0
-  }
-
-  function saveOutfit(image: string, caption: string, category: string, topic: string): string {
-    const id = `outfit_${Date.now()}`
-    uni.setStorageSync(outfitKey(id, 'image'), image)
-    uni.setStorageSync(outfitKey(id, 'caption'), caption)
-    uni.setStorageSync(outfitKey(id, 'category'), category)
-    uni.setStorageSync(outfitKey(id, 'topic'), topic)
-    uni.setStorageSync(outfitKey(id, 'created_at'), String(Date.now()))
-
-    const ids = readList(OUTFIT_IDS_KEY)
-    ids.unshift(id)
-    while (ids.length > MAX_LOCAL_OUTFITS) {
-      const removedId = ids.pop()
-      if (removedId != null) removeOutfitStorage(removedId)
-    }
-    writeList(OUTFIT_IDS_KEY, ids)
-    enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'create', `${category}|${topic}|${caption}`)
-    reload()
-    return id
-  }
-
-  function removeOutfit(id: string) {
-    const ids = readList(OUTFIT_IDS_KEY)
-    const idx = ids.indexOf(id)
-    if (idx >= 0) ids.splice(idx, 1)
-    writeList(OUTFIT_IDS_KEY, ids)
-    removeOutfitStorage(id)
-    enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
-    reload()
-  }
-
-  function isPostLiked(postId: string): boolean {
-    return likedPostIds.value.indexOf(postId) >= 0
-  }
-
-  function togglePostLike(postId: string): boolean {
-    if (postId === '') return false
-    const values = [...likedPostIds.value]
-    const idx = values.indexOf(postId)
-    if (idx >= 0) values.splice(idx, 1)
-    else values.unshift(postId)
-    likedPostIds.value = values
-    writeList(LIKED_POST_IDS_KEY, values)
-    enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
-    return idx < 0
-  }
-
-  reload()
-
-  return {
-    favoriteIds,
-    followedBrands,
-    outfitPosts,
-    likedPostIds,
-    favoriteCount,
-    followedBrandCount,
-    outfitCount,
-    likedPostCount,
-    reload,
-    isFavorite,
-    toggleFavorite,
-    isFollowingBrand,
-    toggleBrandFollow,
-    saveOutfit,
-    removeOutfit,
-    isPostLiked,
-    togglePostLike,
-  }
+const _state = reactive<ContentLibraryState>({
+  favoriteIds: [] as string[],
+  followedBrands: [] as string[],
+  outfitPosts: [] as SavedOutfitPost[],
+  likedPostIds: [] as string[],
 })
+
+const _favoriteCount = computed((): number => _state.favoriteIds.length)
+const _followedBrandCount = computed((): number => _state.followedBrands.length)
+const _outfitCount = computed((): number => _state.outfitPosts.length)
+const _likedPostCount = computed((): number => _state.likedPostIds.length)
+
+const CHANGE_EVENT = 'store:content-library-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+function reload() {
+  _state.favoriteIds = readList(FAVORITE_IDS_KEY)
+  _state.followedBrands = readList(FOLLOWED_BRANDS_KEY)
+  _state.likedPostIds = readList(LIKED_POST_IDS_KEY)
+  const ids = readList(OUTFIT_IDS_KEY)
+  // Phase 1C 只保存一条圈子；首次进入 V2.0 时无损迁移到多条内容库。
+  if (ids.length === 0) {
+    const legacyImage = readString('local_outfit_image')
+    if (legacyImage !== '') {
+      const legacyId = `outfit_legacy_${Date.now()}`
+      ids.push(legacyId)
+      uni.setStorageSync(outfitKey(legacyId, 'image'), legacyImage)
+      uni.setStorageSync(outfitKey(legacyId, 'caption'), readString('local_outfit_caption'))
+      uni.setStorageSync(outfitKey(legacyId, 'category'), readString('local_outfit_category'))
+      const legacyTopic = readString('local_outfit_topic')
+      uni.setStorageSync(outfitKey(legacyId, 'topic'), legacyTopic !== '' ? legacyTopic : '今日穿搭')
+      uni.setStorageSync(outfitKey(legacyId, 'created_at'), Date.now().toString())
+      writeList(OUTFIT_IDS_KEY, ids)
+      uni.removeStorageSync('local_outfit_image')
+      uni.removeStorageSync('local_outfit_caption')
+      uni.removeStorageSync('local_outfit_category')
+      uni.removeStorageSync('local_outfit_topic')
+    }
+  }
+  const posts: SavedOutfitPost[] = []
+  for (let i = 0; i < ids.length; i++) {
+    const post = readOutfit(ids[i])
+    if (post.image !== '') posts.push(post)
+  }
+  _state.outfitPosts = posts
+  notifyChanged()
+}
+
+function isFavorite(entityId: string): boolean {
+  return _state.favoriteIds.indexOf(entityId) >= 0
+}
+
+function toggleFavorite(entityId: string): boolean {
+  if (entityId === '') return false
+  const values = [..._state.favoriteIds]
+  const idx = values.indexOf(entityId)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(entityId)
+  _state.favoriteIds = values
+  writeList(FAVORITE_IDS_KEY, values)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, idx < 0 ? 'upsert' : 'delete', '')
+  notifyChanged()
+  return idx < 0
+}
+
+function isFollowingBrand(brandName: string): boolean {
+  return _state.followedBrands.indexOf(brandName) >= 0
+}
+
+function toggleBrandFollow(brandName: string): boolean {
+  if (brandName === '') return false
+  const values = [..._state.followedBrands]
+  const idx = values.indexOf(brandName)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(brandName)
+  _state.followedBrands = values
+  writeList(FOLLOWED_BRANDS_KEY, values)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
+  notifyChanged()
+  return idx < 0
+}
+
+function saveOutfit(image: string, caption: string, category: string, topic: string): string {
+  const id = `outfit_${Date.now()}`
+  uni.setStorageSync(outfitKey(id, 'image'), image)
+  uni.setStorageSync(outfitKey(id, 'caption'), caption)
+  uni.setStorageSync(outfitKey(id, 'category'), category)
+  uni.setStorageSync(outfitKey(id, 'topic'), topic)
+  uni.setStorageSync(outfitKey(id, 'created_at'), Date.now().toString())
+
+  const ids = readList(OUTFIT_IDS_KEY)
+  ids.unshift(id)
+  while (ids.length > MAX_LOCAL_OUTFITS) {
+    const removedId = ids.pop()
+    if (removedId != null) removeOutfitStorage(removedId)
+  }
+  writeList(OUTFIT_IDS_KEY, ids)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'create', `${category}|${topic}|${caption}`)
+  reload()
+  return id
+}
+
+function removeOutfit(id: string) {
+  const ids = readList(OUTFIT_IDS_KEY)
+  const idx = ids.indexOf(id)
+  if (idx >= 0) ids.splice(idx, 1)
+  writeList(OUTFIT_IDS_KEY, ids)
+  removeOutfitStorage(id)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
+  reload()
+}
+
+function isPostLiked(postId: string): boolean {
+  return _state.likedPostIds.indexOf(postId) >= 0
+}
+
+function togglePostLike(postId: string): boolean {
+  if (postId === '') return false
+  const values = [..._state.likedPostIds]
+  const idx = values.indexOf(postId)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(postId)
+  _state.likedPostIds = values
+  writeList(LIKED_POST_IDS_KEY, values)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
+  notifyChanged()
+  return idx < 0
+}
+
+reload()
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class ContentLibraryStoreHandle {
+  get favoriteIds(): string[] { return _state.favoriteIds }
+  get followedBrands(): string[] { return _state.followedBrands }
+  get outfitPosts(): SavedOutfitPost[] { return _state.outfitPosts }
+  get likedPostIds(): string[] { return _state.likedPostIds }
+  get favoriteCount(): number { return _favoriteCount.value }
+  get followedBrandCount(): number { return _followedBrandCount.value }
+  get outfitCount(): number { return _outfitCount.value }
+  get likedPostCount(): number { return _likedPostCount.value }
+  reload(): void { reload() }
+  isFavorite(entityId: string): boolean { return isFavorite(entityId) }
+  toggleFavorite(entityId: string): boolean { return toggleFavorite(entityId) }
+  isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
+  toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
+  saveOutfit(image: string, caption: string, category: string, topic: string): string { return saveOutfit(image, caption, category, topic) }
+  removeOutfit(id: string): void { removeOutfit(id) }
+  isPostLiked(postId: string): boolean { return isPostLiked(postId) }
+  togglePostLike(postId: string): boolean { return togglePostLike(postId) }
+}
+
+let _handle: ContentLibraryStoreHandle | null = null
+export function useContentLibraryStore(): ContentLibraryStoreHandle {
+  if (_handle == null) _handle = new ContentLibraryStoreHandle()
+  return _handle!
+}

@@ -10,18 +10,18 @@ import { brand, accent, semantic, jkColors, lolitaColors, hanfuColors } from '@/
 
 // ====== FeedType 展示 ======
 
-export const FeedTypeLabels: Record<string, string> = {
+export const FeedTypeLabels: UTSJSONObject = {
   product: '商品',
   release_event: '发售',
   brand_post: '品牌动态',
   outfit: '穿搭',
   editorial: '编辑精选',
   ai_recommendation: 'AI推荐',
-}
+} as UTSJSONObject
 
 export function getFeedTypeLabel(feedType: string): string {
   const label = FeedTypeLabels[feedType]
-  return label !== undefined ? label : '内容'
+  return label != null ? label as string : '内容'
 }
 
 export function getFeedTypeColor(feedType: string): string {
@@ -36,7 +36,7 @@ export function getFeedTypeColor(feedType: string): string {
 
 // ====== EventType 展示 ======
 
-export const EventTypeLabels: Record<string, string> = {
+export const EventTypeLabels: UTSJSONObject = {
   preview: '预览',
   reservation: '预约',
   deposit: '定金',
@@ -44,11 +44,11 @@ export const EventTypeLabels: Record<string, string> = {
   release: '发售',
   restock: '补货',
   price_drop: '降价',
-}
+} as UTSJSONObject
 
 export function getEventTypeLabel(eventType: string): string {
   const label = EventTypeLabels[eventType]
-  return label !== undefined ? label : eventType
+  return label != null ? label as string : eventType
 }
 
 export function getEventTypeColor(eventType: string): string {
@@ -64,22 +64,22 @@ export function getEventTypeColor(eventType: string): string {
 
 // ====== EventStatus 展示 ======
 
-export const EventStatusLabels: Record<string, string> = {
+export const EventStatusLabels: UTSJSONObject = {
   upcoming: '未开始',
   active: '进行中',
   ended: '已结束',
   cancelled: '已取消',
-}
+} as UTSJSONObject
 
 // ====== ProductStatus 展示 ======
 
-export const ProductStatusLabels: Record<string, string> = {
+export const ProductStatusLabels: UTSJSONObject = {
   UPCOMING: '即将发售',
   ON_SALE: '在售',
   PRE_ORDER: '预售中',
   SOLD_OUT: '已售罄',
   ENDED: '已下架',
-}
+} as UTSJSONObject
 
 export function getProductStatusColor(status: string): string {
   if (status === 'UPCOMING') return accent[500]
@@ -90,12 +90,12 @@ export function getProductStatusColor(status: string): string {
 
 // ====== StockStatus 展示 ======
 
-export const StockStatusLabels: Record<string, string> = {
+export const StockStatusLabels: UTSJSONObject = {
   IN_STOCK: '有货',
   LOW_STOCK: '库存紧张',
   OUT_OF_STOCK: '缺货',
   PRE_ORDER: '预售',
-}
+} as UTSJSONObject
 
 export function getStockStatusColor(status: string): string {
   if (status === 'IN_STOCK') return semantic.success
@@ -106,33 +106,33 @@ export function getStockStatusColor(status: string): string {
 
 // ====== SourceType 展示 ======
 
-export const SourceTypeLabels: Record<string, string> = {
+export const SourceTypeLabels: UTSJSONObject = {
   taobao: '淘宝',
   weibo: '微博',
   xiaohongshu: '小红书',
   official: '官方',
   user_submit: '用户提交',
   ai_extract: 'AI提取',
-}
+} as UTSJSONObject
 
 // ====== ReviewStatus 展示 ======
 
-export const ReviewStatusLabels: Record<string, string> = {
+export const ReviewStatusLabels: UTSJSONObject = {
   pending: '待审核',
   approved: '已通过',
   rejected: '已拒绝',
   corrected: '已修正',
-}
+} as UTSJSONObject
 
 // ====== PostType 展示 ======
 
-export const PostTypeLabels: Record<string, string> = {
+export const PostTypeLabels: UTSJSONObject = {
   OUTFIT: '穿搭分享',
   REVIEW: '商品评测',
   WISHLIST: '种草笔记',
   HAUL: '开箱',
   TUTORIAL: '教程',
-}
+} as UTSJSONObject
 
 // ====== Badge 颜色 ======
 

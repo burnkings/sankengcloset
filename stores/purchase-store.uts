@@ -1,78 +1,124 @@
-import { defineStore } from 'pinia'
 /** PurchaseStore — 页面与购买仓库之间的状态层。 */
+import { reactive, computed } from 'vue'
 
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 import { toDisplayModels, PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import * as repo from '@/domain/repositories/purchase-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
-export const usePurchaseStore = defineStore('purchase', () => {
-  const items = ref([]) as Ref<PurchaseRecord[]>
-  const loading = ref(false)
-  const error = ref('')
-  const filterStatus = ref('')
+// ====== 模块级 reactive 状态（单例）======
 
-  const activeItems = computed((): PurchaseRecord[] => items.value.filter((r) => !r.isDeleted))
-  const filteredItems = computed((): PurchaseRecord[] => {
-    let result = activeItems.value
-    if (filterStatus.value != '') result = result.filter((r) => r.paymentStatus == filterStatus.value)
-    return [...result].sort((a, b) => {
-      const da = a.purchaseDate != '' ? new Date(a.purchaseDate).getTime() : 0
-      const db = b.purchaseDate != '' ? new Date(b.purchaseDate).getTime() : 0
-      return db - da
-    })
-  })
-  const displayItems = computed((): PurchaseDisplayModel[] => toDisplayModels(filteredItems.value))
-  const pendingPayments = computed((): PurchaseRecord[] => activeItems.value.filter((r) => r.remainingAmount > 0))
-  const totalSpent = computed((): number => activeItems.value.reduce((sum, r) => sum + r.totalAmount, 0))
-  const remainingTotal = computed((): number => activeItems.value.reduce((sum, r) => sum + r.remainingAmount, 0))
-  const itemCount = computed((): number => activeItems.value.length)
+type PurchaseState = {
+  items: PurchaseRecord[]
+  loading: boolean
+  error: string
+  filterStatus: string
+}
 
-  function fetchPurchases() {
-    loading.value = true
-    error.value = ''
-    try {
-      repo.initMockData()
-      items.value = repo.getAll()
-    } catch (err) {
-      error.value = String(err)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
-    try {
-      const added = repo.add(record)
-      items.value = [...items.value, added]
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
-      return added
-    } catch (err) {
-      error.value = String(err)
-      return null
-    }
-  }
-
-  function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
-    const ok = repo.update(id, data)
-    if (ok) {
-      items.value = repo.getAll()
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
-    }
-    return ok
-  }
-
-  function deletePurchase(id: string): boolean {
-    const ok = repo.softDelete(id)
-    if (ok) {
-      items.value = items.value.filter((r) => r.id !== id)
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
-    }
-    return ok
-  }
-
-  function setFilterStatus(status: string) { filterStatus.value = status }
-  function getPurchaseById(id: string): PurchaseRecord | undefined { return items.value.find((r) => r.id == id) }
-
-  return { loading, error, filterStatus, filteredItems, displayItems, pendingPayments, totalSpent, remainingTotal, itemCount, fetchPurchases, addPurchase, updatePurchase, deletePurchase, setFilterStatus, getPurchaseById }
+const _state = reactive<PurchaseState>({
+  items: [] as PurchaseRecord[],
+  loading: false,
+  error: '',
+  filterStatus: '',
 })
+
+const _activeItems = computed((): PurchaseRecord[] => _state.items.filter((r) => !r.isDeleted))
+const _filteredItems = computed((): PurchaseRecord[] => {
+  let result = _activeItems.value
+  if (_state.filterStatus != '') result = result.filter((r) => r.paymentStatus == _state.filterStatus)
+  return [...result].sort((a, b) => {
+    const da = a.purchaseDate != '' ? new Date(a.purchaseDate).getTime() : 0
+    const db = b.purchaseDate != '' ? new Date(b.purchaseDate).getTime() : 0
+    return db - da
+  })
+})
+const _displayItems = computed((): PurchaseDisplayModel[] => toDisplayModels(_filteredItems.value))
+const _pendingPayments = computed((): PurchaseRecord[] => _activeItems.value.filter((r) => r.remainingAmount > 0))
+const _totalSpent = computed((): number => _activeItems.value.reduce((sum, r) => sum + r.totalAmount, 0))
+const _remainingTotal = computed((): number => _activeItems.value.reduce((sum, r) => sum + r.remainingAmount, 0))
+const _itemCount = computed((): number => _activeItems.value.length)
+
+const CHANGE_EVENT = 'store:purchase-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+function fetchPurchases() {
+  _state.loading = true
+  _state.error = ''
+  try {
+    repo.initMockData()
+    _state.items = repo.getAll()
+  } catch (err) {
+    _state.error = err instanceof Error ? err.message : '加载失败'
+  } finally {
+    _state.loading = false
+  }
+  notifyChanged()
+}
+
+function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
+  try {
+    const added = repo.add(record)
+    _state.items = [..._state.items, added]
+    enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
+    notifyChanged()
+    return added
+  } catch (err) {
+    _state.error = err instanceof Error ? err.message : '添加失败'
+    return null
+  }
+}
+
+function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
+  const ok = repo.update(id, data)
+  if (ok) {
+    _state.items = repo.getAll()
+    enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
+    notifyChanged()
+  }
+  return ok
+}
+
+function deletePurchase(id: string): boolean {
+  const ok = repo.softDelete(id)
+  if (ok) {
+    _state.items = _state.items.filter((r) => r.id !== id)
+    enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
+    notifyChanged()
+  }
+  return ok
+}
+
+function setFilterStatus(status: string) {
+  _state.filterStatus = status
+  notifyChanged()
+}
+
+function getPurchaseById(id: string): PurchaseRecord | null { return _state.items.find((r) => r.id == id) }
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class PurchaseStoreHandle {
+  get loading(): boolean { return _state.loading }
+  get error(): string { return _state.error }
+  get filterStatus(): string { return _state.filterStatus }
+  get filteredItems(): PurchaseRecord[] { return _filteredItems.value }
+  get displayItems(): PurchaseDisplayModel[] { return _displayItems.value }
+  get pendingPayments(): PurchaseRecord[] { return _pendingPayments.value }
+  get totalSpent(): number { return _totalSpent.value }
+  get remainingTotal(): number { return _remainingTotal.value }
+  get itemCount(): number { return _itemCount.value }
+  fetchPurchases(): void { fetchPurchases() }
+  addPurchase(record: PurchaseRecord): PurchaseRecord | null { return addPurchase(record) }
+  updatePurchase(id: string, data: PurchaseUpdateData): boolean { return updatePurchase(id, data) }
+  deletePurchase(id: string): boolean { return deletePurchase(id) }
+  setFilterStatus(status: string): void { setFilterStatus(status) }
+  getPurchaseById(id: string): PurchaseRecord | null { return getPurchaseById(id) }
+}
+
+let _handle: PurchaseStoreHandle | null = null
+export function usePurchaseStore(): PurchaseStoreHandle {
+  if (_handle == null) _handle = new PurchaseStoreHandle()
+  return _handle!
+}

@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
 /** V2.5 会话 Store：正式微信登录，无 Mock/Preview 回退。 */
+import { reactive, computed } from 'vue'
 import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
 import { apiPost, apiGet } from '@/services/platform/api-client'
 
@@ -16,128 +16,154 @@ export class SessionProfile {
 }
 
 function readString(key: string): string {
-  try { const value = uni.getStorageSync(key); return value == null ? '' : String(value) } catch (e) { return '' }
+  try { const value = uni.getStorageSync(key); return value == null ? '' : value as string } catch (e) { return '' }
 }
 
-export const useSessionStore = defineStore('session', () => {
-  const state = ref(readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest')
-  const profile = ref(new SessionProfile())
-  const loggingIn = ref(false)
-  const errorMessage = ref('')
-  const isLoggedIn = computed((): boolean => state.value === 'logged_in')
-  const userId = computed((): string => isLoggedIn.value ? profile.value.userId : '')
+// ====== 模块级 reactive 状态（单例）======
 
-  function reload() {
-    state.value = readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest'
-    const next = new SessionProfile()
-    next.userId = readString(USER_ID_KEY)
-    next.nickname = readString(NICKNAME_KEY)
-    next.avatarUrl = readString(AVATAR_KEY)
-    if (next.nickname === '') next.nickname = '三坑女孩'
-    profile.value = next
-    // 进入登录页后清除旧登录错误
-    if (state.value === 'guest') errorMessage.value = ''
-  }
+type SessionState = {
+  state: string
+  profile: SessionProfile
+  loggingIn: boolean
+  errorMessage: string
+}
 
-  function persistLogin(userIdValue: string, nickname: string, avatarUrl: string) {
-    uni.setStorageSync(STATE_KEY, 'logged_in')
-    uni.setStorageSync(USER_ID_KEY, userIdValue)
-    uni.setStorageSync(NICKNAME_KEY, nickname)
-    uni.setStorageSync(AVATAR_KEY, avatarUrl)
-    reload()
-  }
-
-  /**
-   * 微信登录流程：
-   * 1. uni.login 获取微信临时 code
-   * 2. POST /api/v1/sessions/wechat { code, deviceId }
-   * 3. 保存 accessToken / refreshToken
-   * 4. GET /api/v1/me 恢复用户会话信息
-   *
-   * 登录失败不静默回退，调用方需展示 errorMessage 并给予重试能力
-   */
-  async function loginWithWechat(): Promise<boolean> {
-    if (loggingIn.value) return false
-    loggingIn.value = true
-    errorMessage.value = ''
-    try {
-      // 1. 获取微信授权 code
-      const loginResult = await new Promise<any>((resolve, reject) => {
-        uni.login({
-          provider: 'weixin',
-          success: (res: any) => resolve(res),
-          fail: (err: any) => reject(new Error(err != null && err.errMsg != null ? String(err.errMsg) : '微信授权失败')),
-        })
-      })
-      const code: string = loginResult.code != null ? String(loginResult.code) : ''
-      if (code === '') throw new Error('微信授权未返回临时 code')
-
-      // 2. 获取设备标识
-      let deviceId = ''
-      try {
-        deviceId = String((uni.getSystemInfoSync() as any).deviceId ?? '')
-      } catch (_) { /* deviceId 非必需 */ }
-
-      // 3. POST /api/v1/sessions/wechat
-      const response = await apiPost('/api/v1/sessions/wechat', { code, deviceId })
-      const data: any = response.data
-      if (data == null) throw new Error('登录响应为空')
-      const accessToken: string = data.accessToken != null ? String(data.accessToken) : ''
-      if (accessToken === '') throw new Error('登录响应缺少 accessToken')
-      saveSessionTokens(accessToken, data.refreshToken != null ? String(data.refreshToken) : '')
-
-      // 4. 获取用户信息
-      let userInfo: any = null
-      try {
-        const meResponse = await apiGet('/api/v1/me')
-        userInfo = meResponse.data
-      } catch (_) {
-        // 如果 /me 调用失败，仍可登录；但需要下次帧刷新
-      }
-
-      const displayName: string = userInfo != null && userInfo.nickname != null ? String(userInfo.nickname) : '三坑女孩'
-      const avatar: string = userInfo != null && userInfo.avatarUrl != null ? String(userInfo.avatarUrl) : ''
-      const id: string = userInfo != null && userInfo.id != null ? String(userInfo.id) : data.userId != null ? String(data.userId) : ''
-      if (id === '') throw new Error('无法获取用户标识')
-      persistLogin(id, displayName, avatar)
-      return true
-    } catch (e) {
-      const message = e instanceof Error ? e.message : '登录失败，请重试'
-      errorMessage.value = message
-      // 显式抛出异常，调用方根据 errorMessage 展示错误状态与重试按钮
-      return false
-    } finally {
-      loggingIn.value = false
-    }
-  }
-
-  function logout() {
-    clearSessionTokens()
-    uni.removeStorageSync(STATE_KEY)
-    uni.removeStorageSync(USER_ID_KEY)
-    uni.removeStorageSync(NICKNAME_KEY)
-    uni.removeStorageSync(AVATAR_KEY)
-    state.value = 'guest'
-    profile.value = new SessionProfile()
-    errorMessage.value = ''
-  }
-
-  function clearError() {
-    errorMessage.value = ''
-  }
-
-  reload()
-
-  return {
-    state,
-    profile,
-    isLoggedIn,
-    userId,
-    loggingIn,
-    errorMessage,
-    reload,
-    loginWithWechat,
-    logout,
-    clearError,
-  }
+const _state = reactive<SessionState>({
+  state: readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest',
+  profile: new SessionProfile(),
+  loggingIn: false,
+  errorMessage: '',
 })
+
+const _isLoggedIn = computed((): boolean => _state.state === 'logged_in')
+const _userId = computed((): string => _isLoggedIn.value ? _state.profile.userId : '')
+
+const CHANGE_EVENT = 'store:session-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+function reload() {
+  _state.state = readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest'
+  const next = new SessionProfile()
+  next.userId = readString(USER_ID_KEY)
+  next.nickname = readString(NICKNAME_KEY)
+  next.avatarUrl = readString(AVATAR_KEY)
+  if (next.nickname === '') next.nickname = '三坑女孩'
+  _state.profile = next
+  // 进入登录页后清除旧登录错误
+  if (_state.state === 'guest') _state.errorMessage = ''
+  notifyChanged()
+}
+
+function persistLogin(userIdValue: string, nickname: string, avatarUrl: string) {
+  uni.setStorageSync(STATE_KEY, 'logged_in')
+  uni.setStorageSync(USER_ID_KEY, userIdValue)
+  uni.setStorageSync(NICKNAME_KEY, nickname)
+  uni.setStorageSync(AVATAR_KEY, avatarUrl)
+  reload()
+}
+
+/**
+ * 微信登录流程：
+ * 1. uni.login 获取微信临时 code
+ * 2. POST /api/v1/sessions/wechat { code, deviceId }
+ * 3. 保存 accessToken / refreshToken
+ * 4. GET /api/v1/me 恢复用户会话信息
+ *
+ * 登录失败不静默回退，调用方需展示 errorMessage 并给予重试能力
+ */
+async function loginWithWechat(): Promise<boolean> {
+  if (_state.loggingIn) return false
+  _state.loggingIn = true
+  _state.errorMessage = ''
+  try {
+    // 1. 获取微信授权 code
+    const loginResult = await new Promise<LoginSuccess>((resolve, reject) => {
+      uni.login({
+        provider: 'weixin',
+        success: (res: LoginSuccess) => resolve(res),
+        fail: (err: LoginFail) => reject(new Error(err.errMsg)),
+      })
+    })
+    const code: string = loginResult.code != null ? loginResult.code : ''
+    if (code === '') throw new Error('微信授权未返回临时 code')
+
+    // 2. 获取设备标识
+    let deviceId = ''
+    try {
+      deviceId = uni.getSystemInfoSync().deviceId
+    } catch (_) { /* deviceId 非必需 */ }
+
+    // 3. POST /api/v1/sessions/wechat
+    const response = await apiPost('/api/v1/sessions/wechat', { code, deviceId })
+    const data = response.data != null ? response.data as UTSJSONObject : null
+    if (data == null) throw new Error('登录响应为空')
+    const accessToken: string = data['accessToken'] != null ? data['accessToken'] as string : ''
+    if (accessToken === '') throw new Error('登录响应缺少 accessToken')
+    saveSessionTokens(accessToken, data['refreshToken'] != null ? data['refreshToken'] as string : '')
+
+    // 4. 获取用户信息
+    let userInfo: UTSJSONObject | null = null
+    try {
+      const meResponse = await apiGet('/api/v1/me')
+      userInfo = meResponse.data != null ? meResponse.data as UTSJSONObject : null
+    } catch (_) {
+      // 如果 /me 调用失败，仍可登录；但需要下次帧刷新
+    }
+
+    const displayName: string = userInfo != null && userInfo['nickname'] != null ? userInfo['nickname'] as string : '三坑女孩'
+    const avatar: string = userInfo != null && userInfo['avatarUrl'] != null ? userInfo['avatarUrl'] as string : ''
+    const id: string = userInfo != null && userInfo['id'] != null ? userInfo['id'] as string : data['userId'] != null ? data['userId'] as string : ''
+    if (id === '') throw new Error('无法获取用户标识')
+    persistLogin(id, displayName, avatar)
+    return true
+  } catch (e) {
+    const message = e instanceof Error ? e.message : '登录失败，请重试'
+    _state.errorMessage = message
+    // 显式抛出异常，调用方根据 errorMessage 展示错误状态与重试按钮
+    return false
+  } finally {
+    _state.loggingIn = false
+  }
+}
+
+function logout() {
+  clearSessionTokens()
+  uni.removeStorageSync(STATE_KEY)
+  uni.removeStorageSync(USER_ID_KEY)
+  uni.removeStorageSync(NICKNAME_KEY)
+  uni.removeStorageSync(AVATAR_KEY)
+  _state.state = 'guest'
+  _state.profile = new SessionProfile()
+  _state.errorMessage = ''
+  notifyChanged()
+}
+
+function clearError() {
+  _state.errorMessage = ''
+}
+
+// 初始化副作用（保留）
+reload()
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class SessionStoreHandle {
+  get state(): string { return _state.state }
+  get profile(): SessionProfile { return _state.profile }
+  get isLoggedIn(): boolean { return _isLoggedIn.value }
+  get userId(): string { return _userId.value }
+  get loggingIn(): boolean { return _state.loggingIn }
+  get errorMessage(): string { return _state.errorMessage }
+  reload(): void { reload() }
+  loginWithWechat(): Promise<boolean> { return loginWithWechat() }
+  logout(): void { logout() }
+  clearError(): void { clearError() }
+}
+
+let _handle: SessionStoreHandle | null = null
+export function useSessionStore(): SessionStoreHandle {
+  if (_handle == null) _handle = new SessionStoreHandle()
+  return _handle!
+}

@@ -48,16 +48,16 @@ import AppInput from '@/components/base/AppInput.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const budget = useBudgetStore(); const purchases = usePurchaseStore()
-const limitText = ref(budget.monthlyLimit > 0 ? String(budget.monthlyLimit) : '')
+const limitText = ref(budget.monthlyLimit > 0 ? budget.monthlyLimit.toString() : '')
 const alertValue = ref(budget.alertPercent)
 const alertLabels = ['70%', '80%', '90%']
 const activeAlert = computed((): string => `${alertValue.value}%`)
-const now = new Date(); const monthNumber = now.getMonth() + 1; const currentMonth = `${now.getFullYear()}年${monthNumber}月`; const monthCode = `${now.getFullYear()}-${monthNumber < 10 ? '0' + String(monthNumber) : String(monthNumber)}`
+const now = new Date(); const monthNumber = now.getMonth() + 1; const currentMonth = `${now.getFullYear()}年${monthNumber}月`; const monthCode = `${now.getFullYear()}-${monthNumber < 10 ? '0' + monthNumber.toString() : monthNumber.toString()}`
 const monthSpent = computed((): number => purchases.filteredItems.filter((item) => item.purchaseDate.indexOf(monthCode) === 0).reduce((sum, item) => sum + item.totalAmount, 0))
 const limitValue = computed((): number => { const value = limitText.value.trim() === '' ? 0 : parseFloat(limitText.value); return isNaN(value) ? 0 : value })
 const remaining = computed((): number => Math.max(0, limitValue.value - monthSpent.value))
 function onAlert(label: string) { alertValue.value = parseInt(label.replace('%', '')) }
-function formatAmount(value: number): string { return value === Math.floor(value) ? String(Math.floor(value)) : value.toFixed(2) }
+function formatAmount(value: number): string { return value === Math.floor(value) ? Math.floor(value).toString() : value.toFixed(2) }
 function save() { if (limitValue.value <= 0) { showFeedback('请填写大于 0 的月预算'); return }; budget.save(limitValue.value, alertValue.value); showFeedback('月预算已保存'); setTimeout(() => { uni.navigateBack() }, 220) }
 const safeBottom = getSafeBottomInset()
 onMounted(() => { purchases.fetchPurchases() })

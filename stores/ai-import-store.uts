@@ -1,52 +1,86 @@
-import { defineStore } from 'pinia'
+import { reactive, computed } from 'vue'
 import { AiImportTask, AI_IMPORT_IDLE, AI_IMPORT_PROCESSING, AI_IMPORT_READY, AI_IMPORT_FAILED, AI_IMPORT_CONFIRMED } from '@/domain/ai/ai-import-task'
 import { analyzeImportImage } from '@/services/ai/ai-import-service'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
-export const useAiImportStore = defineStore('aiImport', () => {
-  const state = ref(AI_IMPORT_IDLE)
-  const task = ref(null) as Ref<AiImportTask | null>
-  const errorMessage = ref('')
+// ====== 模块级 reactive 状态（单例）======
 
-  const processing = computed((): boolean => state.value === AI_IMPORT_PROCESSING)
-  const ready = computed((): boolean => state.value === AI_IMPORT_READY)
+type AiImportState = {
+  state: string
+  task: AiImportTask | null
+  errorMessage: string
+}
 
-  function reset() {
-    state.value = AI_IMPORT_IDLE
-    task.value = null
-    errorMessage.value = ''
-  }
-
-  async function analyze(sourceImage: string, useDemo: boolean): Promise<AiImportTask | null> {
-    state.value = AI_IMPORT_PROCESSING
-    errorMessage.value = ''
-    try {
-      const result = await analyzeImportImage(sourceImage, useDemo)
-      task.value = result
-      state.value = AI_IMPORT_READY
-      return result
-    } catch (e) {
-      state.value = AI_IMPORT_FAILED
-      errorMessage.value = e instanceof Error ? e.message : '识别任务失败，请重试'
-      return null
-    }
-  }
-
-  function confirm(targetType: string, targetId: string, confirmedPayload: string) {
-    if (task.value === null) return
-    task.value!.state = AI_IMPORT_CONFIRMED
-    task.value!.confirmedAt = String(Date.now())
-    task.value!.targetType = targetType
-    task.value!.targetId = targetId
-    state.value = AI_IMPORT_CONFIRMED
-    enqueueLocalOperation(
-      getCurrentSyncUserId(),
-      'ai_import_confirmation',
-      task.value!.taskId,
-      'confirm',
-      confirmedPayload,
-    )
-  }
-
-  return { state, task, errorMessage, processing, ready, reset, analyze, confirm }
+const _state = reactive<AiImportState>({
+  state: AI_IMPORT_IDLE,
+  task: null,
+  errorMessage: '',
 })
+
+const _processing = computed((): boolean => _state.state === AI_IMPORT_PROCESSING)
+const _ready = computed((): boolean => _state.state === AI_IMPORT_READY)
+
+const CHANGE_EVENT = 'store:ai-import-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+function reset() {
+  _state.state = AI_IMPORT_IDLE
+  _state.task = null
+  _state.errorMessage = ''
+  notifyChanged()
+}
+
+async function analyze(sourceImage: string, useDemo: boolean): Promise<AiImportTask | null> {
+  _state.state = AI_IMPORT_PROCESSING
+  _state.errorMessage = ''
+  try {
+    const result = await analyzeImportImage(sourceImage, useDemo)
+    _state.task = result
+    _state.state = AI_IMPORT_READY
+    notifyChanged()
+    return result
+  } catch (e) {
+    _state.state = AI_IMPORT_FAILED
+    _state.errorMessage = e instanceof Error ? e.message : '识别任务失败，请重试'
+    notifyChanged()
+    return null
+  }
+}
+
+function confirm(targetType: string, targetId: string, confirmedPayload: string) {
+  if (_state.task === null) return
+  _state.task!.state = AI_IMPORT_CONFIRMED
+  _state.task!.confirmedAt = Date.now().toString()
+  _state.task!.targetType = targetType
+  _state.task!.targetId = targetId
+  _state.state = AI_IMPORT_CONFIRMED
+  enqueueLocalOperation(
+    getCurrentSyncUserId(),
+    'ai_import_confirmation',
+    _state.task!.taskId,
+    'confirm',
+    confirmedPayload,
+  )
+  notifyChanged()
+}
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class AiImportStoreHandle {
+  get state(): string { return _state.state }
+  get task(): AiImportTask | null { return _state.task }
+  get errorMessage(): string { return _state.errorMessage }
+  get processing(): boolean { return _processing.value }
+  get ready(): boolean { return _ready.value }
+  reset(): void { reset() }
+  analyze(sourceImage: string, useDemo: boolean): Promise<AiImportTask | null> { return analyze(sourceImage, useDemo) }
+  confirm(targetType: string, targetId: string, confirmedPayload: string): void { confirm(targetType, targetId, confirmedPayload) }
+}
+
+let _handle: AiImportStoreHandle | null = null
+export function useAiImportStore(): AiImportStoreHandle {
+  if (_handle == null) _handle = new AiImportStoreHandle()
+  return _handle!
+}

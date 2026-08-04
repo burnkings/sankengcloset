@@ -18,14 +18,14 @@ const CATEGORY_COLOR_MAP = {
   JK: categoryColors.jk.primary,
   LOLITA: categoryColors.lolita.primary,
   HANFU: categoryColors.hanfu.primary,
-} as any
+} as UTSJSONObject
 
 // ====== 优先级色 ======
 const PRIORITY_COLOR_MAP = {
   HIGH: semantic.error,
   MEDIUM: semantic.warning,
   LOW: neutralLight.textDisabled,
-} as any
+} as UTSJSONObject
 
 const props = withDefaults(defineProps<{
   label?: string
@@ -51,7 +51,7 @@ const tagStyle = computed((): any => {
     alignItems: 'center',
     borderRadius: radius.full,
     flexShrink: 0,
-  } as any
+  } as UTSJSONObject
 
   if (props.variant == TAG_CHIP) {
     base.paddingHorizontal = spacing[3]

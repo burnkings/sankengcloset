@@ -3,13 +3,13 @@
  */
 
 export function createGrid(columns: number, gap: string = '16rpx'): any {
-  return { flexDirection: 'row', flexWrap: 'wrap', gap: gap } as any
+  return { flexDirection: 'row', flexWrap: 'wrap', gap: gap } as UTSJSONObject
 }
 
 export function createGridItem(columns: number): any {
   const gapRatio = (columns - 1) * 3
   const width = Math.floor((100 - gapRatio) / columns)
-  return { width: `${width}%` } as any
+  return { width: `${width}%` } as UTSJSONObject
 }
 
 export const grid2 = createGrid(2)

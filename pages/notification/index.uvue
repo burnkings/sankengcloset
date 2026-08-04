@@ -26,7 +26,7 @@
 
 <script setup lang="uts">
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
-import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL } from '@/domain/notification/app-notification'
+import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM, AppNotification } from '@/domain/notification/app-notification'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -43,7 +43,7 @@ const notices = useNotificationCenterStore()
 const activeLabel = ref('全部')
 const filterLabels = ['全部', '发售', '降价', '互动', '系统']
 const dismissedIds = ref<string[]>([])
-const visibleNotices = computed((): any[] => notices.visibleItems.filter((n: any) => dismissedIds.value.indexOf(n.id) < 0))
+const visibleNotices = computed((): AppNotification[] => notices.visibleItems.filter((n: AppNotification) => dismissedIds.value.indexOf(n.id) < 0))
 function dismissNotice(id: string) { dismissedIds.value = [...dismissedIds.value, id] }
 
 class NoticeVisual {
@@ -69,10 +69,10 @@ function openNotice(id: string, target: string) {
 }
 function noticeVisual(type: string): NoticeVisual {
   const v = new NoticeVisual()
-  if (type === NOTICE_PRICE) { v.char = '降'; v.bg = '#FCE4D6'; v.fg = semantic.warning; return v }
-  if (type === NOTICE_SOCIAL) { v.char = '赞'; v.bg = '#EFE4F2'; v.fg = accent[500]; return v }
-  if (type === NOTICE_SYSTEM) { v.char = '橱'; v.bg = '#FDE2EA'; v.fg = brand[600]; return v }
-  v.char = '售'; v.bg = '#FDE7EC'; v.fg = brand[500]
+  if (type === NOTICE_PRICE) { v.char = '降'; v.bg = '#FCE4D6'; v.fg = semantic.warning as string; return v }
+  if (type === NOTICE_SOCIAL) { v.char = '赞'; v.bg = '#EFE4F2'; v.fg = accent[500] as string; return v }
+  if (type === NOTICE_SYSTEM) { v.char = '橱'; v.bg = '#FDE2EA'; v.fg = brand[600] as string; return v }
+  v.char = '售'; v.bg = '#FDE7EC'; v.fg = brand[500] as string
   return v
 }
 function noticeChar(type: string): any {

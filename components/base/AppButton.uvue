@@ -35,23 +35,34 @@ const emit = defineEmits<{
 }>()
 
 
-const variantColors = computed(() => {
-  const map = {
-    primary: { bg: brand[500], text: baseColors.white, border: brand[500] },
-    soft: { bg: brand[300], text: baseColors.white, border: brand[300] },
-    secondary: { bg: accent[500], text: baseColors.white, border: accent[500] },
-    outline: { bg: 'transparent', text: brand[500], border: brand[500] },
-    ghost: { bg: 'transparent', text: brand[500], border: 'transparent' },
-    danger: { bg: semantic.error, text: baseColors.white, border: semantic.error } } as any
-  return map[props.variant] ?? map['primary']
+type VariantColor = {
+  bg: string
+  text: string
+  border: string
+}
+
+type SizeStyle = {
+  h: string
+  px: string
+  fs: string
+  fw: number
+}
+
+const variantColors = computed((): VariantColor => {
+  const v = props.variant
+  if (v === 'soft') return { bg: brand[300] as string, text: baseColors.white as string, border: brand[300] as string }
+  if (v === 'secondary') return { bg: accent[500] as string, text: baseColors.white as string, border: accent[500] as string }
+  if (v === 'outline') return { bg: 'transparent', text: brand[500] as string, border: brand[500] as string }
+  if (v === 'ghost') return { bg: 'transparent', text: brand[500] as string, border: 'transparent' }
+  if (v === 'danger') return { bg: semantic.error as string, text: baseColors.white as string, border: semantic.error as string }
+  return { bg: brand[500] as string, text: baseColors.white as string, border: brand[500] as string }
 })
 
-const sizeMap = computed(() => {
-  const map = {
-    sm: { h: '60rpx', px: spacing[3], fs: fontSize.sm, fw: fontWeight.medium },
-    md: { h: '80rpx', px: semanticSpacing.buttonPaddingH, fs: fontSize.base, fw: fontWeight.semibold },
-    lg: { h: '96rpx', px: spacing[6], fs: fontSize.lg, fw: fontWeight.semibold } } as any
-  return map[props.size] ?? map['md']
+const sizeMap = computed((): SizeStyle => {
+  const s = props.size
+  if (s === 'sm') return { h: '60rpx', px: spacing[3] as string, fs: fontSize.sm as string, fw: fontWeight.medium as number }
+  if (s === 'lg') return { h: '96rpx', px: spacing[6] as string, fs: fontSize.lg as string, fw: fontWeight.semibold as number }
+  return { h: '80rpx', px: semanticSpacing.buttonPaddingH as string, fs: fontSize.base as string, fw: fontWeight.semibold as number }
 })
 
 const buttonStyle = computed((): any => ({
@@ -67,7 +78,7 @@ const buttonStyle = computed((): any => ({
   borderStyle: 'solid',
   borderColor: variantColors.value.border,
   opacity: (props.disabled || props.loading) ? 0.5 : 1,
-  width: props.block ? '100%' : undefined }))
+  ...(props.block ? { width: '100%' } : {}) }))
 
 const loadingWrapperStyle = {
   marginRight: '8rpx' }

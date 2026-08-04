@@ -1,160 +1,223 @@
-import { defineStore } from 'pinia'
 /**
  * ReminderStore — 提醒状态管理
  */
+import { reactive, computed } from 'vue'
 
 import { Reminder, ReminderUpdateData, STATUS_PENDING } from '@/domain/reminder'
 import { toDisplayModels, ReminderDisplayModel } from '@/domain/reminder-presenter'
 import * as repo from '@/domain/repositories/reminder-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
-export const useReminderStore = defineStore('reminder', () => {
-  const items = ref([]) as Ref<Reminder[]>
-  const loading = ref(false)
-  const error = ref('')
-  const filterStatus = ref('')
-  const searchKeyword = ref('')
-  const currentSort = ref('date-asc')
+// ====== 模块级 reactive 状态（单例）======
 
-  const activeItems = computed((): Reminder[] => items.value.filter((r) => !r.isDeleted))
+type ReminderState = {
+  items: Reminder[]
+  loading: boolean
+  error: string
+  filterStatus: string
+  searchKeyword: string
+  currentSort: string
+}
 
-  const todayItems = computed((): Reminder[] => {
-    const today = new Date().toISOString().split('T')[0]
-    return activeItems.value.filter((r) => r.remindDate === today && r.status === STATUS_PENDING)
-  })
-
-  const upcomingItems = computed((): Reminder[] => {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-    const weekLater = today + 7 * 86400000
-    return activeItems.value.filter((r) => {
-      if (r.status !== STATUS_PENDING) return false
-      try {
-        const t = new Date(r.remindDate).getTime()
-        return t > today && t <= weekLater
-      } catch {
-        return false
-      }
-    })
-  })
-
-  const overdueItems = computed((): Reminder[] => {
-    const today = new Date().toISOString().split('T')[0]
-    return activeItems.value.filter((r) => r.remindDate < today && r.status === STATUS_PENDING)
-  })
-
-  const doneItems = computed((): Reminder[] => activeItems.value.filter((r) => r.status === 'DONE'))
-
-  const filteredItems = computed((): Reminder[] => {
-    let result = activeItems.value
-    if (filterStatus.value) result = result.filter((r) => r.status == filterStatus.value)
-    if (searchKeyword.value) {
-      const kw = searchKeyword.value.toLowerCase()
-      result = result.filter((r) => r.title.toLowerCase().includes(kw) || r.note.toLowerCase().includes(kw))
-    }
-    result = [...result].sort((a, b) => {
-      if (currentSort.value == 'date-asc') {
-        const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
-        const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
-        return da - db
-      }
-      if (currentSort.value == 'date-desc') {
-        const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
-        const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
-        return db - da
-      }
-      if (currentSort.value == 'type') {
-        if (a.type != b.type) return a.type < b.type ? -1 : 1
-        const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
-        const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
-        return da - db
-      }
-      return 0
-    })
-    return result
-  })
-
-  const displayItems = computed((): ReminderDisplayModel[] => toDisplayModels(filteredItems.value))
-  const itemCount = computed((): number => activeItems.value.length)
-  const pendingCount = computed((): number => activeItems.value.filter((r) => r.status == 'PENDING').length)
-  const todayCount = computed((): number => todayItems.value.length)
-  const upcomingCount = computed((): number => upcomingItems.value.length)
-  const overdueCount = computed((): number => overdueItems.value.length)
-
-  function fetchItems() {
-    loading.value = true
-    error.value = ''
-    try {
-      repo.initMockData()
-      items.value = repo.getAll()
-    } catch (err) {
-      error.value = String(err)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function addItem(item: Reminder): Reminder | null {
-    try {
-      const added = repo.add(item)
-      items.value = [...items.value, added]
-      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', added.id, 'create', JSON.stringify(added))
-      return added
-    } catch (err) {
-      error.value = String(err)
-      return null
-    }
-  }
-
-  function updateItem(id: string, data: ReminderUpdateData): boolean {
-    const ok = repo.update(id, data)
-    if (ok) {
-      const existing = items.value.find((r) => r.id == id)
-      if (existing) {
-        if (data.title != '') existing.title = data.title
-        if (data.type != '') existing.type = data.type
-        if (data.remindDate != '') existing.remindDate = data.remindDate
-        if (data.remindTime != '') existing.remindTime = data.remindTime
-        if (data.note != '') existing.note = data.note
-        if (data.status != '') existing.status = data.status
-        existing.updatedAt = new Date().toISOString()
-      }
-      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify(data))
-    }
-    return ok
-  }
-
-  function deleteItem(id: string): boolean {
-    const ok = repo.softDelete(id)
-    if (ok) {
-      items.value = items.value.filter((r) => r.id !== id)
-      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'delete', '')
-    }
-    return ok
-  }
-
-  function markDone(id: string): boolean {
-    const ok = repo.markDone(id)
-    if (ok) {
-      const existing = items.value.find((r) => r.id == id)
-      if (existing) {
-        existing.status = 'DONE'
-        existing.updatedAt = new Date().toISOString()
-      }
-      enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', 'status=DONE')
-    }
-    return ok
-  }
-
-  function setFilterStatus(status: string) { filterStatus.value = status }
-  function setSearch(keyword: string) { searchKeyword.value = keyword }
-  function setSort(sort: string) { currentSort.value = sort }
-  function getById(id: string): Reminder | undefined { return items.value.find((r) => r.id == id) }
-
-  return {
-    loading, error, filterStatus, searchKeyword, currentSort, activeItems, todayItems,
-    upcomingItems, overdueItems, doneItems, filteredItems, displayItems, itemCount,
-    pendingCount, todayCount, upcomingCount, overdueCount, fetchItems, addItem,
-    updateItem, deleteItem, markDone, setFilterStatus, setSearch, setSort, getById,
-  }
+const _state = reactive<ReminderState>({
+  items: [] as Reminder[],
+  loading: false,
+  error: '',
+  filterStatus: '',
+  searchKeyword: '',
+  currentSort: 'date-asc',
 })
+
+const _activeItems = computed((): Reminder[] => _state.items.filter((r) => !r.isDeleted))
+
+const _todayItems = computed((): Reminder[] => {
+  const today = new Date().toISOString().split('T')[0]
+  return _activeItems.value.filter((r) => r.remindDate === today && r.status === STATUS_PENDING)
+})
+
+const _upcomingItems = computed((): Reminder[] => {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const weekLater = today + 7 * 86400000
+  return _activeItems.value.filter((r) => {
+    if (r.status !== STATUS_PENDING) return false
+    try {
+      const t = new Date(r.remindDate).getTime()
+      return t > today && t <= weekLater
+    } catch {
+      return false
+    }
+  })
+})
+
+const _overdueItems = computed((): Reminder[] => {
+  const today = new Date().toISOString().split('T')[0]
+  return _activeItems.value.filter((r) => r.remindDate < today && r.status === STATUS_PENDING)
+})
+
+const _doneItems = computed((): Reminder[] => _activeItems.value.filter((r) => r.status === 'DONE'))
+
+const _filteredItems = computed((): Reminder[] => {
+  let result = _activeItems.value
+  if (_state.filterStatus) result = result.filter((r) => r.status == _state.filterStatus)
+  if (_state.searchKeyword) {
+    const kw = _state.searchKeyword.toLowerCase()
+    result = result.filter((r) => r.title.toLowerCase().includes(kw) || r.note.toLowerCase().includes(kw))
+  }
+  result = [...result].sort((a, b) => {
+    if (_state.currentSort == 'date-asc') {
+      const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
+      const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
+      return da - db
+    }
+    if (_state.currentSort == 'date-desc') {
+      const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
+      const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
+      return db - da
+    }
+    if (_state.currentSort == 'type') {
+      if (a.type != b.type) return a.type < b.type ? -1 : 1
+      const da = a.remindDate ? new Date(a.remindDate).getTime() : 0
+      const db = b.remindDate ? new Date(b.remindDate).getTime() : 0
+      return da - db
+    }
+    return 0
+  })
+  return result
+})
+
+const _displayItems = computed((): ReminderDisplayModel[] => toDisplayModels(_filteredItems.value))
+const _itemCount = computed((): number => _activeItems.value.length)
+const _pendingCount = computed((): number => _activeItems.value.filter((r) => r.status == 'PENDING').length)
+const _todayCount = computed((): number => _todayItems.value.length)
+const _upcomingCount = computed((): number => _upcomingItems.value.length)
+const _overdueCount = computed((): number => _overdueItems.value.length)
+
+const CHANGE_EVENT = 'store:reminder-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+function fetchItems() {
+  _state.loading = true
+  _state.error = ''
+  try {
+    repo.initMockData()
+    _state.items = repo.getAll()
+  } catch (err) {
+    _state.error = err instanceof Error ? err.message : '加载失败'
+  } finally {
+    _state.loading = false
+  }
+  notifyChanged()
+}
+
+function addItem(item: Reminder): Reminder | null {
+  try {
+    const added = repo.add(item)
+    _state.items = [..._state.items, added]
+    enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', added.id, 'create', JSON.stringify(added))
+    notifyChanged()
+    return added
+  } catch (err) {
+    _state.error = err instanceof Error ? err.message : '添加失败'
+    return null
+  }
+}
+
+function updateItem(id: string, data: ReminderUpdateData): boolean {
+  const ok = repo.update(id, data)
+  if (ok) {
+    const existing = _state.items.find((r) => r.id == id)
+    if (existing != null) {
+      if (data.title != '') existing.title = data.title
+      if (data.type != '') existing.type = data.type
+      if (data.remindDate != '') existing.remindDate = data.remindDate
+      if (data.remindTime != '') existing.remindTime = data.remindTime
+      if (data.note != '') existing.note = data.note
+      if (data.status != '') existing.status = data.status
+      existing.updatedAt = new Date().toISOString()
+    }
+    enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify(data))
+    notifyChanged()
+  }
+  return ok
+}
+
+function deleteItem(id: string): boolean {
+  const ok = repo.softDelete(id)
+  if (ok) {
+    _state.items = _state.items.filter((r) => r.id !== id)
+    enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'delete', '')
+    notifyChanged()
+  }
+  return ok
+}
+
+function markDone(id: string): boolean {
+  const ok = repo.markDone(id)
+  if (ok) {
+    const existing = _state.items.find((r) => r.id == id)
+    if (existing != null) {
+      existing.status = 'DONE'
+      existing.updatedAt = new Date().toISOString()
+    }
+    enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', 'status=DONE')
+    notifyChanged()
+  }
+  return ok
+}
+
+function setFilterStatus(status: string) {
+  _state.filterStatus = status
+  notifyChanged()
+}
+
+function setSearch(keyword: string) {
+  _state.searchKeyword = keyword
+  notifyChanged()
+}
+
+function setSort(sort: string) {
+  _state.currentSort = sort
+  notifyChanged()
+}
+
+function getById(id: string): Reminder | null { return _state.items.find((r) => r.id == id) }
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class ReminderStoreHandle {
+  get loading(): boolean { return _state.loading }
+  get error(): string { return _state.error }
+  get filterStatus(): string { return _state.filterStatus }
+  get searchKeyword(): string { return _state.searchKeyword }
+  get currentSort(): string { return _state.currentSort }
+  get activeItems(): Reminder[] { return _activeItems.value }
+  get todayItems(): Reminder[] { return _todayItems.value }
+  get upcomingItems(): Reminder[] { return _upcomingItems.value }
+  get overdueItems(): Reminder[] { return _overdueItems.value }
+  get doneItems(): Reminder[] { return _doneItems.value }
+  get filteredItems(): Reminder[] { return _filteredItems.value }
+  get displayItems(): ReminderDisplayModel[] { return _displayItems.value }
+  get itemCount(): number { return _itemCount.value }
+  get pendingCount(): number { return _pendingCount.value }
+  get todayCount(): number { return _todayCount.value }
+  get upcomingCount(): number { return _upcomingCount.value }
+  get overdueCount(): number { return _overdueCount.value }
+  fetchItems(): void { fetchItems() }
+  addItem(item: Reminder): Reminder | null { return addItem(item) }
+  updateItem(id: string, data: ReminderUpdateData): boolean { return updateItem(id, data) }
+  deleteItem(id: string): boolean { return deleteItem(id) }
+  markDone(id: string): boolean { return markDone(id) }
+  setFilterStatus(status: string): void { setFilterStatus(status) }
+  setSearch(keyword: string): void { setSearch(keyword) }
+  setSort(sort: string): void { setSort(sort) }
+  getById(id: string): Reminder | null { return getById(id) }
+}
+
+let _handle: ReminderStoreHandle | null = null
+export function useReminderStore(): ReminderStoreHandle {
+  if (_handle == null) _handle = new ReminderStoreHandle()
+  return _handle!
+}

@@ -1,10 +1,10 @@
-import { defineStore } from 'pinia'
 /**
  * HomeFeedStore — 首页内容发现 Feed 状态管理
  * Phase 1C: 状态完整性、分页防重、频道切换重置
  * 数据访问与筛选统一经 FeedService 提供
  */
 
+import { reactive, computed } from 'vue'
 import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
 import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
 import { usePreferencesStore } from '@/stores/preferences-store'
@@ -102,174 +102,204 @@ function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
   return row
 }
 
-// ====== Store ======
+// ====== 模块级 reactive 状态（单例）======
 
-export const useHomeFeedStore = defineStore('homeFeed', () => {
+type HomeFeedState = {
+  state: string
+  currentChannel: string
+  currentCategory: string
+  allItems: FeedItem[]
+  currentPage: number
+  isLoadingMore: boolean
+  hasMore: boolean
+  errorMessage: string
+}
+
+const _state = reactive<HomeFeedState>({
   // 状态: 'idle' | 'loading' | 'loaded' | 'error'
-  const state = ref('idle')
-  const currentChannel = ref('推荐')
-  const currentCategory = ref('全部')
-  const allItems = ref([]) as Ref<FeedItem[]>
-  const currentPage = ref(0)
-  const isLoadingMore = ref(false)
-  const hasMore = ref(true)
-  const errorMessage = ref('')
+  state: 'idle',
+  currentChannel: '推荐',
+  currentCategory: '全部',
+  allItems: [] as FeedItem[],
+  currentPage: 0,
+  isLoadingMore: false,
+  hasMore: true,
+  errorMessage: '',
+})
 
-  // 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
-  const prefs = usePreferencesStore()
+// 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
+const prefs = usePreferencesStore()
 
-  const loading = computed((): boolean => state.value === 'loading')
+const _loading = computed((): boolean => _state.state === 'loading')
 
-  // 筛选后的展示列表
-  const displayItems = computed((): FeedItem[] => {
-    const ch = currentChannel.value
-    const channelItems = filterFeedByChannel(allItems.value, ch)
-    const category = currentCategory.value
-    let result = channelItems
-    if (category === '' || category === '全部') {
-      result = channelItems
-    } else {
-      const code = categoryCode(category)
-      result = channelItems.filter((item) => item.category === code)
-    }
-    // Preference-based sorting
-    const sorted = [...result]
-    sorted.sort((a, b) => prefs.computeScore(b) - prefs.computeScore(a))
-    return sorted
-  })
+// 筛选后的展示列表
+const _displayItems = computed((): FeedItem[] => {
+  const ch = _state.currentChannel
+  const channelItems = filterFeedByChannel(_state.allItems, ch)
+  const category = _state.currentCategory
+  let result = channelItems
+  if (category === '' || category === '全部') {
+    result = channelItems
+  } else {
+    const code = categoryCode(category)
+    result = channelItems.filter((item) => item.category === code)
+  }
+  // Preference-based sorting
+  const sorted = [...result]
+  sorted.sort((a, b) => prefs.computeScore(b) - prefs.computeScore(a))
+  return sorted
+})
 
-  const isEmpty = computed((): boolean => {
-    return state.value === 'loaded' && displayItems.value.length === 0
-  })
+const _isEmpty = computed((): boolean => {
+  return _state.state === 'loaded' && _displayItems.value.length === 0
+})
 
-  // 混合流: product 双列合并，其他单列
-  const feedRows = computed((): FeedRow[] => {
-    const rows: FeedRow[] = []
-    const filtered = displayItems.value
-    let i = 0
-    while (i < filtered.length) {
-      const item = filtered[i]
-      if (item.feedType === FEED_PRODUCT) {
-        if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
-          rows.push(createPairRow(item, filtered[i + 1]))
-          i += 2
-        } else {
-          rows.push(createPairRow(item, null))
-          i += 1
-        }
+// 混合流: product 双列合并，其他单列
+const _feedRows = computed((): FeedRow[] => {
+  const rows: FeedRow[] = []
+  const filtered = _displayItems.value
+  let i = 0
+  while (i < filtered.length) {
+    const item = filtered[i]
+    if (item.feedType === FEED_PRODUCT) {
+      if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
+        rows.push(createPairRow(item, filtered[i + 1]))
+        i += 2
       } else {
-        rows.push(createSingleRow(item))
+        rows.push(createPairRow(item, null))
         i += 1
       }
-    }
-    return rows
-  })
-
-  // 首屏加载
-  async function loadFirstPage() {
-    state.value = 'loading'
-    errorMessage.value = ''
-    try {
-      const page = await fetchFeedPage(0)
-      allItems.value = page.items
-      currentPage.value = 1
-      hasMore.value = page.hasMore
-      state.value = 'loaded'
-    } catch (e) {
-      state.value = 'error'
-      errorMessage.value = e instanceof Error ? e.message : '加载失败'
+    } else {
+      rows.push(createSingleRow(item))
+      i += 1
     }
   }
-
-  // 加载更多（防重入）
-  async function loadMore() {
-    if (isLoadingMore.value || !hasMore.value || state.value !== 'loaded') return
-    isLoadingMore.value = true
-    try {
-      const page = await fetchFeedPage(currentPage.value)
-      if (page.items.length === 0) {
-        hasMore.value = false
-      } else {
-        // 追加新页，保留全量上限内的条目，丢弃最早的部分
-        const merged = [...allItems.value, ...page.items]
-        if (merged.length > MAX_CACHED_ITEMS) {
-          // 按 createdAt 降序，保留最新的 MAX_CACHED_ITEMS 条
-          merged.sort((a, b) => a.createdAt < b.createdAt ? 1 : -1)
-          allItems.value = merged.slice(0, MAX_CACHED_ITEMS)
-        } else {
-          allItems.value = merged
-        }
-        currentPage.value += 1
-        hasMore.value = page.hasMore
-      }
-    } catch (e) {
-      errorMessage.value = e instanceof Error ? e.message : '加载失败'
-    } finally {
-      isLoadingMore.value = false
-    }
-  }
-
-  // 切换频道（重置分页状态，不重新加载数据）
-  function setChannel(ch: string) {
-    if (ch === currentChannel.value) return
-    currentChannel.value = ch
-    // displayItems computed 自动重算，hasMore 基于全量数据
-  }
-
-  function setCategory(category: string) {
-    if (category === currentCategory.value) return
-    currentCategory.value = category
-  }
-
-  // 重试
-  function retry() {
-    loadFirstPage()
-  }
-
-  // 切换收藏
-  function toggleLike(itemId: string) {
-    const items = allItems.value
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) {
-        items[i].liked = !items[i].liked
-        break
-      }
-    }
-  }
-
-  function toggleSave(itemId: string) {
-    const items = allItems.value
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) {
-        items[i].saved = !items[i].saved
-        break
-      }
-    }
-  }
-
-  function refreshPreferences() {
-    prefs.loadPreferences()
-  }
-
-  return {
-      state,
-      loading,
-      isEmpty,
-      errorMessage,
-      currentChannel,
-      currentCategory,
-      allItems,
-      displayItems,
-      feedRows,
-      isLoadingMore,
-      hasMore,
-      loadFirstPage,
-      loadMore,
-      setChannel,
-      setCategory,
-      retry,
-      toggleLike,
-      toggleSave,
-      refreshPreferences,
-    }
+  return rows
 })
+
+const CHANGE_EVENT = 'store:home-feed-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+// ====== 模块级 action ======
+
+// 首屏加载
+async function loadFirstPage() {
+  _state.state = 'loading'
+  _state.errorMessage = ''
+  try {
+    const page = await fetchFeedPage(0)
+    _state.allItems = page.items
+    _state.currentPage = 1
+    _state.hasMore = page.hasMore
+    _state.state = 'loaded'
+  } catch (e) {
+    _state.state = 'error'
+    _state.errorMessage = e instanceof Error ? e.message : '加载失败'
+  }
+  notifyChanged()
+}
+
+// 加载更多（防重入）
+async function loadMore() {
+  if (_state.isLoadingMore || !_state.hasMore || _state.state !== 'loaded') return
+  _state.isLoadingMore = true
+  try {
+    const page = await fetchFeedPage(_state.currentPage)
+    if (page.items.length === 0) {
+      _state.hasMore = false
+    } else {
+      // 追加新页，保留全量上限内的条目，丢弃最早的部分
+      const merged = [..._state.allItems, ...page.items]
+      if (merged.length > MAX_CACHED_ITEMS) {
+        // 按 createdAt 降序，保留最新的 MAX_CACHED_ITEMS 条
+        merged.sort((a, b) => a.createdAt < b.createdAt ? 1 : -1)
+        _state.allItems = merged.slice(0, MAX_CACHED_ITEMS)
+      } else {
+        _state.allItems = merged
+      }
+      _state.currentPage += 1
+      _state.hasMore = page.hasMore
+    }
+  } catch (e) {
+    _state.errorMessage = e instanceof Error ? e.message : '加载失败'
+  } finally {
+    _state.isLoadingMore = false
+  }
+  notifyChanged()
+}
+
+// 切换频道（重置分页状态，不重新加载数据）
+function setChannel(ch: string) {
+  if (ch === _state.currentChannel) return
+  _state.currentChannel = ch
+  // displayItems computed 自动重算，hasMore 基于全量数据
+  notifyChanged()
+}
+
+function setCategory(category: string) {
+  if (category === _state.currentCategory) return
+  _state.currentCategory = category
+  notifyChanged()
+}
+
+// 重试
+function retry() {
+  loadFirstPage()
+}
+
+// 切换收藏
+function toggleLike(itemId: string) {
+  const items = _state.allItems
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].id === itemId) {
+      items[i].liked = !items[i].liked
+      break
+    }
+  }
+  notifyChanged()
+}
+
+function toggleSave(itemId: string) {
+  const items = _state.allItems
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].id === itemId) {
+      items[i].saved = !items[i].saved
+      break
+    }
+  }
+  notifyChanged()
+}
+
+function refreshPreferences() {
+  prefs.loadPreferences()
+}
+
+// ====== useXxxStore：返回 store 句柄（页面零改动）======
+
+class HomeFeedStoreHandle {
+  get state(): string { return _state.state }
+  get loading(): boolean { return _loading.value }
+  get isEmpty(): boolean { return _isEmpty.value }
+  get errorMessage(): string { return _state.errorMessage }
+  get currentChannel(): string { return _state.currentChannel }
+  get currentCategory(): string { return _state.currentCategory }
+  get allItems(): FeedItem[] { return _state.allItems }
+  get displayItems(): FeedItem[] { return _displayItems.value }
+  get feedRows(): FeedRow[] { return _feedRows.value }
+  get isLoadingMore(): boolean { return _state.isLoadingMore }
+  get hasMore(): boolean { return _state.hasMore }
+  loadFirstPage(): Promise<void> { return loadFirstPage() }
+  loadMore(): Promise<void> { return loadMore() }
+  setChannel(ch: string): void { setChannel(ch) }
+  setCategory(category: string): void { setCategory(category) }
+  retry(): void { retry() }
+  toggleLike(itemId: string): void { toggleLike(itemId) }
+  toggleSave(itemId: string): void { toggleSave(itemId) }
+  refreshPreferences(): void { refreshPreferences() }
+}
+
+let _handle: HomeFeedStoreHandle | null = null
+export function useHomeFeedStore(): HomeFeedStoreHandle {
+  if (_handle == null) _handle = new HomeFeedStoreHandle()
+  return _handle!
+}

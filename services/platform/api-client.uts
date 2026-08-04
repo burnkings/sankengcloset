@@ -1,10 +1,18 @@
 import { getRuntimeConfig, getCachedAccessToken, getCachedRefreshToken, saveSessionTokens } from '@/config/runtime'
 
 export class ApiResponse {
-  data: any = null
-  page: any = null
+  data: any | null = null
+  page: any | null = null
   requestId: string = ''
   statusCode: number = 0
+}
+
+class ApiRequestError extends Error {
+  statusCode: number = 0
+  constructor(message: string, statusCode: number) {
+    super(message)
+    this.statusCode = statusCode
+  }
 }
 
 const FALLBACK_API_BASE = 'https://api.sankengcloset.icu'
@@ -15,26 +23,25 @@ function endpoint(path: string): string {
   return `${base}${path.startsWith('/') ? path : '/' + path}`
 }
 
-function headers(): any {
-  const result: any = { 'content-type': 'application/json' }
+function headers(): UTSJSONObject {
+  const result = { 'content-type': 'application/json' } as UTSJSONObject
   const token = getCachedAccessToken()
-  if (token !== '') result.authorization = `Bearer ${token}`
+  if (token !== '') result['authorization'] = `Bearer ${token}`
   return result
 }
 
-function parseResponse(statusCode: number, raw: any): ApiResponse {
+function parseResponse(statusCode: number, raw: UTSJSONObject | null): ApiResponse {
   if (statusCode < 200 || statusCode >= 300) {
-    const problem = raw != null ? (raw as any).error : null
-    const message = problem != null && problem.message != null ? String(problem.message) : `服务请求失败（${statusCode}）`
-    const error: any = new Error(message)
-    error.statusCode = statusCode
-    throw error
+    const problem = raw != null ? raw['error'] : null
+    const problemObj = problem != null ? problem as UTSJSONObject : null
+    const message = problemObj != null && problemObj['message'] != null ? problemObj['message'] as string : `服务请求失败（${statusCode}）`
+    throw new ApiRequestError(message, statusCode)
   }
   const response = new ApiResponse()
   response.statusCode = statusCode
-  response.requestId = raw != null && raw.requestId != null ? String(raw.requestId) : ''
-  response.data = raw != null && raw.data !== undefined ? raw.data : raw
-  response.page = raw != null && raw.page !== undefined ? raw.page : null
+  response.requestId = raw != null && raw['requestId'] != null ? raw['requestId'] as string : ''
+  response.data = raw != null && raw['data'] != null ? raw['data'] : raw
+  response.page = raw != null && raw['page'] != null ? raw['page'] : null
   return response
 }
 
@@ -42,16 +49,16 @@ export function apiGet(path: string): Promise<ApiResponse> {
   return new Promise<ApiResponse>((resolve, reject) => {
     let url = ''
     try { url = endpoint(path) } catch (e) { reject(e); return }
-    uni.request({
+    uni.request<UTSJSONObject>({
       url,
       method: 'GET',
       header: headers(),
       timeout: 12000,
-      success: (res: any) => {
-        try { resolve(parseResponse(Number(res.statusCode), res.data)) }
+      success: (res: RequestSuccess<UTSJSONObject>) => {
+        try { resolve(parseResponse(res.statusCode, res.data)) }
         catch (e) { reject(e) }
       },
-      fail: (error: any) => reject(new Error(error != null && error.errMsg != null ? String(error.errMsg) : '无法连接服务')),
+      fail: (error: RequestFail) => reject(new Error(error.errMsg)),
     })
   })
 }
@@ -60,17 +67,17 @@ export function apiPost(path: string, payload: any): Promise<ApiResponse> {
   return new Promise<ApiResponse>((resolve, reject) => {
     let url = ''
     try { url = endpoint(path) } catch (e) { reject(e); return }
-    uni.request({
+    uni.request<UTSJSONObject>({
       url,
       method: 'POST',
       header: headers(),
       data: payload,
       timeout: 15000,
-      success: (res: any) => {
-        try { resolve(parseResponse(Number(res.statusCode), res.data)) }
+      success: (res: RequestSuccess<UTSJSONObject>) => {
+        try { resolve(parseResponse(res.statusCode, res.data)) }
         catch (e) { reject(e) }
       },
-      fail: (error: any) => reject(new Error(error != null && error.errMsg != null ? String(error.errMsg) : '无法连接服务')),
+      fail: (error: RequestFail) => reject(new Error(error.errMsg)),
     })
   })
 }
@@ -79,44 +86,48 @@ export async function refreshRemoteSession(): Promise<boolean> {
   const refreshToken = getCachedRefreshToken()
   if (refreshToken === '') return false
   const response = await apiPost('/api/v1/sessions/refresh', { refreshToken })
-  const data = response.data as any
-  if (data == null || data.accessToken == null) return false
-  saveSessionTokens(String(data.accessToken), data.refreshToken != null ? String(data.refreshToken) : refreshToken)
+  const data = response.data != null ? response.data as UTSJSONObject : null
+  if (data == null || data['accessToken'] == null) return false
+  saveSessionTokens(data['accessToken'] as string, data['refreshToken'] != null ? data['refreshToken'] as string : refreshToken)
   return true
 }
 
 export async function apiPostAuthorized(path: string, payload: any): Promise<ApiResponse> {
   try { return await apiPost(path, payload) }
   catch (e) {
-    const error = e as any
-    if (error == null || Number(error.statusCode) !== 401 || !(await refreshRemoteSession())) throw e
-    return await apiPost(path, payload)
+    if (e instanceof ApiRequestError && e.statusCode === 401 && (await refreshRemoteSession())) {
+      return await apiPost(path, payload)
+    }
+    throw e
   }
 }
 
 export async function testApiConnection(): Promise<string> {
   const response = await apiGet('/health')
-  const data = response.data as any
-  if (data == null || String(data.status) !== 'ok') throw new Error('服务健康检查未通过')
-  return data.service != null ? String(data.service) : 'sankengcloset-api'
+  const data = response.data != null ? response.data as UTSJSONObject : null
+  if (data == null || data['status'] == null || data['status'] as string !== 'ok') throw new Error('服务健康检查未通过')
+  return data['service'] != null ? data['service'] as string : 'sankengcloset-api'
 }
 
 export function apiDelete(path: string): Promise<ApiResponse> {
   return new Promise<ApiResponse>((resolve, reject) => {
     let url = ''
     try { url = endpoint(path) } catch (e) { reject(e); return }
-    uni.request({
+    uni.request<UTSJSONObject>({
       url,
       method: 'DELETE',
       header: headers(),
       timeout: 12000,
-      success: (res: any) => {
-        try { resolve(parseResponse(Number(res.statusCode), res.data)) }
+      success: (res: RequestSuccess<UTSJSONObject>) => {
+        try { resolve(parseResponse(res.statusCode, res.data)) }
         catch (e) { reject(e) }
       },
-      fail: (error: any) => reject(new Error(error != null && error.errMsg != null ? String(error.errMsg) : '无法连接服务')),
+      fail: (error: RequestFail) => reject(new Error(error.errMsg)),
     })
   })
 }
 
-export function encodeQuery(value: string): string { return encodeURIComponent(value) }
+export function encodeQuery(value: string): string {
+  const encoded = encodeURIComponent(value)
+  return encoded != null ? encoded : value
+}

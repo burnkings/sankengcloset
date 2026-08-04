@@ -133,7 +133,10 @@ function logout() {
   showFeedback('已退出，设备数据仍保留')
 }
 function goPage(url: string) { uni.navigateTo({ url }) }
-function openCommunity() { openPrimaryTab('/pages/community/index') }
+function openCommunity() {
+  uni.setStorageSync('community_view', 'mine')
+  openPrimaryTab('/pages/community/index')
+}
 function onManageTap(id: string) {
   if (id === 'favorites') goPage('/pages/wishlist/index')
   if (id === 'orders') goPage('/pages/purchase/index')
@@ -188,7 +191,7 @@ function onSettingTap(id: string) {
 }
 
 onLoad(() => { initPageTheme() })
-onShow(() => { session.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
+onShow(() => { initPageTheme(); session.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
@@ -196,7 +199,7 @@ const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borde
 const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
 const guestAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
-const loginButton = { minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: brand[300], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }
+const loginButton = computed((): any => ({ minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: isDark.value ? brand[600] : brand[500], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
 const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -207,7 +210,7 @@ const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: 
 const closetCard = computed((): any => ({ ...flexRow, alignItems: 'center', height: '208rpx', paddingLeft: CARD_PADDING, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
 const closetCopy = { ...flexFill }
 const closetTop = { ...flexRow, alignItems: 'center' }
-const closetLabel = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[700], marginLeft: '12rpx' }
+const closetLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isDark.value ? brand[300] : brand[700], marginLeft: '12rpx' }))
 const closetValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, marginTop: '14rpx' }))
 const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
 const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }

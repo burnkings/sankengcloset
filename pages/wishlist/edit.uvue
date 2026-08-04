@@ -80,7 +80,6 @@ import { spacing } from '@/theme/tokens/spacing'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { gap } from '@/theme/layout/spacing'
 import { n } from '@/theme/use-theme'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -95,7 +94,17 @@ const editId = ref('')
 const showConfirm = ref(false)
 const confirmMessage = ref('')
 
-const form = ref({
+type WishFormState = {
+  name: string
+  brand: string
+  priceStr: string
+  priority: string
+  status: string
+  url: string
+  note: string
+}
+
+const form = ref<WishFormState>({
   name: '',
   brand: '',
   priceStr: '',
@@ -104,22 +113,30 @@ const form = ref({
   url: '',
   note: '' })
 
-const priorityOptions = [
-  { label: PRIORITY_LABELS['HIGH'], value: 'HIGH', color: PRIORITY_COLORS['HIGH'] },
-  { label: PRIORITY_LABELS['MEDIUM'], value: 'MEDIUM', color: PRIORITY_COLORS['MEDIUM'] },
-  { label: PRIORITY_LABELS['LOW'], value: 'LOW', color: PRIORITY_COLORS['LOW'] },
+type OptionItem = {
+  label: string
+  value: string
+  color: string
+}
+const priorityOptions: OptionItem[] = [
+  { label: PRIORITY_LABELS['HIGH'] as string, value: 'HIGH', color: PRIORITY_COLORS['HIGH'] as string },
+  { label: PRIORITY_LABELS['MEDIUM'] as string, value: 'MEDIUM', color: PRIORITY_COLORS['MEDIUM'] as string },
+  { label: PRIORITY_LABELS['LOW'] as string, value: 'LOW', color: PRIORITY_COLORS['LOW'] as string },
 ]
 
-const statusOptions = [
-  { label: '种草', value: 'WISH', color: WISH_STATUS_COLORS['WISH'] },
-  { label: '观望', value: 'WATCHING', color: WISH_STATUS_COLORS['WATCHING'] },
-  { label: '决定买', value: 'DECIDED', color: WISH_STATUS_COLORS['DECIDED'] },
-  { label: '搁置', value: 'PAUSED', color: WISH_STATUS_COLORS['PAUSED'] },
-  { label: '拔草', value: 'CANCELED', color: WISH_STATUS_COLORS['CANCELED'] },
+const statusOptions: OptionItem[] = [
+  { label: '种草', value: 'WISH', color: WISH_STATUS_COLORS['WISH'] as string },
+  { label: '观望', value: 'WATCHING', color: WISH_STATUS_COLORS['WATCHING'] as string },
+  { label: '决定买', value: 'DECIDED', color: WISH_STATUS_COLORS['DECIDED'] as string },
+  { label: '搁置', value: 'PAUSED', color: WISH_STATUS_COLORS['PAUSED'] as string },
+  { label: '拔草', value: 'CANCELED', color: WISH_STATUS_COLORS['CANCELED'] as string },
 ]
 
+function goBack() { uni.navigateBack() }
 function onNoteInput(e: any) {
-  form.value.note = e.detail?.value ?? ''
+  const eObj = e as UTSJSONObject
+  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
 }
 
 function onSave() {
@@ -147,7 +164,7 @@ function onConfirmSave() {
     const ok = store.updateItem(editId.value, data)
     if (ok) {
       showFeedback('保存成功')
-      setTimeout(() => uni.navigateBack(), 500)
+        setTimeout(goBack, 500)
     }
   } else {
     const item = new WishItem()
@@ -160,23 +177,24 @@ function onConfirmSave() {
     item.url = form.value.url.trim()
     item.note = form.value.note.trim()
     const added = store.addItem(item)
-    if (added) {
+    if (added != null) {
       showFeedback('新增成功')
-      setTimeout(() => uni.navigateBack(), 500)
+        setTimeout(goBack, 500)
     }
   }
 }
 
 onMounted(() => {
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  const id = (currentPage as any).options?.id ?? ''
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1]
+    const options = currentPage.options
+    const id = options != null && options['id'] != null ? options['id'] as string : ''
 
   if (id) {
     editId.value = id
     isEdit.value = true
     const item = store.getById(id)
-    if (item) {
+    if (item != null) {
       form.value.name = item.name
       form.value.brand = item.brand
       form.value.priceStr = item.estimatedPrice > 0 ? `${item.estimatedPrice}` : ''
@@ -196,9 +214,9 @@ const saveBtnStyle = {
   fontWeight: fontWeight.medium,
   paddingHorizontal: spacing[2] }
 
-const formStyle = {
-  ...gap.md,
-  padding: `${spacing[3]} ${spacing[4]}` }
+  const formStyle = {
+    gap: spacing[3],
+    padding: `${spacing[3] as string} ${spacing[4] as string}` }
 
 const fieldGroupStyle = {
   gap: spacing[2] }

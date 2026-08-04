@@ -42,7 +42,7 @@ export async function analyzeImportImage(sourceImage: string, useDemo: boolean):
   task.sourceImage = sourceImage
   task.sourceMode = useDemo ? 'mock_demo' : 'mock_safe'
   task.requestId = createRequestId('ai_import')
-  task.createdAt = String(Date.now())
+  task.createdAt = Date.now().toString()
   task.suggestion = useDemo ? demoSuggestion() : safeSuggestion()
   task.confidence = useDemo ? 0.88 : 0.18
   task.evidence = useDemo

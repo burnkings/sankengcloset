@@ -1,5 +1,5 @@
 <template>
-  <MainLayout>
+  <MainLayout navbar-content-height="88rpx">
     <template #navbar>
       <AppNavbar title="愿望单" :show-back="false">
         <template #right>
@@ -26,7 +26,7 @@
             </view>
             <view :style="itemBody">
               <text :style="itemName">{{ item.name }}</text>
-              <text :style="itemPrice">¥{{ item.estimatedPrice }}</text>
+                <text :style="itemPrice">{{ item.priceText }}</text>
             </view>
           </view>
         </view>
@@ -39,10 +39,11 @@
 
 <script setup lang="uts">
 import { useWishListStore } from '@/stores/wishlist-store'
+import { WishDisplayModel } from '@/domain/wish-presenter'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_GUTTER_REGULAR, PRODUCT_CARD_WIDTH, GROUP_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -55,12 +56,12 @@ const viewTabs = ['商品', '搭配', '品牌']
 const activeTab = ref('商品')
 function onTab(label: string) { activeTab.value = label }
 
-const viewItems = computed((): any[] => {
-  const all = store.displayItems
-  if (activeTab.value === '搭配') return all.filter((w: any) => w.status === 'WISH' || w.status === 'DECIDED')
-  if (activeTab.value === '品牌') return all.filter((w: any) => w.status === 'WATCHING' || w.status === 'PURCHASED')
-  return all
-})
+  const viewItems = computed((): WishDisplayModel[] => {
+    const all = store.displayItems
+    if (activeTab.value === '搭配') return all.filter((w: WishDisplayModel) => w.status === 'WISH' || w.status === 'DECIDED')
+    if (activeTab.value === '品牌') return all.filter((w: WishDisplayModel) => w.status === 'WATCHING' || w.status === 'PURCHASED')
+    return all
+  })
 
 function onItemTap(id: string) {
   uni.navigateTo({ url: `/pages/wishlist/detail?id=${id}` })
@@ -83,9 +84,9 @@ const addBtnStyle = {
 }
 const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 function itemCard(idx: number) {
-  return { width: '335rpx', marginRight: idx % 2 === 0 ? '16rpx' : '0', marginBottom: '16rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', overflow: 'hidden' as string }
+  return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', overflow: 'hidden' as string }
 }
-const itemImage = { width: '335rpx', height: '420rpx', backgroundColor: '#EDE7E1' }
+const itemImage = { width: PRODUCT_CARD_WIDTH, height: '420rpx', backgroundColor: '#EDE7E1' }
 const itemBody = { padding: '20rpx' }
 const itemName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
 const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[300], marginTop: '8rpx' }

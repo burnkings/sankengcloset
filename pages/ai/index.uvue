@@ -72,10 +72,14 @@ const capabilities = [
   { id: 'release', icon: 'notification', title: '发售雷达', desc: '拆分图透、定金、尾款与现货' },
 ]
 
-initPageTheme()
-onShow(() => { syncTabBarChrome() })
+function pageGutter() {
+  return { paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+}
 
-const pageWrap = { ...pageGutter(), paddingTop: '16rpx', paddingBottom: '48rpx' } as any
+initPageTheme()
+onShow(() => { initPageTheme(); syncTabBarChrome() })
+
+const pageWrap = { ...pageGutter(), paddingTop: '16rpx', paddingBottom: '48rpx' } as UTSJSONObject
 
 // 提示卡：design bg #FCEFF2 (surfacePink)，圆角 16
 const hintCard = computed((): any => ({
@@ -84,11 +88,11 @@ const hintCard = computed((): any => ({
   padding: '24rpx',
   marginBottom: '32rpx',
 }))
-const hintTitle = { display: 'block', color: n.value.text, fontSize: '31rpx', fontWeight: '700', lineHeight: '40rpx', marginBottom: '8rpx' } as any
-const hintDesc = { display: 'block', color: n.value.textSecondary, fontSize: '25rpx', fontWeight: '400', lineHeight: '34rpx' } as any
+const hintTitle = { display: 'block', color: n.value.text, fontSize: '31rpx', fontWeight: '700', lineHeight: '40rpx', marginBottom: '8rpx' } as UTSJSONObject
+const hintDesc = { display: 'block', color: n.value.textSecondary, fontSize: '25rpx', fontWeight: '400', lineHeight: '34rpx' } as UTSJSONObject
 
 // 输入行
-const composerWrap = { ...flexRow, alignItems: 'center', gap: '16rpx', marginBottom: '40rpx' } as any
+const composerWrap = { ...flexRow, alignItems: 'center', gap: '16rpx', marginBottom: '40rpx' } as UTSJSONObject
 const composerInput = {
   ...flexFill,
   height: '88rpx',
@@ -97,10 +101,11 @@ const composerInput = {
   borderWidth: '1rpx',
   borderStyle: 'solid',
   borderColor: n.value.cardBorder,
-  paddingHorizontal: '28rpx',
+  paddingLeft: '28rpx',
+  paddingRight: '28rpx',
   justifyContent: 'center',
-} as any
-const composerPlaceholder = { color: n.value.textSecondary, fontSize: '27rpx' } as any
+} as UTSJSONObject
+const composerPlaceholder = { color: n.value.textSecondary, fontSize: '27rpx' } as UTSJSONObject
 const composerSend = {
   width: '88rpx',
   height: '88rpx',
@@ -109,10 +114,10 @@ const composerSend = {
   alignItems: 'center',
   justifyContent: 'center',
   flexShrink: 0,
-} as any
+} as UTSJSONObject
 
 // 能力网格：2×3，每卡 170×96（≈327×184rpx），白底 + cardBorder 描边，圆角 16
-const capGrid = { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16rpx' } as any
+const capGrid = { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16rpx' } as UTSJSONObject
 function capTile(idx: number) {
   return {
     width: '327rpx',
@@ -124,7 +129,7 @@ function capTile(idx: number) {
     borderColor: n.value.cardBorder,
     padding: '20rpx',
     flexShrink: 0,
-  } as any
+  } as UTSJSONObject
 }
 const capIconWrap = {
   width: '56rpx',
@@ -137,18 +142,16 @@ const capIconWrap = {
   alignItems: 'center',
   justifyContent: 'center',
   marginBottom: '14rpx',
-} as any
-const capTitle = { display: 'block', color: n.value.text, fontSize: '27rpx', fontWeight: '700', lineHeight: '34rpx', marginBottom: '6rpx' } as any
-const capDesc = { display: 'block', color: n.value.textSecondary, fontSize: '21rpx', fontWeight: '400', lineHeight: '28rpx' } as any
+} as UTSJSONObject
+const capTitle = { display: 'block', color: n.value.text, fontSize: '27rpx', fontWeight: '700', lineHeight: '34rpx', marginBottom: '6rpx' } as UTSJSONObject
+const capDesc = { display: 'block', color: n.value.textSecondary, fontSize: '21rpx', fontWeight: '400', lineHeight: '28rpx' } as UTSJSONObject
 
 function onSend() {
-  showFeedback({ message: '已收到，正在生成本机建议…', type: 'info' })
+  showFeedback('已收到，正在生成本机建议…')
 }
 function onCapTap(item: any) {
-  showFeedback({ message: `${item.title}：功能开发中`, type: 'info' })
-}
-
-function pageGutter() {
-  return { paddingHorizontal: PAGE_GUTTER_REGULAR }
+  const o = item as UTSJSONObject
+  const title = o['title'] != null ? o['title'] as string : ''
+  showFeedback(`${title}：功能开发中`)
 }
 </script>

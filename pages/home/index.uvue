@@ -91,10 +91,10 @@
           <!-- Product pair -->
           <view v-if="row.rowType === 'pair'" class="feed-pair-row" :style="pairRow">
             <view v-if="row.left !== null" :style="productShellLeft">
-              <V2ProductCard :image="row.left!.coverUrl" :brand-name="row.left!.brandName" :title="row.left!.title" :price-text="formatPrice(row.left!.price)" :original-price-text="row.left!.originalPrice > row.left!.price ? formatPrice(row.left!.originalPrice) : ''" :badge="row.left!.badgeText" :deadline-text="formatDeadline(row.left!.eventEndAt)" @click="onTap(row.left!)" />
+              <V2ProductCard :image="row.left!.coverUrl" :brand-name="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :original-price-text="rowLeftOldPrice(row)" :badge="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" @click="onTap(row.left!)" />
             </view>
             <view v-if="row.right !== null" :style="productShellRight">
-              <V2ProductCard :image="row.right!.coverUrl" :brand-name="row.right!.brandName" :title="row.right!.title" :price-text="formatPrice(row.right!.price)" :original-price-text="row.right!.originalPrice > row.right!.price ? formatPrice(row.right!.originalPrice) : ''" :badge="row.right!.badgeText" :deadline-text="formatDeadline(row.right!.eventEndAt)" @click="onTap(row.right!)" />
+              <V2ProductCard :image="row.right!.coverUrl" :brand-name="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :original-price-text="rowRightOldPrice(row)" :badge="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" @click="onTap(row.right!)" />
             </view>
             <!-- Filler when one side is null -->
             <view v-if="row.right === null" :style="cardFiller" />
@@ -109,7 +109,7 @@
                   <view :style="eventTagBg">
                     <text :style="eventTagTxt">{{ row.single!.badgeText }}</text>
                   </view>
-                  <text :style="eventTimeTxt">{{ formatRelativeTime(row.single!.eventStartAt) }}</text>
+                  <text :style="eventTimeTxt">{{ rowSingleRelTime(row) }}</text>
                 </view>
                 <text :style="eventTitle">{{ row.single!.title }}</text>
                 <text :style="eventBrand">{{ row.single!.brandName }}</text>
@@ -182,9 +182,9 @@
 </template>
 
 <script setup lang="uts">
-import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline } from '@/stores/home-feed-store'
+import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
-import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
+import { FeedItem, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { spacing } from '@/theme/tokens/spacing'
@@ -234,6 +234,34 @@ try {
 // #endif
 
 function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
+function rowLeftPrice(row: FeedRow): string {
+  if (row.left == null) return ''
+  return formatPrice(row.left!.price)
+}
+function rowLeftOldPrice(row: FeedRow): string {
+  if (row.left == null) return ''
+  return row.left!.originalPrice > row.left!.price ? formatPrice(row.left!.originalPrice) : ''
+}
+function rowLeftDeadline(row: FeedRow): string {
+  if (row.left == null) return ''
+  return formatDeadline(row.left!.eventEndAt)
+}
+function rowRightPrice(row: FeedRow): string {
+  if (row.right == null) return ''
+  return formatPrice(row.right!.price)
+}
+function rowRightOldPrice(row: FeedRow): string {
+  if (row.right == null) return ''
+  return row.right!.originalPrice > row.right!.price ? formatPrice(row.right!.originalPrice) : ''
+}
+function rowRightDeadline(row: FeedRow): string {
+  if (row.right == null) return ''
+  return formatDeadline(row.right!.eventEndAt)
+}
+function rowSingleRelTime(row: FeedRow): string {
+  if (row.single == null) return ''
+  return formatRelativeTime(row.single!.eventStartAt)
+}
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openNotifications() { uni.navigateTo({ url: '/pages/notification/index' }) }
 function onChannelTap(ch: string) { store.setChannel(ch) }
@@ -243,12 +271,12 @@ function onTap(item: FeedItem) {
     openPrimaryTab('/pages/community/index')
     return
   }
-  if (item.feedType === 'product' || item.feedType === 'release_event') {
-    uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+  if (item.feedType === FEED_EDITORIAL) {
+    uni.navigateTo({ url: `/pages/editorial/detail?title=${encodeURIComponent(item.title)}&category=${item.category}&image=${encodeURIComponent(item.coverUrl)}` })
     return
   }
-  uni.setStorageSync('pending_search_keyword', item.brandName !== '' ? item.brandName : item.title)
-  uni.navigateTo({ url: '/pages/search/index' })
+  if (item.entityId === '') return
+  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
@@ -257,7 +285,7 @@ const showFeedFooter = computed((): boolean => store.isLoadingMore || store.disp
 onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
 onLoad(() => { initPageTheme() })
-onShow(() => { notices.reload() })
+onShow(() => { initPageTheme(); notices.reload() })
 
 // --- Spacing tokens (no gap) ---
 const CARD_PAIR_GAP = '20rpx'  // between two product cards

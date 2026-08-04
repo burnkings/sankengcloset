@@ -28,7 +28,7 @@ function extractBudget(text: string): number {
     if (char >= '0' && char <= '9') digits += char
     else if (digits !== '') break
   }
-  return digits === '' ? 0 : parseInt(digits)
+  return digits === '' ? 0 : (parseInt(digits) ?? 0)
 }
 
 function assetEvidence(favoriteCount: number, followedBrandCount: number, outfitCount: number): string[] {

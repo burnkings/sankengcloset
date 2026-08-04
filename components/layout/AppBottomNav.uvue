@@ -12,7 +12,7 @@
 import { brand, neutralLight } from '@/theme/tokens/colors'
 import { TAB_BAR_HEIGHT, TAB_ICON_SIZE, TAB_LABEL_FONT } from '@/theme/tokens/responsive'
 import { zIndex } from '@/theme/tokens/z-index'
-import { n } from '@/theme/use-theme'
+import { n, isDark } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 
@@ -28,13 +28,19 @@ import { openPrimaryTab } from '@/utils/tab-navigation'
  */
 const props = withDefaults(defineProps<{ active?: string }>(), { active: 'home' })
 
-const items = [
+type NavItem = {
+  id: string
+  label: string
+  url: string
+}
+
+const items: NavItem[] = [
   { id: 'home', label: '首页', url: '/pages/home/index' },
   { id: 'discover', label: '发现', url: '/pages/discover/index' },
   { id: 'ai', label: '绮灵AI', url: '/pages/ai/index' },
   { id: 'community', label: '圈子', url: '/pages/community/index' },
   { id: 'profile', label: '我的', url: '/pages/profile/index' },
-] as const
+]
 
 const safeBottom = getSafeBottomInset()
 // 浮岛距 home indicator 16px 呼吸
@@ -88,7 +94,7 @@ function activePillStyle(id: string): any {
     height: '72rpx',
     marginLeft: '-48rpx',
     borderRadius: '9999rpx',
-    backgroundColor: neutralLight.surfacePink,
+    backgroundColor: isDark.value ? n.value.surfaceWarm : neutralLight.surfacePink,
   }
 }
 function open(url: string) {

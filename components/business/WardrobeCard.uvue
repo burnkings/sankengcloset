@@ -91,7 +91,7 @@ const emit = defineEmits<{
 }>()
 
 
-const categoryLabel = computed(() => CATEGORY_LABELS[props.item.category] ?? '其他')
+const categoryLabel = computed(() => CATEGORY_LABELS[props.item.category] != null ? CATEGORY_LABELS[props.item.category] as string : '其他')
 
 const wearStatusLabel = computed(() => {
   if (props.item.wearStatus == 'UNWORN') return '未穿'

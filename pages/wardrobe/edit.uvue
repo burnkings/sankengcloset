@@ -57,7 +57,17 @@ const isEdit = ref(false)
 const editId = ref('')
 const imagePath = ref('')
 const showDeleteConfirm = ref(false)
-const form = ref({ name: '', category: 'JK', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
+type WardrobeFormState = {
+  name: string
+  category: string
+  brand: string
+  price: string
+  color: string
+  size: string
+  wearStatus: string
+  note: string
+}
+const form = ref<WardrobeFormState>({ name: '', category: 'JK', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
 const categories = ['JK', 'Lolita', '汉服', '其他']
 const wearLabels = ['未穿', '已穿', '常穿']
 const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'OTHER' ? '其他' : 'JK')))
@@ -65,7 +75,11 @@ const activeWearLabel = computed((): string => form.value.wearStatus === 'WORN' 
 
 function onCategory(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK')) }
 function onWear(label: string) { form.value.wearStatus = label === '已穿' ? 'WORN' : (label === '常穿' ? 'FREQUENT' : 'UNWORN') }
-function onNoteInput(e: any) { form.value.note = (e.detail as any).value ?? '' }
+function onNoteInput(e: any) {
+  const eObj = e as UTSJSONObject
+  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
+}
 function choosePhoto() {
   uni.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'], success: (res) => {
     const temporary = res.tempFilePaths.length > 0 ? res.tempFilePaths[0] : ''
@@ -96,12 +110,12 @@ function save() {
 function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); setTimeout(() => { uni.navigateBack() }, 220) } }
 onMounted(() => {
   store.fetchItems()
-  const pages = getCurrentPages(); const current = pages[pages.length - 1]; const id = (current as any).options?.id ?? ''
+    const pages = getCurrentPages(); const current = pages[pages.length - 1]; const options = current.options; const id = options != null && options['id'] != null ? options['id'] as string : ''
   if (id === '') return
   editId.value = id; isEdit.value = true
   const item = store.getById(id)
   if (item == null) return
-  form.value.name = item.name; form.value.category = item.category; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? String(item.purchasePrice) : ''
+  form.value.name = item.name; form.value.category = item.category; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? item.purchasePrice.toString() : ''
   form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = item.coverImage
 })
 
