@@ -10,7 +10,7 @@ const STORAGE_KEY = 'v2_user_preferences'
 
 // ====== 默认值 ======
 
-const DEFAULT_PIT_TYPES = ['JK', 'Lolita', '汉服']
+const DEFAULT_PIT_TYPES: string[] = []
 const DEFAULT_PRICE_RANGE = 'all'
 
 // ====== 持久化工具 ======
@@ -37,7 +37,8 @@ function readPreferences(): PreferencesData {
         // 去重：老版本 toggle 可能产生重复条目（如 'LOLITA' 与 'Lolita' 并存），迁移后需收敛
         if (normalized.indexOf(target) === -1) normalized.push(target)
       }
-      data.pitTypes = normalized
+      // 旧版本默认把三个坑向全部选中；其真实语义等同“不过滤”，迁移为空数组。
+      data.pitTypes = normalized.length === 3 && normalized.indexOf('JK') >= 0 && normalized.indexOf('Lolita') >= 0 && normalized.indexOf('汉服') >= 0 ? [] : normalized
     }
     if (parsed['followedBrands'] != null) data.followedBrands = parsed['followedBrands'] as string[]
     if (parsed['priceRange'] != null) data.priceRange = parsed['priceRange'] as string
