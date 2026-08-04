@@ -38,9 +38,13 @@ function readStorageThemeMode(): ThemeMode {
 
 function getSystemDark(): boolean {
   try {
-    const info = uni.getSystemInfoSync() as UTSJSONObject
-    const theme = info['theme'] as string | null
-    return theme === 'dark'
+    // #ifdef APP
+    return uni.getDeviceInfo().osTheme == 'dark'
+    // #endif
+    // #ifdef MP-WEIXIN || WEB
+    return uni.getAppBaseInfo().hostTheme == 'dark'
+    // #endif
+    return false
   } catch (e) {
     return false
   }
@@ -95,12 +99,14 @@ const _state = reactive<ThemeState>({
   isDark: false,
 })
 let lastTabBarMode = ''
-let themeChangeHandler: (() => void) | null = null
+// #ifdef APP
+let osThemeChangeId: number | null = null
+// #endif
 
 function syncFromGlobal(): boolean {
   const mode = readStorageThemeMode()
   const computedDark = computeIsDark(mode)
-  const changed = _state.themeMode !== mode || _state.isDark !== computedDark
+  const changed = _state.themeMode != mode || _state.isDark != computedDark
   if (changed) {
     _state.themeMode = mode
     _state.isDark = computedDark
@@ -110,6 +116,11 @@ function syncFromGlobal(): boolean {
 }
 
 function applySystemChrome() {
+  // App 必须显式设置 appTheme；默认值始终为 light，单改页面 token 不会驱动原生 UI。
+  // #ifdef APP
+  const appTheme = (_state.themeMode == 'system' ? 'auto' : (_state.themeMode == 'dark' ? 'dark' : 'light')) as 'light' | 'dark' | 'auto'
+  uni.setAppTheme({ theme: appTheme })
+  // #endif
   // #ifdef MP-WEIXIN
   const palette = _state.isDark ? neutralDark : neutralLight
   try {
@@ -146,28 +157,28 @@ export function syncTabBarChrome() {
 // ====== 系统主题变化监听 ======
 
 function enableSystemThemeListener() {
-  if (themeChangeHandler) return
-  themeChangeHandler = () => {
+  // #ifdef APP
+  if (osThemeChangeId != null) return
+  osThemeChangeId = uni.onOsThemeChange((result: OsThemeChangeResult) => {
     if (_state.themeMode !== 'system') return
-    const newDark = getSystemDark()
-    if (_state.isDark !== newDark) {
+    const newDark = result.osTheme == 'dark'
+    if (_state.isDark != newDark) {
       _state.isDark = newDark
       setGlobalDark(newDark)
       lastTabBarMode = ''
       applySystemChrome()
       syncTabBarChrome()
     }
-  }
-  // #ifdef MP-WEIXIN
-  uni.onThemeChange(themeChangeHandler)
+  })
   // #endif
 }
 
 function disableSystemThemeListener() {
-  // #ifdef MP-WEIXIN
-  if (themeChangeHandler) {
-    uni.offThemeChange(themeChangeHandler)
-    themeChangeHandler = null
+  // #ifdef APP
+  const listenerId = osThemeChangeId
+  if (listenerId != null) {
+    uni.offOsThemeChange(listenerId)
+    osThemeChangeId = null
   }
   // #endif
 }
