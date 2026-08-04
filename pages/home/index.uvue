@@ -184,6 +184,7 @@
 <script setup lang="uts">
 import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
+import { usePreferencesStore } from '@/stores/preferences-store'
 import { FeedItem, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
 import { brand, baseColors } from '@/theme/tokens/colors'
@@ -210,6 +211,7 @@ import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
 const notices = useNotificationCenterStore()
+const preferences = usePreferencesStore()
 const channels = CHANNELS
 const categories = CATEGORY_FILTERS
 
@@ -282,10 +284,23 @@ function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
 // 筛选后内容不足一屏时不展示“上拉加载更多/已显示全部”，避免制造虚假操作预期。
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
-onMounted(() => { store.loadFirstPage() })
+function pitPreferenceSignature(): string {
+  const values = preferences.preferences.pitTypes
+  let signature = ''
+  for (let i = 0; i < values.length; i++) signature += `${values[i]}|`
+  return signature
+}
+let lastPitPreferenceSignature = pitPreferenceSignature()
+function refreshFeedIfPreferencesChanged() {
+  const next = pitPreferenceSignature()
+  if (next == lastPitPreferenceSignature) return
+  lastPitPreferenceSignature = next
+  store.loadFirstPage()
+}
+onMounted(() => { lastPitPreferenceSignature = pitPreferenceSignature(); store.loadFirstPage() })
 onReady(() => { refreshViewport() })
 onLoad(() => { initPageTheme() })
-onShow(() => { initPageTheme(); notices.reload() })
+onShow(() => { initPageTheme(); notices.reload(); refreshFeedIfPreferencesChanged() })
 
 // --- Spacing tokens (no gap) ---
 const CARD_PAIR_GAP = '20rpx'  // between two product cards
