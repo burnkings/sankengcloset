@@ -28,6 +28,6 @@ export async function searchProducts(keyword: string, cursor: string = ''): Prom
   }
   const page = response.page as UTSJSONObject | null
   result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
-  result.hasMore = page != null && page['hasMore'] === true
+  result.hasMore = page != null && page['hasMore'] == true
   return result
 }
