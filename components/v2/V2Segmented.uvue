@@ -45,7 +45,7 @@ function chipStyle(item: string) {
     return { height: '60rpx', paddingLeft: '8rpx', paddingRight: '8rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }
   }
   if (props.variant === 'soft') {
-    const bg = active ? n.value.surfacePink : n.value.surface
+    const bg = active ? brand[700] : n.value.surface
     return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius['2xl'], alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }
   }
   // solid
@@ -60,7 +60,7 @@ function chipText(item: string) {
     return { fontSize: fontSize.xs, fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: col }
   }
   if (props.variant === 'soft') {
-    const col = active ? (props.activeColor !== '' ? props.activeColor : brand[600]) : n.value.text
+    const col = active ? baseColors.white : n.value.text
     return { fontSize: fontSize.xs, fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: col }
   }
   const col = active ? baseColors.white : n.value.text
