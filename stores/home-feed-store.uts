@@ -70,11 +70,6 @@ export function formatDeadline(isoStr: string): string {
   return `距结束 ${Math.max(totalMin, 1)}分钟`
 }
 
-// ====== 内存上限 ======
-
-/** 全量缓存上限（约 3 屏），超限时丢弃最早加载的页 */
-const MAX_CACHED_ITEMS = 60
-
 // ====== Feed 行类型 ======
 
 export class FeedRow {
@@ -208,15 +203,8 @@ async function loadMore() {
     if (page.items.length === 0) {
       _state.hasMore = false
     } else {
-      // 追加新页，保留全量上限内的条目，丢弃最早的部分
-      const merged = [..._state.allItems, ...page.items]
-      if (merged.length > MAX_CACHED_ITEMS) {
-        // 按 createdAt 降序，保留最新的 MAX_CACHED_ITEMS 条
-        merged.sort((a, b) => a.createdAt < b.createdAt ? 1 : -1)
-        _state.allItems = merged.slice(0, MAX_CACHED_ITEMS)
-      } else {
-        _state.allItems = merged
-      }
+      // 追加新页到全量列表（不裁剪，避免分页追加的较旧数据被丢弃）
+      _state.allItems = [..._state.allItems, ...page.items]
       _state.currentPage += 1
       _state.hasMore = page.hasMore
     }

@@ -50,7 +50,7 @@ type SizeStyle = {
 
 const variantColors = computed((): VariantColor => {
   const v = props.variant
-  if (v === 'soft') return { bg: brand[300] as string, text: baseColors.white as string, border: brand[300] as string }
+  if (v === 'soft') return { bg: brand[300] as string, text: brand[700] as string, border: brand[300] as string }
   if (v === 'secondary') return { bg: accent[500] as string, text: baseColors.white as string, border: accent[500] as string }
   if (v === 'outline') return { bg: 'transparent', text: brand[500] as string, border: brand[500] as string }
   if (v === 'ghost') return { bg: 'transparent', text: brand[500] as string, border: 'transparent' }

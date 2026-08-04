@@ -36,7 +36,10 @@
 
         <view v-else>
           <V2SectionHeader :title="`搜索结果 · ${results.length}`" :compact="true" />
-          <view v-if="results.length > 0" :style="resultGrid">
+          <view v-if="searching && results.length === 0" :style="emptyWrap">
+            <text :style="emptyTitle">搜索中...</text>
+          </view>
+          <view v-else-if="results.length > 0" :style="resultGrid">
             <view v-for="(item, idx) in results" :key="item.id" :style="productShell(idx)">
               <V2ProductCard
                 :image="item.coverUrl"
@@ -62,8 +65,8 @@
 </template>
 
 <script setup lang="uts">
-import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
-import { formatPrice, formatDeadline, useHomeFeedStore } from '@/stores/home-feed-store'
+import { FeedItem } from '@/domain/content/feed-item'
+import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -75,6 +78,7 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
+import { searchProducts, SearchResult } from '@/services/content/search-service'
 
 function priceText(cents: number): string { return formatPrice(cents) }
 function deadlineText(iso: string): string { return formatDeadline(iso) }
@@ -82,8 +86,37 @@ function deadlineText(iso: string): string { return formatDeadline(iso) }
 const keyword = ref('')
 // 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
 const inputFocused = ref(false)
-const store = useHomeFeedStore()
-const sourceItems = computed((): FeedItem[] => store.allItems)
+
+// 服务端搜索结果 + 防抖
+const results = ref<FeedItem[]>([])
+const searching = ref(false)
+let searchTimer: number | null = null
+
+function runSearch(q: string) {
+  if (q.trim() === '') {
+    results.value = []
+    searching.value = false
+    return
+  }
+  searching.value = true
+  searchProducts(q)
+    .then((res: SearchResult) => {
+      results.value = res.items
+      searching.value = false
+    })
+    .catch(() => {
+      results.value = []
+      searching.value = false
+    })
+}
+
+watch(keyword, (val: string) => {
+  if (searchTimer != null) {
+    clearTimeout(searchTimer)
+    searchTimer = null
+  }
+  searchTimer = setTimeout(() => runSearch(val), 400)
+})
 
 // 最近搜索：本地存储，首次无记录时用设计稿示例填充
 function loadRecent(): string[] {
@@ -111,28 +144,6 @@ const hotRank: HotItem[] = [
   { keyword: '甜系 JK小物', heat: '7.1万' },
 ]
 
-function normalizedQuery(value: string): string {
-  let q = value.trim().toLowerCase()
-  q = q.replace('洛丽塔', 'lolita').replace('洛莉塔', 'lolita').replace('lo裙', 'lolita')
-  q = q.replace('水手服', 'jk').replace('格裙', 'jk').replace('制服', 'jk')
-  q = q.replace('华服', '汉服').replace('汉元素', '汉服')
-  return q
-}
-
-function itemSearchText(item: FeedItem): string {
-  const categoryLabel = item.category === 'HANFU' ? '汉服 华服 汉元素' : (item.category === 'LOLITA' ? 'lolita 洛丽塔 洛莉塔 lo裙' : 'jk 制服 水手服 格裙')
-  return `${item.title} ${item.brandName} ${item.subtitle} ${categoryLabel}`.toLowerCase()
-}
-
-const results = computed((): FeedItem[] => {
-  const q = normalizedQuery(keyword.value)
-  if (q === '') return []
-  return sourceItems.value.filter((item) => {
-    if (item.feedType !== FEED_PRODUCT) return false
-    return itemSearchText(item).includes(q)
-  })
-})
-
 function selectKeyword(value: string) {
   keyword.value = value
   const next = [value, ...recent.value.filter((k) => k !== value)].slice(0, 10)
@@ -151,7 +162,6 @@ function onResultTap(item: FeedItem) {
 }
 
 onMounted(() => {
-  if (store.state === 'idle' || store.state === 'error') store.loadFirstPage()
   try {
     const pending = uni.getStorageSync('pending_search_keyword') as string
     if (pending !== '') {
@@ -163,7 +173,7 @@ onMounted(() => {
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const inputFlex = { ...flexFill } as UTSJSONObject
-const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[300], flexShrink: 0, marginLeft: '16rpx' } as UTSJSONObject
+const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[600], flexShrink: 0, marginLeft: '16rpx' } as UTSJSONObject
 
 const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, gap: '16rpx', marginTop: '4rpx' } as UTSJSONObject
 function recentChip(idx: number) {

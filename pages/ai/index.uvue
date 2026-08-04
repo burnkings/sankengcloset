@@ -12,7 +12,7 @@
             <text :style="hintDesc">写清场合、预算或发售节点，先由本机规则给出可解释建议</text>
           </view>
 
-          <!-- 输入行：design 输入框 inputFill #E8E0D6 圆角24 + 发送 brand[300] #E891A8 圆 48 -->
+          <!-- 输入行：design 输入框 inputFill #E8E0D6 圆角24 + 发送 brand[600] 圆 48 白箭头 -->
           <view :style="composerWrap">
             <view :style="composerInput">
               <text :style="composerPlaceholder">例如:800元内的夏日茶会搭配</text>
@@ -110,7 +110,7 @@ const composerSend = {
   width: '88rpx',
   height: '88rpx',
   borderRadius: '9999rpx',
-  backgroundColor: brand[300],
+  backgroundColor: brand[600],
   alignItems: 'center',
   justifyContent: 'center',
   flexShrink: 0,

@@ -14,8 +14,8 @@
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
           <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
         </view>
-        <V2Segmented :items="pitTypes" :active="activePitType" variant="text" :active-color="brand[300]" @change="onPitTypeChange" />
-        <V2Segmented :items="topics" :active="activeTopic" variant="text" :active-color="brand[300]" @change="onTopicChange" />
+        <V2Segmented :items="pitTypes" :active="activePitType" variant="text" :active-color="brand[600]" @change="onPitTypeChange" />
+        <V2Segmented :items="topics" :active="activeTopic" variant="text" :active-color="brand[600]" @change="onTopicChange" />
         </view>
 
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
@@ -146,15 +146,15 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTE
 const mineTitleWrap = { marginBottom: '12rpx' }
 const mineTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
-const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '24rpx', backgroundColor: '#E8E0D6', marginBottom: '8rpx' }))
+const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginBottom: '8rpx' }))
 const composerIcon = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: baseColors.white, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const composerCopy = { ...flexFill }
 const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const composerDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '5rpx' }))
 const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }
 const composerButtonText = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
-const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2' }))
-const heroImage = { width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: '#E8DDD0' }
+const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
+const heroImage = { width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }
 const badge = { position: 'absolute' as string, left: '28rpx', top: '28rpx', height: '52rpx', paddingLeft: '16rpx', paddingRight: '20rpx', borderRadius: '26rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center' as string }
 const badgeDot = { width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: brand[500], marginRight: '8rpx' }
 const badgeText = { fontSize: '22rpx', color: n.value.text }

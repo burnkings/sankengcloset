@@ -14,7 +14,7 @@
           </view>
         </view>
         <V2SectionHeader title="提醒列表" :compact="true" />
-        <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[300]" @change="onFilter" />
+        <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[600]" @change="onFilter" />
         <AppLoading v-if="store.loading" />
         <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
         <view v-else :style="listWrap">
@@ -72,7 +72,7 @@ const focusStats = { alignItems: 'flex-end' }
 const focusMetaToday = computed((): any => ({ fontSize: '26rpx', fontWeight: fontWeight.medium, color: n.value.text, marginTop: '6rpx' }))
 const focusMetaOverdue = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const listWrap = { marginTop: '22rpx' }
-const reminderCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', marginBottom: '20rpx' }))
+const reminderCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '20rpx' }))
 const dateBlock = { width: '96rpx', marginRight: '20rpx', flexShrink: 0, alignItems: 'center' }
 const dateMain = computed((): any => ({ fontSize: '44rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const dateSub = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '4rpx' }))
@@ -83,5 +83,5 @@ function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fon
 const subLine = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[300], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 </script>

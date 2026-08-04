@@ -3,8 +3,11 @@
  */
 
 import { WishItem, WishUpdateData } from '@/domain/wish-item'
+import { getRuntimeConfig } from '@/config/runtime'
 
 const STORAGE_KEY = 'wishlist_items'
+/** 早期调试版种入的模板数据 id，读取时过滤，避免存量污染 */
+const TEMPLATE_IDS: string[] = ['w1', 'w2', 'w3', 'w4', 'w5', 'w6']
 
 function loadAll(): WishItem[] {
   try {
@@ -35,7 +38,12 @@ function loadAll(): WishItem[] {
       w.updatedAt = obj['updatedAt'] != null ? obj['updatedAt'] as string : ''
       result.push(w)
     }
-    return result
+    const cleaned: WishItem[] = []
+    for (let i = 0; i < result.length; i++) {
+      if (TEMPLATE_IDS.indexOf(result[i].id) >= 0) continue
+      cleaned.push(result[i])
+    }
+    return cleaned
   } catch {
     return []
   }
@@ -185,6 +193,7 @@ export function deleteMany(ids: string[]): number {
 }
 
 export function initMockData() {
+  if (!getRuntimeConfig().mockOnline) return
   const existing = loadAll()
   if (existing.length > 0) return
 

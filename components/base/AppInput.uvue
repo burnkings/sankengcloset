@@ -28,7 +28,7 @@
 
 <script setup lang="uts">
 import { semantic } from '@/theme/tokens/colors'
-import { semanticRadius } from '@/theme/tokens/radius'
+import { radius } from '@/theme/tokens/radius'
 import { fontSize } from '@/theme/tokens/typography'
 import { flexRowCenter } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
@@ -61,12 +61,14 @@ const wrapperStyle = computed((): any => ({
   height: '80rpx',
   paddingLeft: '28rpx',
   paddingRight: '24rpx',
-  borderRadius: semanticRadius.input,
-  backgroundColor: n.value.bgTertiary,
+  borderRadius: radius.full,
+  backgroundColor: n.value.surface,
+  borderWidth: '1rpx',
+  borderColor: n.value.border,
 }))
 const inputStyle = computed((): any => ({ flex: 1, height: '100%', minWidth: '0', fontSize: fontSize.base, color: n.value.text }))
 const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
-const prefixStyle = { width: '40rpx', height: '56rpx', alignItems: 'flex-start', justifyContent: 'center', marginRight: '14rpx', flexShrink: 0 }
+const prefixStyle = { width: '40rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center', marginRight: '14rpx', flexShrink: 0 }
 const suffixStyle = { marginLeft: '12rpx', flexShrink: 0 }
 // 56rpx 的独立点击热区，避免叉号边缘难点或事件落到 input。
 const clearStyle = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '8rpx', flexShrink: 0, zIndex: 2 }

@@ -15,7 +15,7 @@ export class FeedPage {
 /** 图片加载失败时使用统一占位标识，AppImage 组件内部处理错误展示 */
 const IMAGE_UNAVAILABLE = ''
 
-function mapFeedItem(raw: UTSJSONObject): FeedItem {
+export function mapFeedItem(raw: UTSJSONObject): FeedItem {
   const item = new FeedItem()
   item.id = raw['id'] != null ? raw['id'] as string : ''
   item.feedType = raw['feedType'] != null ? raw['feedType'] as string : 'product'

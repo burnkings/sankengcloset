@@ -11,7 +11,7 @@ const STORAGE_KEY = 'v2_user_preferences'
 
 // ====== 默认值 ======
 
-const DEFAULT_PIT_TYPES = ['JK', 'LOLITA', 'HANFU']
+const DEFAULT_PIT_TYPES = ['JK', 'Lolita', '汉服']
 const DEFAULT_CONTENT_TYPES = ['新品', '预约', '现货', '降价', '图透', '穿搭']
 const DEFAULT_PRICE_RANGE = 'all'
 
@@ -24,7 +24,23 @@ function readPreferences(): PreferencesData {
     const parsed = JSON.parse(raw as string) as UTSJSONObject
     if (parsed == null) return new PreferencesData()
     const data = new PreferencesData()
-    if (parsed['pitTypes'] != null) data.pitTypes = parsed['pitTypes'] as string[]
+    if (parsed['pitTypes'] != null) {
+      // 迁移旧存量值：LOLITA/HANFU（大写英文）→ Lolita/汉服（UI 文案）
+      const stored = parsed['pitTypes'] as string[]
+      const normalized = [] as string[]
+      for (let i = 0; i < stored.length; i++) {
+        const v = stored[i]
+        let target = v
+        if (v === 'LOLITA') {
+          target = 'Lolita'
+        } else if (v === 'HANFU') {
+          target = '汉服'
+        }
+        // 去重：老版本 toggle 可能产生重复条目（如 'LOLITA' 与 'Lolita' 并存），迁移后需收敛
+        if (normalized.indexOf(target) === -1) normalized.push(target)
+      }
+      data.pitTypes = normalized
+    }
     if (parsed['contentTypes'] != null) data.contentTypes = parsed['contentTypes'] as string[]
     if (parsed['followedBrands'] != null) data.followedBrands = parsed['followedBrands'] as string[]
     if (parsed['priceRange'] != null) data.priceRange = parsed['priceRange'] as string
@@ -140,7 +156,14 @@ function computeScore(item: FeedItem): number {
   // Category matches selected pit types: +100
   const pitTypes = prefs.pitTypes
   for (let i = 0; i < pitTypes.length; i++) {
-    if (item.category === pitTypes[i]) {
+    // pitTypes 存 UI 文案（JK/Lolita/汉服），FeedItem.category 为大写（JK/LOLITA/HANFU），归一化后再比较
+    let target = pitTypes[i]
+    if (target === 'Lolita') {
+      target = 'LOLITA'
+    } else if (target === '汉服') {
+      target = 'HANFU'
+    }
+    if (item.category === target) {
       score += 100
       break
     }

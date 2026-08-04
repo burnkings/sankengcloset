@@ -6,6 +6,8 @@ import { Reminder, ReminderUpdateData } from '@/domain/reminder'
 import { getRuntimeConfig } from '@/config/runtime'
 
 const STORAGE_KEY = 'reminder_items'
+/** 早期调试版种入的模板数据 id，读取时过滤，避免存量污染 */
+const TEMPLATE_IDS: string[] = ['r1', 'r2', 'r3', 'r4', 'r5']
 
 function loadAll(): Reminder[] {
   try {
@@ -31,7 +33,12 @@ function loadAll(): Reminder[] {
       r.updatedAt = obj['updatedAt'] != null ? obj['updatedAt'] as string : ''
       result.push(r)
     }
-    return result
+    const cleaned: Reminder[] = []
+    for (let i = 0; i < result.length; i++) {
+      if (TEMPLATE_IDS.indexOf(result[i].id) >= 0) continue
+      cleaned.push(result[i])
+    }
+    return cleaned
   } catch {
     return []
   }

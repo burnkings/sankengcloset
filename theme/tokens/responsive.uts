@@ -82,10 +82,10 @@ export const PAGE_HEADER_CONTENT_GAP = '24rpx'
 export const TAB_BAR_HEIGHT_NUM = 112
 /** TabBar 浮岛高度（包含 safe area 上方的呼吸间距不算在内；浮岛本身高度） */
 export const TAB_BAR_HEIGHT = '112rpx'
-/** 设计稿 18×18 → rpx */
-export const TAB_ICON_SIZE = '36rpx'
-/** 设计稿标签字号 → rpx */
-export const TAB_LABEL_FONT = '18rpx'
+/** 底部导航图标尺寸 — 放大至 44rpx，五图标视觉等高 */
+export const TAB_ICON_SIZE = '44rpx'
+/** 底部导航标签字号 */
+export const TAB_LABEL_FONT = '20rpx'
 /** 浮岛 + 浮岛底距 safe area 的间隙 + safe area + 32rpx 内容呼吸 */
 export const TAB_BAR_SAFE_BOTTOM = '34rpx'
 /** TabBar + safe area + 56rpx breathing room — 适配浮岛高度 */

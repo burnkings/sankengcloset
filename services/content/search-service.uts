@@ -1,0 +1,33 @@
+import { FeedItem } from '@/domain/content/feed-item'
+import { apiGet, encodeQuery } from '@/services/platform/api-client'
+import { mapFeedItem } from '@/services/content/feed-service'
+
+export class SearchResult {
+  items: FeedItem[] = []
+  nextCursor: string = ''
+  hasMore: boolean = false
+}
+
+/**
+ * 服务端商品搜索：GET /api/v1/search?q=<关键词>&cursor=<游标>&limit=20
+ * 后端 pg_trgm 相似度 + ILIKE 兜底，支持中文模糊匹配（如"洛丽塔"）。
+ * 返回字段与 feed 相同（id/feedType/entityId/title/coverUrl/price 等），
+ * 复用 feed-service 的 mapFeedItem 做 DTO 映射。
+ */
+export async function searchProducts(keyword: string, cursor: string = ''): Promise<SearchResult> {
+  const q = keyword.trim()
+  const result = new SearchResult()
+  if (q === '') return result
+  const path = `/api/v1/search?q=${encodeQuery(q)}&cursor=${encodeQuery(cursor)}&limit=20`
+  const response = await apiGet(path)
+  const rawItems = response.data as any[] | null
+  if (rawItems != null) {
+    for (let i = 0; i < rawItems.length; i++) {
+      result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
+    }
+  }
+  const page = response.page as UTSJSONObject | null
+  result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
+  result.hasMore = page != null && page['hasMore'] === true
+  return result
+}

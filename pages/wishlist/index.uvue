@@ -84,12 +84,12 @@ const addBtnStyle = {
 }
 const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 function itemCard(idx: number) {
-  return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', overflow: 'hidden' as string }
+  return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, overflow: 'hidden' as string }
 }
-const itemImage = { width: PRODUCT_CARD_WIDTH, height: '420rpx', backgroundColor: '#EDE7E1' }
+const itemImage = { width: PRODUCT_CARD_WIDTH, height: '420rpx', backgroundColor: n.value.bgTertiary }
 const itemBody = { padding: '20rpx' }
 const itemName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
-const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[300], marginTop: '8rpx' }
+const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[600], marginTop: '8rpx' }
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }
 const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }

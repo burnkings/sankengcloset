@@ -75,21 +75,21 @@ function openItem(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id
 onMounted(() => { store.fetchPurchases() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2' }))
+const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
 const summaryPrimary = { ...flexFill, justifyContent: 'center' }
 const summaryLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
 const summaryCount = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary, marginTop: '6rpx' }))
 const summaryAmount = { fontSize: '44rpx', fontWeight: fontWeight.semibold, color: brand[500], marginTop: '6rpx' }
 const summarySide = { alignItems: 'flex-end', justifyContent: 'center' }
 const sideLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
-const progressTrack = computed((): any => ({ width: '220rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: '#F0E8E2', overflow: 'hidden', marginTop: '12rpx' }))
+const progressTrack = computed((): any => ({ width: '220rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: n.value.cardBorder, overflow: 'hidden', marginTop: '12rpx' }))
 const progressFill = computed((): any => {
   const total = store.totalSpent > 0 ? store.totalSpent : 1
   const pct = Math.min(100, Math.round(store.remainingTotal / total * 100))
   return { width: `${pct}%`, height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[500] }
 })
 const listWrap = { marginTop: '22rpx' }
-const recordCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: '#F0E8E2', marginBottom: '20rpx' }))
+const recordCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '20rpx' }))
 const recordTop = { ...flexRow, alignItems: 'flex-start' }
 const recordCopy = { ...flexFill }
 const recordTitle = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))

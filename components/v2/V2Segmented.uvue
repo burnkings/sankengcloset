@@ -56,11 +56,11 @@ function chipStyle(item: string) {
 function chipText(item: string) {
   const active = item === props.active
   if (props.variant === 'text') {
-    const col = active ? (props.activeColor !== '' ? props.activeColor : brand[300]) : n.value.textSecondary
+    const col = active ? (props.activeColor !== '' ? props.activeColor : brand[600]) : n.value.textSecondary
     return { fontSize: fontSize.xs, fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: col }
   }
   if (props.variant === 'soft') {
-    const col = active ? (props.activeColor !== '' ? props.activeColor : brand[500]) : n.value.text
+    const col = active ? (props.activeColor !== '' ? props.activeColor : brand[600]) : n.value.text
     return { fontSize: fontSize.xs, fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: col }
   }
   const col = active ? baseColors.white : n.value.text

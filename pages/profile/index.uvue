@@ -191,7 +191,21 @@ function onSettingTap(id: string) {
 }
 
 onLoad(() => { initPageTheme() })
-onShow(() => { initPageTheme(); session.reload(); library.reload(); purchases.fetchPurchases(); reminders.fetchItems(); wardrobe.fetchItems() })
+
+// 原生 tabBar 保活后 onShow 每次切 Tab 都会触发；30 秒 TTL 去重，避免频繁全量重载
+let lastProfileReloadTs = 0
+const PROFILE_RELOAD_TTL_MS = 30 * 1000
+function reloadProfileData() {
+  const now = Date.now()
+  if (now - lastProfileReloadTs < PROFILE_RELOAD_TTL_MS) return
+  lastProfileReloadTs = now
+  session.reload()
+  library.reload()
+  purchases.fetchPurchases()
+  reminders.fetchItems()
+  wardrobe.fetchItems()
+}
+onShow(() => { initPageTheme(); reloadProfileData() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
