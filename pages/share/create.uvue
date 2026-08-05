@@ -42,7 +42,6 @@
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
@@ -66,6 +65,7 @@ const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服', '混搭']
 const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const library = useContentLibraryStore()
+const publishing = ref(false)
 
 function choosePhoto() {
   uni.chooseImage({
@@ -79,10 +79,12 @@ function choosePhoto() {
 }
 
 function publishLook() {
+  if (publishing.value) return
   if (selectedImage.value === '') {
     showFeedback('先选一张想分享的美照')
     return
   }
+  publishing.value = true
   const completePublish = (imagePath: string) => {
     library.saveOutfit(imagePath, caption.value, category.value, topic.value)
     showFeedback('已发布到圈子')
@@ -97,7 +99,7 @@ const previewWrap = { width: '686rpx', height: '560rpx', position: 'relative' as
 const replaceAction = computed((): any => ({ position: 'absolute', right: '20rpx', bottom: '20rpx', height: '64rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: radius.full, backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
 const replaceText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '8rpx' }))
 const uploadEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
-const uploadIcon = computed((): any => ({ width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }))
+const uploadIcon = { width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }
 const uploadTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx' }))
 const uploadDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
 const categoryRow = { ...flexRow, flexWrap: 'wrap' as string }
@@ -110,5 +112,4 @@ const publishButton = { width: '686rpx', height: '104rpx', borderRadius: '26rpx'
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
 </script>
-
 
