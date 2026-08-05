@@ -80,7 +80,7 @@
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -103,7 +103,6 @@ import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
-import { useHomeFeedStore } from '@/stores/home-feed-store'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
 // #endif
@@ -134,7 +133,6 @@ const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
 const prefs = usePreferencesStore()
-const homeFeed = useHomeFeedStore()
 
 // ====== 主题三态 Chip（跟随系统 / 浅色 / 深色，互斥） ======
 type ThemeModeOption = {
@@ -154,18 +152,34 @@ function onThemeModeTap(mode: string) {
 
 // ====== 坑向偏好 Chip（JK / Lolita / 汉服，可多选可全不选） ======
 const pitTypeOptions = ['JK', 'Lolita', '汉服']
-function isPitSelected(pit: string): boolean {
+const selectedPitTypes = ref<string[]>([])
+
+function syncSelectedPitTypes() {
+  const next = [] as string[]
   const values = prefs.preferences.pitTypes
+  for (let i = 0; i < values.length; i++) next.push(values[i])
+  selectedPitTypes.value = next
+}
+
+function isPitSelected(pit: string): boolean {
+  const values = selectedPitTypes.value
   for (let i = 0; i < values.length; i++) {
-    if (values[i] === pit) return true
+    if (values[i] == pit) return true
   }
   return false
 }
+
 function onPitToggle(pit: string) {
-  // store 内即时更新 reactive 状态（立即重渲染）并写入 v2_user_preferences
-  prefs.togglePitType(pit)
-  // 首页下次刷新按最新坑向转换为 API 分类参数重新请求
-  homeFeed.refreshPreferences()
+  const next = [] as string[]
+  const current = selectedPitTypes.value
+  for (let i = 0; i < current.length; i++) next.push(current[i])
+  const idx = next.indexOf(pit)
+  if (idx >= 0) next.splice(idx, 1)
+  else next.push(pit)
+
+  // 页面先立即重绘，再写入 Store；不在点击回调中重新读取 Storage 或发起 Feed 请求。
+  selectedPitTypes.value = next
+  prefs.setPitTypes(next)
 }
 
 function onEdit() { showFeedback('功能开发中') }
@@ -229,7 +243,7 @@ function onSettingTap(id: string) {
   if (id === 'logout') { logout(); return }
 }
 
-onLoad(() => { initPageTheme() })
+onLoad(() => { initPageTheme(); syncSelectedPitTypes() })
 
 // 原生 tabBar 保活后 onPageShow 每次切 Tab 都会触发；30 秒 TTL 去重，避免频繁全量重载
 let lastProfileReloadTs = 0
@@ -244,7 +258,7 @@ function reloadProfileData() {
   reminders.fetchItems()
   wardrobe.fetchItems()
 }
-onPageShow(() => { initPageTheme(); reloadProfileData() })
+onPageShow(() => { initPageTheme(); syncSelectedPitTypes(); reloadProfileData() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
