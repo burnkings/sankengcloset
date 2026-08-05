@@ -114,6 +114,26 @@ const searchError = ref('')
 let searchTimer: number | null = null
 let searchSequence = 0
 
+// 最近搜索：只展示用户真实搜索记录；首次进入为空。
+function loadRecent(): string[] {
+  try {
+    const raw = uni.getStorageSync('search_recent') as string
+    if (raw && raw.length) return JSON.parse(raw) as string[]
+  } catch (e) {}
+  return []
+}
+const recent = ref<string[]>(loadRecent())
+function saveRecent() {
+  try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
+}
+function addRecent(value: string) {
+  const normalized = value.trim()
+  if (normalized === '') return
+  const next = [normalized, ...recent.value.filter((k) => k !== normalized)].slice(0, 10)
+  recent.value = next
+  saveRecent()
+}
+
 function runSearch(q: string) {
   const normalized = q.trim()
   if (normalized === '') {
@@ -162,26 +182,6 @@ watch(keyword, (val: string) => {
     runSearch('')
   }
 })
-
-// 最近搜索：只展示用户真实搜索记录；首次进入为空。
-function loadRecent(): string[] {
-  try {
-    const raw = uni.getStorageSync('search_recent') as string
-    if (raw && raw.length) return JSON.parse(raw) as string[]
-  } catch (e) {}
-  return []
-}
-const recent = ref<string[]>(loadRecent())
-function saveRecent() {
-  try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
-}
-function addRecent(value: string) {
-  const normalized = value.trim()
-  if (normalized === '') return
-  const next = [normalized, ...recent.value.filter((k) => k !== normalized)].slice(0, 10)
-  recent.value = next
-  saveRecent()
-}
 
 // 热门搜索：design 编号榜 + 热度
 type HotItem = {

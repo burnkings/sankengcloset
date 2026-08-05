@@ -146,7 +146,7 @@ export function syncTabBarChrome() {
   lastTabBarMode = mode
   uni.setTabBarStyle({
     color: _state.isDark ? neutralDark.textTertiary : neutralLight.textTertiary,
-    selectedColor: brand[600],
+    selectedColor: brand[600] as string,
     backgroundColor: _state.isDark ? neutralDark.surface : neutralLight.surface,
     borderStyle: _state.isDark ? 'white' : 'black',
     fail: () => { lastTabBarMode = '' },
