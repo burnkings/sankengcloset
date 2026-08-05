@@ -292,6 +292,8 @@ const statusBarPad = computed((): any => ({ height: `${statusBarH}px` }))
 const layer1 = {
   height: '96rpx', ...flexRow, alignItems: 'center',
   justifyContent: 'space-between',
+  paddingLeft: PAGE_GUTTER_REGULAR,
+  paddingRight: PAGE_GUTTER_REGULAR,
 }
 const brandText = computed((): any => ({
   fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[500],

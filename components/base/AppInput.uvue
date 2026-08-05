@@ -62,9 +62,9 @@ const wrapperStyle = computed((): any => ({
   paddingLeft: '28rpx',
   paddingRight: '24rpx',
   borderRadius: radius.full,
-  backgroundColor: n.value.surface,
-  borderWidth: '1rpx',
-  borderColor: n.value.border,
+  backgroundColor: n.value.inputFill,
+  borderWidth: '0',
+  borderColor: 'transparent',
 }))
 const inputStyle = computed((): any => ({ flex: 1, height: '100%', minWidth: '0', fontSize: fontSize.base, color: n.value.text }))
 const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)

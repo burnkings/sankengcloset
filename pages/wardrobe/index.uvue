@@ -33,7 +33,7 @@
       </view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><text :style="fabText">+</text></view>
+  <AppFab @tap="goAdd" />
 </template>
 
 <script setup lang="uts">
@@ -51,11 +51,10 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import AppFab from '@/components/base/AppFab.uvue'
 import { showFeedback } from '@/utils/feedback'
-import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWardrobeStore()
-const safeBottom = getSafeBottomInset()
 const searchValue = ref('')
 const activeFilter = ref('全部')
 const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
@@ -80,8 +79,6 @@ onShow(() => { store.fetchItems() })
   watch(searchValue, (value: string) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const fabStyle = { position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 64}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', zIndex: 100 }
-const fabText = { fontSize: '58rpx', lineHeight: '64rpx', fontWeight: fontWeight.regular, color: '#FFFFFF', textAlign: 'center' }
 const statsCard = { borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' } as UTSJSONObject
 const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as UTSJSONObject
 const statsTitle = { fontSize: '31rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
@@ -122,7 +119,7 @@ const sortBadgeText = computed((): any => ({ fontSize: fontSize.xs, color: n.val
 const filterBadge = { minWidth: '32rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', paddingLeft: '8rpx', paddingRight: '8rpx', marginLeft: '8rpx' }
 const filterBadgeText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: baseColors.white }
 const grid = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '22rpx' }
-function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const imageWrap = { width: '325rpx', height: '390rpx' }
 const cardBody = { padding: '18rpx' }
 const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))

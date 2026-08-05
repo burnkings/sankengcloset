@@ -22,23 +22,15 @@
         </view>
 
         <V2SectionHeader title="我的服务" />
-        <view :style="closetCard" @tap="goPage('/pages/wardrobe/index')">
-          <view :style="closetCopy">
-            <view :style="closetTop"><AppIcon name="wardrobe" :size="44" :active="true" /><text :style="closetLabel">衣橱</text></view>
-            <text :style="closetValue">{{ wardrobe.itemCount }} 件心爱单品</text>
-            <text :style="closetDesc">JK Lolita 与汉服正在等你搭配</text>
-          </view>
-          <view :style="closetImage"><AppImage src="/static/demo/prod-editorial-01.jpg" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
-        </view>
-
         <view :style="manageRow">
           <view v-for="(item, idx) in manageItems" :key="item.id" :style="manageCard(idx)" @tap="onManageTap(item.id)">
-            <AppIcon :name="item.icon" :size="40" :active="item.id === 'budget'" />
-            <text :style="manageLabel">{{ item.label }}</text>
-            <text :style="manageValue">{{ item.value }}</text>
+            <view :style="manageIconWrap"><AppIcon :name="item.icon" :size="38" :active="true" /></view>
+            <view :style="manageCopy"><text :style="manageLabel">{{ item.label }}</text><text :style="manageValue">{{ item.value }}</text></view>
+            <AppIcon name="chevron-right" :size="28" />
           </view>
         </view>
 
+        <V2SectionHeader title="我的内容" />
         <view :style="outfitAssetCard" @tap="openMyPosts">
           <view :style="outfitAssetIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
           <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的动态</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
@@ -47,8 +39,29 @@
 
         <V2SectionHeader title="设置" />
         <V2ListGroup>
-          <view v-for="(item, idx) in settingsGroup" :key="item.id" :style="settingShell(idx, settingsGroup.length)" @tap="onSettingTap(item.id)">
-            <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
+          <view :style="settingShell(0, 3)">
+            <view @tap="toggleSettingsPanel('dark')"><V2ListRow icon="moon" label="深色模式" :value="getThemeLabel()" /></view>
+            <view v-if="openSettingsPanel === 'dark'" :style="dropdownPanel">
+              <view v-for="option in themeOptions" :key="option.value" :style="dropdownChoice(themeMode == option.value)" @tap.stop="chooseTheme(option.value)">
+                <text :style="dropdownChoiceText(themeMode == option.value)">{{ option.label }}</text>
+                <text v-if="themeMode == option.value" :style="selectedMark">✓</text>
+              </view>
+            </view>
+          </view>
+          <view :style="settingShell(1, 3)">
+            <view @tap="toggleSettingsPanel('preferences')"><V2ListRow icon="heart" label="推荐偏好" :value="preferenceSummary" /></view>
+            <view v-if="openSettingsPanel === 'preferences'" :style="dropdownPanel">
+              <text :style="dropdownHint">可多选；不选择表示全部坑向</text>
+              <view :style="preferenceChipRow">
+                <view v-for="(item, idx) in preferenceOptions" :key="item" :style="preferenceChip(idx, item)" @tap.stop="togglePreferenceDraft(item)">
+                  <text :style="preferenceChipText(item)">{{ item }}</text>
+                </view>
+              </view>
+              <view :style="savePreferenceButton" @tap.stop="savePreferenceDraft"><text :style="savePreferenceText">保存偏好</text></view>
+            </view>
+          </view>
+          <view :style="settingShell(2, 3)" @tap="onSettingTap('notification')">
+            <V2ListRow icon="notification" label="通知设置" />
           </view>
         </V2ListGroup>
 
@@ -74,10 +87,9 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, themeMode, initPageTheme, toggleDarkMode, getThemeLabel } from '@/theme/use-theme'
+import { n, isDark, themeMode, initPageTheme, setThemeMode, getThemeLabel, ThemeMode } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppImage from '@/components/base/AppImage.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
@@ -89,6 +101,7 @@ import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
+import { usePreferencesStore } from '@/stores/preferences-store'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
@@ -119,6 +132,62 @@ const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
+const preferences = usePreferencesStore()
+const openSettingsPanel = ref('')
+const preferenceDraft = ref<string[]>([])
+
+class ThemeOption {
+  value: ThemeMode = 'system'
+  label: string = ''
+}
+function createThemeOption(value: ThemeMode, label: string): ThemeOption {
+  const option = new ThemeOption()
+  option.value = value
+  option.label = label
+  return option
+}
+const themeOptions: ThemeOption[] = [
+  createThemeOption('system', '跟随系统'),
+  createThemeOption('light', '浅色'),
+  createThemeOption('dark', '深色'),
+]
+const preferenceOptions = ['JK', 'Lolita', '汉服']
+const preferenceSummary = computed((): string => {
+  const values = preferences.preferences.pitTypes
+  return values.length == 0 ? '全部' : values.join('、')
+})
+
+function toggleSettingsPanel(id: string) {
+  if (openSettingsPanel.value == id) { openSettingsPanel.value = ''; return }
+  openSettingsPanel.value = id
+  if (id == 'preferences') {
+    const values = [] as string[]
+    const stored = preferences.preferences.pitTypes
+    for (let i = 0; i < stored.length; i++) values.push(stored[i])
+    preferenceDraft.value = values
+  }
+}
+function chooseTheme(mode: ThemeMode) {
+  setThemeMode(mode)
+  openSettingsPanel.value = ''
+}
+function isPreferenceDraftSelected(item: string): boolean { return preferenceDraft.value.indexOf(item) >= 0 }
+function togglePreferenceDraft(item: string) {
+  const values = [...preferenceDraft.value]
+  const idx = values.indexOf(item)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.push(item)
+  preferenceDraft.value = values
+}
+function savePreferenceDraft() {
+  let values = [] as string[]
+  if (preferenceDraft.value.length != preferenceOptions.length) {
+    for (let i = 0; i < preferenceDraft.value.length; i++) values.push(preferenceDraft.value[i])
+  }
+  preferences.setPitTypes(values)
+  openSettingsPanel.value = ''
+  showFeedback('推荐偏好已保存')
+}
 
 function onEdit() { showFeedback('功能开发中') }
 function goLogin() {
@@ -134,21 +203,14 @@ function logout() {
 function goPage(url: string) { uni.navigateTo({ url }) }
 function openMyPosts() { uni.navigateTo({ url: '/pages/community/mine' }) }
 function onManageTap(id: string) {
+  if (id === 'wardrobe') goPage('/pages/wardrobe/index')
   if (id === 'favorites') goPage('/pages/wishlist/index')
   if (id === 'orders') goPage('/pages/purchase/index')
   if (id === 'reminders') goPage('/pages/reminder/index')
   if (id === 'budget') goPage('/pages/budget/index')
 }
 function onSettingTap(id: string) {
-  if (id === 'dark') {
-    toggleDarkMode()
-    return
-  }
   if (id === 'notification') { showFeedback('功能开发中'); return }
-  if (id === 'preferences') {
-    uni.navigateTo({ url: '/pages/preferences/index' })
-    return
-  }
   if (id === 'privacy') {
     showFeedback('功能开发中')
     return
@@ -166,20 +228,11 @@ function onSettingTap(id: string) {
     return
   }
   if (id === 'cache') {
+    const cacheKeys = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic']
     try {
-      const info = uni.getStorageInfoSync()
-      const keys = info.keys
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i]
-        // 保留用户偏好和登录状态
-        if (key.indexOf('v2_library_') === 0) continue
-        if (key.indexOf('v2_user_preferences') === 0) continue
-        if (key.indexOf('theme') >= 0) continue
-        if (key.indexOf('login') >= 0) continue
-        uni.removeStorageSync(key)
-      }
+      for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i])
     } catch (e) {}
-    showFeedback('缓存已清理')
+    showFeedback('缓存已清理，账号与个人数据已保留')
     return
   }
   if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
@@ -217,14 +270,6 @@ const accountId = computed((): any => ({ fontSize: fontSize.xs, color: n.value.t
 const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
 const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
 
-const closetCard = computed((): any => ({ ...flexRow, alignItems: 'center', height: '208rpx', paddingLeft: CARD_PADDING, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: isDark.value ? n.value.surfaceWarm : brand[50] }))
-const closetCopy = { ...flexFill }
-const closetTop = { ...flexRow, alignItems: 'center' }
-const closetLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isDark.value ? brand[300] : brand[700], marginLeft: '12rpx' }))
-const closetValue = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, marginTop: '14rpx' }))
-const closetDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', lines: 1, textOverflow: 'ellipsis' }))
-const closetImage = { width: '196rpx', height: '176rpx', marginRight: '16rpx', borderRadius: '16rpx', overflow: 'hidden', flexShrink: 0 }
-
 class ManageItem {
   id: string = ''
   icon: string = ''
@@ -242,16 +287,19 @@ function createManageItem(id: string, icon: string, label: string, value: string
 }
 
 const manageItems = computed(() => [
-  createManageItem('favorites', 'wardrobe', '愿望单', `${library.favoriteCount} 件`),
+  createManageItem('wardrobe', 'wardrobe', '衣橱', `${wardrobe.itemCount} 件`),
+  createManageItem('favorites', 'heart', '愿望单', `${library.favoriteCount} 件`),
   createManageItem('orders', 'order', '购买记录', `${purchases.itemCount} 笔`),
   createManageItem('reminders', 'reminder', '提醒', `${reminders.pendingCount} 条待办`),
   createManageItem('budget', 'budget', '预算', budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置'),
 ])
-const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '20rpx' }
-function manageCard(idx: number) { return { width: '325rpx', height: '142rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
-const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
-const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
-const outfitAssetCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginTop: '24rpx' }))
+const manageRow = { ...flexRow, flexWrap: 'wrap' as string }
+function manageCard(idx: number) { return { ...flexRow, alignItems: 'center', width: '325rpx', height: '116rpx', flexShrink: 0, paddingLeft: '18rpx', paddingRight: '14rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+const manageIconWrap = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '14rpx', flexShrink: 0 }))
+const manageCopy = { ...flexFill }
+const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '5rpx' }))
+const outfitAssetCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
 const outfitAssetIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -259,9 +307,6 @@ const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.
 
 const settingsItems = computed(() => {
   const items: SettingsItem[] = [
-    createSettingsItem('dark', 'moon', '深色模式', getThemeLabel(), 'settings'),
-    createSettingsItem('preferences', 'heart', '推荐偏好', '', 'settings'),
-    createSettingsItem('notification', 'notification', '通知设置', '', 'settings'),
     createSettingsItem('privacy', 'info', '隐私与权限', '', 'about'),
     createSettingsItem('agreement', 'info', '用户协议', '', 'about'),
     createSettingsItem('policy', 'info', '隐私政策', '', 'about'),
@@ -272,7 +317,16 @@ const settingsItems = computed(() => {
   if (session.isLoggedIn) items.push(createSettingsItem('logout', 'profile', '退出登录', '', 'about'))
   return items
 })
-const settingsGroup = computed(() => settingsItems.value.filter((item) => item.section === 'settings'))
 const aboutGroup = computed(() => settingsItems.value.filter((item) => item.section === 'about'))
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+const dropdownPanel = computed((): any => ({ paddingLeft: '20rpx', paddingRight: '20rpx', paddingBottom: '20rpx', backgroundColor: n.value.surface }))
+function dropdownChoice(selected: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '18rpx', backgroundColor: selected ? n.value.surfacePink : n.value.bgSecondary, marginTop: '8rpx' } }
+function dropdownChoiceText(selected: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: selected ? fontWeight.semibold : fontWeight.regular, color: selected ? brand[700] : n.value.textSecondary } }
+const selectedMark = { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: brand[600] }
+const dropdownHint = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx', marginBottom: '12rpx' }))
+const preferenceChipRow = { ...flexRow, alignItems: 'center' }
+function preferenceChip(idx: number, item: string) { const selected = isPreferenceDraftSelected(item); return { ...flexFill, height: '68rpx', borderRadius: '20rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? (brand[500] as string) : n.value.bgSecondary, marginRight: idx < preferenceOptions.length - 1 ? '12rpx' : '0' } }
+function preferenceChipText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: isPreferenceDraftSelected(item) ? baseColors.white : n.value.textSecondary } }
+const savePreferenceButton = { height: '76rpx', borderRadius: '22rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', marginTop: '18rpx' }
+const savePreferenceText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

@@ -186,6 +186,13 @@ function removeOutfit(id: string) {
   if (idx >= 0) ids.splice(idx, 1)
   writeList(OUTFIT_IDS_KEY, ids)
   removeOutfitStorage(id)
+  const liked = [..._state.likedPostIds]
+  const likedIdx = liked.indexOf(id)
+  if (likedIdx >= 0) {
+    liked.splice(likedIdx, 1)
+    _state.likedPostIds = liked
+    writeList(LIKED_POST_IDS_KEY, liked)
+  }
   enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
   reload()
 }

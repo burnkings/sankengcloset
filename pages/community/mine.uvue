@@ -9,8 +9,9 @@
           <text :style="emptyDesc">发布后的内容会集中显示在这里</text>
         </view>
         <view v-for="post in library.outfitPosts" :key="post.id" :style="postCard">
-          <view :style="imageWrap"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
+          <view :style="imageWrap" @tap="previewPostImage(post.image)"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
           <view :style="bodyStyle">
+            <view :style="postHeader"><text :style="postTimeStyle">{{ postTime(post.createdAt) }}</text><text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text></view>
             <text :style="captionStyle">{{ post.caption !== '' ? post.caption : '今天也认真搭配了' }}</text>
             <view :style="metaRow">
               <view :style="tagRow"><text :style="topicStyle">#{{ post.topic }}</text><text :style="categoryStyle">{{ post.category }}</text></view>
@@ -34,16 +35,54 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
+import { showFeedback } from '@/utils/feedback'
 
 const library = useContentLibraryStore()
+const pendingDeleteId = ref('')
+const nowTs = ref(Date.now())
+let clockTimer: number | null = null
 function toggleLike(id: string) { library.togglePostLike(id) }
+function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
+function deletePost(id: string) {
+  if (pendingDeleteId.value != id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
+  library.removeOutfit(id)
+  pendingDeleteId.value = ''
+  showFeedback('动态已删除')
+}
+function postTime(createdAt: string): string {
+  if (createdAt == '') return '刚刚'
+  const timestamp = parseInt(createdAt)
+  if (isNaN(timestamp)) return '刚刚'
+  const minutes = Math.floor(Math.max(0, nowTs.value - timestamp) / 60000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  return days < 30 ? `${days}天前` : `${Math.floor(days / 30)}个月前`
+}
+function startClock() {
+  nowTs.value = Date.now()
+  if (clockTimer != null) return
+  clockTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
+}
+function stopClock() {
+  const timer = clockTimer
+  if (timer != null) clearInterval(timer)
+  clockTimer = null
+}
 onLoad(() => { initPageTheme() })
-onShow(() => { initPageTheme(); library.reload() })
+onShow(() => { initPageTheme(); library.reload(); startClock() })
+onHide(() => { stopClock() })
+onUnload(() => { stopClock() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const postCard = computed((): any => ({ marginBottom: '24rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
 const imageWrap = { width: '670rpx', height: '470rpx', backgroundColor: n.value.bgTertiary }
 const bodyStyle = { padding: CARD_PADDING }
+const postHeader = { ...flexRow, alignItems: 'center', justifyContent: 'flex-end', marginBottom: '10rpx' }
+const postTimeStyle = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary }))
+function deleteText(id: string) { return { fontSize: fontSize.xs, color: pendingDeleteId.value == id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 const captionStyle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
 const metaRow = { ...flexRow, alignItems: 'center', marginTop: '16rpx' }
 const tagRow = { ...flexFill, ...flexRow, alignItems: 'center' }

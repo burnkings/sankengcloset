@@ -18,26 +18,26 @@
           <text :style="filterLabel">筛选</text>
           <view :style="filterSpacer" />
           <view :style="dropdownWrap">
-            <view :style="dropdownButton" @tap="toggleMenu('topic')"><text :style="dropdownText">主题 · {{ activeTopic }}</text><text :style="dropdownArrow">⌄</text></view>
-            <view v-if="activeMenu === 'topic'" :style="dropdownMenu">
-              <text v-for="item in topics" :key="item" :style="dropdownOption(item === activeTopic)" @tap="chooseTopic(item)">{{ item }}</text>
-            </view>
+            <view :style="dropdownButton" @tap="toggleMenu('topic')"><text :style="dropdownText">主题 · {{ activeTopic }}</text><text :style="dropdownArrow">▾</text></view>
           </view>
           <view :style="dropdownWrapPit">
-            <view :style="dropdownButton" @tap="toggleMenu('pit')"><text :style="dropdownText">坑向 · {{ activePitType }}</text><text :style="dropdownArrow">⌄</text></view>
-            <view v-if="activeMenu === 'pit'" :style="dropdownMenu">
-              <text v-for="item in pitTypes" :key="item" :style="dropdownOption(item === activePitType)" @tap="choosePit(item)">{{ item }}</text>
-            </view>
+            <view :style="dropdownButton" @tap="toggleMenu('pit')"><text :style="dropdownText">坑向 · {{ activePitType }}</text><text :style="dropdownArrow">▾</text></view>
+          </view>
+        </view>
+        <view v-if="activeMenu != ''" :style="dropdownMenu">
+          <view v-for="item in activeMenuOptions" :key="item" :style="dropdownOption(item)" @tap.stop="chooseFilter(item)">
+            <text :style="dropdownOptionText(item)">{{ item }}</text>
+            <text v-if="isActiveFilter(item)" :style="dropdownCheck">✓</text>
           </view>
         </view>
         </view>
 
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+          <view :style="heroImage" @tap="previewPostImage(look.image)"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
           </view>
           <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">{{ postTime(look.createdAt) }}</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId == look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
             <view :style="lookMeta"><view :style="ownMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ ownLikeCount(look.id) }}</text></view></view>
           </view>
@@ -45,7 +45,7 @@
 
         <view v-if="viewMode !== 'mine'">
         <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+          <view :style="heroImage" @tap="previewPostImage(look.image)"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
           </view>
           <view :style="lookBody">
@@ -125,10 +125,16 @@ const visibleUserLooks = computed((): SavedOutfitPost[] => {
   }
   return result
 })
-function toggleMenu(menu: string) { activeMenu.value = activeMenu.value === menu ? '' : menu }
-function chooseTopic(topic: string) { activeTopic.value = topic; activeMenu.value = '' }
-function choosePit(pit: string) { activePitType.value = pit; activeMenu.value = '' }
+const activeMenuOptions = computed((): string[] => activeMenu.value == 'topic' ? topics : pitTypes)
+function toggleMenu(menu: string) { activeMenu.value = activeMenu.value == menu ? '' : menu }
+function isActiveFilter(item: string): boolean { return activeMenu.value == 'topic' ? activeTopic.value == item : activePitType.value == item }
+function chooseFilter(item: string) {
+  if (activeMenu.value == 'topic') activeTopic.value = item
+  else activePitType.value = item
+  activeMenu.value = ''
+}
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
+function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
 function toggleLike(id: string) { library.togglePostLike(id) }
 function likeCount(id: string, baseCount: number): number { return baseCount + (library.isPostLiked(id) ? 1 : 0) }
 function ownLikeCount(id: string): number { return library.isPostLiked(id) ? 1 : 0 }
@@ -138,10 +144,35 @@ function deleteOwnPost(id: string) {
   pendingDeleteId.value = ''
   showFeedback('圈子动态已删除')
 }
+const nowTs = ref(Date.now())
+let clockTimer: number | null = null
+function postTime(createdAt: string): string {
+  if (createdAt == '') return '刚刚'
+  const timestamp = parseInt(createdAt)
+  if (isNaN(timestamp)) return '刚刚'
+  const minutes = Math.floor(Math.max(0, nowTs.value - timestamp) / 60000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  return days < 30 ? `${days}天前` : `${Math.floor(days / 30)}个月前`
+}
+function startClock() {
+  nowTs.value = Date.now()
+  if (clockTimer != null) return
+  clockTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
+}
+function stopClock() {
+  const timer = clockTimer
+  if (timer != null) clearInterval(timer)
+  clockTimer = null
+}
 onLoad(() => { initPageTheme() })
 onShow(() => {
   initPageTheme()
   library.reload()
+  startClock()
   try {
     const pendingView = uni.getStorageSync('community_view') as string
     if (pendingView !== '') {
@@ -157,6 +188,8 @@ onShow(() => {
     }
   } catch (e) {}
 })
+onHide(() => { stopClock() })
+onUnload(() => { stopClock() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const mineTitleWrap = { marginBottom: '12rpx' }
@@ -177,8 +210,10 @@ const dropdownWrapPit = { position: 'relative' as string, marginLeft: '12rpx' }
 const dropdownButton = computed((): any => ({ ...flexRow, alignItems: 'center', height: '60rpx', paddingLeft: '18rpx', paddingRight: '14rpx', borderRadius: '30rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
 const dropdownText = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
 const dropdownArrow = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary, marginLeft: '8rpx' }))
-const dropdownMenu = computed((): any => ({ position: 'absolute' as string, right: '0', top: '68rpx', minWidth: '180rpx', paddingTop: '8rpx', paddingBottom: '8rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, zIndex: 30 }))
-function dropdownOption(active: boolean) { return { minHeight: '64rpx', paddingLeft: '22rpx', paddingRight: '22rpx', fontSize: '24rpx', fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: active ? brand[600] : n.value.text, textAlignVertical: 'center' as string } }
+const dropdownMenu = computed((): any => ({ width: '230rpx', alignSelf: 'flex-end', padding: '8rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginTop: '4rpx', marginBottom: '8rpx' }))
+function dropdownOption(item: string) { return { ...flexRow, alignItems: 'center', minHeight: '62rpx', paddingLeft: '16rpx', paddingRight: '14rpx', borderRadius: '14rpx', backgroundColor: isActiveFilter(item) ? n.value.surfacePink : n.value.surface } }
+function dropdownOptionText(item: string) { return { ...flexFill, fontSize: '23rpx', fontWeight: isActiveFilter(item) ? fontWeight.semibold : fontWeight.regular, color: isActiveFilter(item) ? brand[700] : n.value.textSecondary } }
+const dropdownCheck = { fontSize: '22rpx', fontWeight: fontWeight.bold, color: brand[600] as string }
 const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
 const heroImage = { width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }
 const badge = { position: 'absolute' as string, left: '28rpx', top: '28rpx', height: '52rpx', paddingLeft: '16rpx', paddingRight: '20rpx', borderRadius: '26rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center' as string }
@@ -197,5 +232,5 @@ const topicText = { fontSize: '24rpx', color: brand[500], marginTop: '10rpx' }
 const likeAction = { ...flexRow, alignItems: 'center', minWidth: '76rpx', height: '52rpx', justifyContent: 'flex-end' }
 function likeText(id: string) { return { fontSize: '24rpx', color: library.isPostLiked(id) ? brand[500] : n.value.textTertiary, marginLeft: '6rpx' } }
 const categoryText = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary, marginTop: '10rpx' }))
-function deleteOwnText(id: string) { return { fontSize: '20rpx', color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
+function deleteOwnText(id: string) { return { fontSize: '20rpx', color: pendingDeleteId.value == id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 </script>

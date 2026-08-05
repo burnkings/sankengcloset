@@ -8,6 +8,7 @@
       <AppLoading v-if="store.loading" />
 
       <scroll-view v-else :style="scrollStyle">
+        <view class="page-canvas" :style="pageWrap">
         <V2Segmented :items="viewTabs" :active="activeTab" variant="soft" :active-color="brand[500]" @change="onTab" />
 
         <view v-if="viewItems.length === 0" :style="emptyWrap">
@@ -28,10 +29,11 @@
         </view>
 
         <view :style="bottomSpacer" />
+        </view>
       </scroll-view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="onAddTap"><text :style="fabText">+</text></view>
+  <AppFab @tap="onAddTap" />
 </template>
 
 <script setup lang="uts">
@@ -40,17 +42,16 @@ import { WishDisplayModel } from '@/domain/wish-presenter'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, PAGE_GUTTER_REGULAR, PRODUCT_CARD_WIDTH, GROUP_GAP } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR, PRODUCT_CARD_WIDTH, GROUP_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
-import { getSafeBottomInset } from '@/utils/window-info'
+import AppFab from '@/components/base/AppFab.uvue'
 
 const store = useWishListStore()
-const safeBottom = getSafeBottomInset()
 const viewTabs = ['商品', '搭配', '品牌']
 const activeTab = ref('商品')
 function onTab(label: string) { activeTab.value = label }
@@ -76,18 +77,17 @@ const scrollStyle = {
   flex: 1,
   backgroundColor: n.value.bg,
 }
-const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx' }
 function itemCard(idx: number) {
-  return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, overflow: 'hidden' as string }
+  return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, overflow: 'hidden' as string }
 }
 const itemImage = { width: PRODUCT_CARD_WIDTH, height: '420rpx', backgroundColor: n.value.bgTertiary }
 const itemBody = { padding: '20rpx' }
 const itemName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
 const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[600], marginTop: '8rpx' }
-const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }
 const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }
 const bottomSpacer = { height: '60rpx' }
-const fabStyle = { position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 64}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', zIndex: 100 }
-const fabText = { fontSize: '58rpx', lineHeight: '64rpx', fontWeight: fontWeight.regular, color: '#FFFFFF', textAlign: 'center' }
 </script>

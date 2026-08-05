@@ -39,7 +39,7 @@
       </view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><text :style="fabText">+</text></view>
+  <AppFab @tap="goAdd" />
 </template>
 
 <script setup lang="uts">
@@ -55,10 +55,9 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
-import { getSafeBottomInset } from '@/utils/window-info'
+import AppFab from '@/components/base/AppFab.uvue'
 
 const store = usePurchaseStore()
-const safeBottom = getSafeBottomInset()
 const activeFilter = ref('全部')
 const filters = ['全部', '预售中', '已付定金', '待付款', '已完成']
 function onFilter(label: string) {
@@ -103,6 +102,4 @@ const noteText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const dueText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 64}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
-const fabText = { fontSize: '58rpx', lineHeight: '64rpx', fontWeight: fontWeight.regular, color: '#FFFFFF', textAlign: 'center' }
 </script>

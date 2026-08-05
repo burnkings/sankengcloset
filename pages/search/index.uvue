@@ -1,7 +1,7 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
     <template #navbar>
-      <AppNavbar :show-back="true">
+      <AppNavbar :show-back="true" :wide-center="true">
         <template #default>
           <view :style="inputFlex">
             <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit" @clear="onClear">
@@ -206,7 +206,7 @@ onMounted(() => {
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const inputFlex = { ...flexFill } as UTSJSONObject
-const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[600], flexShrink: 0, marginLeft: '16rpx' } as UTSJSONObject
+const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[600] as string, flexShrink: 0, marginLeft: '8rpx' } as UTSJSONObject
 
 const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, gap: '16rpx', marginTop: '4rpx' } as UTSJSONObject
 function recentChip(idx: number) {
