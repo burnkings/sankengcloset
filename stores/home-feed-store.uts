@@ -29,7 +29,7 @@ export function formatPrice(cents: number): string {
   if (cents <= 0) return ''
   const yuan = cents / 100
   if (yuan >= 10000) return `¥${(yuan / 10000).toFixed(1)}万`
-  if (yuan === Math.floor(yuan)) return `¥${Math.floor(yuan)}`
+  if (yuan == Math.floor(yuan)) return `¥${Math.floor(yuan)}`
   return `¥${yuan.toFixed(2)}`
 }
 
@@ -90,7 +90,7 @@ function createSingleRow(item: FeedItem): FeedRow {
 
 function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
   const row = new FeedRow()
-  row.id = right !== null ? `row-${left.id}-${right.id}` : `row-${left.id}`
+  row.id = right != null ? `row-${left.id}-${right.id}` : `row-${left.id}`
   row.rowType = 'pair'
   row.left = left
   row.right = right
@@ -103,8 +103,8 @@ type HomeFeedState = {
   state: string
   currentChannel: string
   currentCategory: string
-  nextCursor: string
   allItems: FeedItem[]
+  currentPage: number
   isLoadingMore: boolean
   hasMore: boolean
   errorMessage: string
@@ -115,8 +115,8 @@ const _state = reactive<HomeFeedState>({
   state: 'idle',
   currentChannel: '推荐',
   currentCategory: '全部',
-  nextCursor: '',
   allItems: [] as FeedItem[],
+  currentPage: 0,
   isLoadingMore: false,
   hasMore: true,
   errorMessage: '',
@@ -125,67 +125,48 @@ const _state = reactive<HomeFeedState>({
 // 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
 const prefs = usePreferencesStore()
 
-// 偏好签名：坑向 + 关注品牌 + 价格区间。变化后才重新请求 Feed（避免每次切 Tab 全量刷新）
-function buildPrefSignature(): string {
-  const p = prefs.preferences
-  return `${p.pitTypes.join(',')}|${p.followedBrands.join(',')}|${p.priceRange}`
-}
-let lastPrefSignature = buildPrefSignature()
-
-// 把已选坑向（UI 文案 JK/Lolita/汉服）转换为服务端分类参数（JK/LOLITA/HANFU）
-// 全不选 = 空串 = 不限制分类（展示全部）
-function buildCategoriesParam(): string {
-  const values = prefs.preferences.pitTypes
-  const codes: string[] = []
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i]
-    if (v === 'Lolita') {
-      codes.push('LOLITA')
-    } else if (v === '汉服') {
-      codes.push('HANFU')
-    } else if (v === 'JK') {
-      codes.push('JK')
-    }
-  }
-  return codes.join(',')
-}
-
 const _loading = computed((): boolean => _state.state === 'loading')
 
-// 筛选后的展示列表（频道/分类的客户端兜底过滤；排序由服务端 finalScore 决定）
+// 筛选后的展示列表
 const _displayItems = computed((): FeedItem[] => {
   const ch = _state.currentChannel
   const channelItems = filterFeedByChannel(_state.allItems, ch)
   const category = _state.currentCategory
-  if (category === '' || category === '全部') return channelItems
-  const code = categoryCode(category)
-  return channelItems.filter((item) => item.category === code)
+  let result = channelItems
+  if (category === '' || category === '全部') {
+    result = channelItems
+  } else {
+    const code = categoryCode(category)
+    result = channelItems.filter((item) => item.category === code)
+  }
+  // Preference-based sorting
+  const sorted = [...result]
+  sorted.sort((a, b) => prefs.computeScore(b) - prefs.computeScore(a))
+  return sorted
 })
 
 const _isEmpty = computed((): boolean => {
-  return _state.state === 'loaded' && _displayItems.value.length === 0
+  return _state.state === 'loaded' && _displayItems.value.length == 0
 })
 
-// 混合流: product 双列合并，其他单列
+// 混合流：普通商品跨单列运营内容继续配对，避免每个商品都落成左侧孤卡。
 const _feedRows = computed((): FeedRow[] => {
   const rows: FeedRow[] = []
   const filtered = _displayItems.value
-  let i = 0
-  while (i < filtered.length) {
+  let pendingProduct: FeedItem | null = null
+  for (let i = 0; i < filtered.length; i++) {
     const item = filtered[i]
     if (item.feedType === FEED_PRODUCT) {
-      if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
-        rows.push(createPairRow(item, filtered[i + 1]))
-        i += 2
-      } else {
-        rows.push(createPairRow(item, null))
-        i += 1
+      if (pendingProduct == null) pendingProduct = item
+      else {
+        rows.push(createPairRow(pendingProduct, item))
+        pendingProduct = null
       }
     } else {
       rows.push(createSingleRow(item))
-      i += 1
     }
   }
+  if (pendingProduct != null) rows.push(createPairRow(pendingProduct, null))
   return rows
 })
 
@@ -194,20 +175,16 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
-// 首屏加载（重置分页游标后从第一页重新请求）
+// 首屏加载
 async function loadFirstPage() {
   _state.state = 'loading'
   _state.errorMessage = ''
-  _state.allItems = []
-  _state.nextCursor = ''
-  _state.hasMore = true
   try {
-    const page = await fetchFeedPage('', _state.currentChannel, _state.currentCategory, buildCategoriesParam())
+    const page = await fetchFeedPage(0)
     _state.allItems = page.items
-    _state.nextCursor = page.nextCursor
+    _state.currentPage = 1
     _state.hasMore = page.hasMore
     _state.state = 'loaded'
-    lastPrefSignature = buildPrefSignature()
   } catch (e) {
     _state.state = 'error'
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
@@ -215,35 +192,18 @@ async function loadFirstPage() {
   notifyChanged()
 }
 
-// 加载更多（防重入；游标驱动，nextCursor 为空或 hasMore=false 即结束）
+// 加载更多（防重入）
 async function loadMore() {
   if (_state.isLoadingMore || !_state.hasMore || _state.state !== 'loaded') return
-  if (_state.nextCursor === '') {
-    _state.hasMore = false
-    return
-  }
   _state.isLoadingMore = true
   try {
-    const page = await fetchFeedPage(_state.nextCursor, _state.currentChannel, _state.currentCategory, buildCategoriesParam())
-    if (page.items.length === 0 || page.nextCursor === '') {
-      // 服务端没有下一页
+    const page = await fetchFeedPage(_state.currentPage)
+    if (page.items.length == 0) {
       _state.hasMore = false
     } else {
-      // 按 id 去重后追加（服务端分页在并发/重复请求下可能返回重叠项）
-      const merged = [..._state.allItems]
-      for (let i = 0; i < page.items.length; i++) {
-        const item = page.items[i]
-        let exists = false
-        for (let j = 0; j < merged.length; j++) {
-          if (merged[j].id === item.id) {
-            exists = true
-            break
-          }
-        }
-        if (!exists) merged.push(item)
-      }
-      _state.allItems = merged
-      _state.nextCursor = page.nextCursor
+      // 追加新页到全量列表（不裁剪，避免分页追加的较旧数据被丢弃）
+      _state.allItems = [..._state.allItems, ...page.items]
+      _state.currentPage += 1
       _state.hasMore = page.hasMore
     }
   } catch (e) {
@@ -254,18 +214,18 @@ async function loadMore() {
   notifyChanged()
 }
 
-// 切换频道：重置分页状态后重新请求
+// 切换频道（重置分页状态，不重新加载数据）
 function setChannel(ch: string) {
   if (ch === _state.currentChannel) return
   _state.currentChannel = ch
-  loadFirstPage()
+  // displayItems computed 自动重算，hasMore 基于全量数据
+  notifyChanged()
 }
 
-// 切换分类：重置分页状态后重新请求
 function setCategory(category: string) {
   if (category === _state.currentCategory) return
   _state.currentCategory = category
-  loadFirstPage()
+  notifyChanged()
 }
 
 // 重试
@@ -297,17 +257,7 @@ function toggleSave(itemId: string) {
 }
 
 function refreshPreferences() {
-  // 重新读取偏好后按最新坑向分类参数重新请求首页
   prefs.loadPreferences()
-  loadFirstPage()
-}
-
-// 首页 onPageShow 调用：偏好签名变化才重新请求 Feed（避免每次切 Tab 全量刷新）
-function refreshIfPreferencesChanged() {
-  const sig = buildPrefSignature()
-  if (sig === lastPrefSignature) return
-  lastPrefSignature = sig
-  loadFirstPage()
 }
 
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
@@ -332,7 +282,6 @@ class HomeFeedStoreHandle {
   toggleLike(itemId: string): void { toggleLike(itemId) }
   toggleSave(itemId: string): void { toggleSave(itemId) }
   refreshPreferences(): void { refreshPreferences() }
-  refreshIfPreferencesChanged(): void { refreshIfPreferencesChanged() }
 }
 
 let _handle: HomeFeedStoreHandle | null = null
