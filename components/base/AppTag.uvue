@@ -56,7 +56,7 @@ const tagStyle = computed((): any => {
   if (props.variant == TAG_CHIP) {
     base.paddingHorizontal = spacing[3]
     base.paddingVertical = spacing[1]
-    base.backgroundColor = props.active ? brand[500] : n.value.bgTertiary
+    base.backgroundColor = props.active ? brand[700] : n.value.bgTertiary
     return base
   }
 
@@ -65,7 +65,7 @@ const tagStyle = computed((): any => {
     base.paddingHorizontal = spacing[2]
     base.paddingVertical = '4rpx'
     base.borderRadius = radius.full
-    base.backgroundColor = c + '15'
+    base.backgroundColor = c + '30'
     return base
   }
 
@@ -74,7 +74,7 @@ const tagStyle = computed((): any => {
     base.paddingHorizontal = spacing[2]
     base.paddingVertical = '4rpx'
     base.borderRadius = radius.full
-    base.backgroundColor = c + '20'
+    base.backgroundColor = c + '35'
     return base
   }
 
