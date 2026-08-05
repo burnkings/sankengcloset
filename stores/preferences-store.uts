@@ -10,7 +10,8 @@ const STORAGE_KEY = 'v2_user_preferences'
 
 // ====== 默认值 ======
 
-const DEFAULT_PIT_TYPES = ['JK', 'Lolita', '汉服']
+// 空数组 = 不限制坑向分类（展示全部）
+const DEFAULT_PIT_TYPES = [] as string[]
 const DEFAULT_PRICE_RANGE = 'all'
 
 // ====== 持久化工具 ======
@@ -37,7 +38,15 @@ function readPreferences(): PreferencesData {
         // 去重：老版本 toggle 可能产生重复条目（如 'LOLITA' 与 'Lolita' 并存），迁移后需收敛
         if (normalized.indexOf(target) === -1) normalized.push(target)
       }
-      data.pitTypes = normalized
+      // 旧存量恰好同时包含 JK/Lolita/汉服 → 视为「全部」，转换为空数组
+      const hasJK = normalized.indexOf('JK') >= 0
+      const hasLolita = normalized.indexOf('Lolita') >= 0
+      const hasHanfu = normalized.indexOf('汉服') >= 0
+      if (hasJK && hasLolita && hasHanfu) {
+        data.pitTypes = [] as string[]
+      } else {
+        data.pitTypes = normalized
+      }
     }
     if (parsed['followedBrands'] != null) data.followedBrands = parsed['followedBrands'] as string[]
     if (parsed['priceRange'] != null) data.priceRange = parsed['priceRange'] as string
@@ -59,7 +68,7 @@ function writePreferences(data: PreferencesData) {
 // ====== 数据模型 ======
 
 export class PreferencesData {
-  pitTypes: string[] = DEFAULT_PIT_TYPES
+  pitTypes: string[] = [] // 空数组 = 全部
   followedBrands: string[] = []
   priceRange: string = DEFAULT_PRICE_RANGE
 }

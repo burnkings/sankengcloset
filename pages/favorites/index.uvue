@@ -111,7 +111,7 @@ function openBrand(brandName: string) {
   uni.navigateTo({ url: '/pages/search/index' })
 }
 onLoad(() => { initPageTheme() })
-onShow(() => { initPageTheme(); library.reload() })
+onPageShow(() => { initPageTheme(); library.reload() })
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
 const pageCanvasStyle = { paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }

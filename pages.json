@@ -144,9 +144,7 @@
     "navigationBarBackgroundColor": "@navBgColor",
     "backgroundColor": "@bgColor",
     "backgroundTextStyle": "dark"
-  }
-  // #ifndef APP
-  ,
+  },
   "tabBar": {
     "color": "@tabColor",
     "selectedColor": "@tabSelectedColor",
@@ -185,47 +183,4 @@
       }
     ]
   }
-  // #endif
-  // #ifdef APP
-  ,
-  "tabBar": {
-    "custom": true,
-    "color": "@tabColor",
-    "selectedColor": "@tabSelectedColor",
-    "backgroundColor": "@tabBgColor",
-    "borderStyle": "@tabBorderStyle",
-    "list": [
-      {
-        "pagePath": "pages/home/index",
-        "text": "首页",
-        "iconPath": "static/tabbar/tab-home.png",
-        "selectedIconPath": "static/tabbar/tab-home-active.png"
-      },
-      {
-        "pagePath": "pages/discover/index",
-        "text": "发现",
-        "iconPath": "static/tabbar/tab-discover.png",
-        "selectedIconPath": "static/tabbar/tab-discover-active.png"
-      },
-      {
-        "pagePath": "pages/ai/index",
-        "text": "绮灵AI",
-        "iconPath": "static/tabbar/tab-ai.png",
-        "selectedIconPath": "static/tabbar/tab-ai-active.png"
-      },
-      {
-        "pagePath": "pages/community/index",
-        "text": "圈子",
-        "iconPath": "static/tabbar/tab-community.png",
-        "selectedIconPath": "static/tabbar/tab-community-active.png"
-      },
-      {
-        "pagePath": "pages/profile/index",
-        "text": "我的",
-        "iconPath": "static/tabbar/tab-profile.png",
-        "selectedIconPath": "static/tabbar/tab-profile-active.png"
-      }
-    ]
-  }
-  // #endif
 }

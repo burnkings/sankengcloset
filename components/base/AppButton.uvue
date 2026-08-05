@@ -3,7 +3,8 @@
     <view v-if="loading" :style="loadingWrapperStyle">
       <view :style="spinnerStyle" />
     </view>
-    <slot />
+    <text v-if="label !== ''" :style="textStyle">{{ label }}</text>
+    <slot v-else />
   </view>
 </template>
 
@@ -23,12 +24,14 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   loading?: boolean
   color?: string
+  label?: string
 }>(), {
   variant: 'primary',
   size: 'md',
   block: false,
   disabled: false,
-  loading: false })
+  loading: false,
+  label: '' })
 
 const emit = defineEmits<{
   click: []
@@ -69,16 +72,21 @@ const buttonStyle = computed((): any => ({
   ...flexRowCenter,
   height: sizeMap.value.h,
   paddingHorizontal: sizeMap.value.px,
-  fontSize: sizeMap.value.fs,
-  fontWeight: sizeMap.value.fw,
   borderRadius: semanticRadius.button,
   backgroundColor: props.color ?? variantColors.value.bg,
-  color: variantColors.value.text,
   borderWidth: props.variant == 'outline' ? '2rpx' : '0',
   borderStyle: 'solid',
   borderColor: variantColors.value.border,
   opacity: (props.disabled || props.loading) ? 0.5 : 1,
   ...(props.block ? { width: '100%' } : {}) }))
+
+// 文字节点显式设置颜色/字号，不依赖 view → text 的颜色继承
+const textStyle = computed((): any => ({
+  fontSize: sizeMap.value.fs,
+  fontWeight: sizeMap.value.fw,
+  color: variantColors.value.text,
+  textAlign: 'center',
+}))
 
 const loadingWrapperStyle = {
   marginRight: '8rpx' }

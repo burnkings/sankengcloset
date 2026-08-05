@@ -73,6 +73,7 @@
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { useWishListStore } from '@/stores/wishlist-store'
 import { WishItem, WishUpdateData, PRIORITY_LABELS, PRIORITY_COLORS, WISH_STATUS_LABELS, WISH_STATUS_COLORS } from '@/domain/wish-item'
 import { brand } from '@/theme/tokens/colors'
@@ -278,7 +279,7 @@ const textareaWrapperStyle = computed((): any => ({
   borderStyle: 'solid',
   borderColor: n.value.border }))
 
-const placeholderStyleStr = `color: ${n.value.placeholder}`
+const placeholderStyleStr = computed((): string => `color: ${n.value.placeholder}`)
 
 const textareaStyle = computed((): any => ({
   fontSize: fontSize.sm,

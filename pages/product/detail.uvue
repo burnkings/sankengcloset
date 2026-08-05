@@ -67,6 +67,7 @@
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice } from '@/stores/home-feed-store'
@@ -235,19 +236,19 @@ onMounted(() => {
 
 const safeBottom = getSafeBottomInset()
 const pageWrap = { paddingTop: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
-const heroWrap = { width: '750rpx', height: '720rpx', position: 'relative' as string, backgroundColor: n.value.bgSecondary, overflow: 'hidden' }
+const heroWrap = computed((): any => ({ width: '750rpx', height: '720rpx', position: 'relative' as string, backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
 const hero = { width: '750rpx', height: '720rpx' }
   const heroBack = { position: 'absolute' as string, left: '32rpx', top: '28rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: baseColors.black, alignItems: 'center', justifyContent: 'center', zIndex: (zIndex.navbar as number) + 1 }
 const heroChevron = { width: '26rpx', height: '26rpx', borderRightWidth: '4rpx', borderBottomWidth: '4rpx', borderStyle: 'solid', borderColor: baseColors.white, transform: 'rotate(135deg)' }
 const imageCounter = { position: 'absolute' as string, right: '30rpx', bottom: '32rpx', minWidth: '84rpx', height: '48rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: baseColors.black }
 const imageCounterText = { fontSize: '22rpx', fontWeight: fontWeight.medium, color: baseColors.white }
-const summaryCard = { marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }
+const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
 const priceText = { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: brand[500] }
-const oldPrice = { fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }
-const titleText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }
-const brandText = { fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }
-const statusTag = { ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: baseColors.white, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }
+const oldPrice = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }))
+const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
+const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
+const statusTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: baseColors.white, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }))
 const statusDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '8rpx' }
 const statusTagText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500] }
 const decisionRow = { ...flexRow, marginTop: '22rpx' }
@@ -269,8 +270,8 @@ function decisionBtn(primary: boolean) {
 const decisionIcon = { width: '32rpx', height: '32rpx', marginRight: '8rpx' }
 const decisionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[500], marginLeft: '8rpx' }
 const decisionTextLight = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white, marginLeft: '8rpx' }
-const stepCard = { ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }
-const stepLine = { position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.cardBorder }
+const stepCard = computed((): any => ({ ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }))
+const stepLine = computed((): any => ({ position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.cardBorder }))
 const stepLineFill = { position: 'absolute' as string, left: '110rpx', width: '257rpx', top: '71rpx', height: '2rpx', backgroundColor: brand[500] }
 const stepRow = { ...flexFill, ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between' }
 function stepItem(idx: number) { return { flex: 1, alignItems: 'center' } }
@@ -294,14 +295,14 @@ function stepLabel(idx: number) {
   const next = idx === 2
   return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: active ? n.value.text : (next ? '#5C5550' : n.value.textSecondary), marginTop: '12rpx' }
 }
-const detailCard = { padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }
-const detailText = { fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }
+const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 const actionSpacer = { height: `${upx2px(180) + safeBottom}px`, flexShrink: 0 }
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
-const emptyText = { fontSize: fontSize.sm, color: n.value.textTertiary }
+const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }
 const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
-const botBar = { position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, height: '192rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '20rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'flex-start', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }
+const botBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, height: '192rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '20rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'flex-start', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))
 const botItem = { width: '100rpx', alignItems: 'center' }
 const botIcon = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' }
 const botLabel = { fontSize: '20rpx', color: '#5C5550', marginTop: '8rpx' }

@@ -76,9 +76,6 @@
       </view>
     </template>
   </MainLayout>
-  <!-- #ifdef APP -->
-  <AppBottomNav active="profile" />
-  <!-- #endif -->
 </view>
 </template>
 
@@ -109,7 +106,6 @@ import { usePreferencesStore } from '@/stores/preferences-store'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
-import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 class SettingsItem {
@@ -235,7 +231,7 @@ function onSettingTap(id: string) {
 
 onLoad(() => { initPageTheme() })
 
-// 原生 tabBar 保活后 onShow 每次切 Tab 都会触发；30 秒 TTL 去重，避免频繁全量重载
+// 原生 tabBar 保活后 onPageShow 每次切 Tab 都会触发；30 秒 TTL 去重，避免频繁全量重载
 let lastProfileReloadTs = 0
 const PROFILE_RELOAD_TTL_MS = 30 * 1000
 function reloadProfileData() {
@@ -248,7 +244,7 @@ function reloadProfileData() {
   reminders.fetchItems()
   wardrobe.fetchItems()
 }
-onShow(() => { initPageTheme(); reloadProfileData() })
+onPageShow(() => { initPageTheme(); reloadProfileData() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))

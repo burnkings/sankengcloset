@@ -10,12 +10,8 @@
       </view>
       <view :style="footerStyle">
         <slot name="actions">
-          <AppButton v-if="showCancel" variant="ghost" size="md" @click="onCancel">
-            {{ cancelText }}
-          </AppButton>
-          <AppButton variant="primary" size="md" @click="onConfirm">
-            {{ confirmText }}
-          </AppButton>
+          <AppButton v-if="showCancel" variant="ghost" size="md" :label="cancelText" @click="onCancel" />
+          <AppButton variant="primary" size="md" :label="confirmText" @click="onConfirm" />
         </slot>
       </view>
     </view>

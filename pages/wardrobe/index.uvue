@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { WardrobeItem } from '@/domain/wardrobe-item'
 import { brand, baseColors } from '@/theme/tokens/colors'
@@ -73,19 +74,19 @@ function categoryLabel(value: string): string { return value === 'LOLITA' ? 'Lol
 function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿' : (value === 'WORN' ? '已穿' : (value === 'FREQUENT' ? '常穿' : '')) }
 function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
-onShow(() => { store.fetchItems() })
+onPageShow(() => { store.fetchItems() })
   watch(searchValue, (value: string) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const addBtn = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' } as UTSJSONObject
-const statsCard = { borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' } as UTSJSONObject
+const statsCard = computed((): any => ({ borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' }))
 const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as UTSJSONObject
-const statsTitle = { fontSize: '31rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
-const statsSub = { fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' } as UTSJSONObject
+const statsTitle = computed((): any => ({ fontSize: '31rpx', fontWeight: '700', color: n.value.text }))
+const statsSub = computed((): any => ({ fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' }))
 const statsRow = { ...flexRow, alignItems: 'center' } as UTSJSONObject
 const statCol = { ...flexFill, flexDirection: 'column' as string, alignItems: 'center' } as UTSJSONObject
-const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
-const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as UTSJSONObject
+const statNum = computed((): any => ({ fontSize: '35rpx', fontWeight: '700', color: n.value.text }))
+const statLabel = computed((): any => ({ fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' }))
 class CategoryStat {
   label: string = ''
   count: number = 0

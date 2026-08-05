@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM, AppNotification } from '@/domain/notification/app-notification'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
@@ -87,7 +88,7 @@ function formatTime(value: string): string {
   if (hour < 24) return `${hour} 小时前`
   return `${Math.floor(hour / 24)} 天前`
 }
-onShow(() => notices.reload())
+onPageShow(() => notices.reload())
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
@@ -107,7 +108,7 @@ const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.
 const sourceNote = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
 const sourceText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
 const noticeClose = { position: 'absolute' as string, top: '10rpx', right: '12rpx', width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', zIndex: 3 }
-const noticeCloseText = { fontSize: '34rpx', fontWeight: '300', color: n.value.textTertiary, lineHeight: '34rpx' }
+const noticeCloseText = computed((): any => ({ fontSize: '34rpx', fontWeight: '300', color: n.value.textTertiary, lineHeight: '34rpx' }))
 </script>
 
 

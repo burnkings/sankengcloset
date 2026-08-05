@@ -45,13 +45,11 @@
       </view>
     </template>
   </MainLayout>
-  <!-- #ifdef APP -->
-  <AppBottomNav active="community" />
-  <!-- #endif -->
 </view>
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -66,7 +64,6 @@ import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-librar
 import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
-import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 type LookItem = {
@@ -123,7 +120,7 @@ function deleteOwnPost(id: string) {
   showFeedback('圈子动态已删除')
 }
 onLoad(() => { initPageTheme() })
-onShow(() => {
+onPageShow(() => {
   initPageTheme()
   library.reload()
   try {
@@ -154,14 +151,14 @@ const composerDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.te
 const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }
 const composerButtonText = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
 const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
-const heroImage = { width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }
+const heroImage = computed((): any => ({ width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }))
 const badge = { position: 'absolute' as string, left: '28rpx', top: '28rpx', height: '52rpx', paddingLeft: '16rpx', paddingRight: '20rpx', borderRadius: '26rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center' as string }
 const badgeDot = { width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: brand[500], marginRight: '8rpx' }
-const badgeText = { fontSize: '22rpx', color: n.value.text }
+const badgeText = computed((): any => ({ fontSize: '22rpx', color: n.value.text }))
 const lookBody = { padding: CARD_PADDING }
 const authorRow = { ...flexRow, alignItems: 'center' }
 const avatar = computed((): any => ({ width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
-const avatarText = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text }
+const avatarText = computed((): any => ({ fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const authorName = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const timeText = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary }))
 const lookCaption = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))

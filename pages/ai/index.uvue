@@ -39,9 +39,6 @@
         </view>
       </template>
     </MainLayout>
-    <!-- #ifdef APP -->
-    <AppBottomNav active="ai" />
-    <!-- #endif -->
   </view>
 </template>
 
@@ -58,7 +55,6 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
-import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 const pageHeight = getWindowHeight()
@@ -77,7 +73,7 @@ function pageGutter() {
 }
 
 initPageTheme()
-onShow(() => { initPageTheme(); syncTabBarChrome() })
+onPageShow(() => { initPageTheme(); syncTabBarChrome() })
 
 const pageWrap = { ...pageGutter(), paddingTop: '16rpx', paddingBottom: '48rpx' } as UTSJSONObject
 
@@ -88,12 +84,12 @@ const hintCard = computed((): any => ({
   padding: '24rpx',
   marginBottom: '32rpx',
 }))
-const hintTitle = { display: 'block', color: n.value.text, fontSize: '31rpx', fontWeight: '700', lineHeight: '40rpx', marginBottom: '8rpx' } as UTSJSONObject
-const hintDesc = { display: 'block', color: n.value.textSecondary, fontSize: '25rpx', fontWeight: '400', lineHeight: '34rpx' } as UTSJSONObject
+const hintTitle = computed((): any => ({ display: 'block', color: n.value.text, fontSize: '31rpx', fontWeight: '700', lineHeight: '40rpx', marginBottom: '8rpx' }))
+const hintDesc = computed((): any => ({ display: 'block', color: n.value.textSecondary, fontSize: '25rpx', fontWeight: '400', lineHeight: '34rpx' }))
 
 // 输入行
 const composerWrap = { ...flexRow, alignItems: 'center', gap: '16rpx', marginBottom: '40rpx' } as UTSJSONObject
-const composerInput = {
+const composerInput = computed((): any => ({
   ...flexFill,
   height: '88rpx',
   borderRadius: '9999rpx',
@@ -104,8 +100,8 @@ const composerInput = {
   paddingLeft: '28rpx',
   paddingRight: '28rpx',
   justifyContent: 'center',
-} as UTSJSONObject
-const composerPlaceholder = { color: n.value.textSecondary, fontSize: '27rpx' } as UTSJSONObject
+}))
+const composerPlaceholder = computed((): any => ({ color: n.value.textSecondary, fontSize: '27rpx' }))
 const composerSend = {
   width: '88rpx',
   height: '88rpx',
@@ -131,7 +127,7 @@ function capTile(idx: number) {
     flexShrink: 0,
   } as UTSJSONObject
 }
-const capIconWrap = {
+const capIconWrap = computed((): any => ({
   width: '56rpx',
   height: '56rpx',
   borderRadius: '9999rpx',
@@ -142,9 +138,9 @@ const capIconWrap = {
   alignItems: 'center',
   justifyContent: 'center',
   marginBottom: '14rpx',
-} as UTSJSONObject
-const capTitle = { display: 'block', color: n.value.text, fontSize: '27rpx', fontWeight: '700', lineHeight: '34rpx', marginBottom: '6rpx' } as UTSJSONObject
-const capDesc = { display: 'block', color: n.value.textSecondary, fontSize: '21rpx', fontWeight: '400', lineHeight: '28rpx' } as UTSJSONObject
+}))
+const capTitle = computed((): any => ({ display: 'block', color: n.value.text, fontSize: '27rpx', fontWeight: '700', lineHeight: '34rpx', marginBottom: '6rpx' }))
+const capDesc = computed((): any => ({ display: 'block', color: n.value.textSecondary, fontSize: '21rpx', fontWeight: '400', lineHeight: '28rpx' }))
 
 function onSend() {
   showFeedback('已收到，正在生成本机建议…')

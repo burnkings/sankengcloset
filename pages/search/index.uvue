@@ -81,6 +81,7 @@
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { brand, semantic, accent, baseColors } from '@/theme/tokens/colors'
@@ -221,7 +222,7 @@ const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, gap: '16rpx', margi
 function recentChip(idx: number) {
   return { minHeight: '61rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as UTSJSONObject
 }
-const recentChipText = { fontSize: '25rpx', fontWeight: '400', color: n.value.textSecondary } as UTSJSONObject
+const recentChipText = computed((): any => ({ fontSize: '25rpx', fontWeight: '400', color: n.value.textSecondary }))
 
 const hotList = { marginTop: '8rpx' } as UTSJSONObject
 const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as UTSJSONObject
@@ -229,14 +230,14 @@ function rankText(idx: number) {
   const color = idx === 0 ? brand[500] : idx === 1 ? semantic.warning : idx === 2 ? accent[500] : n.value.textSecondary
   return { width: '44rpx', fontSize: '33rpx', fontWeight: '600', color } as UTSJSONObject
 }
-const hotKeywordText = { ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text } as UTSJSONObject
+const hotKeywordText = computed((): any => ({ ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text }))
 const heatText = { fontSize: '21rpx', fontWeight: '400', color: semantic.warning, marginLeft: '16rpx', flexShrink: 0 } as UTSJSONObject
 
 const resultGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
-const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }
-const emptyDesc = { fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
+const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
 const retryBtn = { paddingHorizontal: '40rpx', paddingVertical: '16rpx', borderRadius: radius.full, backgroundColor: brand[500], marginTop: '28rpx' }
 const retryBtnText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

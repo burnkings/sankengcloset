@@ -129,7 +129,7 @@ function applySystemChrome() {
 }
 
 export function syncTabBarChrome() {
-  // #ifdef MP-WEIXIN
+  // 原生 tabBar（非 custom）全平台生效：App 主题切换时同步底栏颜色
   const mode = _state.isDark ? 'dark' : 'light'
   if (lastTabBarMode === mode) return
   lastTabBarMode = mode
@@ -140,7 +140,6 @@ export function syncTabBarChrome() {
     borderStyle: _state.isDark ? 'white' : 'black',
     fail: () => { lastTabBarMode = '' },
   })
-  // #endif
 }
 
 // ====== 系统主题变化监听 ======

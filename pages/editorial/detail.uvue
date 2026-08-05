@@ -37,6 +37,7 @@
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
@@ -103,7 +104,7 @@ const heroDesc = { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.8)', margin
 const productGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const emptyWrap = { paddingTop: '120rpx', alignItems: 'center' }
-const emptyText = { fontSize: fontSize.sm, color: n.value.textTertiary }
+const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 </script>
 
 

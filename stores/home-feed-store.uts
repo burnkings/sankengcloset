@@ -125,6 +125,13 @@ const _state = reactive<HomeFeedState>({
 // 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
 const prefs = usePreferencesStore()
 
+// 偏好签名：坑向 + 关注品牌 + 价格区间。变化后才重新请求 Feed（避免每次切 Tab 全量刷新）
+function buildPrefSignature(): string {
+  const p = prefs.preferences
+  return `${p.pitTypes.join(',')}|${p.followedBrands.join(',')}|${p.priceRange}`
+}
+let lastPrefSignature = buildPrefSignature()
+
 // 把已选坑向（UI 文案 JK/Lolita/汉服）转换为服务端分类参数（JK/LOLITA/HANFU）
 // 全不选 = 空串 = 不限制分类（展示全部）
 function buildCategoriesParam(): string {
@@ -200,6 +207,7 @@ async function loadFirstPage() {
     _state.nextCursor = page.nextCursor
     _state.hasMore = page.hasMore
     _state.state = 'loaded'
+    lastPrefSignature = buildPrefSignature()
   } catch (e) {
     _state.state = 'error'
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
@@ -294,6 +302,14 @@ function refreshPreferences() {
   loadFirstPage()
 }
 
+// 首页 onPageShow 调用：偏好签名变化才重新请求 Feed（避免每次切 Tab 全量刷新）
+function refreshIfPreferencesChanged() {
+  const sig = buildPrefSignature()
+  if (sig === lastPrefSignature) return
+  lastPrefSignature = sig
+  loadFirstPage()
+}
+
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
 
 class HomeFeedStoreHandle {
@@ -316,6 +332,7 @@ class HomeFeedStoreHandle {
   toggleLike(itemId: string): void { toggleLike(itemId) }
   toggleSave(itemId: string): void { toggleSave(itemId) }
   refreshPreferences(): void { refreshPreferences() }
+  refreshIfPreferencesChanged(): void { refreshIfPreferencesChanged() }
 }
 
 let _handle: HomeFeedStoreHandle | null = null

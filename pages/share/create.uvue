@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="uts">
+import { computed } from 'vue'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
@@ -96,7 +97,7 @@ const previewWrap = { width: '686rpx', height: '560rpx', position: 'relative' as
 const replaceAction = computed((): any => ({ position: 'absolute', right: '20rpx', bottom: '20rpx', height: '64rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: radius.full, backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
 const replaceText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '8rpx' }))
 const uploadEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
-const uploadIcon = { width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }
+const uploadIcon = computed((): any => ({ width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }))
 const uploadTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx' }))
 const uploadDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
 const categoryRow = { ...flexRow, flexWrap: 'wrap' as string }
