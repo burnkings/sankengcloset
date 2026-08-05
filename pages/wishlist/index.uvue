@@ -1,11 +1,7 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
     <template #navbar>
-      <AppNavbar title="愿望单" :show-back="false">
-        <template #right>
-          <text :style="addBtnStyle" @tap="onAddTap">+ 新种草</text>
-        </template>
-      </AppNavbar>
+      <AppNavbar title="愿望单" :show-back="true" />
     </template>
 
     <template #default>
@@ -35,10 +31,10 @@
       </scroll-view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="onAddTap"><text :style="fabText">+</text></view>
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
 import { useWishListStore } from '@/stores/wishlist-store'
 import { WishDisplayModel } from '@/domain/wish-presenter'
 import { brand } from '@/theme/tokens/colors'
@@ -51,8 +47,10 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWishListStore()
+const safeBottom = getSafeBottomInset()
 const viewTabs = ['商品', '搭配', '品牌']
 const activeTab = ref('商品')
 function onTab(label: string) { activeTab.value = label }
@@ -74,25 +72,22 @@ onMounted(() => {
   store.fetchItems()
 })
 
-const scrollStyle = computed((): any => ({
+const scrollStyle = {
   flex: 1,
   backgroundColor: n.value.bg,
-}))
-const addBtnStyle = {
-  fontSize: fontSize.sm,
-  color: brand[500],
-  fontWeight: fontWeight.semibold,
 }
 const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 function itemCard(idx: number) {
   return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, overflow: 'hidden' as string }
 }
-const itemImage = computed((): any => ({ width: PRODUCT_CARD_WIDTH, height: '420rpx', backgroundColor: n.value.bgTertiary }))
+const itemImage = { width: PRODUCT_CARD_WIDTH, height: '420rpx', backgroundColor: n.value.bgTertiary }
 const itemBody = { padding: '20rpx' }
-const itemName = computed((): any => ({ fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+const itemName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
 const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[600], marginTop: '8rpx' }
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const emptySub = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }))
+const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }
+const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }
 const bottomSpacer = { height: '60rpx' }
+const fabStyle = { position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 64}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', zIndex: 100 }
+const fabText = { fontSize: '58rpx', lineHeight: '64rpx', fontWeight: fontWeight.regular, color: '#FFFFFF', textAlign: 'center' }
 </script>
