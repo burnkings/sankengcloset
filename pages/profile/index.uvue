@@ -21,7 +21,7 @@
           <view :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
 
-        <V2SectionHeader title="数据&服务" />
+        <V2SectionHeader title="我的服务" />
         <view :style="closetCard" @tap="goPage('/pages/wardrobe/index')">
           <view :style="closetCopy">
             <view :style="closetTop"><AppIcon name="wardrobe" :size="44" :active="true" /><text :style="closetLabel">衣橱</text></view>
@@ -39,28 +39,13 @@
           </view>
         </view>
 
-        <view :style="outfitAssetCard" @tap="openCommunity">
+        <view :style="outfitAssetCard" @tap="openMyPosts">
           <view :style="outfitAssetIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
-          <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的圈子</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
+          <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的动态</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
           <AppIcon name="chevron-right" :size="32" />
         </view>
 
         <V2SectionHeader title="设置" />
-        <view :style="chipSection">
-          <text :style="chipSectionLabel">主题模式</text>
-          <view :style="chipRow">
-            <view v-for="mode in themeModes" :key="mode.id" :style="themeChip(mode.id)" @tap="onThemeModeTap(mode.id)">
-              <text :style="themeChipText(mode.id)">{{ mode.label }}</text>
-            </view>
-          </view>
-          <text :style="chipSectionLabel">坑向偏好</text>
-          <text :style="chipHint">可多选；全不选表示首页展示全部</text>
-          <view :style="chipRow">
-            <view v-for="pit in pitTypeOptions" :key="pit" :style="pitChip(pit)" @tap="onPitToggle(pit)">
-              <text :style="pitChipText(pit)">{{ pit }}</text>
-            </view>
-          </view>
-        </view>
         <V2ListGroup>
           <view v-for="(item, idx) in settingsGroup" :key="item.id" :style="settingShell(idx, settingsGroup.length)" @tap="onSettingTap(item.id)">
             <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
@@ -76,17 +61,20 @@
       </view>
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="profile" />
+  <!-- #endif -->
 </view>
 </template>
 
 <script setup lang="uts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, themeMode, initPageTheme, setThemeMode } from '@/theme/use-theme'
+import { n, isDark, themeMode, initPageTheme, toggleDarkMode, getThemeLabel } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -95,16 +83,15 @@ import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
 import V2ListRow from '@/components/v2/V2ListRow.uvue'
 import { showFeedback } from '@/utils/feedback'
-import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
-import { usePreferencesStore } from '@/stores/preferences-store'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 class SettingsItem {
@@ -132,55 +119,6 @@ const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
-const prefs = usePreferencesStore()
-
-// ====== 主题三态 Chip（跟随系统 / 浅色 / 深色，互斥） ======
-type ThemeModeOption = {
-  id: string
-  label: string
-}
-const themeModes: ThemeModeOption[] = [
-  { id: 'system', label: '跟随系统' },
-  { id: 'light', label: '浅色' },
-  { id: 'dark', label: '深色' },
-]
-function onThemeModeTap(mode: string) {
-  if (mode === 'system') { setThemeMode('system'); return }
-  if (mode === 'dark') { setThemeMode('dark'); return }
-  setThemeMode('light')
-}
-
-// ====== 坑向偏好 Chip（JK / Lolita / 汉服，可多选可全不选） ======
-const pitTypeOptions = ['JK', 'Lolita', '汉服']
-const selectedPitTypes = ref<string[]>([])
-
-function syncSelectedPitTypes() {
-  const next = [] as string[]
-  const values = prefs.preferences.pitTypes
-  for (let i = 0; i < values.length; i++) next.push(values[i])
-  selectedPitTypes.value = next
-}
-
-function isPitSelected(pit: string): boolean {
-  const values = selectedPitTypes.value
-  for (let i = 0; i < values.length; i++) {
-    if (values[i] == pit) return true
-  }
-  return false
-}
-
-function onPitToggle(pit: string) {
-  const next = [] as string[]
-  const current = selectedPitTypes.value
-  for (let i = 0; i < current.length; i++) next.push(current[i])
-  const idx = next.indexOf(pit)
-  if (idx >= 0) next.splice(idx, 1)
-  else next.push(pit)
-
-  // 页面先立即重绘，再写入 Store；不在点击回调中重新读取 Storage 或发起 Feed 请求。
-  selectedPitTypes.value = next
-  prefs.setPitTypes(next)
-}
 
 function onEdit() { showFeedback('功能开发中') }
 function goLogin() {
@@ -194,10 +132,7 @@ function logout() {
   showFeedback('已退出，设备数据仍保留')
 }
 function goPage(url: string) { uni.navigateTo({ url }) }
-function openCommunity() {
-  uni.setStorageSync('community_view', 'mine')
-  openPrimaryTab('/pages/community/index')
-}
+function openMyPosts() { uni.navigateTo({ url: '/pages/community/mine' }) }
 function onManageTap(id: string) {
   if (id === 'favorites') goPage('/pages/wishlist/index')
   if (id === 'orders') goPage('/pages/purchase/index')
@@ -205,7 +140,15 @@ function onManageTap(id: string) {
   if (id === 'budget') goPage('/pages/budget/index')
 }
 function onSettingTap(id: string) {
+  if (id === 'dark') {
+    toggleDarkMode()
+    return
+  }
   if (id === 'notification') { showFeedback('功能开发中'); return }
+  if (id === 'preferences') {
+    uni.navigateTo({ url: '/pages/preferences/index' })
+    return
+  }
   if (id === 'privacy') {
     showFeedback('功能开发中')
     return
@@ -243,9 +186,9 @@ function onSettingTap(id: string) {
   if (id === 'logout') { logout(); return }
 }
 
-onLoad(() => { initPageTheme(); syncSelectedPitTypes() })
+onLoad(() => { initPageTheme() })
 
-// 原生 tabBar 保活后 onPageShow 每次切 Tab 都会触发；30 秒 TTL 去重，避免频繁全量重载
+// 原生 tabBar 保活后 onShow 每次切 Tab 都会触发；30 秒 TTL 去重，避免频繁全量重载
 let lastProfileReloadTs = 0
 const PROFILE_RELOAD_TTL_MS = 30 * 1000
 function reloadProfileData() {
@@ -258,7 +201,7 @@ function reloadProfileData() {
   reminders.fetchItems()
   wardrobe.fetchItems()
 }
-onPageShow(() => { initPageTheme(); syncSelectedPitTypes(); reloadProfileData() })
+onShow(() => { initPageTheme(); reloadProfileData() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
@@ -304,11 +247,11 @@ const manageItems = computed(() => [
   createManageItem('reminders', 'reminder', '提醒', `${reminders.pendingCount} 条待办`),
   createManageItem('budget', 'budget', '预算', budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置'),
 ])
-const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '48rpx' }
+const manageRow = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '20rpx' }
 function manageCard(idx: number) { return { width: '325rpx', height: '142rpx', flexShrink: 0, padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: idx < 2 ? GROUP_GAP : '0' } }
 const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '12rpx' }))
 const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '10rpx' }))
-const outfitAssetCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '108rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginTop: '4rpx' }))
+const outfitAssetCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginTop: '24rpx' }))
 const outfitAssetIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -316,6 +259,8 @@ const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.
 
 const settingsItems = computed(() => {
   const items: SettingsItem[] = [
+    createSettingsItem('dark', 'moon', '深色模式', getThemeLabel(), 'settings'),
+    createSettingsItem('preferences', 'heart', '推荐偏好', '', 'settings'),
     createSettingsItem('notification', 'notification', '通知设置', '', 'settings'),
     createSettingsItem('privacy', 'info', '隐私与权限', '', 'about'),
     createSettingsItem('agreement', 'info', '用户协议', '', 'about'),
@@ -330,25 +275,4 @@ const settingsItems = computed(() => {
 const settingsGroup = computed(() => settingsItems.value.filter((item) => item.section === 'settings'))
 const aboutGroup = computed(() => settingsItems.value.filter((item) => item.section === 'about'))
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
-
-// ====== 主题 / 坑向 Chip 样式（选中=深色底+白字，浅色深色模式均清晰） ======
-const chipSection = { marginTop: '4rpx', marginBottom: '8rpx' }
-const chipSectionLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx', marginBottom: '14rpx' }))
-const chipHint = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginBottom: '14rpx' }))
-const chipRow = { ...flexRow, flexWrap: 'wrap' as string }
-function selectedChip(selected: boolean) {
-  return {
-    minWidth: '150rpx', height: '64rpx', borderRadius: radius.full, paddingLeft: '24rpx', paddingRight: '24rpx',
-    alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', marginBottom: '16rpx',
-    backgroundColor: selected ? brand[600] : n.value.surface,
-    borderWidth: selected ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border,
-  }
-}
-function selectedChipText(selected: boolean) {
-  return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: selected ? baseColors.white : n.value.textSecondary }
-}
-function themeChip(mode: string) { return selectedChip(themeMode.value === mode) }
-function themeChipText(mode: string) { return selectedChipText(themeMode.value === mode) }
-function pitChip(pit: string) { return selectedChip(isPitSelected(pit)) }
-function pitChipText(pit: string) { return selectedChipText(isPitSelected(pit)) }
 </script>
