@@ -26,13 +26,14 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view v-if="keyword === ''">
-          <V2SectionHeader title="最近搜索" actionText="清空" @action="clearRecent" />
-          <view v-if="recent.length > 0" :style="recentWrap">
-            <view v-for="(kw, idx) in recent" :key="kw" :style="recentChip(idx)" @tap="selectKeyword(kw)">
-              <text :style="recentChipText">{{ kw }}</text>
+          <view v-if="showRecent && recent.length > 0">
+            <V2SectionHeader title="最近搜索" actionText="清空" @action="clearRecent" />
+            <view :style="recentWrap">
+              <view v-for="(kw, idx) in recent" :key="kw" :style="recentChip(idx)" @tap="selectKeyword(kw)">
+                <text :style="recentChipText">{{ kw }}</text>
+              </view>
             </view>
           </view>
-          <text v-else :style="recentEmptyText">暂无最近搜索</text>
 
           <V2SectionHeader title="热门搜索" />
           <view :style="hotList">
@@ -171,7 +172,14 @@ function loadRecent(): string[] {
   } catch (e) {}
   return []
 }
-const recent = ref<string[]>(loadRecent())
+const recent = ref<string[]>([])
+const showRecent = ref(false)
+function loadRecentForPage() {
+  const stored = loadRecent()
+  recent.value = stored
+  // 本次打开前已有真实记录时才展示；首次搜索不在当前空白页突然插入历史区。
+  showRecent.value = stored.length > 0
+}
 function saveRecent() {
   try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
 }
@@ -200,13 +208,16 @@ function selectKeyword(value: string) {
   keyword.value = value
   addRecent(value)
 }
-function clearRecent() { recent.value = []; saveRecent() }
-function onInput(e: any) {
-  const eObj = e as UTSJSONObject
-  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
-  keyword.value = d != null && d['value'] != null ? d['value'] as string : ''
+function clearRecent() {
+  recent.value = []
+  showRecent.value = false
+  saveRecent()
 }
-function onSubmit() {
+function onInput(event: UniInputEvent) {
+  keyword.value = event.detail.value
+}
+function onSubmit(event: UniInputConfirmEvent) {
+  keyword.value = event.detail.value
   inputFocused.value = false
   const timer = searchTimer
   if (timer != null) {
@@ -233,6 +244,10 @@ onUnload(() => {
   searchSequence += 1
 })
 
+onLoad(() => {
+  loadRecentForPage()
+})
+
 onMounted(() => {
   try {
     const pending = uni.getStorageSync('pending_search_keyword') as string
@@ -248,8 +263,8 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTE
 const statusBarH = getStatusBarHeight()
 const searchNavStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg, boxShadow: shadow.navbar }))
 const statusBarPadStyle = { height: `${statusBarH}px` }
-const searchRowStyle = { height: '88rpx', ...flexRow, alignItems: 'center', paddingLeft: '4rpx', paddingRight: PAGE_GUTTER_REGULAR }
-const backBtnStyle = { width: '64rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+const searchRowStyle = { height: '88rpx', ...flexRow, alignItems: 'center', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const backBtnStyle = { width: '56rpx', height: '88rpx', alignItems: 'flex-start', justifyContent: 'center', flexShrink: 0 }
 const inputShellStyle = computed((): any => ({ ...flexRow, alignItems: 'center', flex: 1, minWidth: '0', height: '80rpx', borderRadius: '9999rpx', backgroundColor: n.value.inputFill, paddingLeft: '24rpx', paddingRight: '12rpx', marginRight: '8rpx' }))
 const inputIconStyle = { width: '40rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', flexShrink: 0 }
 const inputStyle = computed((): any => ({ flex: 1, height: '100%', minWidth: '0', fontSize: fontSize.base, color: n.value.text }))
@@ -263,8 +278,6 @@ function recentChip(idx: number) {
   return { minHeight: '61rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as UTSJSONObject
 }
 const recentChipText = computed((): any => ({ fontSize: '25rpx', fontWeight: '500', color: n.value.text }))
-const recentEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, paddingTop: '12rpx', paddingBottom: '20rpx' }))
-
 const hotList = { marginTop: '8rpx' } as UTSJSONObject
 const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as UTSJSONObject
 function rankText(idx: number) {
