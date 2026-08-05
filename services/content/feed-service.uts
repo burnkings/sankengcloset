@@ -31,8 +31,8 @@ export function mapFeedItem(raw: UTSJSONObject): FeedItem {
   item.badgeText = raw['badgeText'] != null ? raw['badgeText'] as string : ''
   item.eventStartAt = raw['eventStartAt'] != null ? raw['eventStartAt'] as string : ''
   item.eventEndAt = raw['eventEndAt'] != null ? raw['eventEndAt'] as string : ''
-  item.liked = raw['liked'] === true
-  item.saved = raw['saved'] === true
+  item.liked = raw['liked'] == true
+  item.saved = raw['saved'] == true
   item.sourceLabel = raw['sourceLabel'] != null ? raw['sourceLabel'] as string : ''
   item.rankingScore = raw['rankingScore'] != null ? raw['rankingScore'] as number : 0
   item.category = raw['category'] != null ? raw['category'] as string : ''
@@ -77,7 +77,7 @@ async function fetchRemoteFeed(cursor: string, channel: string, category: string
   if (rawItems != null) for (let i = 0; i < rawItems.length; i++) result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
   const page = response.page as UTSJSONObject | null
   result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
-  result.hasMore = page != null && page['hasMore'] === true
+  result.hasMore = page != null && page['hasMore'] == true
   return result
 }
 
