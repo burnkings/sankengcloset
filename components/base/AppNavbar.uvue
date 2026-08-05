@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="uts">
-import { semanticSpacing } from '@/theme/tokens/spacing'
+import { PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { zIndex } from '@/theme/tokens/z-index'
 import { shadow } from '@/theme/tokens/shadow'
@@ -25,7 +25,7 @@ const emit = defineEmits<{ back: [] }>()
 const statusBarH = getStatusBarHeight()
 const navbarStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: props.transparent ? 'transparent' : n.value.bg, boxShadow: props.transparent ? shadow.none : shadow.navbar }))
 const statusBarStyle = { height: `${statusBarH}px` }
-const contentStyle = { height: '88rpx', ...flexRow, alignItems: 'center', paddingHorizontal: semanticSpacing.pageHorizontal }
+const contentStyle = { height: '88rpx', ...flexRow, alignItems: 'center', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const leftStyle = { flexShrink: 0, ...flexRow, alignItems: 'center', width: '180rpx' }
 const centerStyle = { ...flexFill, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
 const rightStyle = { flexShrink: 0, ...flexRow, alignItems: 'center', justifyContent: 'flex-end', width: '180rpx' }
