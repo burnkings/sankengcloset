@@ -101,11 +101,17 @@ const uploadIcon = computed((): any => ({ width: '80rpx', height: '80rpx', borde
 const uploadTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx' }))
 const uploadDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
 const categoryRow = { ...flexRow, flexWrap: 'wrap' as string }
-function categoryChip(idx: number, item: string) { return { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? brand[500] : n.value.surface, borderWidth: category.value === item ? '0' : '1rpx', borderStyle: 'solid', borderColor: category.value === item ? baseColors.white : n.value.cardBorder, marginRight: '12rpx', marginBottom: '12rpx' } }
-function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? baseColors.white : '#5C5550' } }
+function categoryChip(idx: number, item: string) {
+  const selected = category.value === item
+  return { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? brand[200] : n.value.surface, borderWidth: selected ? '2rpx' : '1rpx', borderStyle: 'solid', borderColor: selected ? brand[600] : n.value.cardBorder, marginRight: '12rpx', marginBottom: '12rpx' }
+}
+function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? brand[900] : n.value.textSecondary } }
 const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
-function topicChip(idx: number, item: string) { return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value === item ? n.value.surfacePink : n.value.surface, borderWidth: topic.value === item ? '0' : '1rpx', borderStyle: 'solid', borderColor: topic.value === item ? n.value.surfacePink : n.value.cardBorder, marginRight: '12rpx', marginBottom: '12rpx' } }
-function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: topic.value === item ? brand[500] : '#5C5550' } }
+function topicChip(idx: number, item: string) {
+  const selected = topic.value === item
+  return { height: '64rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? brand[200] : n.value.surface, borderWidth: selected ? '2rpx' : '1rpx', borderStyle: 'solid', borderColor: selected ? brand[600] : n.value.cardBorder, marginRight: '12rpx', marginBottom: '12rpx' }
+}
+function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: topic.value === item ? brand[900] : n.value.textSecondary } }
 const publishButton = { width: '686rpx', height: '104rpx', borderRadius: '26rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))

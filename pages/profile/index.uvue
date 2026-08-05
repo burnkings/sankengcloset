@@ -340,12 +340,12 @@ function selectedChip(selected: boolean) {
   return {
     minWidth: '150rpx', height: '64rpx', borderRadius: radius.full, paddingLeft: '24rpx', paddingRight: '24rpx',
     alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', marginBottom: '16rpx',
-    backgroundColor: selected ? brand[600] : n.value.surface,
-    borderWidth: selected ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border,
+    backgroundColor: selected ? brand[200] : n.value.surface,
+    borderWidth: selected ? '2rpx' : '1rpx', borderStyle: 'solid' as string, borderColor: selected ? brand[600] : n.value.border,
   }
 }
 function selectedChipText(selected: boolean) {
-  return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: selected ? baseColors.white : n.value.textSecondary }
+  return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: selected ? brand[900] : n.value.textSecondary }
 }
 function themeChip(mode: string) { return selectedChip(themeMode.value === mode) }
 function themeChipText(mode: string) { return selectedChipText(themeMode.value === mode) }

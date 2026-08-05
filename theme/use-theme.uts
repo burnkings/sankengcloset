@@ -101,6 +101,7 @@ const _state = reactive<ThemeState>({
 let lastTabBarMode = ''
 // #ifdef APP
 let osThemeChangeId: number | null = null
+let appThemeChangeId: number | null = null
 // #endif
 
 function syncFromGlobal(): boolean {
@@ -155,11 +156,26 @@ export function syncTabBarChrome() {
 
 // ====== 系统主题变化监听 ======
 
+function enableAppThemeListener() {
+  // #ifdef APP
+  if (appThemeChangeId != null) return
+  appThemeChangeId = uni.onAppThemeChange((result: AppThemeChangeResult) => {
+    const newDark = result.appTheme == 'dark'
+    if (_state.isDark != newDark) {
+      _state.isDark = newDark
+      setGlobalDark(newDark)
+      lastTabBarMode = ''
+      syncTabBarChrome()
+    }
+  })
+  // #endif
+}
+
 function enableSystemThemeListener() {
   // #ifdef APP
   if (osThemeChangeId != null) return
   osThemeChangeId = uni.onOsThemeChange((result: OsThemeChangeResult) => {
-    if (_state.themeMode !== 'system') return
+    if (_state.themeMode != 'system') return
     const newDark = result.osTheme == 'dark'
     if (_state.isDark != newDark) {
       _state.isDark = newDark
@@ -186,13 +202,17 @@ function disableSystemThemeListener() {
 
 export function initializeTheme() {
   syncFromGlobal()
+  enableAppThemeListener()
   applySystemChrome()
-  if (_state.themeMode === 'system') enableSystemThemeListener()
+  syncTabBarChrome()
+  if (_state.themeMode == 'system') enableSystemThemeListener()
 }
 
 export function syncSystemChrome() {
-  const changed = syncFromGlobal()
-  if (changed) applySystemChrome()
+  // App 从后台回来后原生主题可能已被宿主重置，即使自有状态值没有变化也必须重放。
+  syncFromGlobal()
+  applySystemChrome()
+  syncTabBarChrome()
 }
 
 export function initPageTheme() {

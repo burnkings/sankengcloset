@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="衣橱" :show-back="true"><template #right><view :style="addBtn" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="衣橱" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
@@ -33,6 +33,7 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="goAdd"><text :style="fabPlus">＋</text></view>
 </template>
 
 <script setup lang="uts">
@@ -52,8 +53,10 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWardrobeStore()
+const safeBottom = getSafeBottomInset()
 const searchValue = ref('')
 const activeFilter = ref('全部')
 const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
@@ -77,8 +80,7 @@ function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=$
 onPageShow(() => { store.fetchItems() })
   watch(searchValue, (value: string) => { store.setSearch(value) })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const addBtn = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' } as UTSJSONObject
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const statsCard = computed((): any => ({ borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' }))
 const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as UTSJSONObject
 const statsTitle = computed((): any => ({ fontSize: '31rpx', fontWeight: '700', color: n.value.text }))
@@ -118,6 +120,8 @@ const sortBadge = computed((): any => ({ ...flexRow, alignItems: 'center', paddi
 const sortBadgeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '4rpx' }))
 const filterBadge = { minWidth: '32rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', paddingLeft: '8rpx', paddingRight: '8rpx', marginLeft: '8rpx' }
 const filterBadgeText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: baseColors.white }
+const fabStyle = { position: 'fixed' as string, left: '323rpx', bottom: `${safeBottom + 48}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', zIndex: 100 } as UTSJSONObject
+const fabPlus = { fontSize: '56rpx', lineHeight: '64rpx', fontWeight: fontWeight.medium, color: '#FFFFFF' } as UTSJSONObject
 const grid = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '22rpx' }
 function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const imageWrap = { width: '325rpx', height: '390rpx' }

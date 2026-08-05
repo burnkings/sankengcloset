@@ -70,13 +70,13 @@ function pitChip(idx: number, item: string) {
   return {
     width: '200rpx', height: '88rpx', borderRadius: CARD_RADIUS,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: selected ? (brand[50]) : n.value.surface,
-    borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200],
+    backgroundColor: selected ? brand[200] : n.value.surface,
+    borderWidth: selected ? '2rpx' : '1rpx', borderStyle: 'solid', borderColor: selected ? brand[600] : n.value.border,
     marginRight: idx < 2 ? GROUP_GAP : '0',
   }
 }
 function pitText(item: string) {
-  return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand[700] : n.value.textSecondary }
+  return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand[900] : n.value.textSecondary }
 }
 const resetRow = { alignItems: 'center', paddingTop: '24rpx', paddingBottom: '24rpx' }
 const resetText = { fontSize: fontSize.sm, color: brand[600] }

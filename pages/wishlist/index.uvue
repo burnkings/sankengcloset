@@ -1,17 +1,13 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" :scrollable="false">
     <template #navbar>
-      <AppNavbar title="愿望单" :show-back="false">
-        <template #right>
-          <text :style="addBtnStyle" @tap="onAddTap">+ 新种草</text>
-        </template>
-      </AppNavbar>
+      <AppNavbar title="愿望单" :show-back="true" />
     </template>
 
     <template #default>
       <AppLoading v-if="store.loading" />
 
-      <scroll-view v-else :style="scrollStyle">
+      <scroll-view v-else scroll-y :style="scrollStyle">
         <V2Segmented :items="viewTabs" :active="activeTab" variant="soft" :active-color="brand[500]" @change="onTab" />
 
         <view v-if="viewItems.length === 0" :style="emptyWrap">
@@ -35,6 +31,7 @@
       </scroll-view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="onAddTap"><text :style="fabPlus">＋</text></view>
 </template>
 
 <script setup lang="uts">
@@ -51,8 +48,10 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWishListStore()
+const safeBottom = getSafeBottomInset()
 const viewTabs = ['商品', '搭配', '品牌']
 const activeTab = ref('商品')
 function onTab(label: string) { activeTab.value = label }
@@ -70,7 +69,7 @@ function onItemTap(id: string) {
 function onAddTap() {
   uni.navigateTo({ url: '/pages/wishlist/edit' })
 }
-onMounted(() => {
+onPageShow(() => {
   store.fetchItems()
 })
 
@@ -78,11 +77,6 @@ const scrollStyle = computed((): any => ({
   flex: 1,
   backgroundColor: n.value.bg,
 }))
-const addBtnStyle = {
-  fontSize: fontSize.sm,
-  color: brand[500],
-  fontWeight: fontWeight.semibold,
-}
 const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 function itemCard(idx: number) {
   return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, overflow: 'hidden' as string }
@@ -94,5 +88,7 @@ const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: b
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const emptySub = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }))
-const bottomSpacer = { height: '60rpx' }
+const bottomSpacer = { height: '180rpx' }
+const fabStyle = { position: 'fixed' as string, left: '323rpx', bottom: `${safeBottom + 48}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', zIndex: 100 } as UTSJSONObject
+const fabPlus = { fontSize: '56rpx', lineHeight: '64rpx', fontWeight: fontWeight.medium, color: '#FFFFFF' } as UTSJSONObject
 </script>

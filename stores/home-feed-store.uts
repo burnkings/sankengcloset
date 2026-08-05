@@ -166,25 +166,28 @@ const _isEmpty = computed((): boolean => {
   return _state.state === 'loaded' && _displayItems.value.length === 0
 })
 
-// 混合流: product 双列合并，其他单列
+// 混合流：所有商品跨内容项持续配对为双列；发售/穿搭/品牌内容仍保留独立单列。
 const _feedRows = computed((): FeedRow[] => {
   const rows: FeedRow[] = []
   const filtered = _displayItems.value
-  let i = 0
-  while (i < filtered.length) {
+  let pendingProduct: FeedItem | null = null
+  for (let i = 0; i < filtered.length; i++) {
     const item = filtered[i]
     if (item.feedType === FEED_PRODUCT) {
-      if (i + 1 < filtered.length && filtered[i + 1].feedType === FEED_PRODUCT) {
-        rows.push(createPairRow(item, filtered[i + 1]))
-        i += 2
+      if (pendingProduct == null) {
+        pendingProduct = item
       } else {
-        rows.push(createPairRow(item, null))
-        i += 1
+        const left = pendingProduct
+        rows.push(createPairRow(left, item))
+        pendingProduct = null
       }
     } else {
       rows.push(createSingleRow(item))
-      i += 1
     }
+  }
+  if (pendingProduct != null) {
+    const lastProduct = pendingProduct
+    rows.push(createPairRow(lastProduct, null))
   }
   return rows
 })

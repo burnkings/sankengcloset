@@ -39,7 +39,7 @@
       </view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
+  <view :style="fabStyle" @tap="goAdd"><text :style="fabPlus">＋</text></view>
 </template>
 
 <script setup lang="uts">
@@ -103,5 +103,6 @@ const noteText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const dueText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const fabStyle = { position: 'fixed' as string, left: '323rpx', bottom: `${safeBottom + 48}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', zIndex: 100 } as UTSJSONObject
+const fabPlus = { fontSize: '56rpx', lineHeight: '64rpx', fontWeight: fontWeight.medium, color: '#FFFFFF' } as UTSJSONObject
 </script>
