@@ -27,11 +27,12 @@
       <view class="page-canvas" :style="pageWrap">
         <view v-if="keyword === ''">
           <V2SectionHeader title="最近搜索" actionText="清空" @action="clearRecent" />
-          <view :style="recentWrap">
+          <view v-if="recent.length > 0" :style="recentWrap">
             <view v-for="(kw, idx) in recent" :key="kw" :style="recentChip(idx)" @tap="selectKeyword(kw)">
               <text :style="recentChipText">{{ kw }}</text>
             </view>
           </view>
+          <text v-else :style="recentEmptyText">暂无最近搜索</text>
 
           <V2SectionHeader title="热门搜索" />
           <view :style="hotList">
@@ -81,7 +82,6 @@
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { brand, semantic, accent, baseColors } from '@/theme/tokens/colors'
@@ -112,22 +112,32 @@ const results = ref<FeedItem[]>([])
 const searching = ref(false)
 const searchError = ref('')
 let searchTimer: number | null = null
+let searchSequence = 0
 
 function runSearch(q: string) {
-  if (q.trim() === '') {
+  const normalized = q.trim()
+  if (normalized === '') {
+    searchSequence += 1
     results.value = []
     searching.value = false
     searchError.value = ''
     return
   }
+
+  searchSequence += 1
+  const requestSequence = searchSequence
   searching.value = true
   searchError.value = ''
-  searchProducts(q)
+  searchProducts(normalized)
     .then((res: SearchResult) => {
+      // 用户继续输入后，旧请求不得覆盖新关键词的状态。
+      if (requestSequence != searchSequence) return
       results.value = res.items
       searching.value = false
+      addRecent(normalized)
     })
     .catch((err) => {
+      if (requestSequence != searchSequence) return
       results.value = []
       searching.value = false
       searchError.value = err instanceof Error ? err.message : '搜索失败，请检查网络后重试'
@@ -137,24 +147,40 @@ function runSearch(q: string) {
 function retrySearch() { runSearch(keyword.value) }
 
 watch(keyword, (val: string) => {
-  if (searchTimer != null) {
-    clearTimeout(searchTimer)
+  const timer = searchTimer
+  if (timer != null) {
+    clearTimeout(timer)
     searchTimer = null
   }
-  searchTimer = setTimeout(() => runSearch(val), 400)
+  if (val.trim() !== '') {
+    // 输入后立即展示加载反馈，400ms 后才发请求，避免页面看起来毫无反应。
+    searching.value = true
+    searchError.value = ''
+    results.value = []
+    searchTimer = setTimeout(() => runSearch(val), 400)
+  } else {
+    runSearch('')
+  }
 })
 
-// 最近搜索：本地存储，首次无记录时用设计稿示例填充
+// 最近搜索：只展示用户真实搜索记录；首次进入为空。
 function loadRecent(): string[] {
   try {
     const raw = uni.getStorageSync('search_recent') as string
     if (raw && raw.length) return JSON.parse(raw) as string[]
   } catch (e) {}
-  return ['樱茶JK', '梦境Lolita', 'JK制服上新', '汉服秋冬', '绮灵搭配', '甜系Lolita']
+  return []
 }
 const recent = ref<string[]>(loadRecent())
 function saveRecent() {
   try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
+}
+function addRecent(value: string) {
+  const normalized = value.trim()
+  if (normalized === '') return
+  const next = [normalized, ...recent.value.filter((k) => k !== normalized)].slice(0, 10)
+  recent.value = next
+  saveRecent()
 }
 
 // 热门搜索：design 编号榜 + 热度
@@ -172,9 +198,7 @@ const hotRank: HotItem[] = [
 
 function selectKeyword(value: string) {
   keyword.value = value
-  const next = [value, ...recent.value.filter((k) => k !== value)].slice(0, 10)
-  recent.value = next
-  saveRecent()
+  addRecent(value)
 }
 function clearRecent() { recent.value = []; saveRecent() }
 function onInput(e: any) {
@@ -182,7 +206,16 @@ function onInput(e: any) {
   const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
   keyword.value = d != null && d['value'] != null ? d['value'] as string : ''
 }
-function onSubmit() { inputFocused.value = false }
+function onSubmit() {
+  inputFocused.value = false
+  const timer = searchTimer
+  if (timer != null) {
+    clearTimeout(timer)
+    searchTimer = null
+  }
+  addRecent(keyword.value)
+  runSearch(keyword.value)
+}
 function onClear() { keyword.value = ''; inputFocused.value = false }
 function onCancel() {
   if (keyword.value !== '') { keyword.value = ''; inputFocused.value = false }
@@ -192,6 +225,13 @@ function onBackTap() { uni.navigateBack() }
 function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
+
+onUnload(() => {
+  const timer = searchTimer
+  if (timer != null) clearTimeout(timer)
+  searchTimer = null
+  searchSequence += 1
+})
 
 onMounted(() => {
   try {
@@ -222,7 +262,8 @@ const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, gap: '16rpx', margi
 function recentChip(idx: number) {
   return { minHeight: '61rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as UTSJSONObject
 }
-const recentChipText = computed((): any => ({ fontSize: '25rpx', fontWeight: '400', color: n.value.textSecondary }))
+const recentChipText = computed((): any => ({ fontSize: '25rpx', fontWeight: '500', color: n.value.text }))
+const recentEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, paddingTop: '12rpx', paddingBottom: '20rpx' }))
 
 const hotList = { marginTop: '8rpx' } as UTSJSONObject
 const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as UTSJSONObject
