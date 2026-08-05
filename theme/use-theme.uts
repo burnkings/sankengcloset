@@ -14,7 +14,7 @@ import { reactive, computed } from 'vue'
 import { neutralLight, neutralDark, brand, NeutralPalette } from './tokens/colors'
 
 const THEME_MODE_KEY = 'v2_theme_mode'
-export type ThemeMode = 'system' | 'light' | 'dark'
+type ThemeMode = 'system' | 'light' | 'dark'
 
 const OLD_THEME_KEYS = ['sk_dark_mode', 'app_theme_mode', 'theme_dark_mode', 'sankeng_theme_mode']
 
@@ -38,13 +38,9 @@ function readStorageThemeMode(): ThemeMode {
 
 function getSystemDark(): boolean {
   try {
-    // #ifdef APP
-    return uni.getDeviceInfo().osTheme == 'dark'
-    // #endif
-    // #ifdef MP-WEIXIN || WEB
-    return uni.getAppBaseInfo().hostTheme == 'dark'
-    // #endif
-    return false
+    const info = uni.getSystemInfoSync() as UTSJSONObject
+    const theme = info['theme'] as string | null
+    return theme === 'dark'
   } catch (e) {
     return false
   }
@@ -99,14 +95,12 @@ const _state = reactive<ThemeState>({
   isDark: false,
 })
 let lastTabBarMode = ''
-// #ifdef APP
-let osThemeChangeId: number | null = null
-// #endif
+let themeChangeHandler: (() => void) | null = null
 
 function syncFromGlobal(): boolean {
   const mode = readStorageThemeMode()
   const computedDark = computeIsDark(mode)
-  const changed = _state.themeMode != mode || _state.isDark != computedDark
+  const changed = _state.themeMode !== mode || _state.isDark != computedDark
   if (changed) {
     _state.themeMode = mode
     _state.isDark = computedDark
@@ -116,51 +110,42 @@ function syncFromGlobal(): boolean {
 }
 
 function applySystemChrome() {
-  // App 必须显式设置 appTheme；默认值始终为 light，单改页面 token 不会驱动原生 UI。
-  // #ifdef APP
-  const appTheme = (_state.themeMode == 'system' ? 'auto' : (_state.themeMode == 'dark' ? 'dark' : 'light')) as 'light' | 'dark' | 'auto'
-  uni.setAppTheme({ theme: appTheme })
-  // #endif
   // #ifdef MP-WEIXIN
   const palette = _state.isDark ? neutralDark : neutralLight
-  try {
-    uni.setNavigationBarColor({
-      frontColor: _state.isDark ? '#ffffff' : '#000000',
-      backgroundColor: palette.bg,
-    })
-  } catch (e) {}
-  try {
-    uni.setBackgroundColor({
-      backgroundColor: palette.bg,
-      backgroundColorTop: palette.bg,
-      backgroundColorBottom: palette.bg,
-    })
-  } catch (e) {}
+  uni.setNavigationBarColor({
+    frontColor: _state.isDark ? '#ffffff' : '#000000',
+    backgroundColor: palette.bg,
+  })
+  uni.setBackgroundColor({
+    backgroundColor: palette.bg,
+    backgroundColorTop: palette.bg,
+    backgroundColorBottom: palette.bg,
+  })
   // #endif
 }
 
 export function syncTabBarChrome() {
-  // 原生 tabBar 全平台同步主题；App 与小程序共用这一套。
+  // #ifdef MP-WEIXIN
   const mode = _state.isDark ? 'dark' : 'light'
   if (lastTabBarMode === mode) return
   lastTabBarMode = mode
   uni.setTabBarStyle({
     color: _state.isDark ? neutralDark.textTertiary : neutralLight.textTertiary,
-    selectedColor: brand[600],
+    selectedColor: brand[500] as string,
     backgroundColor: _state.isDark ? neutralDark.surface : neutralLight.surface,
     borderStyle: _state.isDark ? 'white' : 'black',
     fail: () => { lastTabBarMode = '' },
   })
+  // #endif
 }
 
 // ====== 系统主题变化监听 ======
 
 function enableSystemThemeListener() {
-  // #ifdef APP
-  if (osThemeChangeId != null) return
-  osThemeChangeId = uni.onOsThemeChange((result: OsThemeChangeResult) => {
+  if (themeChangeHandler) return
+  themeChangeHandler = () => {
     if (_state.themeMode !== 'system') return
-    const newDark = result.osTheme == 'dark'
+    const newDark = getSystemDark()
     if (_state.isDark != newDark) {
       _state.isDark = newDark
       setGlobalDark(newDark)
@@ -168,16 +153,17 @@ function enableSystemThemeListener() {
       applySystemChrome()
       syncTabBarChrome()
     }
-  })
+  }
+  // #ifdef MP-WEIXIN
+  uni.onThemeChange(themeChangeHandler)
   // #endif
 }
 
 function disableSystemThemeListener() {
-  // #ifdef APP
-  const listenerId = osThemeChangeId
-  if (listenerId != null) {
-    uni.offOsThemeChange(listenerId)
-    osThemeChangeId = null
+  // #ifdef MP-WEIXIN
+  if (themeChangeHandler) {
+    uni.offThemeChange(themeChangeHandler)
+    themeChangeHandler = null
   }
   // #endif
 }
