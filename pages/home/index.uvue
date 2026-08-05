@@ -46,23 +46,6 @@
       <!-- #ifndef MP-WEIXIN -->
       <list-view v-else :style="listViewStyle" @scrolltolower="onLoadMore">
       <!-- #endif -->
-        <!-- Secondary category filter: scrolls away with content -->
-        <!-- #ifdef MP-WEIXIN -->
-        <view>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        <list-item :type="'categoryFilters'">
-        <!-- #endif -->
-          <view :style="categoryFilterWrap">
-            <V2Segmented :items="categories" :active="store.currentCategory" variant="solid" :active-color="brand[500]" :edge-inset="true" @change="onCategoryTap" />
-          </view>
-        <!-- #ifdef MP-WEIXIN -->
-        </view>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        </list-item>
-        <!-- #endif -->
-
         <!-- Empty channel -->
         <!-- #ifdef MP-WEIXIN -->
         <view v-if="store.isEmpty">
@@ -179,7 +162,7 @@
 </template>
 
 <script setup lang="uts">
-import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
+import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { FeedItem, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
@@ -199,14 +182,12 @@ import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 
 const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
 const notices = useNotificationCenterStore()
 const channels = CHANNELS
-const categories = CATEGORY_FILTERS
 
 const statusBarH = getStatusBarHeight()
 const homeNavbarPx = upx2px(288)
@@ -256,7 +237,6 @@ function rowSingleRelTime(row: FeedRow): string {
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openNotifications() { uni.navigateTo({ url: '/pages/notification/index' }) }
 function onChannelTap(ch: string) { store.setChannel(ch) }
-function onCategoryTap(category: string) { store.setCategory(category) }
 function onTap(item: FeedItem) {
   if (item.feedType === FEED_OUTFIT) {
     openPrimaryTab('/pages/community/index')
@@ -317,7 +297,6 @@ const searchTabsSpacer = { height: '12rpx' }
 // --- Styles ---
 // 真机 list-view 必须拿到明确高度；height:0 + flex 在微信 VDOM 下会失效。
 const listViewStyle = computed((): any => ({ width: '750rpx', height: `${homeViewportPx.value}px`, minHeight: `${homeViewportPx.value}px` }))
-const categoryFilterWrap = computed((): any => ({ paddingTop: '6rpx', paddingBottom: '2rpx', backgroundColor: n.value.bg }))
 
 // Error
 const errorWrap = { ...flexFill, alignItems: 'center', justifyContent: 'center', padding: spacing[8] }

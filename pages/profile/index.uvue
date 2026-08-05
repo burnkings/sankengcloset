@@ -42,9 +42,9 @@
           <view :style="settingShell(0, 3)">
             <view @tap="toggleSettingsPanel('dark')"><V2ListRow icon="moon" label="深色模式" :value="getThemeLabel()" /></view>
             <view v-if="openSettingsPanel === 'dark'" :style="dropdownPanel">
-              <view v-for="option in themeOptions" :key="option.value" :style="dropdownChoice(themeMode == option.value)" @tap.stop="chooseTheme(option.value)">
-                <text :style="dropdownChoiceText(themeMode == option.value)">{{ option.label }}</text>
-                <text v-if="themeMode == option.value" :style="selectedMark">✓</text>
+              <view v-for="option in themeOptions" :key="option" :style="dropdownChoice(themeMode == option)" @tap.stop="chooseTheme(option)">
+                <text :style="dropdownChoiceText(themeMode == option)">{{ themeOptionLabel(option) }}</text>
+                <text v-if="themeMode == option" :style="selectedMark">✓</text>
               </view>
             </view>
           </view>
@@ -87,7 +87,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, themeMode, initPageTheme, setThemeMode, getThemeLabel, ThemeMode } from '@/theme/use-theme'
+import { n, isDark, themeMode, initPageTheme, setThemeMode, getThemeLabel } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
@@ -102,8 +102,8 @@ import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
-// #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
+// #ifdef APP
 import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
@@ -136,21 +136,7 @@ const preferences = usePreferencesStore()
 const openSettingsPanel = ref('')
 const preferenceDraft = ref<string[]>([])
 
-class ThemeOption {
-  value: ThemeMode = 'system'
-  label: string = ''
-}
-function createThemeOption(value: ThemeMode, label: string): ThemeOption {
-  const option = new ThemeOption()
-  option.value = value
-  option.label = label
-  return option
-}
-const themeOptions: ThemeOption[] = [
-  createThemeOption('system', '跟随系统'),
-  createThemeOption('light', '浅色'),
-  createThemeOption('dark', '深色'),
-]
+const themeOptions = ['system', 'light', 'dark']
 const preferenceOptions = ['JK', 'Lolita', '汉服']
 const preferenceSummary = computed((): string => {
   const values = preferences.preferences.pitTypes
@@ -167,8 +153,15 @@ function toggleSettingsPanel(id: string) {
     preferenceDraft.value = values
   }
 }
-function chooseTheme(mode: ThemeMode) {
-  setThemeMode(mode)
+function themeOptionLabel(mode: string): string {
+  if (mode == 'light') return '浅色'
+  if (mode == 'dark') return '深色'
+  return '跟随系统'
+}
+function chooseTheme(mode: string) {
+  if (mode == 'light') setThemeMode('light')
+  else if (mode == 'dark') setThemeMode('dark')
+  else setThemeMode('system')
   openSettingsPanel.value = ''
 }
 function isPreferenceDraftSelected(item: string): boolean { return preferenceDraft.value.indexOf(item) >= 0 }
@@ -259,16 +252,16 @@ onShow(() => { initPageTheme(); reloadProfileData() })
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
 const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
-const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
+const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] as string }
 const guestAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
-const loginButton = computed((): any => ({ minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: isDark.value ? brand[600] : brand[500], alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
+const loginButton = computed((): any => ({ minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: isDark.value ? brand[600] as string : brand[500] as string, alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
 const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const accountId = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
-const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] }
+const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] as string }
 
 class ManageItem {
   id: string = ''
@@ -321,8 +314,8 @@ const aboutGroup = computed(() => settingsItems.value.filter((item) => item.sect
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 const dropdownPanel = computed((): any => ({ paddingLeft: '20rpx', paddingRight: '20rpx', paddingBottom: '20rpx', backgroundColor: n.value.surface }))
 function dropdownChoice(selected: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '18rpx', backgroundColor: selected ? n.value.surfacePink : n.value.bgSecondary, marginTop: '8rpx' } }
-function dropdownChoiceText(selected: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: selected ? fontWeight.semibold : fontWeight.regular, color: selected ? brand[700] : n.value.textSecondary } }
-const selectedMark = { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: brand[600] }
+function dropdownChoiceText(selected: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: selected ? fontWeight.semibold : fontWeight.regular, color: selected ? brand[700] as string : n.value.textSecondary } }
+const selectedMark = { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: brand[600] as string }
 const dropdownHint = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx', marginBottom: '12rpx' }))
 const preferenceChipRow = { ...flexRow, alignItems: 'center' }
 function preferenceChip(idx: number, item: string) { const selected = isPreferenceDraftSelected(item); return { ...flexFill, height: '68rpx', borderRadius: '20rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? (brand[500] as string) : n.value.bgSecondary, marginRight: idx < preferenceOptions.length - 1 ? '12rpx' : '0' } }

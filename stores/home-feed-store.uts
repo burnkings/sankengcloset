@@ -12,14 +12,6 @@ import { usePreferencesStore } from '@/stores/preferences-store'
 // ====== 频道定义 ======
 
 export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭']
-export const CATEGORY_FILTERS = ['全部', 'JK', 'Lolita', '汉服']
-
-function categoryCode(category: string): string {
-  if (category === 'Lolita') return 'LOLITA'
-  if (category === '汉服') return 'HANFU'
-  return category
-}
-
 
 
 // ====== 格式化工具 ======
@@ -102,7 +94,6 @@ function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
 type HomeFeedState = {
   state: string
   currentChannel: string
-  currentCategory: string
   allItems: FeedItem[]
   currentPage: number
   isLoadingMore: boolean
@@ -114,7 +105,6 @@ const _state = reactive<HomeFeedState>({
   // 状态: 'idle' | 'loading' | 'loaded' | 'error'
   state: 'idle',
   currentChannel: '推荐',
-  currentCategory: '全部',
   allItems: [] as FeedItem[],
   currentPage: 0,
   isLoadingMore: false,
@@ -131,16 +121,8 @@ const _loading = computed((): boolean => _state.state === 'loading')
 const _displayItems = computed((): FeedItem[] => {
   const ch = _state.currentChannel
   const channelItems = filterFeedByChannel(_state.allItems, ch)
-  const category = _state.currentCategory
-  let result = channelItems
-  if (category === '' || category === '全部') {
-    result = channelItems
-  } else {
-    const code = categoryCode(category)
-    result = channelItems.filter((item) => item.category === code)
-  }
   // Preference-based sorting
-  const sorted = [...result]
+  const sorted = [...channelItems]
   sorted.sort((a, b) => prefs.computeScore(b) - prefs.computeScore(a))
   return sorted
 })
@@ -222,12 +204,6 @@ function setChannel(ch: string) {
   notifyChanged()
 }
 
-function setCategory(category: string) {
-  if (category === _state.currentCategory) return
-  _state.currentCategory = category
-  notifyChanged()
-}
-
 // 重试
 function retry() {
   loadFirstPage()
@@ -268,7 +244,6 @@ class HomeFeedStoreHandle {
   get isEmpty(): boolean { return _isEmpty.value }
   get errorMessage(): string { return _state.errorMessage }
   get currentChannel(): string { return _state.currentChannel }
-  get currentCategory(): string { return _state.currentCategory }
   get allItems(): FeedItem[] { return _state.allItems }
   get displayItems(): FeedItem[] { return _displayItems.value }
   get feedRows(): FeedRow[] { return _feedRows.value }
@@ -277,7 +252,6 @@ class HomeFeedStoreHandle {
   loadFirstPage(): Promise<void> { return loadFirstPage() }
   loadMore(): Promise<void> { return loadMore() }
   setChannel(ch: string): void { setChannel(ch) }
-  setCategory(category: string): void { setCategory(category) }
   retry(): void { retry() }
   toggleLike(itemId: string): void { toggleLike(itemId) }
   toggleSave(itemId: string): void { toggleSave(itemId) }

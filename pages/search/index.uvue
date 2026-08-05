@@ -217,7 +217,7 @@ const recentChipText = { fontSize: '25rpx', fontWeight: '400', color: n.value.te
 const hotList = { marginTop: '8rpx' } as UTSJSONObject
 const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as UTSJSONObject
 function rankText(idx: number) {
-  const color = idx === 0 ? brand[500] : idx === 1 ? semantic.warning : idx === 2 ? accent[500] : n.value.textSecondary
+  const color = idx === 0 ? brand[500] as string : idx === 1 ? semantic.warning : idx === 2 ? accent[500] as string : n.value.textSecondary
   return { width: '44rpx', fontSize: '33rpx', fontWeight: '600', color } as UTSJSONObject
 }
 const hotKeywordText = { ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text } as UTSJSONObject
@@ -228,6 +228,6 @@ function productShell(idx: number) { return { width: '325rpx', marginRight: idx 
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
 const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }
 const emptyDesc = { fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }
-const retryButton = { height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginTop: '24rpx' }
+const retryButton = { height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', marginTop: '24rpx' }
 const retryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 </script>

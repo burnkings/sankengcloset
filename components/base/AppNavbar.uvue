@@ -30,7 +30,7 @@ const leftStyle = computed((): any => ({ flexShrink: 0, ...flexRow, alignItems: 
 const centerStyle = { ...flexFill, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
 const rightStyle = computed((): any => ({ flexShrink: 0, ...flexRow, alignItems: 'center', justifyContent: 'flex-end', width: props.wideCenter ? '88rpx' : '180rpx' }))
 const backStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
-const brandStyle = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] }
+const brandStyle = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] as string }
 const titleStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
 function onBack() { emit('back'); uni.navigateBack() }
 </script>
