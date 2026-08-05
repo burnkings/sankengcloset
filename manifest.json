@@ -2,8 +2,8 @@
     "name" : "sankengcloset",
     "appid" : "__UNI__5E07E1E",
     "description" : "",
-    "versionName" : "2.5.0-beta.3",
-    "versionCode" : "25003",
+    "versionName" : "2.5.0-beta.2",
+    "versionCode" : "25002",
     "uni-app-x" : {
         "styleIsolationVersion" : "2",
         "vapor" : false
