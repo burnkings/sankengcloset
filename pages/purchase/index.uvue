@@ -39,7 +39,7 @@
       </view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
+  <view :style="fabStyle" @tap="goAdd"><text :style="fabText">+</text></view>
 </template>
 
 <script setup lang="uts">
@@ -103,5 +103,6 @@ const noteText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const dueText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 64}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const fabText = { fontSize: '58rpx', lineHeight: '64rpx', fontWeight: fontWeight.regular, color: '#FFFFFF', textAlign: 'center' }
 </script>
