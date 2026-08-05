@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="衣橱" :show-back="true"><template #right><view :style="addBtn" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view></template></AppNavbar></template>
+    <template #navbar><AppNavbar title="衣橱" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
@@ -33,10 +33,10 @@
       </view>
     </template>
   </MainLayout>
+  <view :style="fabStyle" @tap="goAdd"><text :style="fabText">+</text></view>
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { WardrobeItem } from '@/domain/wardrobe-item'
 import { brand, baseColors } from '@/theme/tokens/colors'
@@ -52,8 +52,10 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
 
 const store = useWardrobeStore()
+const safeBottom = getSafeBottomInset()
 const searchValue = ref('')
 const activeFilter = ref('全部')
 const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
@@ -74,19 +76,20 @@ function categoryLabel(value: string): string { return value === 'LOLITA' ? 'Lol
 function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿' : (value === 'WORN' ? '已穿' : (value === 'FREQUENT' ? '常穿' : '')) }
 function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
-onPageShow(() => { store.fetchItems() })
+onShow(() => { store.fetchItems() })
   watch(searchValue, (value: string) => { store.setSearch(value) })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const addBtn = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' } as UTSJSONObject
-const statsCard = computed((): any => ({ borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' }))
+const fabStyle = { position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 64}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', zIndex: 100 }
+const fabText = { fontSize: '58rpx', lineHeight: '64rpx', fontWeight: fontWeight.regular, color: '#FFFFFF', textAlign: 'center' }
+const statsCard = { borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' } as UTSJSONObject
 const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as UTSJSONObject
-const statsTitle = computed((): any => ({ fontSize: '31rpx', fontWeight: '700', color: n.value.text }))
-const statsSub = computed((): any => ({ fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' }))
+const statsTitle = { fontSize: '31rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
+const statsSub = { fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' } as UTSJSONObject
 const statsRow = { ...flexRow, alignItems: 'center' } as UTSJSONObject
 const statCol = { ...flexFill, flexDirection: 'column' as string, alignItems: 'center' } as UTSJSONObject
-const statNum = computed((): any => ({ fontSize: '35rpx', fontWeight: '700', color: n.value.text }))
-const statLabel = computed((): any => ({ fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' }))
+const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
+const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as UTSJSONObject
 class CategoryStat {
   label: string = ''
   count: number = 0
@@ -131,4 +134,3 @@ const emptyWrap = { alignItems: 'center', paddingTop: '180rpx', paddingBottom: '
 const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
 const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
 </script>
-
