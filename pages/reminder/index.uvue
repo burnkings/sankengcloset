@@ -36,7 +36,7 @@
       </view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
+  <view :style="fabStyle" @tap="goAdd"><text :style="fabText">+</text></view>
 </template>
 
 <script setup lang="uts">
@@ -62,8 +62,6 @@ function onFilter(label: string) { activeFilter.value = label; store.setFilterSt
 function goAdd() { uni.navigateTo({ url: '/pages/reminder/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` }) }
 onMounted(() => { store.fetchItems() })
-// 新增/编辑/删除返回后立即刷新列表（本机 Storage 读取，成本低）
-onPageShow(() => { store.fetchItems() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surfacePink }))
@@ -85,5 +83,6 @@ function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fon
 const subLine = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 64}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const fabText = { fontSize: '58rpx', lineHeight: '64rpx', fontWeight: fontWeight.regular, color: '#FFFFFF', textAlign: 'center' }
 </script>
