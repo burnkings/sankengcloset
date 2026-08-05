@@ -99,7 +99,7 @@ function reload() {
   _state.likedPostIds = readList(LIKED_POST_IDS_KEY)
   const ids = readList(OUTFIT_IDS_KEY)
   // Phase 1C 只保存一条圈子；首次进入 V2.0 时无损迁移到多条内容库。
-  if (ids.length === 0) {
+  if (ids.length == 0) {
     const legacyImage = readString('local_outfit_image')
     if (legacyImage !== '') {
       const legacyId = `outfit_legacy_${Date.now()}`
