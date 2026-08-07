@@ -27,7 +27,7 @@ export function formatPrice(cents: number): string {
 
 /** 相对时间格式化 */
 export function formatRelativeTime(isoStr: string): string {
-  if (isoStr === '') return ''
+  if (isoStr == null || isoStr == '') return ''
   const now = Date.now()
   const target = new Date(isoStr).getTime()
   const diffMs = target - now
@@ -50,7 +50,7 @@ export function formatRelativeTime(isoStr: string): string {
 
 /** 截止时间格式化：商品卡仅展示一条紧迫度信息 */
 export function formatDeadline(isoStr: string): string {
-  if (isoStr === '') return ''
+  if (isoStr == null || isoStr == '') return ''
   const diffMs = new Date(isoStr).getTime() - Date.now()
   if (diffMs <= 0) return '已结束'
   const totalMin = Math.floor(diffMs / 60000)
@@ -70,6 +70,7 @@ export class FeedRow {
   single: FeedItem | null = null
   left: FeedItem | null = null
   right: FeedItem | null = null
+  score: number = 0
 }
 
 function createSingleRow(item: FeedItem): FeedRow {
@@ -77,6 +78,7 @@ function createSingleRow(item: FeedItem): FeedRow {
   row.id = `row-${item.id}`
   row.rowType = 'single'
   row.single = item
+  row.score = prefs.computeScore(item)
   return row
 }
 
@@ -86,6 +88,12 @@ function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
   row.rowType = 'pair'
   row.left = left
   row.right = right
+  let score = prefs.computeScore(left)
+  if (right != null) {
+    const rs = prefs.computeScore(right)
+    if (rs > score) score = rs
+  }
+  row.score = score
   return row
 }
 
@@ -115,7 +123,7 @@ const _state = reactive<HomeFeedState>({
 // 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
 const prefs = usePreferencesStore()
 
-const _loading = computed((): boolean => _state.state === 'loading')
+const _loading = computed((): boolean => _state.state == 'loading')
 
 // 筛选后的展示列表
 const _displayItems = computed((): FeedItem[] => {
@@ -128,17 +136,19 @@ const _displayItems = computed((): FeedItem[] => {
 })
 
 const _isEmpty = computed((): boolean => {
-  return _state.state === 'loaded' && _displayItems.value.length == 0
+  return _state.state == 'loaded' && _displayItems.value.length == 0
 })
 
 // 混合流：普通商品跨单列运营内容继续配对，避免每个商品都落成左侧孤卡。
+// 先按原始顺序配对（保持 product 相邻 → 双列），再按行偏好分数排序（偏好内容靠前）。
 const _feedRows = computed((): FeedRow[] => {
   const rows: FeedRow[] = []
-  const filtered = _displayItems.value
+  const ch = _state.currentChannel
+  const channelItems = filterFeedByChannel(_state.allItems, ch)
   let pendingProduct: FeedItem | null = null
-  for (let i = 0; i < filtered.length; i++) {
-    const item = filtered[i]
-    if (item.feedType === FEED_PRODUCT) {
+  for (let i = 0; i < channelItems.length; i++) {
+    const item = channelItems[i]
+    if (item.feedType == FEED_PRODUCT) {
       if (pendingProduct == null) pendingProduct = item
       else {
         rows.push(createPairRow(pendingProduct, item))
@@ -149,7 +159,11 @@ const _feedRows = computed((): FeedRow[] => {
     }
   }
   if (pendingProduct != null) rows.push(createPairRow(pendingProduct, null))
-  return rows
+  const pairRows = rows.filter((r) => r.rowType == 'pair')
+  const singleRows = rows.filter((r) => r.rowType == 'single')
+  pairRows.sort((a, b) => b.score - a.score)
+  singleRows.sort((a, b) => b.score - a.score)
+  return [...pairRows, ...singleRows]
 })
 
 const CHANGE_EVENT = 'store:home-feed-changed'
@@ -162,7 +176,7 @@ async function loadFirstPage() {
   _state.state = 'loading'
   _state.errorMessage = ''
   try {
-    const page = await fetchFeedPage(0)
+    const page = await fetchFeedPage(0, _state.currentChannel)
     _state.allItems = page.items
     _state.currentPage = 1
     _state.hasMore = page.hasMore
@@ -198,7 +212,7 @@ async function loadMore() {
 
 // 切换频道（重置分页状态，不重新加载数据）
 function setChannel(ch: string) {
-  if (ch === _state.currentChannel) return
+  if (ch == _state.currentChannel) return
   _state.currentChannel = ch
   // displayItems computed 自动重算，hasMore 基于全量数据
   notifyChanged()
@@ -211,29 +225,44 @@ function retry() {
 
 // 切换收藏
 function toggleLike(itemId: string) {
-  const items = _state.allItems
+  const items: FeedItem[] = [..._state.allItems]
   for (let i = 0; i < items.length; i++) {
-    if (items[i].id === itemId) {
+    if (items[i].id == itemId) {
       items[i].liked = !items[i].liked
       break
     }
   }
+  _state.allItems = items
   notifyChanged()
 }
 
 function toggleSave(itemId: string) {
-  const items = _state.allItems
+  const items: FeedItem[] = [..._state.allItems]
   for (let i = 0; i < items.length; i++) {
-    if (items[i].id === itemId) {
+    if (items[i].id == itemId) {
       items[i].saved = !items[i].saved
       break
     }
   }
+  _state.allItems = items
   notifyChanged()
 }
 
 function refreshPreferences() {
   prefs.loadPreferences()
+}
+
+// 首页 onPageShow 调用：偏好变化才重新请求 Feed（避免每次切 Tab 全量刷新）
+function buildPrefSignature(): string {
+  const p = prefs.preferences
+  return `${p.pitTypes.join(',')}|${p.followedBrands.join(',')}|${p.priceRange}`
+}
+let lastPrefSignature = buildPrefSignature()
+function refreshIfPreferencesChanged() {
+  const sig = buildPrefSignature()
+  if (sig == lastPrefSignature) return
+  lastPrefSignature = sig
+  loadFirstPage()
 }
 
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
@@ -256,6 +285,7 @@ class HomeFeedStoreHandle {
   toggleLike(itemId: string): void { toggleLike(itemId) }
   toggleSave(itemId: string): void { toggleSave(itemId) }
   refreshPreferences(): void { refreshPreferences() }
+  refreshIfPreferencesChanged(): void { refreshIfPreferencesChanged() }
 }
 
 let _handle: HomeFeedStoreHandle | null = null

@@ -5,6 +5,7 @@ import { warmRuntimeCache } from '@/config/runtime'
 onLaunch(() => {
   warmRuntimeCache()
   initializeTheme()
+  uni.hideTabBar({ animation: false })
   syncTabBarChrome()
   console.log('App Launch')
 })

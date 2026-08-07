@@ -40,7 +40,7 @@
         <V2SectionHeader title="设置" />
         <V2ListGroup>
           <view :style="settingShell(0, 3)">
-            <view @tap="toggleSettingsPanel('dark')"><V2ListRow icon="moon" label="深色模式" :value="getThemeLabel()" /></view>
+            <view @tap="toggleSettingsPanel('dark')"><V2ListRow icon="moon" label="深色模式" :value="themeLabel" /></view>
             <view v-if="openSettingsPanel === 'dark'" :style="dropdownPanel">
               <view v-for="option in themeOptions" :key="option" :style="dropdownChoice(themeMode == option)" @tap.stop="chooseTheme(option)">
                 <text :style="dropdownChoiceText(themeMode == option)">{{ themeOptionLabel(option) }}</text>
@@ -74,9 +74,6 @@
       </view>
     </template>
   </MainLayout>
-  <!-- #ifdef APP -->
-  <AppBottomNav active="profile" />
-  <!-- #endif -->
 </view>
 </template>
 
@@ -103,9 +100,6 @@ import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { getWindowHeight } from '@/utils/window-info'
-// #ifdef APP
-import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
-// #endif
 
 class SettingsItem {
   id: string = ''
@@ -142,6 +136,8 @@ const preferenceSummary = computed((): string => {
   const values = preferences.preferences.pitTypes
   return values.length == 0 ? '全部' : values.join('、')
 })
+
+const themeLabel = computed((): string => getThemeLabel())
 
 function toggleSettingsPanel(id: string) {
   if (openSettingsPanel.value == id) { openSettingsPanel.value = ''; return }

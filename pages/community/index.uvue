@@ -53,9 +53,6 @@
       </view>
     </template>
   </MainLayout>
-  <!-- #ifdef APP -->
-  <AppBottomNav active="community" />
-  <!-- #endif -->
 </view>
 </template>
 
@@ -72,9 +69,6 @@ import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
 import { getWindowHeight } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
-// #ifdef APP
-import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
-// #endif
 
 type LookItem = {
   id: string
