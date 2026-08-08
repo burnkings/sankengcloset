@@ -5,6 +5,8 @@
  */
 
 import { reactive } from 'vue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { loadPreferencesRemote, savePreferencesRemote } from '@/services/user-data/user-data-service'
 
 const STORAGE_KEY = 'v2_user_preferences'
 
@@ -93,8 +95,45 @@ function loadPreferences() {
   notifyChanged()
 }
 
+function toRemotePitType(value: string): string {
+  if (value == 'Lolita') return 'LOLITA'
+  if (value == '汉服') return 'HANFU'
+  return value
+}
+
 function savePreferences() {
   writePreferences(_state.preferences)
+  if (getCachedAccessToken() != '') {
+    const remoteTypes = [] as string[]
+    for (let i = 0; i < _state.preferences.pitTypes.length; i++) remoteTypes.push(toRemotePitType(_state.preferences.pitTypes[i]))
+    savePreferencesRemote({
+      pitTypes: remoteTypes,
+      followedBrands: _state.preferences.followedBrands,
+      priceRange: _state.preferences.priceRange,
+      themeMode: 'system',
+    }).catch(() => { /* local state remains the offline fallback */ })
+  }
+}
+
+async function refreshRemotePreferences(): Promise<void> {
+  if (getCachedAccessToken() == '') return
+  try {
+    const remote = await loadPreferencesRemote()
+    if (remote['pitTypes'] == null) return
+    const next = new PreferencesData()
+    const source = remote['pitTypes'] as string[]
+    for (let i = 0; i < source.length; i++) {
+      const value = source[i]
+      next.pitTypes.push(value == 'LOLITA' ? 'Lolita' : value == 'HANFU' ? '汉服' : value)
+    }
+    if (remote['followedBrands'] != null) next.followedBrands = remote['followedBrands'] as string[]
+    if (remote['priceRange'] != null) next.priceRange = remote['priceRange'] as string
+    _state.preferences = next
+    writePreferences(next)
+    notifyChanged()
+  } catch (e) {
+    // Keep the local preference choice usable while offline.
+  }
 }
 
 function setPitTypes(types: string[]) {
@@ -142,6 +181,7 @@ class PreferencesStoreHandle {
   setPitTypes(types: string[]): void { setPitTypes(types) }
   togglePitType(type: string): void { togglePitType(type) }
   resetPreferences(): void { resetPreferences() }
+  refreshRemotePreferences(): Promise<void> { return refreshRemotePreferences() }
 }
 
 let _handle: PreferencesStoreHandle | null = null
