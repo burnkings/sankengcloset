@@ -41,17 +41,17 @@ export function mapFeedItem(raw: UTSJSONObject): FeedItem {
 }
 
 function channelCode(channel: string): string {
-  if (channel === '新品') return 'new'
-  if (channel === '预约') return 'reservation'
-  if (channel === '降价') return 'price_drop'
-  if (channel === '穿搭') return 'outfit'
+  if (channel == '新品') return 'new'
+  if (channel == '预约') return 'reservation'
+  if (channel == '降价') return 'price_drop'
+  if (channel == '穿搭') return 'outfit'
   return 'recommend'
 }
 
 function categoryCode(category: string): string {
-  if (category === 'Lolita') return 'LOLITA'
-  if (category === '汉服') return 'HANFU'
-  return category === '全部' ? '' : category
+  if (category == 'Lolita') return 'LOLITA'
+  if (category == '汉服') return 'HANFU'
+  return category == '全部' ? '' : category
 }
 
 async function fetchRemoteFeed(pageIndex: number, channel: string, category: string): Promise<FeedPage> {
@@ -79,10 +79,10 @@ export async function fetchFeedPage(pageIndex: number, channel: string = '推荐
 }
 
 export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
-  if (channel === '' || channel === '推荐') return items
-  if (channel === '新品') return items.filter((i) => i.badgeText === '新品')
-  if (channel === '预约') return items.filter((i) => i.badgeText === '预约' || i.badgeText === '定金')
-  if (channel === '降价') return items.filter((i) => i.badgeText === '降价')
-  if (channel === '穿搭') return items.filter((i) => i.feedType === 'outfit')
-  return items.filter((i) => i.category === channel)
+  if (channel == '' || channel == '推荐') return items
+  if (channel == '新品') return items.filter((i) => i.badgeText == '新品')
+  if (channel == '预约') return items.filter((i) => i.badgeText == '预约' || i.badgeText == '定金')
+  if (channel == '降价') return items.filter((i) => i.badgeText == '降价')
+  if (channel == '穿搭') return items.filter((i) => i.feedType == 'outfit')
+  return items.filter((i) => i.category == channel)
 }

@@ -195,7 +195,6 @@
   // #ifdef APP
   ,
   "tabBar": {
-    "custom": true,
     "color": "@tabColor",
     "selectedColor": "@tabSelectedColor",
     "backgroundColor": "@tabBgColor",

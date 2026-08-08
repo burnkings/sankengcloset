@@ -18,10 +18,12 @@
 
 <script setup lang="uts">
 import { flexFill } from '@/theme/layout/flex'
+
 import { PAGE_BOTTOM_SAFE_SPACER, PAGE_HEADER_HEIGHT } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { useTheme } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight } from '@/utils/window-info'
 import AppFeedbackToast from '@/components/base/AppFeedbackToast.uvue'
+const theme = useTheme()
 
 const props = withDefaults(defineProps<{
   navbarContentHeight?: string
@@ -37,7 +39,7 @@ const windowHeight = getWindowHeight()
 
 const layoutStyle = computed((): any => ({
   height: `${windowHeight}px`,
-  backgroundColor: n.value.bg,
+  backgroundColor: theme.neutral.bg,
 }))
 
 const bodyStyle = computed((): any => ({
@@ -48,5 +50,5 @@ const bodyStyle = computed((): any => ({
 const statusSpacerStyle = { height: `${statusBarHeight}px`, flexShrink: 0 }
 const navbarSpacerStyle = computed((): any => ({ height: props.navbarContentHeight, flexShrink: 0 }))
 
-const safeBottomStyle = { height: PAGE_BOTTOM_SAFE_SPACER, flexShrink: 0 }
+const safeBottomStyle = computed((): any => ({ height: PAGE_BOTTOM_SAFE_SPACER, flexShrink: 0, backgroundColor: theme.neutral.bg }))
 </script>

@@ -99,6 +99,19 @@ const inputFocused = ref(false)
 const results = ref<FeedItem[]>([])
 const searching = ref(false)
 const searchError = ref('')
+// 最近搜索只保存用户真实搜索词，不注入设计稿假数据。
+function loadRecent(): string[] {
+  try {
+    const raw = uni.getStorageSync('search_recent') as string
+    if (raw && raw.length) return JSON.parse(raw) as string[]
+  } catch (e) {}
+  return []
+}
+const recent = ref<string[]>(loadRecent())
+function saveRecent() {
+  try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
+}
+
 let searchTimer: number | null = null
 let requestSequence = 0
 
@@ -126,8 +139,7 @@ function runSearch(q: string) {
       results.value = res.items
       searching.value = false
       rememberKeyword(normalized)
-    })
-    .catch((error: any) => {
+    }, (error: any) => {
       if (currentRequest !== requestSequence) return
       results.value = []
       searching.value = false
@@ -151,19 +163,6 @@ watch(keyword, (val: string) => {
   searching.value = true
   searchTimer = setTimeout(() => runSearch(val), 400)
 })
-
-// 最近搜索只保存用户真实搜索词，不注入设计稿假数据。
-function loadRecent(): string[] {
-  try {
-    const raw = uni.getStorageSync('search_recent') as string
-    if (raw && raw.length) return JSON.parse(raw) as string[]
-  } catch (e) {}
-  return []
-}
-const recent = ref<string[]>(loadRecent())
-function saveRecent() {
-  try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
-}
 
 // 热门搜索：design 编号榜 + 热度
 type HotItem = {
