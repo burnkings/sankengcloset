@@ -244,6 +244,8 @@ function reloadProfileData() {
   session.reload()
   library.reload()
   library.refreshRemotePosts()
+  budget.refreshRemoteBudget()
+  preferences.refreshRemotePreferences()
   purchases.fetchPurchases()
   reminders.fetchItems()
   wardrobe.fetchItems()
