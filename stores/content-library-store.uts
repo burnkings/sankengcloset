@@ -1,5 +1,7 @@
 import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote } from '@/services/user-data/user-data-service'
 
 /**
  * ContentLibraryStore — V2.0 用户内容资产
@@ -126,6 +128,31 @@ function reload() {
   notifyChanged()
 }
 
+async function refreshRemotePosts(): Promise<void> {
+  if (getCachedAccessToken() == '') return
+  try {
+    const remote = await listCommunityPostsRemote('', '', '', true)
+    const saved = [] as SavedOutfitPost[]
+    for (let i = 0; i < remote.length; i++) {
+      const item = remote[i]
+      const post = new SavedOutfitPost()
+      post.id = item.id
+      post.image = item.imageUrl
+      post.caption = item.caption
+      post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : item.category
+      post.topic = item.topic
+      post.createdAt = item.createdAt
+      saved.push(post)
+      if (item.liked && _state.likedPostIds.indexOf(item.id) < 0) _state.likedPostIds.push(item.id)
+    }
+    const local = _state.outfitPosts.filter((post) => post.id.startsWith('outfit_'))
+    _state.outfitPosts = [...saved, ...local]
+    notifyChanged()
+  } catch (e) {
+    // Remote failure must not hide locally saved drafts or block the community page.
+  }
+}
+
 function isFavorite(entityId: string): boolean {
   return _state.favoriteIds.indexOf(entityId) >= 0
 }
@@ -194,6 +221,9 @@ function removeOutfit(id: string) {
     writeList(LIKED_POST_IDS_KEY, liked)
   }
   enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
+  if (!id.startsWith('outfit_') && getCachedAccessToken() != '') {
+    deleteCommunityPostRemote(id).catch(() => { /* queue remains as offline fallback */ })
+  }
   reload()
 }
 
@@ -210,6 +240,12 @@ function togglePostLike(postId: string): boolean {
   _state.likedPostIds = values
   writeList(LIKED_POST_IDS_KEY, values)
   enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
+  if (getCachedAccessToken() != '') {
+    const wanted = idx < 0
+    setCommunityPostLikeRemote(postId, wanted).catch(() => {
+      // Keep the optimistic action in the local queue so it can be reconciled later.
+    })
+  }
   notifyChanged()
   return idx < 0
 }
@@ -228,6 +264,7 @@ class ContentLibraryStoreHandle {
   get outfitCount(): number { return _outfitCount.value }
   get likedPostCount(): number { return _likedPostCount.value }
   reload(): void { reload() }
+  refreshRemotePosts(): Promise<void> { return refreshRemotePosts() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
   toggleFavorite(entityId: string): boolean { return toggleFavorite(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
