@@ -69,6 +69,7 @@ async function refreshRemoteBudget(): Promise<void> {
   } catch (e) {
     // Keep the last local budget when the device is offline.
   }
+}
 
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
 
