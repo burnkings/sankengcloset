@@ -255,7 +255,7 @@ function onRetry() { store.retry() }
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
 onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
-onLoad(() => { initPageTheme() })
+onLoad(() => { initPageTheme(); refreshViewport() })
 onPageShow(() => { initPageTheme(); store.refreshIfPreferencesChanged(); notices.reload() })
 
 // --- Spacing tokens (no gap) ---
@@ -296,7 +296,7 @@ const searchTabsSpacer = { height: '12rpx' }
 
 // --- Styles ---
 // 真机 list-view 必须拿到明确高度；height:0 + flex 在微信 VDOM 下会失效。
-const listViewStyle = computed((): any => ({ width: '750rpx', height: `${homeViewportPx.value}px`, minHeight: `${homeViewportPx.value}px` }))
+const listViewStyle = computed((): any => ({ width: '750rpx', flex: 1, minHeight: `${homeViewportPx.value}px` }))
 
 // Error
 const errorWrap = { ...flexFill, alignItems: 'center', justifyContent: 'center', padding: spacing[8] }

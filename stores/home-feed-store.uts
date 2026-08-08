@@ -201,8 +201,9 @@ async function loadFirstPage() {
   } catch (e) {
     _state.state = 'error'
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
+  } finally {
+    notifyChanged()
   }
-  notifyChanged()
 }
 
 // 加载更多（防重入）
