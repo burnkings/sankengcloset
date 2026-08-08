@@ -100,7 +100,6 @@ const appVersion = computed((): any => ({ fontSize: fontSize.xs, color: n.value.
 const appSlogan = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const groupTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '8rpx', marginBottom: '12rpx' }))
 const copyright = computed((): any => ({
-  display: 'block',
   textAlign: 'center',
   fontSize: fontSize.xs,
   color: n.value.textTertiary,

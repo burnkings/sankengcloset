@@ -59,14 +59,12 @@ const sectionTitle = computed((): any => ({
   marginBottom: '16rpx',
 }))
 const paraStyle = computed((): any => ({
-  display: 'block',
   fontSize: fontSize.sm,
   lineHeight: '1.7',
   color: n.value.textSecondary,
   marginBottom: '12rpx',
 }))
 const footerHint = computed((): any => ({
-  display: 'block',
   textAlign: 'center',
   fontSize: fontSize.xs,
   color: n.value.textTertiary,
