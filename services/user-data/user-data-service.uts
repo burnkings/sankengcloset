@@ -75,9 +75,12 @@ export function savePreferencesRemote(payload: UTSJSONObject) { return apiPutAut
 
 export async function listCommunityPostsRemote(cursor: string = '', category: string = '', topic: string = '', mine: boolean = false): Promise<CommunityPostRemote[]> {
   const root = mine ? '/api/v1/me/community/posts' : '/api/v1/community/posts'
-  let path = root + '?cursor=' + encodeQuery(cursor) + '&limit=20'
-  if (!mine && category != '') path += '&category=' + encodeQuery(category)
-  if (!mine && topic != '') path += '&topic=' + encodeQuery(topic)
+  // 只传有值的参数：cursor 空不传、category/topic 空不传；limit 由后端默认 20
+  let path = root
+  let hasQuery = false
+  if (cursor != '') { path += '?cursor=' + encodeQuery(cursor); hasQuery = true }
+  if (!mine && category != '') { path += (hasQuery ? '&' : '?') + 'category=' + encodeQuery(category); hasQuery = true }
+  if (!mine && topic != '') { path += (hasQuery ? '&' : '?') + 'topic=' + encodeQuery(topic); hasQuery = true }
   const response = await apiGet(path)
   const values = response.data as any[] | null
   const result = [] as CommunityPostRemote[]

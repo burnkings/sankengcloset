@@ -202,31 +202,10 @@ function onManageTap(id: string) {
 }
 function onSettingTap(id: string) {
   if (id === 'notification') { showFeedback('功能开发中'); return }
-  if (id === 'privacy') {
-    showFeedback('功能开发中')
-    return
-  }
-  if (id === 'agreement') {
-    showFeedback('功能开发中')
-    return
-  }
-  if (id === 'policy') {
-    showFeedback('功能开发中')
-    return
-  }
   if (id === 'about') {
-    showFeedback('三坑绮橱 V2.3 后端就绪版')
+    goPage('/pages/about/index')
     return
   }
-  if (id === 'cache') {
-    const cacheKeys = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic']
-    try {
-      for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i])
-    } catch (e) {}
-    showFeedback('缓存已清理，账号与个人数据已保留')
-    return
-  }
-  if (id === 'help') { showFeedback('反馈入口将在账号服务接入后开放'); return }
   if (id === 'logout') { logout(); return }
 }
 
@@ -303,12 +282,7 @@ const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.
 
 const settingsItems = computed(() => {
   const items: SettingsItem[] = [
-    createSettingsItem('privacy', 'info', '隐私与权限', '', 'about'),
-    createSettingsItem('agreement', 'info', '用户协议', '', 'about'),
-    createSettingsItem('policy', 'info', '隐私政策', '', 'about'),
-    createSettingsItem('about', 'info', '关于', 'V2.5', 'about'),
-    createSettingsItem('help', 'help-circle', '帮助与反馈', '', 'about'),
-    createSettingsItem('cache', 'database', '清理缓存', '', 'about'),
+    createSettingsItem('about', 'info', '关于三坑绮橱', 'V2.5', 'about'),
   ]
   if (session.isLoggedIn) items.push(createSettingsItem('logout', 'profile', '退出登录', '', 'about'))
   return items

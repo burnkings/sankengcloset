@@ -1,0 +1,76 @@
+<template>
+  <DetailLayout :title="pageTitle">
+    <view :style="contentWrap">
+      <view v-for="section in sections" :key="section.title" :style="sectionBlock">
+        <text :style="sectionTitle">{{ section.title }}</text>
+        <text v-for="(para, idx) in section.paragraphs" :key="idx" :style="paraStyle">{{ para }}</text>
+      </view>
+      <text :style="footerHint">请仔细阅读以上内容后再使用本平台</text>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import { ref, computed } from 'vue'
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import { PAGE_GUTTER_REGULAR, CARD_RADIUS } from '@/theme/tokens/responsive'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { n } from '@/theme/use-theme'
+import { AGREEMENT_SECTIONS, PRIVACY_SECTIONS } from './legal-content'
+import type { LegalSection } from './legal-content'
+
+const pageTitle = ref('用户协议')
+const sections = ref<LegalSection[]>([])
+
+onLoad((query) => {
+  if (query != null && query['type'] != null) {
+    const type = query['type'] as string
+    if (type == 'privacy') {
+      pageTitle.value = '隐私政策'
+      sections.value = PRIVACY_SECTIONS
+    } else {
+      pageTitle.value = '用户协议'
+      sections.value = AGREEMENT_SECTIONS
+    }
+  } else {
+    sections.value = AGREEMENT_SECTIONS
+  }
+})
+
+const contentWrap = computed((): any => ({
+  paddingTop: '24rpx',
+  paddingLeft: PAGE_GUTTER_REGULAR,
+  paddingRight: PAGE_GUTTER_REGULAR,
+  paddingBottom: '24rpx',
+}))
+const sectionBlock = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: CARD_RADIUS,
+  paddingTop: '28rpx',
+  paddingBottom: '28rpx',
+  paddingLeft: '24rpx',
+  paddingRight: '24rpx',
+  marginBottom: '20rpx',
+}))
+const sectionTitle = computed((): any => ({
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
+  color: n.value.text,
+  marginBottom: '16rpx',
+}))
+const paraStyle = computed((): any => ({
+  display: 'block',
+  fontSize: fontSize.sm,
+  lineHeight: '1.7',
+  color: n.value.textSecondary,
+  marginBottom: '12rpx',
+}))
+const footerHint = computed((): any => ({
+  display: 'block',
+  textAlign: 'center',
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  marginTop: '12rpx',
+  marginBottom: '12rpx',
+}))
+</script>

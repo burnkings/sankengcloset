@@ -56,8 +56,15 @@ function categoryCode(category: string): string {
 
 async function fetchRemoteFeed(pageIndex: number, channel: string, category: string, categories: string = ''): Promise<FeedPage> {
   const offset = Math.max(pageIndex, 0) * 20
-  let path = `/api/v1/feed?cursor=${offset}&limit=20&channel=${encodeQuery(channelCode(channel))}&category=${encodeQuery(categoryCode(category))}`
-  if (categories != '') path += `&categories=${encodeQuery(categories)}`
+  let path = '/api/v1/feed'
+  let hasQuery = false
+  // 只传前端真实设置的值：cursor 首页(0)不传、channel 默认推荐不传、category/categories 空不传；limit 由后端默认 20
+  if (offset > 0) { path += '?cursor=' + offset; hasQuery = true }
+  const ch = channelCode(channel)
+  if (ch != '' && ch != 'recommend') { path += (hasQuery ? '&' : '?') + 'channel=' + encodeQuery(ch); hasQuery = true }
+  const cat = categoryCode(category)
+  if (cat != '') { path += (hasQuery ? '&' : '?') + 'category=' + encodeQuery(cat); hasQuery = true }
+  if (categories != '') { path += (hasQuery ? '&' : '?') + 'categories=' + encodeQuery(categories); hasQuery = true }
   if (__DEV__) console.log('[Feed] request:', getRuntimeConfig().apiBaseUrl + path)
   const response = await apiGet(path)
   if (__DEV__) {

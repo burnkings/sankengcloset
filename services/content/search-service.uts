@@ -18,7 +18,9 @@ export async function searchProducts(keyword: string, cursor: string = ''): Prom
   const q = keyword.trim()
   const result = new SearchResult()
   if (q === '') return result
-  const path = `/api/v1/search?q=${encodeQuery(q)}&cursor=${encodeQuery(cursor)}&limit=20`
+  // 只传用户输入的关键词与分页游标；limit 由后端默认 20，cursor 空不传
+  let path = '/api/v1/search?q=' + encodeQuery(q)
+  if (cursor != '') path += '&cursor=' + encodeQuery(cursor)
   const response = await apiGet(path)
   const rawItems = response.data as any[] | null
   if (rawItems != null) {

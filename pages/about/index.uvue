@@ -1,0 +1,109 @@
+<template>
+  <DetailLayout title="关于三坑绮橱">
+    <view :style="contentWrap">
+      <!-- 品牌区 -->
+      <view :style="brandCard">
+        <view :style="logoWrap"><text :style="logoText">SK</text></view>
+        <text :style="appName">三坑绮橱</text>
+        <text :style="appVersion">V2.5.0-beta.2</text>
+        <text :style="appSlogan">三坑文化爱好者的商品信息与发售资讯平台</text>
+      </view>
+
+      <!-- 服务条款 -->
+      <text :style="groupTitle">服务条款</text>
+      <V2ListGroup>
+        <view :style="shell(0, 2)" @tap="openLegal('agreement')">
+          <V2ListRow label="用户协议" />
+        </view>
+        <view :style="shell(1, 2)" @tap="openLegal('privacy')">
+          <V2ListRow label="隐私政策" />
+        </view>
+      </V2ListGroup>
+
+      <!-- 其他 -->
+      <text :style="groupTitle">其他</text>
+      <V2ListGroup>
+        <view :style="shell(0, 2)" @tap="onHelpTap">
+          <V2ListRow label="帮助与反馈" />
+        </view>
+        <view :style="shell(1, 2)" @tap="onClearCacheTap">
+          <V2ListRow label="清理缓存" />
+        </view>
+      </V2ListGroup>
+
+      <text :style="copyright">© 2026 三坑绮橱 · 昆山三坑绮橱工作室</text>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import V2ListRow from '@/components/v2/V2ListRow.uvue'
+import { PAGE_GUTTER_REGULAR, CARD_RADIUS } from '@/theme/tokens/responsive'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { n, isDark } from '@/theme/use-theme'
+import { brand } from '@/theme/tokens/colors'
+import { showFeedback } from '@/utils/feedback'
+
+function shell(idx: number, total: number) {
+  return {
+    borderBottomWidth: idx < total - 1 ? '1rpx' : '0',
+    borderBottomStyle: 'solid' as string,
+    borderBottomColor: n.value.divider,
+  }
+}
+
+function openLegal(type: string) {
+  uni.navigateTo({ url: `/pages/about/legal?type=${type}` })
+}
+
+function onHelpTap() {
+  showFeedback('反馈入口将在账号服务接入后开放')
+}
+
+function onClearCacheTap() {
+  const cacheKeys = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic']
+  try {
+    for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i])
+  } catch (e) {}
+  showFeedback('缓存已清理，账号与个人数据已保留')
+}
+
+const contentWrap = {
+  paddingTop: '24rpx',
+  paddingLeft: PAGE_GUTTER_REGULAR,
+  paddingRight: PAGE_GUTTER_REGULAR,
+  paddingBottom: '24rpx',
+}
+const brandCard = computed((): any => ({
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingTop: '56rpx',
+  paddingBottom: '56rpx',
+  backgroundColor: n.value.surface,
+  borderRadius: CARD_RADIUS,
+  marginBottom: '28rpx',
+}))
+const logoWrap = computed((): any => ({
+  width: '120rpx',
+  height: '120rpx',
+  borderRadius: '32rpx',
+  backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100],
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: '20rpx',
+}))
+const logoText = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[600] as string }
+const appName = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '8rpx' }))
+const appVersion = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginBottom: '14rpx' }))
+const appSlogan = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
+const groupTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '8rpx', marginBottom: '12rpx' }))
+const copyright = computed((): any => ({
+  display: 'block',
+  textAlign: 'center',
+  fontSize: fontSize.xs,
+  color: n.value.textTertiary,
+  marginTop: '28rpx',
+}))
+</script>
