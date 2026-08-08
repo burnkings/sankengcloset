@@ -131,3 +131,50 @@ export function encodeQuery(value: string): string {
   const encoded = encodeURIComponent(value)
   return encoded != null ? encoded : value
 }
+
+
+function apiMutation(path: string, method: string, payload: any): Promise<ApiResponse> {
+  return new Promise<ApiResponse>((resolve, reject) => {
+    let url = ''
+    try { url = endpoint(path) } catch (e) { reject(e); return }
+    uni.request<UTSJSONObject>({
+      url,
+      method,
+      header: headers(),
+      data: payload,
+      timeout: 15000,
+      success: (res: RequestSuccess<UTSJSONObject>) => {
+        try { resolve(parseResponse(res.statusCode, res.data)) }
+        catch (e) { reject(e) }
+      },
+      fail: (error: RequestFail) => reject(new Error(error.errMsg)),
+    })
+  })
+}
+
+export function apiPut(path: string, payload: any): Promise<ApiResponse> { return apiMutation(path, 'PUT', payload) }
+export function apiPatch(path: string, payload: any): Promise<ApiResponse> { return apiMutation(path, 'PATCH', payload) }
+
+export async function apiPutAuthorized(path: string, payload: any): Promise<ApiResponse> {
+  try { return await apiPut(path, payload) }
+  catch (e) {
+    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshRemoteSession())) return await apiPut(path, payload)
+    throw e
+  }
+}
+
+export async function apiPatchAuthorized(path: string, payload: any): Promise<ApiResponse> {
+  try { return await apiPatch(path, payload) }
+  catch (e) {
+    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshRemoteSession())) return await apiPatch(path, payload)
+    throw e
+  }
+}
+
+export async function apiDeleteAuthorized(path: string): Promise<ApiResponse> {
+  try { return await apiDelete(path) }
+  catch (e) {
+    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshRemoteSession())) return await apiDelete(path)
+    throw e
+  }
+}
