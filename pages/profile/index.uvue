@@ -243,6 +243,7 @@ function reloadProfileData() {
   lastProfileReloadTs = now
   session.reload()
   library.reload()
+  library.refreshRemotePosts()
   purchases.fetchPurchases()
   reminders.fetchItems()
   wardrobe.fetchItems()
