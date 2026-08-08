@@ -164,6 +164,7 @@ onLoad(() => { initPageTheme() })
 onShow(() => {
   initPageTheme()
   library.reload()
+  library.refreshRemotePosts()
   startClock()
   try {
     const pendingView = uni.getStorageSync('community_view') as string
