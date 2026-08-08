@@ -54,9 +54,10 @@ function categoryCode(category: string): string {
   return category == '全部' ? '' : category
 }
 
-async function fetchRemoteFeed(pageIndex: number, channel: string, category: string): Promise<FeedPage> {
+async function fetchRemoteFeed(pageIndex: number, channel: string, category: string, categories: string = ''): Promise<FeedPage> {
   const offset = Math.max(pageIndex, 0) * 20
-  const path = `/api/v1/feed?cursor=${offset}&limit=20&channel=${encodeQuery(channelCode(channel))}&category=${encodeQuery(categoryCode(category))}`
+  let path = `/api/v1/feed?cursor=${offset}&limit=20&channel=${encodeQuery(channelCode(channel))}&category=${encodeQuery(categoryCode(category))}`
+  if (categories != '') path += `&categories=${encodeQuery(categories)}`
   if (__DEV__) console.log('[Feed] request:', getRuntimeConfig().apiBaseUrl + path)
   const response = await apiGet(path)
   if (__DEV__) {
@@ -74,8 +75,8 @@ async function fetchRemoteFeed(pageIndex: number, channel: string, category: str
   return result
 }
 
-export async function fetchFeedPage(pageIndex: number, channel: string = '推荐', category: string = '全部'): Promise<FeedPage> {
-  return await fetchRemoteFeed(pageIndex, channel, category)
+export async function fetchFeedPage(pageIndex: number, channel: string = '推荐', category: string = '全部', categories: string = ''): Promise<FeedPage> {
+  return await fetchRemoteFeed(pageIndex, channel, category, categories)
 }
 
 export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {

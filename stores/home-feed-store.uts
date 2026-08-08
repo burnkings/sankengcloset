@@ -123,6 +123,23 @@ const _state = reactive<HomeFeedState>({
 // 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
 const prefs = usePreferencesStore()
 
+/**
+ * 偏好坑向 → 后端 categories 参数（逗号分隔，如 "LOLITA,HANFU"）
+ * 空数组 = 不限分类 → 返回 ''（不传参，后端不过滤）
+ */
+function pitTypesToCategories(): string {
+  const types = prefs.preferences.pitTypes
+  if (types.length == 0) return ''
+  const codes: string[] = []
+  for (let i = 0; i < types.length; i++) {
+    const t = types[i]
+    if (t == 'Lolita') codes.push('LOLITA')
+    else if (t == '汉服') codes.push('HANFU')
+    else codes.push(t)
+  }
+  return codes.join(',')
+}
+
 const _loading = computed((): boolean => _state.state == 'loading')
 
 // 筛选后的展示列表
@@ -176,7 +193,7 @@ async function loadFirstPage() {
   _state.state = 'loading'
   _state.errorMessage = ''
   try {
-    const page = await fetchFeedPage(0, _state.currentChannel)
+    const page = await fetchFeedPage(0, _state.currentChannel, '全部', pitTypesToCategories())
     _state.allItems = page.items
     _state.currentPage = 1
     _state.hasMore = page.hasMore
@@ -193,7 +210,7 @@ async function loadMore() {
   if (_state.isLoadingMore || !_state.hasMore || _state.state !== 'loaded') return
   _state.isLoadingMore = true
   try {
-    const page = await fetchFeedPage(_state.currentPage)
+    const page = await fetchFeedPage(_state.currentPage, _state.currentChannel, '全部', pitTypesToCategories())
     if (page.items.length == 0) {
       _state.hasMore = false
     } else {

@@ -5,6 +5,7 @@
  */
 
 import { reactive } from 'vue'
+import { FeedItem } from '@/domain/content/feed-item'
 import { getCachedAccessToken } from '@/config/runtime'
 import { loadPreferencesRemote, savePreferencesRemote } from '@/services/user-data/user-data-service'
 
@@ -101,6 +102,35 @@ function toRemotePitType(value: string): string {
   return value
 }
 
+/**
+ * 偏好匹配分：首页 Feed 排序用
+ * 命中坑向偏好 +100，命中关注品牌 +80，基准分 = item.rankingScore
+ */
+function computeScore(item: FeedItem): number {
+  let score = item.rankingScore
+  const pitTypes = _state.preferences.pitTypes
+  // 坑向偏好匹配（UI 文案 → 后端枚举）
+  if (item.category != '' && pitTypes.length > 0) {
+    for (let i = 0; i < pitTypes.length; i++) {
+      if (toRemotePitType(pitTypes[i]) == item.category) {
+        score += 100
+        break
+      }
+    }
+  }
+  // 关注品牌匹配
+  const brands = _state.preferences.followedBrands
+  if (item.brandName != '' && brands.length > 0) {
+    for (let i = 0; i < brands.length; i++) {
+      if (brands[i] == item.brandName) {
+        score += 80
+        break
+      }
+    }
+  }
+  return score
+}
+
 function savePreferences() {
   writePreferences(_state.preferences)
   if (getCachedAccessToken() != '') {
@@ -182,6 +212,7 @@ class PreferencesStoreHandle {
   togglePitType(type: string): void { togglePitType(type) }
   resetPreferences(): void { resetPreferences() }
   refreshRemotePreferences(): Promise<void> { return refreshRemotePreferences() }
+  computeScore(item: FeedItem): number { return computeScore(item) }
 }
 
 let _handle: PreferencesStoreHandle | null = null
