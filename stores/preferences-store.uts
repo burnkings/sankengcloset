@@ -5,6 +5,8 @@
  */
 
 import { reactive } from 'vue'
+import { apiPut } from '@/services/platform/api-client'
+import { getCachedAccessToken } from '@/config/runtime'
 
 const STORAGE_KEY = 'v2_user_preferences'
 
@@ -95,6 +97,40 @@ function loadPreferences() {
 
 function savePreferences() {
   writePreferences(_state.preferences)
+  syncPreferencesToServer()
+}
+
+// UI 文案（Lolita/汉服）→ 后端枚举（LOLITA/HANFU）
+function toBackendPitTypes(types: string[]): string[] {
+  const result = [] as string[]
+  for (let i = 0; i < types.length; i++) {
+    const v = types[i]
+    if (v === 'Lolita') {
+      result.push('LOLITA')
+    } else if (v === '汉服') {
+      result.push('HANFU')
+    } else {
+      result.push(v)
+    }
+  }
+  return result
+}
+
+// 本地优先：保存本地后异步同步到服务端，未登录或失败均静默
+async function syncPreferencesToServer() {
+  if (getCachedAccessToken() === '') return
+  try {
+    const prefs = _state.preferences
+    const payload = {
+      pitTypes: toBackendPitTypes(prefs.pitTypes),
+      followedBrands: prefs.followedBrands,
+      priceRange: prefs.priceRange,
+      themeMode: 'system',
+    } as UTSJSONObject
+    await apiPut('/api/v1/me/preferences', payload)
+  } catch (e) {
+    // 同步失败不影响本地保存
+  }
 }
 
 function setPitTypes(types: string[]) {
