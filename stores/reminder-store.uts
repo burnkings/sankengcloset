@@ -7,6 +7,8 @@ import { Reminder, ReminderUpdateData, STATUS_PENDING } from '@/domain/reminder'
 import { toDisplayModels, ReminderDisplayModel } from '@/domain/reminder-presenter'
 import * as repo from '@/domain/repositories/reminder-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { createAssetRemote, deleteAssetRemote, listRemindersRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -98,13 +100,37 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
-function fetchItems() {
+function mapRemoteReminder(raw: UTSJSONObject): Reminder {
+  const item = new Reminder()
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.title = raw['title'] != null ? raw['title'] as string : ''
+  item.type = raw['type'] != null ? raw['type'] as string : 'CUSTOM'
+  item.remindDate = raw['remindDate'] != null ? raw['remindDate'] as string : ''
+  item.remindTime = raw['remindTime'] != null ? raw['remindTime'] as string : ''
+  item.relatedPurchaseId = raw['relatedPurchaseId'] != null ? raw['relatedPurchaseId'] as string : ''
+  item.relatedWishId = raw['relatedWishId'] != null ? raw['relatedWishId'] as string : ''
+  item.note = raw['note'] != null ? raw['note'] as string : ''
+  item.status = raw['status'] != null ? raw['status'] as string : 'PENDING'
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  item.updatedAt = raw['updatedAt'] != null ? raw['updatedAt'] as string : ''
+  return item
+}
+
+async function fetchItems() {
   _state.loading = true
   _state.error = ''
   try {
-    _state.items = repo.getAll()
+    if (getCachedAccessToken() != '') {
+      const remote = await listRemindersRemote()
+      const restored = [] as Reminder[]
+      for (let i = 0; i < remote.length; i++) restored.push(mapRemoteReminder(remote[i]))
+      _state.items = restored
+    } else {
+      _state.items = repo.getAll()
+    }
   } catch (err) {
     _state.error = err instanceof Error ? err.message : '加载失败'
+    _state.items = repo.getAll()
   } finally {
     _state.loading = false
   }
@@ -116,6 +142,7 @@ function addItem(item: Reminder): Reminder | null {
     const added = repo.add(item)
     _state.items = [..._state.items, added]
     enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', added.id, 'create', JSON.stringify(added))
+    if (getCachedAccessToken() != '') createAssetRemote('reminders', added as UTSJSONObject).catch(() => {})
     notifyChanged()
     return added
   } catch (err) {
@@ -138,6 +165,10 @@ function updateItem(id: string, data: ReminderUpdateData): boolean {
       existing.updatedAt = new Date().toISOString()
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify(data))
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('reminders', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -148,6 +179,7 @@ function deleteItem(id: string): boolean {
   if (ok) {
     _state.items = _state.items.filter((r) => r.id !== id)
     enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'delete', '')
+    if (getCachedAccessToken() != '') deleteAssetRemote('reminders', id).catch(() => {})
     notifyChanged()
   }
   return ok
@@ -162,6 +194,10 @@ function markDone(id: string): boolean {
       existing.updatedAt = new Date().toISOString()
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', 'status=DONE')
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('reminders', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -204,7 +240,7 @@ class ReminderStoreHandle {
   get todayCount(): number { return _todayCount.value }
   get upcomingCount(): number { return _upcomingCount.value }
   get overdueCount(): number { return _overdueCount.value }
-  fetchItems(): void { fetchItems() }
+  fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: Reminder): Reminder | null { return addItem(item) }
   updateItem(id: string, data: ReminderUpdateData): boolean { return updateItem(id, data) }
   deleteItem(id: string): boolean { return deleteItem(id) }
