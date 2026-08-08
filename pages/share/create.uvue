@@ -57,6 +57,8 @@ import AppImage from '@/components/base/AppImage.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { getCachedAccessToken } from '@/config/runtime'
+import { uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
 
 const selectedImage = ref('')
 const caption = ref('')
@@ -90,7 +92,36 @@ function publishLook() {
     showFeedback('已发布到圈子')
     setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
   }
-  completePublish(selectedImage.value)
+  const publishRemote = async () => {
+    try {
+      const mediaId = await uploadOutfitImageRemote(selectedImage.value)
+      const payload = {
+        mediaId,
+        caption: caption.value,
+        category: toBackendCategory(category.value),
+        topic: topic.value,
+      } as UTSJSONObject
+      await createCommunityPostRemote(payload)
+      showFeedback('已发布到圈子')
+      setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
+    } catch (e) {
+      publishing.value = false
+      showFeedback(e instanceof Error ? e.message : '发布失败，请重试')
+    }
+  }
+  if (getCachedAccessToken() != '') {
+    publishRemote()
+  } else {
+    completePublish(selectedImage.value)
+  }
+}
+
+// UI 文案（Lolita/汉服/混搭）→ 后端枚举（LOLITA/HANFU/MIXED）
+function toBackendCategory(value: string): string {
+  if (value === 'Lolita') return 'LOLITA'
+  if (value === '汉服') return 'HANFU'
+  if (value === '混搭') return 'MIXED'
+  return 'JK'
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}

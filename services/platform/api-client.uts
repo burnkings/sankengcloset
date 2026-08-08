@@ -127,25 +127,6 @@ export function apiDelete(path: string): Promise<ApiResponse> {
   })
 }
 
-export function apiPut(path: string, payload: any): Promise<ApiResponse> {
-  return new Promise<ApiResponse>((resolve, reject) => {
-    let url = ''
-    try { url = endpoint(path) } catch (e) { reject(e); return }
-    uni.request<UTSJSONObject>({
-      url,
-      method: 'PUT',
-      header: headers(),
-      data: payload,
-      timeout: 15000,
-      success: (res: RequestSuccess<UTSJSONObject>) => {
-        try { resolve(parseResponse(res.statusCode, res.data)) }
-        catch (e) { reject(e) }
-      },
-      fail: (error: RequestFail) => reject(new Error(error.errMsg)),
-    })
-  })
-}
-
 export function encodeQuery(value: string): string {
   const encoded = encodeURIComponent(value)
   return encoded != null ? encoded : value
@@ -196,4 +177,51 @@ export async function apiDeleteAuthorized(path: string): Promise<ApiResponse> {
     if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshRemoteSession())) return await apiDelete(path)
     throw e
   }
+}
+
+/**
+ * 上传图片二进制（PUT 原始 body）。
+ * 后端契约：POST /api/v1/uploads:prepare 拿 uploadId/uploadUrl → PUT /api/v1/uploads/:uploadId/content（原始二进制）
+ */
+export async function apiUploadBinary(path: string, data: ArrayBuffer, contentType: string): Promise<ApiResponse> {
+  return new Promise<ApiResponse>((resolve, reject) => {
+    let url = ''
+    try { url = endpoint(path) } catch (e) { reject(e); return }
+    uni.request<UTSJSONObject>({
+      url,
+      method: 'PUT',
+      header: {
+        'authorization': getCachedAccessToken() !== '' ? `Bearer ${getCachedAccessToken()}` : '',
+        'content-type': contentType,
+      },
+      data,
+      timeout: 30000,
+      success: (res: RequestSuccess<UTSJSONObject>) => {
+        try { resolve(parseResponse(res.statusCode, res.data)) }
+        catch (e) { reject(e) }
+      },
+      fail: (error: RequestFail) => reject(new Error(error.errMsg)),
+    })
+  })
+}
+
+/** 读取本地图片为 ArrayBuffer（供上传用） */
+export function readFileAsArrayBuffer(filePath: string): Promise<ArrayBuffer> {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    // #ifdef APP
+    const fs = uni.getFileSystemManager()
+    fs.readFile({
+      filePath,
+      success: (res) => {
+        const buf = res.data != null ? res.data as ArrayBuffer : null
+        if (buf == null) { reject(new Error('读取图片失败')); return }
+        resolve(buf)
+      },
+      fail: (error) => reject(new Error(error.errMsg != null ? error.errMsg : '读取图片失败')),
+    })
+    // #endif
+    // #ifndef APP
+    reject(new Error('当前平台不支持二进制上传'))
+    // #endif
+  })
 }

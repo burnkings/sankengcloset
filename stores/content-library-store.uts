@@ -1,7 +1,7 @@
 import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
-import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote } from '@/services/user-data/user-data-service'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote } from '@/services/user-data/user-data-service'
 
 /**
  * ContentLibraryStore — V2.0 用户内容资产
@@ -183,8 +183,26 @@ function toggleBrandFollow(brandName: string): boolean {
   _state.followedBrands = values
   writeList(FOLLOWED_BRANDS_KEY, values)
   enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
+  if (getCachedAccessToken() != '') {
+    const following = idx < 0
+    const remote = following ? followBrandRemote(brandName) : unfollowBrandRemote(brandName)
+    remote.catch(() => { /* 队列保留为离线兜底 */ })
+  }
   notifyChanged()
   return idx < 0
+}
+
+/** 登录态下拉取服务端已关注品牌并合并（服务端为准） */
+async function refreshRemoteBrands(): Promise<void> {
+  if (getCachedAccessToken() == '') return
+  try {
+    const remote = await listFollowedBrandsRemote()
+    _state.followedBrands = remote
+    writeList(FOLLOWED_BRANDS_KEY, remote)
+    notifyChanged()
+  } catch (e) {
+    // 离线时保留本地关注列表
+  }
 }
 
 function saveOutfit(image: string, caption: string, category: string, topic: string): string {
@@ -265,6 +283,7 @@ class ContentLibraryStoreHandle {
   get likedPostCount(): number { return _likedPostCount.value }
   reload(): void { reload() }
   refreshRemotePosts(): Promise<void> { return refreshRemotePosts() }
+  refreshRemoteBrands(): Promise<void> { return refreshRemoteBrands() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
   toggleFavorite(entityId: string): boolean { return toggleFavorite(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }

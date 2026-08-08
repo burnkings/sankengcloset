@@ -1,4 +1,4 @@
-import { apiGet, apiPostAuthorized, apiPutAuthorized, apiPatchAuthorized, apiDeleteAuthorized, encodeQuery } from '@/services/platform/api-client'
+import { apiGet, apiPostAuthorized, apiPutAuthorized, apiPatchAuthorized, apiDeleteAuthorized, encodeQuery, apiUploadBinary, readFileAsArrayBuffer } from '@/services/platform/api-client'
 
 function asObject(value: any): UTSJSONObject | null {
   return value != null ? value as UTSJSONObject : null
@@ -93,4 +93,54 @@ export function setCommunityPostLikeRemote(id: string, liked: boolean) {
 }
 export function deleteCommunityPostRemote(id: string) {
   return apiDeleteAuthorized('/api/v1/community/posts/' + encodeQuery(id))
+}
+
+// ─── 品牌关注 ──────────────────────────────────────────────
+
+/** 关注品牌（POST /api/v1/brands/follow） */
+export function followBrandRemote(brandName: string) {
+  return apiPostAuthorized('/api/v1/brands/follow', { brandId: brandName })
+}
+
+/** 取消关注品牌（DELETE /api/v1/brands/:brandId/follow） */
+export function unfollowBrandRemote(brandName: string) {
+  return apiDeleteAuthorized('/api/v1/brands/' + encodeQuery(brandName) + '/follow')
+}
+
+/** 拉取已关注品牌列表（GET /api/v1/brands/followed） */
+export async function listFollowedBrandsRemote(): Promise<string[]> {
+  const response = await apiGet('/api/v1/brands/followed')
+  const values = response.data as any[] | null
+  const result = [] as string[]
+  if (values != null) for (let i = 0; i < values.length; i++) {
+    const value = values[i]
+    const name = value != null ? value as string : ''
+    if (name != '') result.push(name)
+  }
+  return result
+}
+
+// ─── 圈子发帖 + 图片上传 ───────────────────────────────────
+
+/** 创建帖子（POST /api/v1/community/posts），mediaId 来自上传返回 */
+export function createCommunityPostRemote(payload: UTSJSONObject) {
+  return apiPostAuthorized('/api/v1/community/posts', payload)
+}
+
+/**
+ * 上传图片并返回 mediaId。
+ * 流程：POST /api/v1/uploads:prepare（purpose=outfit）→ PUT content（原始二进制）
+ */
+export async function uploadOutfitImageRemote(localPath: string): Promise<string> {
+  const contentType = localPath.endsWith('.png') ? 'image/png' : localPath.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
+  const prepared = await apiPostAuthorized('/api/v1/uploads:prepare', { purpose: 'outfit', contentType })
+  const preparedData = asObject(prepared.data)
+  if (preparedData == null || preparedData['uploadId'] == null || preparedData['mediaId'] == null) {
+    throw new Error('上传准备失败，请重试')
+  }
+  const uploadId = preparedData['uploadId'] as string
+  const mediaId = preparedData['mediaId'] as string
+  const binary = await readFileAsArrayBuffer(localPath)
+  await apiUploadBinary('/api/v1/uploads/' + encodeQuery(uploadId) + '/content', binary, contentType)
+  return mediaId
 }

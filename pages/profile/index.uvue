@@ -242,6 +242,7 @@ function reloadProfileData() {
   session.reload()
   library.reload()
   library.refreshRemotePosts()
+  library.refreshRemoteBrands()
   budget.refreshRemoteBudget()
   preferences.refreshRemotePreferences()
   purchases.fetchPurchases()
