@@ -99,6 +99,7 @@ import { useContentLibraryStore } from '@/stores/content-library-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { useWishListStore } from '@/stores/wishlist-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
@@ -130,6 +131,7 @@ const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
 const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
+const wishlist = useWishListStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
 const preferences = usePreferencesStore()
@@ -249,6 +251,7 @@ function reloadProfileData() {
   purchases.fetchPurchases()
   reminders.fetchItems()
   wardrobe.fetchItems()
+  wishlist.fetchItems()
 }
 onShow(() => { initPageTheme(); reloadProfileData() })
 
@@ -284,7 +287,7 @@ function createManageItem(id: string, icon: string, label: string, value: string
 
 const manageItems = computed(() => [
   createManageItem('wardrobe', 'wardrobe', '衣橱', `${wardrobe.itemCount} 件`),
-  createManageItem('favorites', 'heart', '愿望单', `${library.favoriteCount} 件`),
+  createManageItem('favorites', 'heart', '愿望单', `${wishlist.itemCount} 件`),
   createManageItem('orders', 'order', '购买记录', `${purchases.itemCount} 笔`),
   createManageItem('reminders', 'reminder', '提醒', `${reminders.pendingCount} 条待办`),
   createManageItem('budget', 'budget', '预算', budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置'),
