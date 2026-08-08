@@ -1,6 +1,8 @@
 /** 本地月预算设置。服务端账号接入后可替换存储实现。 */
 import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { loadBudgetRemote, saveBudgetRemote } from '@/services/user-data/user-data-service'
 
 const LIMIT_KEY = 'v2_budget_monthly_limit'
 const ALERT_KEY = 'v2_budget_alert_percent'
@@ -47,8 +49,26 @@ function save(limit: number, percent: number) {
     'upsert',
     `{\"monthlyLimit\":${_state.monthlyLimit},\"alertPercent\":${_state.alertPercent}}`,
   )
+  if (getCachedAccessToken() != '') {
+    saveBudgetRemote({ monthlyLimit: _state.monthlyLimit, alertPercent: _state.alertPercent })
+      .catch(() => { /* queued local operation remains the offline fallback */ })
+  }
   notifyChanged()
 }
+
+async function refreshRemoteBudget(): Promise<void> {
+  if (getCachedAccessToken() == '') return
+  try {
+    const remote = await loadBudgetRemote()
+    if (remote['monthlyLimit'] == null || remote['alertPercent'] == null) return
+    _state.monthlyLimit = remote['monthlyLimit'] as number
+    _state.alertPercent = remote['alertPercent'] as number
+    uni.setStorageSync(LIMIT_KEY, _state.monthlyLimit.toString())
+    uni.setStorageSync(ALERT_KEY, _state.alertPercent.toString())
+    notifyChanged()
+  } catch (e) {
+    // Keep the last local budget when the device is offline.
+  }
 
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
 
@@ -57,6 +77,7 @@ class BudgetStoreHandle {
   get alertPercent(): number { return _state.alertPercent }
   get isConfigured(): boolean { return _isConfigured.value }
   save(limit: number, percent: number): void { save(limit, percent) }
+  refreshRemoteBudget(): Promise<void> { return refreshRemoteBudget() }
 }
 
 let _handle: BudgetStoreHandle | null = null
