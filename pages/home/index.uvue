@@ -246,7 +246,7 @@ function onTap(item: FeedItem) {
     uni.navigateTo({ url: `/pages/editorial/detail?title=${encodeURIComponent(item.title)}&category=${item.category}&image=${encodeURIComponent(item.coverUrl)}` })
     return
   }
-  if (item.entityId === '') return
+  if (item.entityId == '') return
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 function onLoadMore() { store.loadMore() }

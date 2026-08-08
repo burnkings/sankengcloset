@@ -16,7 +16,7 @@
     </template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view v-if="keyword === ''">
+        <view v-if="keyword == ''">
           <view v-if="recent.length > 0">
           <V2SectionHeader title="最近搜索" actionText="清空" @action="clearRecent" />
           <view :style="recentWrap">
@@ -117,14 +117,14 @@ let requestSequence = 0
 
 function rememberKeyword(value: string) {
   const normalized = value.trim()
-  if (normalized === '') return
+  if (normalized == '') return
   recent.value = [normalized, ...recent.value.filter((k) => k !== normalized)].slice(0, 10)
   saveRecent()
 }
 
 function runSearch(q: string) {
   const normalized = q.trim()
-  if (normalized === '') {
+  if (normalized == '') {
     results.value = []
     searching.value = false
     searchError.value = ''
@@ -154,7 +154,7 @@ watch(keyword, (val: string) => {
     searchTimer = null
   }
   searchError.value = ''
-  if (val.trim() === '') {
+  if (val.trim() == '') {
     requestSequence++
     results.value = []
     searching.value = false
