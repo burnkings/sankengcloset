@@ -1,12 +1,12 @@
 <template>
   <view :style="cardStyle" @tap="emit('click')">
-    <view v-if="$slots.has('header')" :style="headerStyle">
+    <view :style="headerStyle">
       <slot name="header" />
     </view>
     <view :style="bodyStyle">
       <slot />
     </view>
-    <view v-if="$slots.has('footer')" :style="footerStyle">
+    <view :style="footerStyle">
       <slot name="footer" />
     </view>
   </view>

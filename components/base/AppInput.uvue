@@ -1,7 +1,7 @@
 <template>
   <view>
     <view :style="wrapperStyle">
-      <view v-if="$slots.has('prefix')" :style="prefixStyle"><slot name="prefix" /></view>
+      <view :style="prefixStyle"><slot name="prefix" /></view>
       <input
         :style="inputStyle"
         :type="type"
@@ -20,7 +20,7 @@
       <view v-if="clearable && modelValue !== ''" :style="clearStyle" @tap="onClear">
         <text :style="clearIconStyle">×</text>
       </view>
-      <view v-if="$slots.has('suffix')" :style="suffixStyle"><slot name="suffix" /></view>
+      <view :style="suffixStyle"><slot name="suffix" /></view>
     </view>
     <text v-if="error" :style="errorTextStyle">{{ error }}</text>
   </view>
