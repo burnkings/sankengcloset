@@ -1,38 +1,30 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
     <template #navbar>
-      <view :style="searchNavStyle">
-        <view :style="statusBarPadStyle" />
-        <view :style="searchRowStyle">
-          <view :style="backBtnStyle" @tap="onBackTap"><AppIcon name="arrow-back" :size="40" /></view>
-          <view :style="inputShellStyle">
-            <view :style="inputIconStyle"><AppIcon name="search" :size="34" /></view>
-            <input
-              :style="inputStyle"
-              :value="keyword"
-              placeholder="搜索商品、品牌、穿搭"
-              :placeholder-style="placeholderStyleStr"
-              :focus="inputFocused"
-              confirm-type="search"
-              @input="onInput"
-              @confirm="onSubmit"
-            />
-            <view v-if="keyword !== ''" :style="clearBtnStyle" @tap="onClear"><text :style="clearIconStyle">×</text></view>
+      <AppNavbar :show-back="true" :wide-center="true">
+        <template #default>
+          <view :style="inputFlex">
+            <AppInput v-model="keyword" placeholder="搜索商品、品牌、穿搭" :focus="inputFocused" confirm-type="search" :clearable="true" @confirm="onSubmit" @clear="onClear">
+              <template #prefix><AppIcon name="search" :size="34" /></template>
+            </AppInput>
           </view>
+        </template>
+        <template #right>
           <text :style="cancelText" @tap="onCancel">取消</text>
-        </view>
-      </view>
+        </template>
+      </AppNavbar>
     </template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view v-if="keyword === ''">
+          <view v-if="recent.length > 0">
           <V2SectionHeader title="最近搜索" actionText="清空" @action="clearRecent" />
-          <view v-if="recent.length > 0" :style="recentWrap">
+          <view :style="recentWrap">
             <view v-for="(kw, idx) in recent" :key="kw" :style="recentChip(idx)" @tap="selectKeyword(kw)">
               <text :style="recentChipText">{{ kw }}</text>
             </view>
           </view>
-          <text v-else :style="recentEmptyText">暂无最近搜索</text>
+          </view>
 
           <V2SectionHeader title="热门搜索" />
           <view :style="hotList">
@@ -47,14 +39,13 @@
         <view v-else>
           <V2SectionHeader :title="`搜索结果 · ${results.length}`" :compact="true" />
           <view v-if="searching && results.length === 0" :style="emptyWrap">
-            <AppLoading />
             <text :style="emptyTitle">搜索中...</text>
           </view>
-          <view v-else-if="searchError !== '' && results.length === 0" :style="emptyWrap">
-            <AppIcon name="search" :size="64" />
+          <view v-else-if="searchError !== ''" :style="emptyWrap">
+            <AppIcon name="info" :size="64" />
             <text :style="emptyTitle">搜索失败</text>
             <text :style="emptyDesc">{{ searchError }}</text>
-            <view :style="retryBtn" @tap="retrySearch"><text :style="retryBtnText">点击重试</text></view>
+            <view :style="retryButton" @tap="retrySearch"><text :style="retryText">重新搜索</text></view>
           </view>
           <view v-else-if="results.length > 0" :style="resultGrid">
             <view v-for="(item, idx) in results" :key="item.id" :style="productShell(idx)">
@@ -84,18 +75,15 @@
 <script setup lang="uts">
 import { FeedItem } from '@/domain/content/feed-item'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
-import { brand, semantic, accent, baseColors } from '@/theme/tokens/colors'
+import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { radius } from '@/theme/tokens/radius'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { zIndex } from '@/theme/tokens/z-index'
-import { shadow } from '@/theme/tokens/shadow'
 import { n } from '@/theme/use-theme'
-import { getStatusBarHeight } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppLoading from '@/components/base/AppLoading.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 import { searchProducts, SearchResult } from '@/services/content/search-service'
@@ -107,44 +95,45 @@ const keyword = ref('')
 // 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
 const inputFocused = ref(false)
 
-// 服务端搜索结果 + 防抖；加载中 / 失败 / 无结果三种独立状态
+// 服务端搜索结果 + 防抖
 const results = ref<FeedItem[]>([])
 const searching = ref(false)
 const searchError = ref('')
 let searchTimer: number | null = null
-let searchSequence = 0
+let requestSequence = 0
+
+function rememberKeyword(value: string) {
+  const normalized = value.trim()
+  if (normalized === '') return
+  recent.value = [normalized, ...recent.value.filter((k) => k !== normalized)].slice(0, 10)
+  saveRecent()
+}
 
 function runSearch(q: string) {
   const normalized = q.trim()
   if (normalized === '') {
-    searchSequence += 1
     results.value = []
     searching.value = false
     searchError.value = ''
     return
   }
-
-  searchSequence += 1
-  const requestSequence = searchSequence
+  const currentRequest = ++requestSequence
   searching.value = true
   searchError.value = ''
   searchProducts(normalized)
     .then((res: SearchResult) => {
-      // 用户继续输入后，旧请求不得覆盖新关键词的状态。
-      if (requestSequence != searchSequence) return
+      if (currentRequest !== requestSequence) return
       results.value = res.items
       searching.value = false
-      addRecent(normalized)
+      rememberKeyword(normalized)
     })
-    .catch((err) => {
-      if (requestSequence != searchSequence) return
+    .catch((error: any) => {
+      if (currentRequest !== requestSequence) return
       results.value = []
       searching.value = false
-      searchError.value = err instanceof Error ? err.message : '搜索失败，请检查网络后重试'
+      searchError.value = error instanceof Error && error.message !== '' ? error.message : '服务器暂时不可用，请稍后重试'
     })
 }
-
-function retrySearch() { runSearch(keyword.value) }
 
 watch(keyword, (val: string) => {
   const timer = searchTimer
@@ -152,18 +141,18 @@ watch(keyword, (val: string) => {
     clearTimeout(timer)
     searchTimer = null
   }
-  if (val.trim() !== '') {
-    // 输入后立即展示加载反馈，400ms 后才发请求，避免页面看起来毫无反应。
-    searching.value = true
-    searchError.value = ''
+  searchError.value = ''
+  if (val.trim() === '') {
+    requestSequence++
     results.value = []
-    searchTimer = setTimeout(() => runSearch(val), 400)
-  } else {
-    runSearch('')
+    searching.value = false
+    return
   }
+  searching.value = true
+  searchTimer = setTimeout(() => runSearch(val), 400)
 })
 
-// 最近搜索：只展示用户真实搜索记录；首次进入为空。
+// 最近搜索只保存用户真实搜索词，不注入设计稿假数据。
 function loadRecent(): string[] {
   try {
     const raw = uni.getStorageSync('search_recent') as string
@@ -174,13 +163,6 @@ function loadRecent(): string[] {
 const recent = ref<string[]>(loadRecent())
 function saveRecent() {
   try { uni.setStorageSync('search_recent', JSON.stringify(recent.value)) } catch (e) {}
-}
-function addRecent(value: string) {
-  const normalized = value.trim()
-  if (normalized === '') return
-  const next = [normalized, ...recent.value.filter((k) => k !== normalized)].slice(0, 10)
-  recent.value = next
-  saveRecent()
 }
 
 // 热门搜索：design 编号榜 + 热度
@@ -198,40 +180,19 @@ const hotRank: HotItem[] = [
 
 function selectKeyword(value: string) {
   keyword.value = value
-  addRecent(value)
+  rememberKeyword(value)
 }
 function clearRecent() { recent.value = []; saveRecent() }
-function onInput(e: any) {
-  const eObj = e as UTSJSONObject
-  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
-  keyword.value = d != null && d['value'] != null ? d['value'] as string : ''
-}
-function onSubmit() {
-  inputFocused.value = false
-  const timer = searchTimer
-  if (timer != null) {
-    clearTimeout(timer)
-    searchTimer = null
-  }
-  addRecent(keyword.value)
-  runSearch(keyword.value)
-}
-function onClear() { keyword.value = ''; inputFocused.value = false }
+function onSubmit(value: string) { inputFocused.value = false; keyword.value = value; rememberKeyword(value); runSearch(value) }
+function onClear() { requestSequence++; keyword.value = ''; results.value = []; searchError.value = ''; inputFocused.value = false }
+function retrySearch() { runSearch(keyword.value) }
 function onCancel() {
   if (keyword.value !== '') { keyword.value = ''; inputFocused.value = false }
   else { uni.navigateBack() }
 }
-function onBackTap() { uni.navigateBack() }
 function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
-
-onUnload(() => {
-  const timer = searchTimer
-  if (timer != null) clearTimeout(timer)
-  searchTimer = null
-  searchSequence += 1
-})
 
 onMounted(() => {
   try {
@@ -244,41 +205,29 @@ onMounted(() => {
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-// 自定义搜索导航栏：返回 64rpx + 输入框 flex:1 + 取消（不再用 AppNavbar 左右各 180rpx 三栏）
-const statusBarH = getStatusBarHeight()
-const searchNavStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg, boxShadow: shadow.navbar }))
-const statusBarPadStyle = { height: `${statusBarH}px` }
-const searchRowStyle = { height: '88rpx', ...flexRow, alignItems: 'center', paddingLeft: '4rpx', paddingRight: PAGE_GUTTER_REGULAR }
-const backBtnStyle = { width: '64rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
-const inputShellStyle = computed((): any => ({ ...flexRow, alignItems: 'center', flex: 1, minWidth: '0', height: '80rpx', borderRadius: '9999rpx', backgroundColor: n.value.inputFill, paddingLeft: '24rpx', paddingRight: '12rpx', marginRight: '8rpx' }))
-const inputIconStyle = { width: '40rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', flexShrink: 0 }
-const inputStyle = computed((): any => ({ flex: 1, height: '100%', minWidth: '0', fontSize: fontSize.base, color: n.value.text }))
-const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
-const clearBtnStyle = { width: '56rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
-const clearIconStyle = computed((): any => ({ fontSize: fontSize.base, color: n.value.iconLight }))
-const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[600], flexShrink: 0, marginLeft: '16rpx' } as UTSJSONObject
+const inputFlex = { ...flexFill } as UTSJSONObject
+const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[600] as string, flexShrink: 0, marginLeft: '8rpx' } as UTSJSONObject
 
 const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, gap: '16rpx', marginTop: '4rpx' } as UTSJSONObject
 function recentChip(idx: number) {
   return { minHeight: '61rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as UTSJSONObject
 }
-const recentChipText = computed((): any => ({ fontSize: '25rpx', fontWeight: '500', color: n.value.text }))
-const recentEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, paddingTop: '12rpx', paddingBottom: '20rpx' }))
+const recentChipText = { fontSize: '25rpx', fontWeight: '400', color: n.value.textSecondary } as UTSJSONObject
 
 const hotList = { marginTop: '8rpx' } as UTSJSONObject
 const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as UTSJSONObject
 function rankText(idx: number) {
-  const color = idx === 0 ? brand[500] : idx === 1 ? semantic.warning : idx === 2 ? accent[500] : n.value.textSecondary
+  const color = idx === 0 ? brand[500] as string : idx === 1 ? semantic.warning : idx === 2 ? accent[500] as string : n.value.textSecondary
   return { width: '44rpx', fontSize: '33rpx', fontWeight: '600', color } as UTSJSONObject
 }
-const hotKeywordText = computed((): any => ({ ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text }))
+const hotKeywordText = { ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text } as UTSJSONObject
 const heatText = { fontSize: '21rpx', fontWeight: '400', color: semantic.warning, marginLeft: '16rpx', flexShrink: 0 } as UTSJSONObject
 
 const resultGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx', paddingBottom: '120rpx' }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
-const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
-const retryBtn = { paddingHorizontal: '40rpx', paddingVertical: '16rpx', borderRadius: radius.full, backgroundColor: brand[500], marginTop: '28rpx' }
-const retryBtnText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
+const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }
+const emptyDesc = { fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }
+const retryButton = { height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', marginTop: '24rpx' }
+const retryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 </script>

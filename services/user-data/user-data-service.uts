@@ -1,0 +1,96 @@
+import { apiGet, apiPostAuthorized, apiPutAuthorized, apiPatchAuthorized, apiDeleteAuthorized, encodeQuery } from '@/services/platform/api-client'
+
+function asObject(value: any): UTSJSONObject | null {
+  return value != null ? value as UTSJSONObject : null
+}
+
+function asString(value: any): string { return value != null ? value as string : '' }
+function asNumber(value: any): number { return value != null ? value as number : 0 }
+function asBoolean(value: any): boolean { return value == true }
+
+export class CommunityPostRemote {
+  id: string = ''
+  authorUserId: string = ''
+  authorNickname: string = ''
+  mediaId: string = ''
+  imageUrl: string = ''
+  caption: string = ''
+  category: string = ''
+  topic: string = ''
+  likeCount: number = 0
+  liked: boolean = false
+  createdAt: string = ''
+  updatedAt: string = ''
+}
+
+export function mapCommunityPost(raw: UTSJSONObject): CommunityPostRemote {
+  const post = new CommunityPostRemote()
+  post.id = asString(raw['id'])
+  post.authorUserId = asString(raw['authorUserId'])
+  post.authorNickname = asString(raw['authorNickname'])
+  post.mediaId = asString(raw['mediaId'])
+  post.imageUrl = asString(raw['imageUrl'])
+  post.caption = asString(raw['caption'])
+  post.category = asString(raw['category'])
+  post.topic = asString(raw['topic'])
+  post.likeCount = asNumber(raw['likeCount'])
+  post.liked = asBoolean(raw['liked'])
+  post.createdAt = asString(raw['createdAt'])
+  post.updatedAt = asString(raw['updatedAt'])
+  return post
+}
+
+async function listAsset(path: string): Promise<UTSJSONObject[]> {
+  const response = await apiGet('/api/v1/me/' + path)
+  const values = response.data as any[] | null
+  const result = [] as UTSJSONObject[]
+  if (values != null) for (let i = 0; i < values.length; i++) {
+    const value = asObject(values[i])
+    if (value != null) result.push(value)
+  }
+  return result
+}
+
+export function listWardrobeRemote(): Promise<UTSJSONObject[]> { return listAsset('wardrobe') }
+export function listPurchasesRemote(): Promise<UTSJSONObject[]> { return listAsset('purchases') }
+export function listRemindersRemote(): Promise<UTSJSONObject[]> { return listAsset('reminders') }
+export function listWishesRemote(): Promise<UTSJSONObject[]> { return listAsset('wishes') }
+export function listNotificationsRemote(): Promise<UTSJSONObject[]> { return listAsset('notifications') }
+
+export function createAssetRemote(path: string, payload: UTSJSONObject) { return apiPostAuthorized('/api/v1/me/' + path, payload) }
+export function patchAssetRemote(path: string, id: string, payload: UTSJSONObject) { return apiPatchAuthorized('/api/v1/me/' + path + '/' + encodeQuery(id), payload) }
+export function deleteAssetRemote(path: string, id: string) { return apiDeleteAuthorized('/api/v1/me/' + path + '/' + encodeQuery(id)) }
+
+export async function loadBudgetRemote(): Promise<UTSJSONObject> {
+  const response = await apiGet('/api/v1/me/budget')
+  return asObject(response.data) ?? {} as UTSJSONObject
+}
+export function saveBudgetRemote(payload: UTSJSONObject) { return apiPutAuthorized('/api/v1/me/budget', payload) }
+
+export async function loadPreferencesRemote(): Promise<UTSJSONObject> {
+  const response = await apiGet('/api/v1/me/preferences')
+  return asObject(response.data) ?? {} as UTSJSONObject
+}
+export function savePreferencesRemote(payload: UTSJSONObject) { return apiPutAuthorized('/api/v1/me/preferences', payload) }
+
+export async function listCommunityPostsRemote(cursor: string = '', category: string = '', topic: string = '', mine: boolean = false): Promise<CommunityPostRemote[]> {
+  const root = mine ? '/api/v1/me/community/posts' : '/api/v1/community/posts'
+  let path = root + '?cursor=' + encodeQuery(cursor) + '&limit=20'
+  if (!mine && category != '') path += '&category=' + encodeQuery(category)
+  if (!mine && topic != '') path += '&topic=' + encodeQuery(topic)
+  const response = await apiGet(path)
+  const values = response.data as any[] | null
+  const result = [] as CommunityPostRemote[]
+  if (values != null) for (let i = 0; i < values.length; i++) {
+    const value = asObject(values[i])
+    if (value != null) result.push(mapCommunityPost(value))
+  }
+  return result
+}
+
+export function setCommunityPostLikeRemote(id: string, liked: boolean) {
+  return apiPutAuthorized('/api/v1/community/posts/' + encodeQuery(id) + '/like', { liked })
+}
+export function deleteCommunityPostRemote(id: string) {
+  return apiDeleteAuthorized('/api/v1/community/posts/' + encodeQuery(id))
+}

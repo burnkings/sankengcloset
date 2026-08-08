@@ -79,7 +79,7 @@ export function toDisplayModel(item: Reminder): ReminderDisplayModel {
   dm.note = item.note
   // 时间判断
   const days = diffDays(item.remindDate)
-  dm.isToday = days === 0
+  dm.isToday = days == 0
   dm.isUpcoming = days > 0 && days <= 7
   dm.isOverdue = days < 0 && item.status === 'PENDING'
   return dm

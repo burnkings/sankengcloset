@@ -14,24 +14,32 @@
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
           <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
         </view>
-        <V2Segmented :items="pitTypes" :active="activePitType" variant="text" :active-color="brand[600]" @change="onPitTypeChange" />
-        <V2Segmented :items="topics" :active="activeTopic" variant="text" :active-color="brand[600]" @change="onTopicChange" />
+        <view :style="filterBar">
+          <text :style="filterLabel">筛选</text>
+          <view :style="filterSpacer" />
+          <view :style="dropdownWrap">
+            <view :style="dropdownButton" @tap="openTopicPicker"><text :style="dropdownText">主题 · {{ activeTopic }}</text><text :style="dropdownArrow">▾</text></view>
+          </view>
+          <view :style="dropdownWrapPit">
+            <view :style="dropdownButton" @tap="openPitPicker"><text :style="dropdownText">坑向 · {{ activePitType }}</text><text :style="dropdownArrow">▾</text></view>
+          </view>
+        </view>
         </view>
 
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+          <view :style="heroImage" @tap="previewPostImage(look.image)"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
           </view>
           <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">刚刚</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId === look.id ? '确认删除' : '删除' }}</text></view>
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">{{ postTime(look.createdAt) }}</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId == look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
-            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view>
+            <view :style="lookMeta"><view :style="ownMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ ownLikeCount(look.id) }}</text></view></view>
           </view>
         </view>
 
         <view v-if="viewMode !== 'mine'">
         <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+          <view :style="heroImage" @tap="previewPostImage(look.image)"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
           </view>
           <view :style="lookBody">
@@ -45,11 +53,13 @@
       </view>
     </template>
   </MainLayout>
+  <!-- #ifdef APP -->
+  <AppBottomNav active="community" />
+  <!-- #endif -->
 </view>
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -59,11 +69,11 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
+import { getWindowHeight } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
 // #ifdef APP
-import { getWindowHeight } from '@/utils/window-info'
+import AppBottomNav from '@/components/layout/AppBottomNav.uvue'
 // #endif
 
 type LookItem = {
@@ -108,21 +118,54 @@ const visibleUserLooks = computed((): SavedOutfitPost[] => {
   }
   return result
 })
-function onTopicChange(topic: string) { activeTopic.value = topic }
-function onPitTypeChange(pit: string) { activePitType.value = pit }
+// Android 原生 action sheet 比嵌套浮层更稳定：不会被 list/scroll 层吞掉点击事件。
+function openTopicPicker() {
+  uni.showActionSheet({ itemList: topics, success: (res) => { activeTopic.value = topics[res.tapIndex] } })
+}
+function openPitPicker() {
+  uni.showActionSheet({ itemList: pitTypes, success: (res) => { activePitType.value = pitTypes[res.tapIndex] } })
+}
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
+function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
 function toggleLike(id: string) { library.togglePostLike(id) }
 function likeCount(id: string, baseCount: number): number { return baseCount + (library.isPostLiked(id) ? 1 : 0) }
+function ownLikeCount(id: string): number { return library.isPostLiked(id) ? 1 : 0 }
 function deleteOwnPost(id: string) {
   if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
   library.removeOutfit(id)
   pendingDeleteId.value = ''
   showFeedback('圈子动态已删除')
 }
+const nowTs = ref(Date.now())
+let clockTimer: number | null = null
+function postTime(createdAt: string): string {
+  if (createdAt == '') return '刚刚'
+  const timestamp = parseInt(createdAt)
+  if (isNaN(timestamp)) return '刚刚'
+  const minutes = Math.floor(Math.max(0, nowTs.value - timestamp) / 60000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  return days < 30 ? `${days}天前` : `${Math.floor(days / 30)}个月前`
+}
+function startClock() {
+  nowTs.value = Date.now()
+  if (clockTimer != null) return
+  clockTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
+}
+function stopClock() {
+  const timer = clockTimer
+  if (timer != null) clearInterval(timer)
+  clockTimer = null
+}
 onLoad(() => { initPageTheme() })
-onPageShow(() => {
+onShow(() => {
   initPageTheme()
   library.reload()
+  library.refreshRemotePosts()
+  startClock()
   try {
     const pendingView = uni.getStorageSync('community_view') as string
     if (pendingView !== '') {
@@ -138,6 +181,8 @@ onPageShow(() => {
     }
   } catch (e) {}
 })
+onHide(() => { stopClock() })
+onUnload(() => { stopClock() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const mineTitleWrap = { marginBottom: '12rpx' }
@@ -148,24 +193,33 @@ const composerIcon = computed((): any => ({ width: '72rpx', height: '72rpx', bor
 const composerCopy = { ...flexFill }
 const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const composerDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '5rpx' }))
-const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }
+const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
 const composerButtonText = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
+const filterBar = { ...flexRow, alignItems: 'center', minHeight: '76rpx', marginTop: '16rpx', position: 'relative' as string, zIndex: 20 }
+const filterLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const filterSpacer = { ...flexFill }
+const dropdownWrap = { position: 'relative' as string, marginLeft: '12rpx' }
+const dropdownWrapPit = { position: 'relative' as string, marginLeft: '12rpx' }
+const dropdownButton = computed((): any => ({ ...flexRow, alignItems: 'center', height: '60rpx', paddingLeft: '18rpx', paddingRight: '14rpx', borderRadius: '30rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
+const dropdownText = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
+const dropdownArrow = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary, marginLeft: '8rpx' }))
 const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
-const heroImage = computed((): any => ({ width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }))
+const heroImage = { width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }
 const badge = { position: 'absolute' as string, left: '28rpx', top: '28rpx', height: '52rpx', paddingLeft: '16rpx', paddingRight: '20rpx', borderRadius: '26rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center' as string }
-const badgeDot = { width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: brand[500], marginRight: '8rpx' }
-const badgeText = computed((): any => ({ fontSize: '22rpx', color: n.value.text }))
+const badgeDot = { width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: brand[500] as string, marginRight: '8rpx' }
+const badgeText = { fontSize: '22rpx', color: n.value.text }
 const lookBody = { padding: CARD_PADDING }
 const authorRow = { ...flexRow, alignItems: 'center' }
 const avatar = computed((): any => ({ width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
-const avatarText = computed((): any => ({ fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const avatarText = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text }
 const authorName = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const timeText = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary }))
 const lookCaption = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
 const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx', alignItems: 'center' }
-const topicText = { fontSize: '24rpx', color: brand[500], marginTop: '10rpx' }
+const ownMeta = { ...flexRow, alignItems: 'center' }
+const topicText = { fontSize: '24rpx', color: brand[500] as string, marginTop: '10rpx' }
 const likeAction = { ...flexRow, alignItems: 'center', minWidth: '76rpx', height: '52rpx', justifyContent: 'flex-end' }
-function likeText(id: string) { return { fontSize: '24rpx', color: library.isPostLiked(id) ? brand[500] : n.value.textTertiary, marginLeft: '6rpx' } }
+function likeText(id: string) { return { fontSize: '24rpx', color: library.isPostLiked(id) ? brand[500] as string : n.value.textTertiary, marginLeft: '6rpx' } }
 const categoryText = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary, marginTop: '10rpx' }))
-function deleteOwnText(id: string) { return { fontSize: '20rpx', color: pendingDeleteId.value === id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
+function deleteOwnText(id: string) { return { fontSize: '20rpx', color: pendingDeleteId.value == id ? brand[700] as string : n.value.textTertiary, marginLeft: '16rpx' } }
 </script>

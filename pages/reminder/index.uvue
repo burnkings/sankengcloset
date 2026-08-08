@@ -36,7 +36,7 @@
       </view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
+  <AppFab @tap="goAdd" />
 </template>
 
 <script setup lang="uts">
@@ -52,18 +52,15 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
-import { getSafeBottomInset } from '@/utils/window-info'
+import AppFab from '@/components/base/AppFab.uvue'
 
 const store = useReminderStore()
-const safeBottom = getSafeBottomInset()
 const activeFilter = ref('全部')
 const filters = ['全部', '待提醒', '已完成']
 function onFilter(label: string) { activeFilter.value = label; store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : 'DONE')) }
 function goAdd() { uni.navigateTo({ url: '/pages/reminder/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` }) }
 onMounted(() => { store.fetchItems() })
-// 新增/编辑/删除返回后立即刷新列表（本机 Storage 读取，成本低）
-onPageShow(() => { store.fetchItems() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surfacePink }))
@@ -85,5 +82,4 @@ function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fon
 const subLine = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
 </script>
