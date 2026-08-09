@@ -2,11 +2,23 @@
   <DetailLayout title="深色模式">
     <view :style="contentWrap">
       <V2ListGroup>
-        <view :style="rowShell(0, 2)" @tap="() => setThemeMode('system')">
-          <V2ListRow label="跟随系统" subtitle="开启后根据系统设置同步切换深/浅模式" :show-arrow="false" :value="themeMode == 'system' ? '已开启' : ''" />
+        <view :style="rowShell(0, 2)">
+          <V2ListRow label="跟随系统" subtitle="开启后根据系统设置同步切换深/浅模式" :show-arrow="false">
+            <template #trailing>
+              <view :style="{ width: '100rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: themeMode == 'system' ? '#D45F7E' : '#E0DCDC', justifyContent: 'center' }" @tap.stop="() => setThemeMode('system')">
+                <view :style="{ width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: '#FFFFFF', marginLeft: themeMode == 'system' ? '50rpx' : '6rpx' }" />
+              </view>
+            </template>
+          </V2ListRow>
         </view>
-        <view :style="rowShell(1, 2)" @tap="() => setThemeMode('dark')">
-          <V2ListRow label="深色模式" :show-arrow="false" :value="themeMode == 'dark' ? '已开启' : ''" />
+        <view :style="rowShell(1, 2)">
+          <V2ListRow label="深色模式" :show-arrow="false">
+            <template #trailing>
+              <view :style="{ width: '100rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: themeMode == 'dark' ? '#D45F7E' : '#E0DCDC', justifyContent: 'center' }" @tap.stop="() => setThemeMode('dark')">
+                <view :style="{ width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: '#FFFFFF', marginLeft: themeMode == 'dark' ? '50rpx' : '6rpx' }" />
+              </view>
+            </template>
+          </V2ListRow>
         </view>
       </V2ListGroup>
     </view>
