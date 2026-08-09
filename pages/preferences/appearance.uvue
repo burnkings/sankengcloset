@@ -1,0 +1,33 @@
+<template>
+  <DetailLayout title="外观设置">
+    <view :style="contentWrap">
+      <V2ListGroup>
+        <view :style="rowShell(0, 2)">
+          <V2ListRow icon="sync" label="跟随系统" :show-arrow="false">
+            <template #trailing><AppSwitch :checked="themeMode == 'system'" @change="onSystemChange" /></template>
+          </V2ListRow>
+        </view>
+        <view :style="rowShell(1, 2)">
+          <V2ListRow icon="moon" label="深色模式" :show-arrow="false">
+            <template #trailing><AppSwitch :checked="themeMode == 'dark'" @change="onDarkChange" /></template>
+          </V2ListRow>
+        </view>
+      </V2ListGroup>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import V2ListRow from '@/components/v2/V2ListRow.uvue'
+import AppSwitch from '@/components/base/AppSwitch.uvue'
+import { PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n, isDark, themeMode, setThemeMode } from '@/theme/use-theme'
+
+function onSystemChange(v: boolean) { if (v) setThemeMode('system') }
+function onDarkChange(v: boolean) { if (v) setThemeMode('dark') }
+
+const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+function rowShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+</script>

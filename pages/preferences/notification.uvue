@@ -1,0 +1,28 @@
+<template>
+  <DetailLayout title="通知设置">
+    <view :style="contentWrap">
+      <V2ListGroup>
+        <view :style="rowShell(0, 1)">
+          <V2ListRow icon="notification" label="接收通知" :show-arrow="false">
+            <template #trailing><AppSwitch :checked="pushEnabled" @change="onPushChange" /></template>
+          </V2ListRow>
+        </view>
+      </V2ListGroup>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import V2ListRow from '@/components/v2/V2ListRow.uvue'
+import AppSwitch from '@/components/base/AppSwitch.uvue'
+import { PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+
+const pushEnabled = ref(true)
+function onPushChange(v: boolean) { pushEnabled.value = v }
+
+const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+function rowShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+</script>

@@ -223,10 +223,8 @@ function onHelpTap() {
 
 function onClearCacheTap() {
   const cacheKeys = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic']
-  try {
-    for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i])
-  } catch (e) {}
-  showFeedback('缓存已清理，账号与个人数据已保留')
+  try { for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i]) } catch (e) {}
+  showFeedback('已清理')
 }
 
 onLoad(() => { initPageTheme() })
