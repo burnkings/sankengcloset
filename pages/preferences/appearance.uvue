@@ -5,18 +5,14 @@
         <view :style="rowShell(0, 2)">
           <V2ListRow label="跟随系统" subtitle="开启后根据系统设置同步切换深/浅模式" :show-arrow="false">
             <template #trailing>
-              <view :style="toggleTrack(themeMode == 'system')" @tap.stop="() => setThemeMode('system')">
-                <view :style="toggleThumb(themeMode == 'system')" />
-              </view>
+              <view :style="toggleWrap(themeMode == 'system')" @tap.stop="() => setThemeMode('system')"><view :style="toggleKnob" /></view>
             </template>
           </V2ListRow>
         </view>
         <view :style="rowShell(1, 2)">
           <V2ListRow label="深色模式" :show-arrow="false">
             <template #trailing>
-              <view :style="toggleTrack(themeMode == 'dark')" @tap.stop="() => setThemeMode('dark')">
-                <view :style="toggleThumb(themeMode == 'dark')" />
-              </view>
+              <view :style="toggleWrap(themeMode == 'dark')" @tap.stop="() => setThemeMode('dark')"><view :style="toggleKnob" /></view>
             </template>
           </V2ListRow>
         </view>
@@ -34,6 +30,6 @@ import { PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, themeMode, setThemeMode } from '@/theme/use-theme'
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 function rowShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
-function toggleTrack(on: boolean) { return { width: '84rpx', height: '50rpx', borderRadius: '25rpx', backgroundColor: on ? (brand[500] as string) : n.value.bgTertiary, justifyContent: 'center', paddingLeft: on ? '36rpx' : '4rpx', transition: 'all 0.2s' } }
-function toggleThumb(on: boolean) { return { width: '42rpx', height: '42rpx', borderRadius: '21rpx', backgroundColor: '#FFFFFF' } }
+function toggleWrap(on: boolean) { return { width: '104rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: on ? (brand[500] as string) : n.value.bgTertiary, justifyContent: 'center', alignItems: on ? 'flex-end' : 'flex-start', paddingHorizontal: '6rpx' } }
+const toggleKnob = { width: '48rpx', height: '48rpx', borderRadius: '24rpx', backgroundColor: '#FFFFFF' }
 </script>

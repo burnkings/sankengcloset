@@ -2,12 +2,12 @@
   <MainLayout navbar-content-height="88rpx">
     <template #navbar>
       <AppNavbar v-if="!selectMode" title="提醒" :show-back="true" />
-      <AppNavbar v-else title="提醒" :show-back="false">
-        <template #left>
-          <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
-        </template>
-        <template #right>
-          <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
+      <AppNavbar v-else :show-back="false">
+        <template #default>
+          <view :style="selectNavRow">
+            <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
+            <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
+          </view>
         </template>
       </AppNavbar>
     </template>
@@ -141,7 +141,7 @@ const subLine = computed((): any => ({ fontSize: '24rpx', color: n.value.textSec
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
 
-const selectNavRow = computed((): any => ({ ...flexRow, alignItems: 'center', height: '100%' }))
+const selectNavRow = { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }
 const selectAllText = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.medium, color: brand[600] as string }))
 const selectCancelText = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.medium, color: n.value.text }))
 const checkboxWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '10rpx' }
