@@ -4,10 +4,10 @@
       <AppNavbar v-if="!selectMode" title="提醒" :show-back="true" />
       <AppNavbar v-else title="提醒" :show-back="false">
         <template #left>
-          <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
-        </template>
-        <template #right>
           <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
+        </template>
+        <template #default>
+          <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
         </template>
       </AppNavbar>
     </template>

@@ -13,13 +13,13 @@
           <view :style="dateField">
             <text :style="fieldLabelCompact">日期</text>
             <picker mode="date" :value="form.remindDate" @change="onDateChange">
-              <view :style="pickerField"><text :style="pickerText">{{ form.remindDate || '选择日期' }}</text></view>
+              <view :style="pickerField(form.remindDate !== '')"><text :style="pickerText(form.remindDate !== '')">{{ form.remindDate || '选择日期' }}</text></view>
             </picker>
           </view>
           <view :style="timeField">
             <text :style="fieldLabelCompact">时间</text>
             <picker mode="time" :value="form.remindTime" @change="onTimeChange">
-              <view :style="pickerField"><text :style="pickerText">{{ form.remindTime || '选择时间' }}</text></view>
+              <view :style="pickerField(form.remindTime !== '')"><text :style="pickerText(form.remindTime !== '')">{{ form.remindTime || '选择时间' }}</text></view>
             </picker>
           </view>
         </view>
@@ -32,11 +32,6 @@
         <text :style="fieldLabel">备注</text>
         <view :style="noteShell">
           <textarea :value="form.note" placeholder="补款金额、官方渠道或其他信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
-        </view>
-
-        <view :style="deleteArea">
-          <view v-if="!showDeleteConfirm" :style="deleteButton" @tap="showDeleteConfirm = true"><text :style="deleteText">删除这条提醒</text></view>
-          <view v-else :style="confirmRow"><text :style="confirmText">确认删除？</text><view :style="cancelDelete" @tap="showDeleteConfirm = false"><text :style="cancelDeleteText">取消</text></view><view :style="confirmDelete" @tap="deleteItem"><text :style="confirmDeleteText">删除</text></view></view>
         </view>
 
         <view :style="saveButton" @tap="save"><text :style="saveText">{{ isEdit ? '保存修改' : '创建提醒' }}</text></view>
@@ -166,8 +161,8 @@ const fieldLabelCompact = computed((): any => ({ fontSize: '28rpx', fontWeight: 
 const twoColumnRow = { ...flexRow, marginTop: '40rpx' }
 const dateField = { width: '404rpx', marginRight: '16rpx' }
 const timeField = { ...flexFill }
-const pickerField = computed((): any => ({ height: '80rpx', paddingLeft: '28rpx', borderRadius: '9999rpx', backgroundColor: n.value.inputFill, justifyContent: 'center' }))
-const pickerText = computed((): any => ({ fontSize: '28rpx', color: form.value.remindDate !== '' ? n.value.text : n.value.placeholder }))
+const pickerField = (filled: boolean) => ({ height: '80rpx', paddingLeft: '28rpx', borderRadius: '9999rpx', backgroundColor: n.value.inputFill, justifyContent: 'center' })
+const pickerText = (filled: boolean) => ({ fontSize: '28rpx', color: filled ? n.value.text : n.value.placeholder })
 const noteShell = computed((): any => ({ minHeight: '280rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '240rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
