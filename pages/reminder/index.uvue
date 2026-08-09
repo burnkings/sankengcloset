@@ -2,7 +2,7 @@
   <MainLayout navbar-content-height="88rpx">
     <template #navbar>
       <AppNavbar v-if="!selectMode" title="提醒" :show-back="true" />
-      <AppNavbar v-else title="已选 {{ selectedIds.length }} 项" :show-back="false">
+      <AppNavbar v-else title="提醒" :show-back="false">
         <template #left>
           <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
         </template>

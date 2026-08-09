@@ -145,6 +145,18 @@
       }
     },
     {
+      "path": "pages/preferences/appearance",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/preferences/notification",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/about/index",
       "style": {
         "navigationStyle": "custom"

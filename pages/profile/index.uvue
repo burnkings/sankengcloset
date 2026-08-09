@@ -39,28 +39,13 @@
 
         <V2SectionHeader title="设置" />
         <V2ListGroup>
-          <view :style="settingShell(0, 3)">
-            <view @tap="toggleSettingsPanel('dark')"><V2ListRow icon="moon" label="深色模式" :value="themeLabel" /></view>
-            <view v-if="openSettingsPanel === 'dark'" :style="dropdownPanel">
-              <view v-for="option in themeOptions" :key="option" :style="dropdownChoice(themeMode == option)" @tap.stop="chooseTheme(option)">
-                <text :style="dropdownChoiceText(themeMode == option)">{{ themeOptionLabel(option) }}</text>
-                <text v-if="themeMode == option" :style="selectedMark">✓</text>
-              </view>
-            </view>
+          <view :style="settingShell(0, 3)" @tap="goPage('/pages/preferences/appearance')">
+            <V2ListRow icon="moon" label="深色模式" :value="themeLabel" />
           </view>
-          <view :style="settingShell(1, 3)">
-            <view @tap="toggleSettingsPanel('preferences')"><V2ListRow icon="heart" label="推荐偏好" :value="preferenceSummary" /></view>
-            <view v-if="openSettingsPanel === 'preferences'" :style="dropdownPanel">
-              <text :style="dropdownHint">可多选；不选择表示全部坑向</text>
-              <view :style="preferenceChipRow">
-                <view v-for="(item, idx) in preferenceOptions" :key="item" :style="preferenceChip(idx, item)" @tap.stop="togglePreferenceDraft(item)">
-                  <text :style="preferenceChipText(item)">{{ item }}</text>
-                </view>
-              </view>
-              <view :style="savePreferenceButton" @tap.stop="savePreferenceDraft"><text :style="savePreferenceText">保存偏好</text></view>
-            </view>
+          <view :style="settingShell(1, 3)" @tap="goPage('/pages/preferences/index')">
+            <V2ListRow icon="heart" label="推荐偏好" :value="preferenceSummary" />
           </view>
-          <view :style="settingShell(2, 3)" @tap="onSettingTap('notification')">
+          <view :style="settingShell(2, 3)" @tap="goPage('/pages/preferences/notification')">
             <V2ListRow icon="notification" label="通知设置" />
           </view>
         </V2ListGroup>
@@ -209,12 +194,8 @@ function onManageTap(id: string) {
   if (id === 'budget') goPage('/pages/budget/index')
 }
 function onSettingTap(id: string) {
-  if (id === 'notification') { showFeedback('功能开发中'); return }
-  if (id === 'about') {
-    goPage('/pages/about/index')
-    return
-  }
-  if (id === 'logout') { logout(); return }
+  if (id === 'about') goPage('/pages/about/index')
+  if (id === 'logout') logout()
 }
 
 function onHelpTap() {
