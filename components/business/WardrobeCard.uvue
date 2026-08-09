@@ -5,7 +5,7 @@
       <AppImage
         :src="item.coverImage"
         width="100%"
-        height="320rpx"
+        height="360rpx"
         :radius-token="'0rpx'"
         lazy-load
       />
@@ -15,7 +15,7 @@
       </view>
       <!-- 收藏角标 -->
       <view v-if="item.isFavorite" :style="overlayFavStyle">
-        <text :style="overlayFavText">❤️</text>
+        <text :style="overlayFavText">*</text>
       </view>
     </view>
     <view :style="gridBodyStyle">
@@ -43,7 +43,7 @@
       <view :style="listTopRow">
         <text :style="nameStyle">{{ item.name }}</text>
         <view v-if="item.isFavorite" :style="listFavStyle">
-          <text :style="listFavText">❤️</text>
+          <text :style="listFavText">*</text>
         </view>
       </view>
       <text v-if="item.brand" :style="brandStyle">{{ item.brand }}</text>
@@ -69,8 +69,7 @@
 
 <script setup lang="uts">
 import { WardrobeItem } from '@/domain/wardrobe-item'
-import { CATEGORY_LABELS, CATEGORY_JK, CATEGORY_LOLITA, CATEGORY_HANFU } from '@/domain/clothing-category'
-import { brand, categoryColors, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
+import { brand, categoryColors, baseColors } from '@/theme/tokens/colors'
 import { spacing } from '@/theme/tokens/spacing'
 import { radius, semanticRadius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -91,7 +90,12 @@ const emit = defineEmits<{
 }>()
 
 
-const categoryLabel = computed(() => CATEGORY_LABELS[props.item.category] != null ? CATEGORY_LABELS[props.item.category] as string : '其他')
+const categoryLabel = computed(() => {
+  if (props.item.category == 'JK') return 'JK'
+  if (props.item.category == 'LOLITA') return 'Lolita'
+  if (props.item.category == 'HANFU') return '汉服'
+  return '其他'
+})
 
 const wearStatusLabel = computed(() => {
   if (props.item.wearStatus == 'UNWORN') return '未穿'
@@ -101,9 +105,9 @@ const wearStatusLabel = computed(() => {
 })
 
 const categoryTagColor = computed(() => {
-  if (props.item.category == CATEGORY_JK) return categoryColors.jk.primary
-  if (props.item.category == CATEGORY_LOLITA) return categoryColors.lolita.primary
-  if (props.item.category == CATEGORY_HANFU) return categoryColors.hanfu.primary
+  if (props.item.category == 'JK') return categoryColors.jk.primary
+  if (props.item.category == 'LOLITA') return categoryColors.lolita.primary
+  if (props.item.category == 'HANFU') return categoryColors.hanfu.primary
   return brand[500]
 })
 
@@ -174,13 +178,19 @@ const gridBottomRow = {
   marginTop: spacing[1],
 }
 
+const wearTagBg = computed(() => {
+  if (props.item.wearStatus == 'UNWORN') return brand[500] as string
+  if (props.item.wearStatus == 'FREQUENT') return brand[600] as string
+  return n.value.bgTertiary
+})
+
 const wearTagStyle = computed((): any => ({
   fontSize: fontSize.xs,
-  color: n.value.textTertiary,
+  color: props.item.wearStatus == 'UNWORN' || props.item.wearStatus == 'FREQUENT' ? baseColors.white : n.value.textTertiary,
   paddingHorizontal: spacing[1],
   paddingVertical: '2rpx',
   borderRadius: radius.xs,
-  backgroundColor: n.value.bgTertiary,
+  backgroundColor: wearTagBg.value,
 }))
 
 // ====== List 模式样式 ======

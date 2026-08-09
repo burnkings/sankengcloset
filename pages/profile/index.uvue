@@ -4,68 +4,62 @@
       <template #navbar><V2PageHeader title="我的" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view v-if="session.isLoggedIn" :style="profileCard">
-          <view :style="avatarWrap"><text :style="avatarText">SK</text></view>
-          <view :style="profileCopy">
-            <text :style="userName">{{ session.profile.nickname }}</text>
-            <text :style="accountId">ID: {{ session.profile.userId }}</text>
+
+        <view :style="profileCard" @tap="session.isLoggedIn ? undefined : goLogin()">
+          <view :style="avatarWrap">
+            <text v-if="session.isLoggedIn" :style="avatarText">SK</text>
+            <AppIcon v-else name="profile" :size="44" />
+            <view v-if="session.isLoggedIn" :style="cameraBadge" @tap.stop="onEdit">
+              <text :style="cameraBadgeText">+</text>
+            </view>
           </view>
-          <view :style="editButton" @tap="onEdit"><text :style="editText">编辑</text></view>
-        </view>
-        <view v-else :style="profileCard" @tap="goLogin">
-          <view :style="guestAvatar"><AppIcon name="profile" :size="44" /></view>
           <view :style="profileCopy">
-            <text :style="userName">登录三坑绮橱</text>
-            <text :style="guestDesc">同步收藏、圈子、衣橱与提醒</text>
+            <text :style="userName">{{ session.isLoggedIn ? session.profile.nickname : '登录三坑绮橱' }}</text>
+            <text v-if="session.isLoggedIn" :style="userIdText">ID: {{ session.profile.userId }}</text>
+            <text v-else :style="guestDesc">同步收藏、圈子、衣橱与提醒</text>
           </view>
-          <view :style="loginButton"><text :style="loginText">登录</text></view>
+          <view v-if="!session.isLoggedIn" :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
 
-        <V2SectionHeader title="我的服务" />
-        <view :style="manageRow">
-          <view v-for="(item, idx) in manageItems" :key="item.id" :style="manageCard(idx)" @tap="onManageTap(item.id)">
-            <view :style="manageIconWrap"><AppIcon :name="item.icon" :size="38" :active="true" /></view>
+        <V2SectionHeader title="我的工具" />
+        <view :style="gridRow">
+          <view v-for="(item, idx) in gridItems" :key="item.id" :style="gridCard(idx)" @tap="onManageTap(item.id)">
+            <view :style="iconWrap"><AppIcon :name="item.icon" :size="38" :active="true" /></view>
             <view :style="manageCopy"><text :style="manageLabel">{{ item.label }}</text><text :style="manageValue">{{ item.value }}</text></view>
-            <AppIcon name="chevron-right" :size="28" />
+            <AppIcon name="chevron-right" :size="24" />
           </view>
+        </view>
+        <view :style="budgetCard" @tap="onManageTap('budget')">
+          <view :style="iconWrap"><AppIcon name="budget" :size="38" :active="true" /></view>
+          <view :style="manageCopy"><text :style="manageLabel">预算</text><text :style="budgetValue">{{ budget.isConfigured ? '¥' + budget.monthlyLimit : '去设置' }}</text></view>
+          <AppIcon name="chevron-right" :size="24" />
         </view>
 
         <V2SectionHeader title="我的内容" />
-        <view :style="outfitAssetCard" @tap="openMyPosts">
-          <view :style="outfitAssetIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
+        <view :style="contentCard" @tap="openMyPosts">
+          <view :style="iconWrap"><AppIcon name="camera" :size="38" :active="true" /></view>
           <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的动态</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条已发布 · {{ library.likedPostCount }} 条已点赞</text></view>
-          <AppIcon name="chevron-right" :size="32" />
+          <AppIcon name="chevron-right" :size="28" />
         </view>
 
-        <V2SectionHeader title="设置" />
+        <V2SectionHeader title="系统设置" />
         <V2ListGroup>
-          <view :style="settingShell(0, 3)" @tap="goPage('/pages/preferences/appearance')">
-            <V2ListRow icon="moon" label="深色模式" :value="themeLabel" />
-          </view>
-          <view :style="settingShell(1, 3)" @tap="goPage('/pages/preferences/index')">
-            <V2ListRow icon="heart" label="推荐偏好" :value="preferenceSummary" />
-          </view>
-          <view :style="settingShell(2, 3)" @tap="goPage('/pages/preferences/notification')">
-            <V2ListRow icon="notification" label="通知设置" />
-          </view>
+          <view :style="settingShell(0, 3)" @tap="goPage('/pages/preferences/appearance')"><V2ListRow icon="moon" label="深色模式" :value="themeLabel" /></view>
+          <view :style="settingShell(1, 3)" @tap="goPage('/pages/preferences/index')"><V2ListRow icon="heart" label="推荐偏好" :value="preferenceSummary" /></view>
+          <view :style="settingShell(2, 3)" @tap="goPage('/pages/preferences/notification')"><V2ListRow icon="notification" label="通知设置" /></view>
         </V2ListGroup>
 
-        <V2SectionHeader title="其他" />
         <V2ListGroup>
-          <view :style="settingShell(0, 2)" @tap="onHelpTap">
-            <V2ListRow icon="help" label="帮助与反馈" />
-          </view>
-          <view :style="settingShell(1, 2)" @tap="onClearCacheTap">
-            <V2ListRow icon="clear" label="清理缓存" />
-          </view>
+          <view :style="settingShell(0, 2)" @tap="onHelpTap"><V2ListRow icon="help" label="帮助与反馈" /></view>
+          <view :style="settingShell(1, 2)" @tap="onClearCacheTap"><V2ListRow icon="clear" label="清理缓存" /></view>
         </V2ListGroup>
 
-        <V2SectionHeader title="关于" />
         <V2ListGroup>
-          <view v-for="(item, idx) in aboutGroup" :key="item.id" :style="settingShell(idx, aboutGroup.length)" @tap="onSettingTap(item.id)">
-            <V2ListRow :icon="item.icon" :label="item.label" :value="item.value" />
-          </view>
+          <view :style="settingShell(0, 2)" @tap="goPage('/pages/about/index')"><V2ListRow icon="info" label="关于三坑绮橱" value="V2.5" /></view>
+          <view v-if="session.isLoggedIn" :style="settingShell(1, 2)" @tap="logout"><V2ListRow icon="profile" label="退出登录" /></view>
         </V2ListGroup>
+
+        <view :style="bottomSpacer" />
       </view>
     </template>
   </MainLayout>
@@ -97,24 +91,6 @@ import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { getWindowHeight } from '@/utils/window-info'
 
-class SettingsItem {
-  id: string = ''
-  icon: string = ''
-  label: string = ''
-  value: string = ''
-  section: string = ''
-}
-
-function createSettingsItem(id: string, icon: string, label: string, value: string, section: string): SettingsItem {
-  const item = new SettingsItem()
-  item.id = id
-  item.icon = icon
-  item.label = label
-  item.value = value
-  item.section = section
-  return item
-}
-
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
@@ -124,54 +100,12 @@ const wishlist = useWishListStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
 const preferences = usePreferencesStore()
-const openSettingsPanel = ref('')
-const preferenceDraft = ref<string[]>([])
 
-const themeOptions = ['system', 'dark']
-const preferenceOptions = ['JK', 'Lolita', '汉服']
 const preferenceSummary = computed((): string => {
   const values = preferences.preferences.pitTypes
   return values.length == 0 ? '全部' : values.join('、')
 })
-
 const themeLabel = computed((): string => getThemeLabel())
-
-function toggleSettingsPanel(id: string) {
-  if (openSettingsPanel.value == id) { openSettingsPanel.value = ''; return }
-  openSettingsPanel.value = id
-  if (id == 'preferences') {
-    const values = [] as string[]
-    const stored = preferences.preferences.pitTypes
-    for (let i = 0; i < stored.length; i++) values.push(stored[i])
-    preferenceDraft.value = values
-  }
-}
-function themeOptionLabel(mode: string): string {
-  if (mode == 'system') return '跟随系统'
-  return '深色'
-}
-function chooseTheme(mode: string) {
-  if (mode == 'dark') setThemeMode('dark')
-  else setThemeMode('system')
-  openSettingsPanel.value = ''
-}
-function isPreferenceDraftSelected(item: string): boolean { return preferenceDraft.value.indexOf(item) >= 0 }
-function togglePreferenceDraft(item: string) {
-  const values = [...preferenceDraft.value]
-  const idx = values.indexOf(item)
-  if (idx >= 0) values.splice(idx, 1)
-  else values.push(item)
-  preferenceDraft.value = values
-}
-function savePreferenceDraft() {
-  let values = [] as string[]
-  if (preferenceDraft.value.length != preferenceOptions.length) {
-    for (let i = 0; i < preferenceDraft.value.length; i++) values.push(preferenceDraft.value[i])
-  }
-  preferences.setPitTypes(values)
-  openSettingsPanel.value = ''
-  showFeedback('推荐偏好已保存')
-}
 
 function onEdit() { showFeedback('功能开发中') }
 function goLogin() {
@@ -180,10 +114,7 @@ function goLogin() {
     else if (session.errorMessage !== '') showFeedback(session.errorMessage)
   })
 }
-function logout() {
-  session.logout()
-  showFeedback('已退出，设备数据仍保留')
-}
+function logout() { session.logout(); showFeedback('已退出，设备数据仍保留') }
 function goPage(url: string) { uni.navigateTo({ url }) }
 function openMyPosts() { uni.navigateTo({ url: '/pages/community/mine' }) }
 function onManageTap(id: string) {
@@ -193,24 +124,13 @@ function onManageTap(id: string) {
   if (id === 'reminders') goPage('/pages/reminder/index')
   if (id === 'budget') goPage('/pages/budget/index')
 }
-function onSettingTap(id: string) {
-  if (id === 'about') goPage('/pages/about/index')
-  if (id === 'logout') logout()
-}
-
-function onHelpTap() {
-  showFeedback('反馈入口将在账号服务接入后开放')
-}
-
+function onHelpTap() { showFeedback('反馈入口将在账号服务接入后开放') }
 function onClearCacheTap() {
-  const cacheKeys = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic']
-  try { for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i]) } catch (e) {}
+  try { uni.removeStorageSync('search_recent'); uni.removeStorageSync('community_view') } catch (e) {}
   showFeedback('已清理')
 }
 
 onLoad(() => { initPageTheme() })
-
-// 原生 tabBar 保活后 onShow 每次切 Tab 都会触发；30 秒 TTL 去重，避免频繁全量重载
 let lastProfileReloadTs = 0
 const PROFILE_RELOAD_TTL_MS = 30 * 1000
 function reloadProfileData() {
@@ -230,72 +150,56 @@ function reloadProfileData() {
 }
 onShow(() => { initPageTheme(); reloadProfileData() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '160rpx', paddingTop: '28rpx', paddingBottom: '28rpx', paddingLeft: CARD_PADDING, paddingRight: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
-const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
-const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] as string }
-const guestAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
-const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
-const loginButton = computed((): any => ({ minWidth: '132rpx', height: '64rpx', borderRadius: radius.full, backgroundColor: isDark.value ? brand[600] as string : brand[500] as string, alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
+const bottomSpacer = { height: '48rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+
+const profileCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, marginBottom: '32rpx' }))
+const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0, position: 'relative', borderWidth: '2rpx', borderStyle: 'solid', borderColor: baseColors.white }))
+const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] as string }
+const cameraBadge = { position: 'absolute', bottom: '-2rpx', right: '-2rpx', width: '24rpx', height: '24rpx', borderRadius: '12rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
+const cameraBadgeText = { fontSize: '16rpx', color: baseColors.white, fontWeight: fontWeight.bold }
+const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
+const loginButton = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: radius.full, backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
 const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const accountId = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
-const editButton = { minWidth: '80rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx', marginRight: '4rpx' }
-const editText = { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[600] as string }
+const userIdText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '2rpx' }))
 
-class ManageItem {
+class GridItem {
   id: string = ''
   icon: string = ''
   label: string = ''
   value: string = ''
 }
-
-function createManageItem(id: string, icon: string, label: string, value: string): ManageItem {
-  const item = new ManageItem()
-  item.id = id
-  item.icon = icon
-  item.label = label
-  item.value = value
-  return item
+function mkItem(id: string, icon: string, label: string, value: string): GridItem {
+  const g = new GridItem()
+  g.id = id; g.icon = icon; g.label = label; g.value = value
+  return g
 }
-
-const manageItems = computed(() => [
-  createManageItem('wardrobe', 'wardrobe', '衣橱', `${wardrobe.itemCount} 件`),
-  createManageItem('favorites', 'heart', '愿望单', `${wishlist.itemCount} 件`),
-  createManageItem('orders', 'order', '购买记录', `${purchases.itemCount} 笔`),
-  createManageItem('reminders', 'reminder', '提醒', `${reminders.pendingCount} 条待办`),
-  createManageItem('budget', 'budget', '预算', budget.isConfigured ? `¥${budget.monthlyLimit}` : '待设置'),
+const gridItems = computed(() => [
+  mkItem('wardrobe', 'wardrobe', '衣橱', `${wardrobe.itemCount} 件`),
+  mkItem('favorites', 'heart', '愿望单', `${wishlist.itemCount} 件`),
+  mkItem('orders', 'order', '购买记录', `${purchases.itemCount} 笔`),
+  mkItem('reminders', 'reminder', '提醒', `${reminders.pendingCount} 条待办`),
 ])
-const manageRow = { ...flexRow, flexWrap: 'wrap' as string }
-function manageCard(idx: number) { return { ...flexRow, alignItems: 'center', width: '325rpx', height: '116rpx', flexShrink: 0, paddingLeft: '18rpx', paddingRight: '14rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
-const manageIconWrap = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '14rpx', flexShrink: 0 }))
+
+const gridRow = { ...flexRow, flexWrap: 'wrap' as string }
+function gridCard(idx: number) { return { ...flexRow, alignItems: 'center', width: '325rpx', height: '120rpx', flexShrink: 0, paddingLeft: '18rpx', paddingRight: '12rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+const budgetCard = computed((): any => ({ ...flexRow, alignItems: 'center', width: '100%', height: '100rpx', paddingLeft: '18rpx', paddingRight: '14rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
+const iconWrap = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50] as string, alignItems: 'center', justifyContent: 'center', marginRight: '14rpx', flexShrink: 0 }))
 const manageCopy = { ...flexFill }
 const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const manageValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '5rpx' }))
-const outfitAssetCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
-const outfitAssetIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const manageValue = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+
+const budgetValue = computed((): any => {
+  if (!budget.isConfigured) return { fontSize: fontSize['2xs'], color: brand[500] as string, marginTop: '4rpx' }
+  return { fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }
+})
+
+const contentCard = computed((): any => ({ ...flexRow, alignItems: 'center', height: '100rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '32rpx' }))
 const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const outfitAssetValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+const outfitAssetValue = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 
-const settingsItems = computed(() => {
-  const items: SettingsItem[] = [
-    createSettingsItem('about', 'info', '关于三坑绮橱', 'V2.5', 'about'),
-  ]
-  if (session.isLoggedIn) items.push(createSettingsItem('logout', 'profile', '退出登录', '', 'about'))
-  return items
-})
-const aboutGroup = computed(() => settingsItems.value.filter((item) => item.section === 'about'))
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
-const dropdownPanel = computed((): any => ({ paddingLeft: '20rpx', paddingRight: '20rpx', paddingBottom: '20rpx', backgroundColor: n.value.surface }))
-function dropdownChoice(selected: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '18rpx', backgroundColor: selected ? n.value.surfacePink : n.value.bgSecondary, marginTop: '8rpx' } }
-function dropdownChoiceText(selected: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: selected ? fontWeight.semibold : fontWeight.regular, color: selected ? brand[700] as string : n.value.textSecondary } }
-const selectedMark = { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: brand[600] as string }
-const dropdownHint = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx', marginBottom: '12rpx' }))
-const preferenceChipRow = { ...flexRow, alignItems: 'center' }
-function preferenceChip(idx: number, item: string) { const selected = isPreferenceDraftSelected(item); return { ...flexFill, height: '68rpx', borderRadius: '20rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? (brand[500] as string) : n.value.bgSecondary, marginRight: idx < preferenceOptions.length - 1 ? '12rpx' : '0' } }
-function preferenceChipText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: isPreferenceDraftSelected(item) ? baseColors.white : n.value.textSecondary } }
-const savePreferenceButton = { height: '76rpx', borderRadius: '22rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', marginTop: '18rpx' }
-const savePreferenceText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

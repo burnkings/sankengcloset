@@ -2,35 +2,57 @@
   <MainLayout navbar-content-height="88rpx">
     <template #navbar><AppNavbar title="衣橱" :show-back="true" /></template>
     <template #default>
-      <view class="page-canvas" :style="pageWrap">
-        <AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
-        <view :style="statsCard">
-          <view :style="statsHead">
+      <scroll-view :style="scrollStyle">
+        <view class="page-canvas" :style="pageWrap">
+          <AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
+
+          <view :style="statsBar">
             <text :style="statsTitle">衣橱共 {{ store.itemCount }} 件</text>
-            <text :style="statsSub">三坑穿搭 全记录</text>
-          </view>
-          <view :style="statsRow">
-            <view v-for="s in categoryStats" :key="s.label" :style="statCol">
-              <text :style="statNum">{{ s.count }}</text>
-              <text :style="statLabel">{{ s.label }}</text>
+            <view :style="statsTags">
+              <view v-for="t in ['JK', 'Lolita', '汉服', '其他']" :key="t" :style="statsTag(t === activeCatLabel)" @tap="onQuickCat(t)"><text :style="statsTagText(t === activeCatLabel)">{{ t }}</text></view>
             </view>
           </view>
-        </view>
-        <view :style="summaryRow">
-          <view :style="sortBadge" @tap="showSortSheet"><text :style="sortBadgeText">{{ store.sortLabel }}</text></view>
-          <view v-if="store.activeFilterCount > 0" :style="filterBadge"><text :style="filterBadgeText">{{ store.activeFilterCount }}</text></view>
-        </view>
-        <V2Segmented :items="filters" :active="activeFilter" variant="solid" :active-color="brand[500]" @change="onFilter" />
 
-        <AppLoading v-if="store.loading" />
-        <view v-else-if="visibleItems.length === 0" :style="emptyWrap"><AppIcon name="wardrobe" :size="64" /><text :style="emptyTitle">{{ hasActiveFilters ? '没有匹配的单品' : '衣橱里还没有单品' }}</text><text :style="emptyDesc">{{ hasActiveFilters ? '试试调整筛选条件' : '添加你的第一件三坑单品' }}</text></view>
-        <view v-else :style="grid">
-          <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
-            <view :style="imageWrap"><AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
-              <view :style="cardBody"><text :style="brandText">{{ item.brand !== '' ? item.brand : categoryLabel(item.category) }}</text><text :style="itemName">{{ item.name }}</text><view :style="bottomRow"><text :style="priceText">{{ item.purchasePrice > 0 ? `¥${item.purchasePrice}` : '未记录价格' }}</text><text :style="wearText">{{ wearLabel(item.wearStatus) }}</text></view></view>
+          <view :style="actionRow">
+            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">{{ store.sortLabel }}</text><text :style="sortArrow">&#9662;</text></view>
+            <view :style="quickFilters">
+              <view :style="quickChip(favOnly)" @tap="toggleFavOnly"><text :style="quickChipText(favOnly)">仅看收藏</text></view>
+              <view :style="quickChip(unwornOnly)" @tap="toggleUnwornOnly"><text :style="quickChipText(unwornOnly)">仅看未穿</text></view>
+            </view>
           </view>
+
+          <V2Segmented :items="filters" :active="activeFilter" variant="solid" :active-color="brand[500]" @change="onFilter" />
+
+          <AppLoading v-if="store.loading" />
+
+          <view v-else-if="visibleItems.length === 0" :style="emptyWrap">
+            <AppIcon name="wardrobe" :size="72" />
+            <text :style="emptyTitle">{{ hasAnyItems ? '没有匹配的单品' : '衣橱还没有单品' }}</text>
+            <text :style="emptySub">{{ hasAnyItems ? '试试换个关键词或筛选条件吧' : '记录你的三坑穿搭，打造专属衣橱图鉴' }}</text>
+            <view v-if="!hasAnyItems" :style="emptyBtn" @tap="goAdd"><text :style="emptyBtnText">添加第一件单品</text></view>
+          </view>
+
+          <view v-else :style="grid">
+            <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
+              <view :style="imageWrap">
+                <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                <view :style="catBadge(catColor(item.category))"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
+                <view v-if="item.isFavorite" :style="favBadge"><text :style="favBadgeText">*</text></view>
+              </view>
+              <view :style="cardBody">
+                <text :style="cardName">{{ item.name }}</text>
+                <view :style="cardBottomRow">
+                  <text :style="cardBrand">{{ item.brand !== '' ? item.brand : catLabel(item.category) }}</text>
+                  <view :style="cardWearTag(item.wearStatus)"><text :style="cardWearText">{{ wearLabel(item.wearStatus) }}</text></view>
+                  <text v-if="item.purchasePrice > 0" :style="cardPrice">¥{{ item.purchasePrice }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view :style="bottomSpacer" />
         </view>
-      </view>
+      </scroll-view>
     </template>
   </MainLayout>
   <AppFab @tap="goAdd" />
@@ -57,77 +79,103 @@ import { showFeedback } from '@/utils/feedback'
 const store = useWardrobeStore()
 const searchValue = ref('')
 const activeFilter = ref('全部')
+const favOnly = ref(false)
+const unwornOnly = ref(false)
 const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
+
+const activeCatLabel = computed((): string => activeFilter.value === '全部' ? '' : activeFilter.value)
+
 function applySearch() { store.setSearch(searchValue.value) }
 function onFilter(label: string) {
   activeFilter.value = label
   const map = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
   store.setCategory(label === '全部' ? '' : (map[label] != null ? map[label] as string : ''))
 }
-const hasActiveFilters = computed((): boolean => store.activeFilterCount > 0)
-  const visibleItems = computed((): WardrobeItem[] => store.sortedItems)
+function onQuickCat(label: string) {
+  activeFilter.value = label
+  const map = { 'JK': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
+  store.setCategory(map[label] != null ? map[label] as string : '')
+}
+function toggleFavOnly() {
+  favOnly.value = !favOnly.value
+  store.setStatus(favOnly.value ? 'favorite' : '')
+  if (favOnly.value) unwornOnly.value = false
+}
+function toggleUnwornOnly() {
+  unwornOnly.value = !unwornOnly.value
+  store.setStatus(unwornOnly.value ? 'UNWORN' : '')
+  if (unwornOnly.value) favOnly.value = false
+}
+const hasAnyItems = computed((): boolean => store.itemCount > 0)
+const visibleItems = computed((): WardrobeItem[] => store.sortedItems)
 const sortOptions = ['newest', 'earliest', 'priceHigh', 'priceLow', 'name']
-const sortLabels = ['最近加入', '最早加入', '价格高→低', '价格低→高', '名称']
+const sortLabels = ['最近加入', '最早加入', '价格高到低', '价格低到高', '名称']
 function showSortSheet() {
   uni.showActionSheet({ itemList: sortLabels, success: (res) => { store.setSort(sortOptions[res.tapIndex]) } })
 }
-function categoryLabel(value: string): string { return value === 'LOLITA' ? 'Lolita' : (value === 'HANFU' ? '汉服' : (value === 'JK' ? 'JK' : '其他')) }
-function wearLabel(value: string): string { return value === 'UNWORN' ? '未穿' : (value === 'WORN' ? '已穿' : (value === 'FREQUENT' ? '常穿' : '')) }
+function catLabel(c: string): string { return c === 'LOLITA' ? 'Lolita' : (c === 'HANFU' ? '汉服' : (c === 'JK' ? 'JK' : '其他')) }
+function catColor(c: string): string {
+  if (c === 'JK') return brand[500] as string
+  if (c === 'LOLITA') return '#9B6FAE'
+  if (c === 'HANFU') return '#C4924A'
+  return '#8C8C8C'
+}
+function wearLabel(s: string): string { return s === 'UNWORN' ? '未穿' : (s === 'WORN' ? '已穿' : '常穿') }
 function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
 onShow(() => { store.fetchItems() })
-  watch(searchValue, (value: string) => { store.setSearch(value) })
+watch(searchValue, (value: string) => { store.setSearch(value) })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const statsCard = { borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, padding: '24rpx', marginBottom: '24rpx' } as UTSJSONObject
-const statsHead = { ...flexRow, alignItems: 'baseline', marginBottom: '20rpx' } as UTSJSONObject
-const statsTitle = { fontSize: '31rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
-const statsSub = { fontSize: '23rpx', fontWeight: '400', color: n.value.textSecondary, marginLeft: '16rpx' } as UTSJSONObject
-const statsRow = { ...flexRow, alignItems: 'center' } as UTSJSONObject
-const statCol = { ...flexFill, flexDirection: 'column' as string, alignItems: 'center' } as UTSJSONObject
-const statNum = { fontSize: '35rpx', fontWeight: '700', color: n.value.text } as UTSJSONObject
-const statLabel = { fontSize: '19rpx', fontWeight: '400', color: n.value.textSecondary, marginTop: '4rpx' } as UTSJSONObject
-class CategoryStat {
-  label: string = ''
-  count: number = 0
+const scrollStyle = { flex: 1 }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+
+const statsBar = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', height: '80rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, marginBottom: '16rpx' }
+const statsTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }
+const statsTags = { ...flexRow }
+function statsTag(active: boolean): any {
+  return { paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '16rpx', backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary, marginLeft: '8rpx' }
+}
+function statsTagText(active: boolean): any {
+  return { fontSize: fontSize.xs, color: active ? baseColors.white : n.value.textSecondary }
 }
 
-function createCategoryStat(label: string, count: number): CategoryStat {
-  const s = new CategoryStat()
-  s.label = label
-  s.count = count
-  return s
+const actionRow = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '12rpx' }
+const sortBtn = { ...flexRow, alignItems: 'center', paddingLeft: '16rpx', paddingRight: '12rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }
+const sortBtnText = { fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '4rpx' }
+const sortArrow = { fontSize: fontSize.xs, color: n.value.textTertiary }
+const quickFilters = { ...flexRow }
+function quickChip(active: boolean): any {
+  return { paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '16rpx', backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary, marginLeft: '8rpx' }
+}
+function quickChipText(active: boolean): any {
+  return { fontSize: fontSize.xs, color: active ? baseColors.white : n.value.textSecondary }
 }
 
-const categoryStats = computed((): CategoryStat[] => {
-  const counts = store.categoryCounts
-  const jk = counts['JK'] != null ? counts['JK'] as number : 0
-  const lolita = counts['LOLITA'] != null ? counts['LOLITA'] as number : 0
-  const hanfu = counts['HANFU'] != null ? counts['HANFU'] as number : 0
-  const other = Math.max(0, store.itemCount - jk - lolita - hanfu)
-  return [
-    createCategoryStat('JK制服', jk),
-    createCategoryStat('Lolita', lolita),
-    createCategoryStat('汉服', hanfu),
-    createCategoryStat('其他', other),
-  ]
-})
-const summaryRow = { ...flexRow, alignItems: 'center', marginTop: '24rpx', marginBottom: '16rpx' }
-const summaryTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const sortBadge = computed((): any => ({ ...flexRow, alignItems: 'center', paddingLeft: '16rpx', paddingRight: '12rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary }))
-const sortBadgeText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '4rpx' }))
-const filterBadge = { minWidth: '32rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', paddingLeft: '8rpx', paddingRight: '8rpx', marginLeft: '8rpx' }
-const filterBadgeText = { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: baseColors.white }
-const grid = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '22rpx' }
-function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
-const imageWrap = { width: '325rpx', height: '390rpx' }
-const cardBody = { padding: '18rpx' }
-const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
-const itemName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '5rpx', lines: 1, textOverflow: 'ellipsis' }))
-const bottomRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
-const priceText = { ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
-const wearText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary }))
-const emptyWrap = { alignItems: 'center', paddingTop: '180rpx', paddingBottom: '120rpx' }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
-const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
+const bottomSpacer = { height: '80rpx' }
+const grid = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '16rpx' }
+function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+const imageWrap = { width: '325rpx', height: '360rpx', position: 'relative', backgroundColor: n.value.bgSecondary }
+function catBadge(color: string): any {
+  return { position: 'absolute', top: '12rpx', left: '12rpx', paddingLeft: '8rpx', paddingRight: '8rpx', height: '28rpx', borderRadius: '14rpx', backgroundColor: color + 'CC', alignItems: 'center', justifyContent: 'center' }
+}
+const catBadgeText = { fontSize: '20rpx', color: '#FFFFFF' }
+const favBadge = { position: 'absolute', top: '12rpx', right: '12rpx', width: '28rpx', height: '28rpx', borderRadius: '14rpx', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }
+const favBadgeText = { fontSize: '18rpx', color: brand[500] as string }
+const cardBody = { padding: '12rpx 16rpx' }
+const cardName = { fontSize: '28rpx', fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }
+const cardBottomRow = { ...flexRow, alignItems: 'center', marginTop: '6rpx' }
+const cardBrand = { fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }
+function cardWearTag(status: string): any {
+  if (status === 'UNWORN') return { paddingLeft: '8rpx', paddingRight: '8rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginLeft: '6rpx' }
+  if (status === 'FREQUENT') return { paddingLeft: '8rpx', paddingRight: '8rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: brand[600], alignItems: 'center', justifyContent: 'center', marginLeft: '6rpx' }
+  return { paddingLeft: '8rpx', paddingRight: '8rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginLeft: '6rpx' }
+}
+function cardWearText(): any { return { fontSize: '20rpx', color: '#FFFFFF' } }
+const cardPrice = { fontSize: '24rpx', fontWeight: fontWeight.medium, color: brand[500] as string, marginLeft: '6rpx', flexShrink: 0 }
+
+const emptyWrap = { alignItems: 'center', paddingTop: '140rpx' }
+const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }
+const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }
+const emptyBtn = { marginTop: '32rpx', height: '80rpx', paddingLeft: '40rpx', paddingRight: '40rpx', borderRadius: '40rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
+const emptyBtnText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

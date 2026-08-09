@@ -1,6 +1,12 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar :title="isEdit ? '编辑衣橱单品' : '添加衣橱单品'" :show-back="true"></AppNavbar></template>
+    <template #navbar>
+      <AppNavbar :title="isEdit ? '编辑单品' : '添加单品'" :show-back="true">
+        <template #right>
+          <text v-if="isEdit" :style="moreBtn" @tap="showDeleteDialog = true">删除</text>
+        </template>
+      </AppNavbar>
+    </template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="photoCard" @tap="choosePhoto">
@@ -8,9 +14,12 @@
           <view v-else :style="photoEmpty"><AppIcon name="camera" :size="52" :active="true" /><text :style="photoText">添加单品照片</text></view>
         </view>
 
-        <text :style="fieldLabel">单品名称</text><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
-        <text :style="fieldLabel">坑向</text><V2Segmented :items="categories" :active="activeCategory" variant="solid" :active-color="brand[500]" @change="onCategory" />
+        <view :style="cardGroup">
+          <text :style="fieldLabel">单品名称</text><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
+          <text :style="fieldLabel">坑向</text><V2Segmented :items="categories" :active="activeCategory" variant="solid" :active-color="brand[500]" @change="onCategory" />
+        </view>
 
+        <view :style="cardGroup">
         <view :style="twoColumnRow">
           <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
           <view :style="halfFieldLast"><text :style="fieldLabelCompact">购买价格</text><AppInput v-model="form.price" placeholder="0" type="digit" /></view>
@@ -19,20 +28,21 @@
           <view :style="halfField"><text :style="fieldLabelCompact">颜色</text><AppInput v-model="form.color" placeholder="主色" /></view>
           <view :style="halfFieldLast"><text :style="fieldLabelCompact">尺码</text><AppInput v-model="form.size" placeholder="尺码" /></view>
         </view>
-
-        <text :style="fieldLabel">穿着状态</text><V2Segmented :items="wearLabels" :active="activeWearLabel" variant="solid" :active-color="brand[500]" @change="onWear" />
-        <text :style="fieldLabel">备注</text><view :style="noteShell"><textarea :value="form.note" placeholder="搭配想法、版型或养护信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
-
-        <view v-if="isEdit" :style="deleteArea">
-          <view v-if="!showDeleteConfirm" :style="deleteButton" @tap="showDeleteConfirm = true"><text :style="deleteText">从衣橱删除</text></view>
-          <view v-else :style="confirmRow"><text :style="confirmText">确认删除？</text><view :style="cancelDelete" @tap="showDeleteConfirm = false"><text :style="cancelDeleteText">取消</text></view><view :style="confirmDelete" @tap="deleteItem"><text :style="confirmDeleteText">删除</text></view></view>
         </view>
+
+        <view :style="cardGroup">
+        <text :style="fieldLabel">穿着状态</text><V2Segmented :items="wearLabels" :active="activeWearLabel" variant="solid" :active-color="brand[500]" @change="onWear" />
+        </view>
+
+        <view :style="cardGroup">
+        <text :style="fieldLabel">备注</text><view :style="noteShell"><textarea :value="form.note" placeholder="搭配想法、版型或养护信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
+        </view>
+
       </view>
     </template>
   </MainLayout>
-  <view :style="bottomBar">
-    <view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣橱' }}</text></view>
-  </view>
+  <view :style="bottomBar"><view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣橱' }}</text></view></view>
+  <AppDialog v-model:visible="showDeleteDialog" title="确认删除" message="删除后无法恢复，确定要删除这件单品吗？" confirm-text="删除" @confirm="deleteItem" />
 </template>
 
 <script setup lang="uts">
@@ -51,12 +61,13 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = useWardrobeStore()
 const isEdit = ref(false)
 const editId = ref('')
 const imagePath = ref('')
-const showDeleteConfirm = ref(false)
+const showDeleteDialog = ref(false)
 type WardrobeFormState = {
   name: string
   category: string
@@ -136,15 +147,8 @@ const halfFieldLast = { ...flexFill }
 const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgTertiary }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '150rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
-const deleteArea = { marginTop: '56rpx' }
-const deleteButton = { height: '76rpx', alignItems: 'center', justifyContent: 'center' }
-const deleteText = { fontSize: fontSize.sm, color: semantic.error }
-const confirmRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '88rpx', paddingLeft: '20rpx', paddingRight: '12rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
-const confirmText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, color: n.value.text }))
-const cancelDelete = computed((): any => ({ height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
-const cancelDeleteText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
-const confirmDelete = { height: '60rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '30rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center' }
-const confirmDeleteText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
+const cardGroup = { padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginTop: '24rpx' }
+const moreBtn = computed((): any => ({ fontSize: fontSize.sm, color: '#FF4D4F', paddingRight: '8rpx' }))
 </script>
 
 
