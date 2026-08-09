@@ -62,10 +62,10 @@ const hasPrefix = computed(() => slots.prefix != null)
 
 const wrapperStyle = computed((): any => ({
   ...flexRowCenter,
-  height: '80rpx',
+  height: '88rpx',
   paddingLeft: '28rpx',
   paddingRight: '24rpx',
-  borderRadius: radius.full,
+  borderRadius: '24rpx',
   backgroundColor: n.value.inputFill,
   borderWidth: '0',
   borderColor: 'transparent',

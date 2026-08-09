@@ -8,20 +8,19 @@
       <scroll-view v-else :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
 
-          <view :style="statsBar">
-            <view :style="statsLeft">
-              <text :style="statsText"><text :style="statsNum">种草 {{ stats.wishCount }}</text><text :style="statsSep"> · </text><text :style="statsNum">待买 {{ stats.decidedCount }}</text><text :style="statsSep"> · </text><text :style="statsNum">已买 {{ stats.purchasedCount }}</text></text>
-            </view>
-            <text :style="statsPrice">待买预估 ¥{{ stats.estimatedTotal }}</text>
-          </view>
+          <V2StatsCard
+            primary-label="心愿总数"
+            :primary-value="stats.wishCount + stats.decidedCount + stats.purchasedCount + ' 件'"
+            secondary-label="待买入"
+            :secondary-value="stats.decidedCount + ' 件'"
+            :secondary-highlight="true"
+          />
 
-          <V2Segmented :items="viewTabs" :active="activeTab" variant="soft" :active-color="brand[500]" @change="onTab" />
+          <V2CapsuleFilter :items="viewTabs" :active="activeTab" @change="onTab" />
 
-          <view v-if="viewItems.length === 0" :style="emptyWrap">
-            <text :style="emptyTitle">暂无心愿商品</text>
-            <text :style="emptySub">记录心仪好物，避免错过再贩</text>
-            <view :style="emptyBtn" @tap="onAddTap"><text :style="emptyBtnText">添加心愿</text></view>
-          </view>
+          <template v-if="viewItems.length === 0">
+            <AppEmptyState icon="heart" title="暂无心愿商品" description="记录心仪好物，避免错过再贩" action-text="添加心愿" @action="onAddTap" />
+          </template>
 
           <view v-else :style="gridWrap">
             <view v-for="(item, idx) in viewItems" :key="item.id" :style="cardWrap(idx)" @tap="onItemTap(item.id)">
@@ -65,11 +64,13 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import AppEmptyState from '@/components/base/AppEmptyState.uvue'
+import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
+import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 
 const store = useWishListStore()
-const viewTabs = ['全部', '待决策', '待购买', '已完成']
+const viewTabs = ['全部', '种草', '观望', '决定买', '已买', '拔草']
 const activeTab = ref('全部')
 
 const stats = computed(() => calcStats(store.activeItems))
@@ -77,9 +78,11 @@ const stats = computed(() => calcStats(store.activeItems))
 function onTab(label: string) { activeTab.value = label }
 const viewItems = computed((): WishDisplayModel[] => {
   const all = store.displayItems
-  if (activeTab.value === '待决策') return all.filter((w) => w.status === 'WISH' || w.status === 'WATCHING')
-  if (activeTab.value === '待购买') return all.filter((w) => w.status === 'DECIDED')
-  if (activeTab.value === '已完成') return all.filter((w) => w.status === 'PURCHASED' || w.status === 'CANCELED')
+  if (activeTab.value === '种草') return all.filter((w) => w.status === 'WISH')
+  if (activeTab.value === '观望') return all.filter((w) => w.status === 'WATCHING')
+  if (activeTab.value === '决定买') return all.filter((w) => w.status === 'DECIDED')
+  if (activeTab.value === '已买') return all.filter((w) => w.status === 'PURCHASED')
+  if (activeTab.value === '拔草') return all.filter((w) => w.status === 'CANCELED')
   return all
 })
 
@@ -90,14 +93,7 @@ onMounted(() => { store.fetchItems() })
 const scrollStyle = { flex: 1, backgroundColor: n.value.bg }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 
-const statsBar = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12rpx', paddingBottom: '14rpx' }
-const statsLeft = { flex: 1 }
-const statsText = { fontSize: '24rpx', color: n.value.textSecondary }
-const statsNum = computed((): any => ({ color: brand[600] as string, fontWeight: fontWeight.semibold }))
-const statsSep = { color: n.value.textTertiary }
-const statsPrice = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text, flexShrink: 0 }
-
-const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '16rpx' }
+const gridWrap = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string, paddingTop: '16rpx' }
 function cardWrap(idx: number) {
   return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, overflow: 'hidden' as string }
 }
@@ -112,14 +108,9 @@ const prioBadgeText = { fontSize: '20rpx', color: '#FFFFFF', fontWeight: fontWei
 function statusDot(color: string) { return { position: 'absolute', top: '10rpx', right: '10rpx', width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: color } }
 const cardBody = { padding: '20rpx' }
 const cardName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
-const cardBottom = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx' }
+const cardBottom = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx' }
 const cardBrand = { fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }
 const cardPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[600] as string, flexShrink: 0, marginLeft: '8rpx' }
 
-const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
-const emptyTitle = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }
-const emptySub = { fontSize: '24rpx', color: n.value.textTertiary, marginTop: '10rpx' }
-const emptyBtn = { marginTop: '28rpx', height: '72rpx', paddingLeft: '36rpx', paddingRight: '36rpx', borderRadius: '16rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
-const emptyBtnText = { fontSize: '28rpx', fontWeight: fontWeight.medium, color: brand[500] as string }
 const bottomSpacer = { height: '60rpx' }
 </script>

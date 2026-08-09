@@ -5,29 +5,23 @@
       <scroll-view :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
 
-          <view :style="summaryCard">
-            <view :style="summaryLeft">
-              <text :style="sumLabel">累计下单</text>
-              <text :style="sumCount">{{ store.itemCount }} 笔</text>
-              <text :style="sumTotal">总消费 {{ store.totalSpent }}</text>
-            </view>
-            <view :style="summaryRight">
-              <text :style="sumRemainLabel">待付尾款</text>
-              <text :style="sumRemainValue">{{ store.remainingTotal }}</text>
-              <view :style="sumProgress"><view :style="sumProgressFill" /></view>
-            </view>
-          </view>
+          <V2StatsCard
+            primary-label="累计消费"
+            :primary-value="formattedTotal"
+            secondary-label="待付尾款"
+            :secondary-value="formattedRemaining"
+            :secondary-highlight="true"
+            tertiary-label="共"
+            :tertiary-value="store.itemCount + ' 笔订单'"
+          />
 
-          <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[500]" @change="onFilter" />
+          <V2CapsuleFilter :items="filters" :active="activeFilter" @change="onFilter" />
 
           <AppLoading v-if="store.loading" />
 
-          <view v-else-if="store.displayItems.length === 0" :style="emptyWrap">
-            <AppIcon name="order" :size="64" />
-            <text :style="emptyTitle">暂无订单记录</text>
-            <text :style="emptySub">录入定金尾款订单，避免逾期</text>
-            <view :style="emptyBtn" @tap="goAdd"><text :style="emptyBtnText">新增记录</text></view>
-          </view>
+          <template v-else-if="store.displayItems.length === 0">
+            <AppEmptyState icon="order" title="暂无订单记录" description="录入定金尾款订单，避免逾期" action-text="新增记录" @action="goAdd" />
+          </template>
 
           <view v-else>
             <view v-for="group in groupedItems" :key="group.key">
@@ -36,7 +30,7 @@
                 <view v-if="item.isOverdue" :style="overdueTag"><text :style="overdueTagText">已逾期</text></view>
                 <view :style="cardTop">
                   <text :style="cardTitle">{{ item.name }}</text>
-                  <text :style="cardStatusTag(item.statusColor)">{{ item.statusText }}</text>
+                  <V2StatusChip :label="item.statusText" :status="statusClass(item.statusText)" size="sm" />
                 </view>
                 <text :style="cardBrand">{{ item.brand !== '' ? item.brand : item.shopName }}</text>
                 <view :style="cardAmountRow">
@@ -68,12 +62,17 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import AppEmptyState from '@/components/base/AppEmptyState.uvue'
+import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
+import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
+import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 
 const store = usePurchaseStore()
 const activeFilter = ref('全部')
 const filters = ['全部', '预售中', '已付定金', '待付款', '已完成', '已取消']
+const formattedTotal = computed((): string => String(store.totalSpent))
+const formattedRemaining = computed((): string => String(store.remainingTotal))
 
 function onFilter(label: string) {
   activeFilter.value = label
@@ -84,6 +83,12 @@ function onFilter(label: string) {
   if (label === '已完成') status = 'COMPLETED'
   if (label === '已取消') status = 'CANCELLED'
   store.setFilterStatus(status)
+}
+function statusClass(statusText: string): string {
+  if (statusText === '已完成') return 'positive'
+  if (statusText === '已取消') return 'neutral'
+  if (statusText === '已逾期') return 'error'
+  return 'pending'
 }
 function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
@@ -113,21 +118,6 @@ const scrollStyle = { flex: 1 }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const bottomSpacer = { height: '60rpx' }
 
-const summaryCard = { ...flexRow, alignItems: 'stretch', justifyContent: 'space-between', minHeight: '140rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '16rpx' }
-const summaryLeft = { justifyContent: 'center' }
-const sumLabel = { fontSize: '22rpx', color: n.value.textTertiary }
-const sumCount = { fontSize: '28rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary, marginTop: '4rpx' }
-const sumTotal = { fontSize: '22rpx', color: n.value.textTertiary, marginTop: '4rpx' }
-const summaryRight = { alignItems: 'flex-end', justifyContent: 'center' }
-const sumRemainLabel = { fontSize: '22rpx', color: n.value.textTertiary }
-const sumRemainValue = { fontSize: '36rpx', fontWeight: fontWeight.bold, color: brand[500] as string, marginTop: '2rpx' }
-const sumProgress = computed((): any => ({ width: '160rpx', height: '6rpx', borderRadius: '3rpx', backgroundColor: n.value.cardBorder, overflow: 'hidden', marginTop: '8rpx' }))
-const sumProgressFill = computed((): any => {
-  const total = store.totalSpent > 0 ? store.totalSpent : 1
-  const pct = Math.min(100, Math.round(store.remainingTotal / total * 100))
-  return { width: `${pct}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: brand[500] }
-})
-
 const groupHeader = { paddingTop: '24rpx', paddingBottom: '10rpx' }
 const groupHeaderText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
 
@@ -137,13 +127,10 @@ function cardStyle(item: PurchaseDisplayModel): any {
 }
 const overdueTag = { marginBottom: '8rpx' }
 const overdueTagText = { fontSize: '22rpx', fontWeight: fontWeight.semibold, color: '#FF4D4F' }
-const cardTop = { ...flexRow, alignItems: 'flex-start' }
+const cardTop = { ...flexRow, flexDirection: 'row', alignItems: 'center' }
 const cardTitle = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
-function cardStatusTag(color: string): any {
-  return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: '#FFFFFF', backgroundColor: color, paddingLeft: '14rpx', paddingRight: '14rpx', paddingTop: '4rpx', paddingBottom: '4rpx', borderRadius: '24rpx', flexShrink: 0, marginLeft: '10rpx' }
-}
 const cardBrand = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
-const cardAmountRow = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '14rpx' }
+const cardAmountRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '14rpx' }
 function cardRemaining(item: PurchaseDisplayModel): any {
   const isPending = item.remainingText !== '已结清' && item.statusText !== '已取消'
   return { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: isPending ? '#FF4D4F' : '#52C41A' }
@@ -153,10 +140,4 @@ const cardProgress = computed((): any => ({ height: '6rpx', borderRadius: '3rpx'
 function cardProgressFill(percent: number, color: string): any {
   return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color }
 }
-
-const emptyWrap = { alignItems: 'center', paddingTop: '140rpx' }
-const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '18rpx' }
-const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }
-const emptyBtn = { marginTop: '28rpx', height: '72rpx', paddingLeft: '36rpx', paddingRight: '36rpx', borderRadius: '16rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
-const emptyBtnText = { fontSize: '28rpx', fontWeight: fontWeight.medium, color: brand[500] as string }
 </script>

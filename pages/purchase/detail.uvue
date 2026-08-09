@@ -14,12 +14,10 @@
     <view v-else :style="contentStyle">
 
       <!-- 名称 + 状态 -->
-      <AppCard>
+      <AppCard border-type="border">
         <view :style="nameRowStyle">
           <text :style="nameTextStyle">{{ item!.name }}</text>
-          <view :style="statusTagStyle">
-            <text :style="statusTagText">{{ item!.statusText }}</text>
-          </view>
+          <V2StatusChip :label="item!.statusText" :status="statusClass(item!.statusText)" size="sm" />
         </view>
         <text v-if="item!.brand !== '' || item!.shopName !== ''" :style="shopTextStyle">
           {{ item!.brand !== '' && item!.shopName !== '' ? item!.brand + ' · ' + item!.shopName : (item!.brand !== '' ? item!.brand : item!.shopName) }}
@@ -27,7 +25,7 @@
       </AppCard>
 
       <!-- 金额卡片 -->
-      <AppCard>
+      <AppCard border-type="border">
         <template #header>
           <text :style="sectionTitleStyle">金额信息</text>
         </template>
@@ -61,7 +59,7 @@
       </AppCard>
 
       <!-- 详情信息 -->
-      <AppCard>
+      <AppCard border-type="border">
         <template #header>
           <text :style="sectionTitleStyle">详细信息</text>
         </template>
@@ -95,7 +93,7 @@
       </view>
 
       <!-- 备注 -->
-      <AppCard v-if="item!.note">
+      <AppCard v-if="item!.note" border-type="border">
         <template #header>
           <text :style="sectionTitleStyle">备注</text>
         </template>
@@ -126,6 +124,7 @@ import { n } from '@/theme/use-theme'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
+import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
 
 
 const store = usePurchaseStore()
@@ -141,6 +140,13 @@ const item = computed((): PurchaseDisplayModel | null => {
   if (record == null) return null
   return toDisplayModel(record)
 })
+
+function statusClass(s: string): string {
+  if (s === '已完成') return 'positive'
+  if (s === '已取消') return 'neutral'
+  if (s === '已逾期') return 'error'
+  return 'pending'
+}
 
 function onDeleteTap() {
   deleteDialogVisible.value = true

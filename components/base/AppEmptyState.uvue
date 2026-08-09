@@ -1,7 +1,7 @@
 <template>
   <view :style="containerStyle">
     <view :style="iconBgStyle">
-      <AppIcon :name="icon" :size="56" />
+      <AppIcon :name="icon" :size="56" :active="true" />
     </view>
     <text :style="titleStyle">{{ title }}</text>
     <text v-if="description" :style="descStyle">{{ description }}</text>
@@ -17,9 +17,8 @@
 </template>
 
 <script setup lang="uts">
-import { brand, neutralLight, neutralDark, baseColors } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { spacing } from '@/theme/tokens/spacing'
-import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexCenter } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
@@ -49,45 +48,45 @@ const containerStyle = {
   flexDirection: 'column',
   paddingVertical: spacing[10],
   paddingHorizontal: spacing[6],
-  gap: spacing[2],
 }
 
-const iconBgStyle = {
-  width: '140rpx',
-  height: '140rpx',
-  borderRadius: radius.full,
-  backgroundColor: brand[50],
+const iconBgStyle = computed((): any => ({
+  width: '120rpx',
+  height: '120rpx',
+  borderRadius: '24rpx',
+  backgroundColor: n.value.surfacePink,
   display: 'flex',
+  flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'center',
-  marginBottom: spacing[3],
-}
+  marginBottom: spacing[4],
+}))
 
 const titleStyle = computed((): any => ({
-  fontSize: fontSize.lg,
+  fontSize: fontSize.base,
   fontWeight: fontWeight.semibold,
   color: n.value.text,
   textAlign: 'center',
 }))
 
 const descStyle = computed((): any => ({
-  fontSize: fontSize.sm,
+  fontSize: fontSize.xs,
   color: n.value.textTertiary,
   textAlign: 'center',
   lineHeight: 1.5,
   paddingHorizontal: spacing[4],
+  marginTop: spacing[1.5],
 }))
 
 const actionsStyle = {
-  marginTop: spacing[4],
-  gap: spacing[2],
+  marginTop: spacing[5],
   alignItems: 'center',
 }
 
 const actionWrapStyle = {
   paddingHorizontal: spacing[6],
   paddingVertical: spacing[2.5],
-  borderRadius: radius.full,
+  borderRadius: '24rpx',
   backgroundColor: brand[500],
 }
 
@@ -100,6 +99,7 @@ const actionTextStyle = {
 const secondaryWrapStyle = {
   paddingHorizontal: spacing[4],
   paddingVertical: spacing[2],
+  marginTop: spacing[2],
 }
 
 const secondaryTextStyle = computed((): any => ({

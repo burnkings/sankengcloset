@@ -25,17 +25,17 @@ export const TYPE_EMOJI = {
 }
 
 export const TYPE_COLORS = {
-  ARRIVAL: '#1890FF',
-  BALANCE: '#FF4D4F',
-  RELEASE: '#722ED1',
-  CUSTOM: '#8C8C8C',
+  ARRIVAL: '#D6EDFF',
+  BALANCE: '#FFF0E0',
+  RELEASE: '#FFE7EC',
+  CUSTOM: '#FFF7CC',
 }
 
 export const TYPE_COLORS_DARK = {
-  ARRIVAL: '#69B1FF',
-  BALANCE: '#FF7875',
-  RELEASE: '#B37FEB',
-  CUSTOM: '#BFBFBF',
+  ARRIVAL: 'rgba(214,237,255,0.20)',
+  BALANCE: 'rgba(255,240,224,0.20)',
+  RELEASE: 'rgba(255,231,236,0.20)',
+  CUSTOM: 'rgba(255,247,204,0.20)',
 }
 
 export const TYPE_PLACEHOLDERS = {

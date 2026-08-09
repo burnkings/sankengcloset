@@ -5,43 +5,44 @@
       <scroll-view :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
 
-          <text :style="fieldLabel">商品名称</text>
-          <AppInput v-model="form.name" placeholder="商品名称" :clearable="true" />
+          <V2FormSection title="商品信息">
+            <text :style="fieldLabel">商品名称</text>
+            <AppInput v-model="form.name" placeholder="商品名称" :clearable="true" />
 
-          <view :style="twoColumnRow">
-            <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
-            <view :style="halfFieldLast"><text :style="fieldLabelCompact">购买店铺</text><AppInput v-model="form.shopName" placeholder="店铺" /></view>
-          </view>
-
-          <text :style="fieldLabel">坑向</text>
-          <V2Segmented :items="categoryLabels" :active="activeCategoryLabel" variant="solid" :active-color="brand[500]" @change="onCategoryChange" />
-
-          <text :style="fieldLabel">付款状态</text>
-          <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" :active-color="brand[500]" @change="onStatusChange" />
-
-          <view :style="amountCard">
-            <view :style="amountColumn"><text :style="amountLabel">总金额</text><AppInput v-model="form.totalAmountStr" placeholder="0" type="digit" /></view>
-            <view :style="amountColumn"><text :style="amountLabel">定金</text><AppInput v-model="form.depositAmountStr" placeholder="0" type="digit" /></view>
-            <view :style="amountColumnLast"><text :style="amountLabel">已支付</text><AppInput v-model="form.paidAmountStr" placeholder="0" type="digit" /></view>
-          </view>
-
-          <view :style="twoColumnRow">
-            <view :style="halfField">
-              <text :style="fieldLabelCompact">购买日期</text>
-              <picker mode="date" :value="form.purchaseDate" @change="onPurchaseDateChange">
-                <view :style="pickerBox"><text :style="pickerText(form.purchaseDate !== '')">{{ form.purchaseDate || '选择日期' }}</text></view>
-              </picker>
+            <view :style="twoColumnRow">
+              <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
+              <view :style="halfFieldLast"><text :style="fieldLabelCompact">购买店铺</text><AppInput v-model="form.shopName" placeholder="店铺" /></view>
             </view>
-            <view :style="halfFieldLast">
-              <text :style="fieldLabelCompact">尾款截止日</text>
-              <picker mode="date" :value="form.deadline" @change="onDeadlineChange">
-                <view :style="pickerBox"><text :style="pickerText(form.deadline !== '')">{{ form.deadline || '选择日期' }}</text></view>
-              </picker>
-            </view>
-          </view>
 
-          <text :style="fieldLabel">备注</text>
-          <view :style="noteShell"><textarea :value="form.note" placeholder="填写尺码、尾款时间、店铺备注等" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
+            <text :style="fieldLabel">坑向</text>
+            <V2Segmented :items="categoryLabels" :active="activeCategoryLabel" variant="solid" @change="onCategoryChange" />
+
+            <text :style="fieldLabel">付款状态</text>
+            <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" @change="onStatusChange" />
+          </V2FormSection>
+
+          <V2FormSection title="金额与时间">
+            <view :style="amountCard">
+              <view :style="amountColumn"><text :style="amountLabel">总金额</text><AppInput v-model="form.totalAmountStr" placeholder="0" type="digit" /></view>
+              <view :style="amountColumn"><text :style="amountLabel">定金</text><AppInput v-model="form.depositAmountStr" placeholder="0" type="digit" /></view>
+              <view :style="amountColumnLast"><text :style="amountLabel">已支付</text><AppInput v-model="form.paidAmountStr" placeholder="0" type="digit" /></view>
+            </view>
+
+            <view :style="twoColumnRow">
+              <view :style="halfField">
+                <text :style="fieldLabelCompact">购买日期</text>
+                <V2DatePicker label="" :value="form.purchaseDate" placeholder="选择日期" mode="date" @change="onPurchaseDatePick" />
+              </view>
+              <view :style="halfFieldLast">
+                <text :style="fieldLabelCompact">尾款截止日</text>
+                <V2DatePicker label="" :value="form.deadline" placeholder="选择日期" mode="date" @change="onDeadlinePick" />
+              </view>
+            </view>
+          </V2FormSection>
+
+          <V2FormSection title="备注">
+            <view :style="noteShell"><textarea :value="form.note" placeholder="填写尺码、尾款时间、店铺备注等" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
+          </V2FormSection>
 
           <view :style="bottomSpacer" />
         </view>
@@ -70,6 +71,8 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import V2FormSection from '@/components/v2/V2FormSection.uvue'
+import V2DatePicker from '@/components/v2/V2DatePicker.uvue'
 
 const store = usePurchaseStore()
 const isEdit = ref(false)
@@ -113,14 +116,8 @@ function onNoteInput(e: any) {
   const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
   form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
 }
-function onPurchaseDateChange(e: any) {
-  const d = (e as UTSJSONObject)['detail'] as UTSJSONObject
-  form.value.purchaseDate = d != null && d['value'] != null ? d['value'] as string : ''
-}
-function onDeadlineChange(e: any) {
-  const d = (e as UTSJSONObject)['detail'] as UTSJSONObject
-  form.value.deadline = d != null && d['value'] != null ? d['value'] as string : ''
-}
+function onPurchaseDatePick(value: string) { form.value.purchaseDate = value }
+function onDeadlinePick(value: string) { form.value.deadline = value }
 
 function save() {
   if (form.value.name.trim() === '') { showFeedback('请填写商品名称'); return }
@@ -218,6 +215,6 @@ const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fon
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 
 const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', flexDirection: 'row', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: `${safeBottom + 20}px`, paddingTop: '16rpx', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
-const saveBtn = computed((): any => ({ flex: 1 as const, height: '92rpx', borderRadius: '46rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
-const saveBtnText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
+const saveBtn = computed((): any => ({ flex: 1 as const, height: '88rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
+const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 </script>

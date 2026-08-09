@@ -15,23 +15,19 @@
     <view v-else :style="contentStyle">
 
       <!-- 名称 + 状态 + 优先级 -->
-      <AppCard>
+      <AppCard border-type="border">
         <view :style="nameRowStyle">
           <text :style="nameTextStyle">{{ item!.name }}</text>
         </view>
         <view :style="tagRowStyle">
-          <view :style="statusTagStyle">
-            <text :style="statusTagText">{{ item!.statusText }}</text>
-          </view>
-          <view :style="priorityTagStyle">
-            <text :style="priorityTagText">{{ item!.priorityLabel }}</text>
-          </view>
+          <V2StatusChip :label="item!.statusText" :status="wishStatusClass(item!.status)" size="sm" />
+          <V2StatusChip :label="item!.priorityLabel" :status="'brand'" size="sm" />
         </view>
         <text v-if="item!.brand !== ''" :style="brandTextStyle">{{ item!.brand }}</text>
       </AppCard>
 
       <!-- 价格信息 -->
-      <AppCard>
+      <AppCard border-type="border">
         <view :style="priceRowStyle">
           <text :style="priceLabelStyle">预估价格</text>
           <text :style="priceValueStyle">{{ item!.priceText !== '' ? item!.priceText : '未设置' }}</text>
@@ -56,7 +52,7 @@
       </AppCard>
 
       <!-- 详细信息 -->
-      <AppCard>
+      <AppCard border-type="border">
         <template #header>
           <text :style="sectionTitleStyle">详细信息</text>
         </template>
@@ -142,6 +138,7 @@ import { n } from '@/theme/use-theme'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
+import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 
@@ -173,6 +170,15 @@ const canConvert = computed((): boolean => {
   if (raw == null) return false
   return raw.status !== WISH_PURCHASED && raw.status !== WISH_CANCELED
 })
+
+function wishStatusClass(status: string): string {
+  if (status === 'WISH') return 'initial'
+  if (status === 'WATCHING') return 'pending'
+  if (status === 'DECIDED') return 'brand'
+  if (status === 'PURCHASED') return 'positive'
+  if (status === 'CANCELED') return 'neutral'
+  return 'neutral'
+}
 
 function getTransitionLabel(status: string): string {
   return WISH_STATUS_LABELS[status] != null ? WISH_STATUS_LABELS[status] as string : status

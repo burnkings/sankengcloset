@@ -11,80 +11,62 @@
       <scroll-view :style="scrollWrap">
         <view class="page-canvas" :style="pageWrap">
 
-          <view :style="blockTitle"><text :style="blockTitleText">提醒类型</text></view>
-          <view :style="typeRow">
-            <view v-for="t in typeOptions" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
-          </view>
-
-          <view :style="blockTitle"><text :style="blockTitleText">提醒名称</text></view>
-          <AppInput v-model="form.title" :placeholder="typePlaceholder" :clearable="true" />
-
-          <view :style="blockTitle"><text :style="blockTitleText">提醒时间</text></view>
-          <picker mode="date" :value="form.remindDate" @change="onDateChange">
-            <view :style="fieldRow">
-              <text :style="fieldRowLabel">日期</text>
-              <text :style="fieldRowValue(form.remindDate !== '')">{{ form.remindDate !== '' ? formattedDate : '选择日期' }}</text>
+          <V2FormSection title="基础信息">
+            <view :style="typeRow">
+              <view v-for="t in typeOptions" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
             </view>
-          </picker>
-          <view :style="fieldRow">
-            <text :style="fieldRowLabel">时间</text>
-            <view :style="timeRight">
-              <view :style="fieldRowSwitch">
-                <text :style="fieldRowSwitchLabel">全天</text>
-                <V2Switch :model-value="form.isAllDay" @update:model-value="onAllDayChange" />
+            <AppInput v-model="form.title" :placeholder="typePlaceholder" :clearable="true" />
+          </V2FormSection>
+
+          <V2FormSection title="提醒时间">
+            <V2DatePicker label="日期" :value="form.remindDate" placeholder="选择日期" mode="date" @change="onDatePick" />
+            <view :style="timeFieldRow">
+              <text :style="timeFieldLabel">时间</text>
+              <view :style="timeRight">
+                <view :style="timeSwitchRow">
+                  <text :style="timeSwitchLabel">全天</text>
+                  <V2Switch :model-value="form.isAllDay" @update:model-value="onAllDayChange" />
+                </view>
+                <V2DatePicker v-if="!form.isAllDay" label="" :value="form.remindTime" placeholder="选择时间" mode="time" @change="onTimePick" />
+                <text v-else :style="timeDisabledText">全天</text>
               </view>
-              <picker v-if="!form.isAllDay" mode="time" :value="form.remindTime" @change="onTimeChange">
-                <view :style="timePickerWrap"><text :style="timePickerText(form.remindTime !== '')">{{ form.remindTime || '选择时间' }}</text></view>
-              </picker>
-              <text v-else :style="timePickerDisabledText">全天</text>
             </view>
-          </view>
+          </V2FormSection>
 
-          <view :style="blockTitle" @tap="toggleAdvanced">
-            <text :style="blockTitleText">提醒配置</text>
-            <text :style="collapseArrow">{{ advancedOpen ? '▾' : '▸' }}</text>
-          </view>
-          <view v-if="advancedOpen" :style="advancedBlock">
-            <view :style="fieldRow">
-              <text :style="fieldRowLabel">多级预警提醒</text>
+          <V2FormSection title="提醒配置" :collapsible="true" :open="advancedOpen" @toggle="toggleAdvanced">
+            <view :style="advancedFieldRow">
+              <text :style="advancedFieldLabel">多级预警提醒</text>
               <V2Switch :model-value="form.multiAlert" :disabled="!isMultiAlertAvailable" @update:model-value="onMultiAlertChange" />
             </view>
-            <view v-if="form.type === 'BALANCE'" :style="fieldRow">
-              <text :style="fieldRowLabel">同步预算</text>
+            <view v-if="form.type === 'BALANCE'" :style="advancedFieldRow">
+              <text :style="advancedFieldLabel">同步预算</text>
               <V2Switch :model-value="false" :disabled="true" />
             </view>
+          </V2FormSection>
+
+          <V2FormSection title="备注">
+            <view :style="noteShell">
+              <textarea :value="form.note" placeholder="店铺、尺码、尾款金额等备忘" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
+            </view>
+          </V2FormSection>
+
+          <V2FormSection v-if="isEdit" title="当前状态">
+            <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" @change="onStatusChange" />
+          </V2FormSection>
+
+          <view :style="tipsBanner">
+            <text :style="tipsText">提醒数据保存在本地，建议开启通知权限以确保准时提醒</text>
           </view>
-
-          <view :style="blockTitle"><text :style="blockTitleText">备注补充</text></view>
-          <view :style="noteShell">
-            <textarea :value="form.note" placeholder="店铺、尺码、尾款金额等备忘" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
-          </view>
-
-          <view v-if="isEdit" :style="blockTitle"><text :style="blockTitleText">当前状态</text></view>
-          <V2Segmented v-if="isEdit" :items="statusLabels" :active="activeStatusLabel" variant="solid" :active-color="brand[600]" @change="onStatusChange" />
-
-          <view :style="divider" />
 
           <view v-if="isEdit" :style="deleteBtn" @tap="onDeleteTap"><text :style="deleteBtnText">删除提醒</text></view>
-
           <view :style="saveBtnWrap" @tap="onSaveTap">
             <text v-if="!saving" :style="saveBtnText">{{ isEdit ? '保存修改' : '创建提醒' }}</text>
             <text v-else :style="savingBtnText">保存中...</text>
           </view>
 
           <view :style="bottomSpacer" />
-
         </view>
       </scroll-view>
-
-      <view :style="bottomBar">
-        <view v-if="isEdit" :style="bottomDelete" @tap="onDeleteTap"><text :style="bottomDeleteText">删除提醒</text></view>
-        <view :style="isEdit ? bottomSave : bottomSaveFull" @tap="onSaveTap">
-          <text v-if="!saving" :style="bottomSaveText">{{ isEdit ? '保存修改' : '创建提醒' }}</text>
-          <text v-else :style="bottomSaveTextSaving">保存中...</text>
-        </view>
-      </view>
-
     </template>
   </MainLayout>
 
@@ -97,7 +79,7 @@ import { useReminderStore } from '@/stores/reminder-store'
 import { Reminder, ReminderUpdateData, TYPE_COLORS } from '@/domain/reminder'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, getCardRadius } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
@@ -108,6 +90,8 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import V2Switch from '@/components/v2/V2Switch.uvue'
+import V2FormSection from '@/components/v2/V2FormSection.uvue'
+import V2DatePicker from '@/components/v2/V2DatePicker.uvue'
 
 function getTypePlaceholder(type: string): string {
   if (type === 'ARRIVAL') return '例：包裹预计送达'
@@ -149,22 +133,6 @@ const activeStatusLabel = computed((): string => form.value.status === 'DONE' ? 
 const typePlaceholder = computed((): string => getTypePlaceholder(form.value.type))
 const isMultiAlertAvailable = computed((): boolean => form.value.type === 'BALANCE' || form.value.type === 'RELEASE')
 
-const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六']
-const formattedDate = computed((): string => {
-  const d = form.value.remindDate
-  if (d === '') return ''
-  try {
-    const parts = d.split('-')
-    if (parts.length !== 3) return d
-    const year = parseInt(parts[0])
-    const month = parseInt(parts[1])
-    const day = parseInt(parts[2])
-    const date = new Date(year, month - 1, day)
-    const weekday = WEEKDAY_NAMES[date.getDay()]
-    return `${year}年${month}月${day}日 周${weekday}`
-  } catch { return d }
-})
-
 function getDefaultTime(): string {
   if (form.value.type === 'BALANCE' || form.value.type === 'RELEASE') return '20:00'
   if (form.value.type === 'ARRIVAL') return '10:00'
@@ -196,22 +164,11 @@ function onNoteInput(e: any) {
   const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
   form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
 }
-function onDateChange(e: any) {
-  const d = (e as UTSJSONObject)['detail'] as UTSJSONObject
-  form.value.remindDate = d != null && d['value'] != null ? d['value'] as string : ''
-}
-function onTimeChange(e: any) {
-  const d = (e as UTSJSONObject)['detail'] as UTSJSONObject
-  form.value.remindTime = d != null && d['value'] != null ? d['value'] as string : ''
-}
+function onDatePick(value: string) { form.value.remindDate = value }
+function onTimePick(value: string) { form.value.remindTime = value }
 function onAllDayChange(val: boolean) { form.value.isAllDay = val }
 function onMultiAlertChange(val: boolean) { form.value.multiAlert = val }
 function toggleAdvanced() { advancedOpen.value = !advancedOpen.value }
-
-function safeParam(value: any): string {
-  const text = value == null ? '' : (value as string)
-  try { return text.indexOf('%') >= 0 ? (decodeURIComponent(text) ?? text) : text } catch (e) { return text }
-}
 
 function onSaveTap() {
   if (saving.value) return
@@ -292,51 +249,35 @@ onLoad((options) => {
   }
 })
 
-const PAGE_GUTTER = '30rpx'
-const cr = getCardRadius()
 const safeBottom = getSafeBottomInset()
 const scrollWrap = { flex: 1 }
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER, paddingRight: PAGE_GUTTER }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const bottomSpacer = { height: '20rpx' }
 
-const blockTitle = { flexDirection: 'row', alignItems: 'center', marginTop: '32rpx', marginBottom: '14rpx' }
-const blockTitleText = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
-const collapseArrow = computed((): any => ({ fontSize: '28rpx', color: n.value.textTertiary, marginLeft: '10rpx' }))
+const typeRow = { flexDirection: 'row', marginBottom: '12rpx' }
 
-const typeRow = { flexDirection: 'row', marginBottom: '8rpx' }
-
-const fieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: cr, backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
-const fieldRowLabel = computed((): any => ({ fontSize: '28rpx', color: n.value.text, flexShrink: 0 }))
-const fieldRowValue = (filled: boolean) => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: filled ? n.value.text : n.value.placeholder })
-
+const timeFieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
+const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
-const fieldRowSwitch = { flexDirection: 'row', alignItems: 'center', marginRight: '16rpx' }
-const fieldRowSwitchLabel = { fontSize: '28rpx', color: n.value.text, marginRight: '10rpx' }
-const timePickerWrap = { height: '60rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '30rpx', backgroundColor: n.value.bgSecondary, justifyContent: 'center' }
-const timePickerText = (filled: boolean) => ({ fontSize: '28rpx', color: filled ? n.value.text : n.value.placeholder })
-const timePickerDisabledText = { fontSize: '28rpx', color: n.value.textDisabled }
+const timeSwitchRow = { flexDirection: 'row', alignItems: 'center', marginRight: '16rpx' }
+const timeSwitchLabel = { fontSize: fontSize.sm, color: n.value.text, marginRight: '10rpx' }
+const timeDisabledText = { fontSize: fontSize.sm, color: n.value.textDisabled }
 
-const advancedBlock = { paddingTop: '12rpx' }
+const advancedFieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
+const advancedFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text }))
 
-const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: cr, backgroundColor: n.value.inputFill }))
-const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
+const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
+const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: fontSize.base, color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 
-const divider = { height: '1rpx', backgroundColor: n.value.divider, marginTop: '40rpx' }
+const tipsBanner = computed((): any => ({ padding: '20rpx', borderRadius: '24rpx', backgroundColor: n.value.surfacePink, marginTop: '24rpx' }))
+const tipsText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx' }))
 
 const deleteBtn = { height: '88rpx', alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
-const deleteBtnText = { fontSize: '28rpx', color: '#FF4D4F' }
+const deleteBtnText = { fontSize: fontSize.sm, color: '#FF4D4F' }
 
-const saveBtnWrap = computed((): any => ({ height: '100rpx', borderRadius: '50rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '20rpx' }))
-const saveBtnText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
-const savingBtnText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: n.value.textTertiary }
-
-const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', flexDirection: 'row', alignItems: 'center', paddingLeft: PAGE_GUTTER, paddingRight: PAGE_GUTTER, paddingBottom: `${safeBottom + 16}px`, paddingTop: '16rpx', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
-const bottomDelete = { height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', borderRadius: '44rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: '#FF4D4F', alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
-const bottomDeleteText = { fontSize: '28rpx', fontWeight: fontWeight.medium, color: '#FF4D4F' }
-const bottomSave = { flex: 1 as const, height: '88rpx', borderRadius: '44rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as const, justifyContent: 'center' as const }
-const bottomSaveFull = { flex: 1 as const, height: '88rpx', borderRadius: '44rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as const, justifyContent: 'center' as const }
-const bottomSaveText = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
-const bottomSaveTextSaving = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.textTertiary }
+const saveBtnWrap = computed((): any => ({ height: '88rpx', borderRadius: '24rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '12rpx' }))
+const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
+const savingBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }
 const customBackStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
 </script>

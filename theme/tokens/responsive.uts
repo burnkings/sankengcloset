@@ -61,8 +61,8 @@ export const CARD_PADDING = '24rpx'
 export const CARD_PADDING_SM = '20rpx'
 /** 卡片内边距 — 大 */
 export const CARD_PADDING_LG = '24rpx'
-/** 卡片圆角 */
-export const CARD_RADIUS = '20rpx'
+/** 卡片圆角 — 对齐 semanticRadius.card */
+export const CARD_RADIUS = '24rpx'
 
 // ====== Badge (rpx) ======
 

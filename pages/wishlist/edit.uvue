@@ -165,7 +165,7 @@ onLoad((options) => {
 const cr = getCardRadius()
 const formStyle = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 
-const coverWrap = { height: '200rpx', borderRadius: cr, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: '24rpx' }
+const coverWrap = { height: '200rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: '24rpx' }
 const coverIcon = { fontSize: '48rpx', color: n.value.textTertiary }
 const coverText = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }
 
@@ -186,7 +186,7 @@ function gridChipText(active: boolean, _color: string): any {
   return { fontSize: '26rpx', fontWeight: fontWeight.medium, color: active ? '#FFFFFF' : n.value.textSecondary }
 }
 
-const noteShell = computed((): any => ({ minHeight: '120rpx', padding: '24rpx', borderRadius: cr, backgroundColor: n.value.inputFill }))
+const noteShell = computed((): any => ({ minHeight: '120rpx', padding: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '80rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 const noteCount = { fontSize: '22rpx', color: n.value.textTertiary, textAlign: 'right' as string, marginTop: '6rpx' }

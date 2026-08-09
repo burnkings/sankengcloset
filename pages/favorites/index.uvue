@@ -3,7 +3,7 @@
     <template #navbar><V2PageHeader title="收藏" /></template>
     <template #default>
       <view :style="tabsTopSpacer" />
-      <V2HorizontalTabs :items="tabs" :active="activeTab" @change="onTabTap" />
+      <V2CapsuleFilter :items="tabs" :active="activeTab" @change="onTabTap" />
 
       <view :style="pageCanvasStyle">
         <view v-if="activeTab === '商品' && favoriteProducts.length > 0" :style="contentTop">
@@ -33,10 +33,7 @@
         </view>
 
         <view v-else :style="emptyContainer">
-          <view :style="emptyIconWrap"><AppIcon name="wardrobe" :size="60" /></view>
-          <text :style="emptyTitle">{{ emptyTitleText }}</text>
-          <text :style="emptyDesc">{{ emptyDescText }}</text>
-          <view :style="emptyAction" @tap="goDiscover"><text :style="emptyActionText">去发现</text></view>
+          <AppEmptyState :icon="emptyIcon" :title="emptyTitleText" :description="emptyDescText" action-text="去发现" @action="goDiscover" />
         </view>
 
         <view v-if="activeTab === '商品'">
@@ -74,9 +71,10 @@ import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, CARD_RADIUS, PAGE_GUTTER_REGULAR } 
 import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import AppEmptyState from '@/components/base/AppEmptyState.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
+import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
 import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 
 const activeTab = ref('商品')
@@ -116,12 +114,13 @@ onPageShow(() => { initPageTheme(); library.reload() })
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
 const pageCanvasStyle = { paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const contentTop = { paddingTop: '24rpx' }
-const emptyContainer = { alignItems: 'center', paddingTop: '48rpx', paddingBottom: '24rpx' }
-const emptyIconWrap = computed((): any => ({ width: '112rpx', height: '112rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
-const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
-const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, textAlign: 'center', marginTop: '8rpx' }))
-const emptyAction = computed((): any => ({ height: '68rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: radius.full, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }))
-const emptyActionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const emptyContainer = { paddingTop: '24rpx' }
+const emptyIcon = computed((): string => {
+  if (activeTab.value === '品牌') return 'heart'
+  if (activeTab.value === '穿搭') return 'camera'
+  if (activeTab.value === '合集') return 'grid'
+  return 'wardrobe'
+})
 const productGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
 function brandRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < library.followedBrands.length - 1 ? '12rpx' : '0' } }

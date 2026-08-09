@@ -22,22 +22,34 @@ const props = withDefaults(defineProps<{
   elevated?: boolean
   padding?: string
   radiusToken?: string
+  borderType?: string
 }>(), {
   elevated: true,
   padding: spacing[4] as string,
-  radiusToken: semanticRadius.card as string })
+  radiusToken: semanticRadius.card as string,
+  borderType: 'elevated' })
 
 const emit = defineEmits<{
   click: []
 }>()
 
 
-const cardStyle = computed((): any => ({
-  backgroundColor: n.value.surface,
-  borderRadius: props.radiusToken,
-  padding: props.padding,
-  boxShadow: props.elevated ? (shadow.card as string) : (shadow.none as string),
-  overflow: 'hidden' }))
+const cardStyle = computed((): any => {
+  const base: any = {
+    backgroundColor: n.value.surface,
+    borderRadius: props.radiusToken,
+    padding: props.padding,
+    overflow: 'hidden',
+  }
+  if (props.borderType === 'border') {
+    base.borderWidth = '1rpx'
+    base.borderStyle = 'solid'
+    base.borderColor = n.value.cardBorder
+  } else if (props.borderType === 'elevated') {
+    base.boxShadow = props.elevated ? (shadow.card as string) : (shadow.none as string)
+  }
+  return base
+})
 
 const headerStyle = { marginBottom: '24rpx' }
 const bodyStyle = {}

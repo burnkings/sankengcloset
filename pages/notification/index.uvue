@@ -3,11 +3,10 @@
     <template #navbar><AppNavbar title="通知" :show-back="true"><template #right><text v-if="notices.unreadCount > 0" :style="readAllText" @tap="readAll">全部已读</text></template></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <V2Segmented :items="filterLabels" :active="activeLabel" variant="soft" :active-color="brand[500]" @change="onFilter" />
-        <view v-if="notices.visibleItems.length === 0" :style="emptyCard">
-          <AppIcon name="notification" :size="52" />
-          <text :style="emptyTitle">当前没有这类通知</text>
-        </view>
+        <V2CapsuleFilter :items="filterLabels" :active="activeLabel" @change="onFilter" />
+        <template v-if="notices.visibleItems.length === 0">
+          <AppEmptyState icon="notification" title="当前没有这类通知" />
+        </template>
         <view v-for="notice in visibleNotices" :key="notice.id" :style="noticeCard(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
           <view :style="noticeIcon(notice.type)"><text :style="noticeChar(notice.type)">{{ noticeVisual(notice.type).char }}</text></view>
           <view :style="noticeCopy">
@@ -38,7 +37,8 @@ import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import AppEmptyState from '@/components/base/AppEmptyState.uvue'
+import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
 
 const notices = useNotificationCenterStore()
 const activeLabel = ref('全部')
@@ -90,25 +90,21 @@ function formatTime(value: string): string {
 }
 onPageShow(() => notices.reload())
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
-function noticeCard(read: boolean) { return { ...flexRow, alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx', position: 'relative' as string } }
+function noticeCard(read: boolean) { return { ...flexRow, flexDirection: 'row', alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx', position: 'relative' as string } }
 function noticeIcon(type: string) {
   const v = noticeVisual(type)
   return { width: '88rpx', height: '88rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : v.bg, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
 }
 const noticeCopy = { ...flexFill }
-const noticeTop = { ...flexRow, alignItems: 'center' }
+const noticeTop = { ...flexRow, flexDirection: 'row', alignItems: 'center' }
 function noticeTitle(read: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: read ? fontWeight.medium : fontWeight.semibold, color: n.value.text } }
 const unreadDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[600], marginLeft: '10rpx' }
 const noticeBody = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginTop: '8rpx' }))
 const noticeTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '9rpx' }))
-const emptyCard = computed((): any => ({ height: '320rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }))
-const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '18rpx' }))
 const sourceNote = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
 const sourceText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
 const noticeClose = { position: 'absolute' as string, top: '10rpx', right: '12rpx', width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', zIndex: 3 }
 const noticeCloseText = computed((): any => ({ fontSize: '34rpx', fontWeight: '300', color: n.value.textTertiary, lineHeight: '34rpx' }))
 </script>
-
-

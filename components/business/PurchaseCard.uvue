@@ -77,7 +77,7 @@ const cardStyle = computed((): any => ({
 }))
 
 const statusBarStyle = computed((): any => ({
-  height: '6rpx',
+  height: '4rpx',
   backgroundColor: props.item.statusColor,
 }))
 

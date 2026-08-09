@@ -3,14 +3,15 @@
     <template #navbar><AppNavbar title="月度预算" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view :style="summaryCard">
-          <text :style="summaryEyebrow">{{ currentMonth }} 已记录承诺金额</text>
-          <text :style="spentText">¥{{ formatAmount(monthSpent) }}</text>
-          <view :style="summaryRow">
-            <text :style="summaryMeta">月预算 ¥{{ formatAmount(limitValue) }}</text>
-            <text :style="summaryMeta">剩余 ¥{{ formatAmount(remaining) }}</text>
-          </view>
-        </view>
+        <V2StatsCard
+          :primary-label="currentMonth"
+          :primary-value="'¥' + formatAmount(monthSpent)"
+          primary-color="#2E2A28"
+          secondary-label="月预算"
+          :secondary-value="'¥' + formatAmount(limitValue)"
+          tertiary-label="剩余"
+          :tertiary-value="'¥' + formatAmount(remaining)"
+        />
 
         <text :style="fieldLabel">月预算上限</text>
         <AppInput v-model="limitText" placeholder="例如：2000" type="digit" />
@@ -45,6 +46,7 @@ import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
+import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
 const budget = useBudgetStore(); const purchases = usePurchaseStore()
@@ -63,17 +65,12 @@ const safeBottom = getSafeBottomInset()
 onMounted(() => { purchases.fetchPurchases() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 60}px` , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const summaryCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surfacePink }))
-const summaryEyebrow = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
-const spentText = computed((): any => ({ fontSize: '56rpx', fontWeight: fontWeight.bold, color: n.value.text, marginTop: '10rpx' }))
-const summaryRow = { ...flexRow, marginTop: '16rpx', justifyContent: 'space-between' }
-const summaryMeta = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
 const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '40rpx', marginBottom: '14rpx' }))
-const ruleCard = computed((): any => ({ ...flexRow, alignItems: 'flex-start', padding: '24rpx', borderRadius: '24rpx', backgroundColor: '#F5EFEC', marginTop: '24rpx' }))
+const ruleCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'flex-start', padding: '24rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, marginTop: '24rpx' }))
+const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '48rpx' }))
+const saveText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 const ruleIcon = computed((): any => ({ width: '48rpx', height: '48rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '14rpx' }))
-const ruleMark = { fontSize: '32rpx', fontWeight: fontWeight.bold, color: brand[500], lineHeight: '48rpx' }
+const ruleMark = { fontSize: '32rpx', fontWeight: fontWeight.bold, color: brand[500] as string, lineHeight: '48rpx' }
 const ruleTextWrap = { ...flexFill }
 const ruleText = computed((): any => ({ fontSize: '22rpx', color: n.value.text, lineHeight: '34rpx' }))
-const saveButton = computed((): any => ({ width: '100%', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '48rpx' }))
-const saveText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

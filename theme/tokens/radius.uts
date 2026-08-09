@@ -22,7 +22,7 @@ export const semanticRadius = {
   cardLg: radius['2xl'],   // 32rpx (大卡片)
   dialog: radius['2xl'],   // 32rpx
   bottomSheet: radius['2xl'],
-  input: radius.lg,        // 16rpx (输入框更圆润)
+  input: radius.xl,        // 24rpx (输入框统一样式)
   tag: radius.full,        // 胶囊形
   badge: radius.full,
   avatar: radius.full,     // 50%

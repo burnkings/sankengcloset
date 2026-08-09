@@ -167,6 +167,26 @@ export const categoryColors = {
   hanfu: hanfuColors,
 }
 
+/** 语义状态色映射 — 统一 V2StatusChip 使用 */
+export const statusColors = {
+  positive: { text: '#5BAE7F', bg: '#E8F2EA' },
+  pending:  { text: '#D4865C', bg: '#FBF2E8' },
+  error:    { text: '#C4666B', bg: '#F9ECED' },
+  initial:  { text: '#9B6FAE', bg: '#F3EEF6' },
+  neutral:  { text: '#8A8184', bg: '#EDE8E9' },
+  brand:    { text: '#D45F7E', bg: '#FCEFF2' },
+}
+
+/** 深色模式语义状态色 — 浅底替换为主色 20% 透明度 */
+export const statusColorsDark = {
+  positive: { text: '#5BAE7F', bg: 'rgba(91,174,127,0.20)' },
+  pending:  { text: '#D4865C', bg: 'rgba(212,134,92,0.20)' },
+  error:    { text: '#C4666B', bg: 'rgba(196,102,107,0.20)' },
+  initial:  { text: '#9B6FAE', bg: 'rgba(155,111,174,0.20)' },
+  neutral:  { text: '#8A8184', bg: 'rgba(138,129,132,0.20)' },
+  brand:    { text: '#D45F7E', bg: 'rgba(212,95,126,0.20)' },
+}
+
 /** 暖色系 — V2 低饱和 */
 export const warm = {
   peach: '#D4A88C',
