@@ -6,7 +6,7 @@
         <template #left>
           <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
         </template>
-        <template #default>
+        <template #right>
           <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
         </template>
       </AppNavbar>
