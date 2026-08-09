@@ -41,10 +41,10 @@
       </view>
 
       <!-- #ifdef MP-WEIXIN -->
-      <scroll-view v-else scroll-y :style="listViewStyle" @scrolltolower="onLoadMore">
+      <scroll-view v-else scroll-y refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :style="listViewStyle" @scrolltolower="onLoadMore">
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
-      <list-view v-else :style="listViewStyle" @scrolltolower="onLoadMore">
+      <list-view v-else refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :style="listViewStyle" @scrolltolower="onLoadMore">
       <!-- #endif -->
         <!-- Empty channel -->
         <!-- #ifdef MP-WEIXIN -->
@@ -251,6 +251,12 @@ function onTap(item: FeedItem) {
 }
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
+const isRefreshing = ref(false)
+async function onRefresh() {
+  isRefreshing.value = true
+  try { await store.loadFirstPage() }
+  finally { isRefreshing.value = false }
+}
 // 筛选后内容不足一屏时不展示“上拉加载更多/已显示全部”，避免制造虚假操作预期。
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
 onMounted(() => { store.loadFirstPage() })
