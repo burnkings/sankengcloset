@@ -1,42 +1,87 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="提醒" :show-back="true" /></template>
-    <template #default>
-      <view class="page-canvas" :style="pageWrap">
-        <view :style="focusCard">
-          <view :style="focusCopy">
-            <text :style="focusLabel">近期需要关注</text>
-            <text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text>
-          </view>
-          <view :style="focusStats">
-            <text :style="focusMetaToday">今天 {{ store.todayCount }}</text>
-            <text :style="focusMetaOverdue">逾期 {{ store.overdueCount }}</text>
-          </view>
-        </view>
-        <V2SectionHeader title="提醒列表" :compact="true" />
-        <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[600]" @change="onFilter" />
-        <AppLoading v-if="store.loading" />
-        <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
-        <view v-else :style="listWrap">
-          <view v-for="item in store.displayItems" :key="item.id" :style="reminderCard" @tap="openItem(item.id)">
-            <view :style="dateBlock">
-              <text :style="dateMain">{{ item.dateText.length >= 10 ? item.dateText.substring(8, 10) : '--' }}</text>
-              <text :style="dateSub">{{ item.timeText !== '' ? item.timeText : '全天' }}</text>
+  <view v-if="selectMode">
+    <MainLayout navbar-content-height="88rpx">
+      <template #navbar>
+        <AppNavbar :show-back="false">
+          <template #default>
+            <view :style="selectNavRow">
+              <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
+              <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
             </view>
-            <view :style="reminderCopy">
-              <view :style="titleRow">
-                <text :style="reminderTitle">{{ item.title }}</text>
-                <text :style="statusText(item.statusColor)">{{ item.statusText }}</text>
+          </template>
+        </AppNavbar>
+      </template>
+      <template #default>
+        <view class="page-canvas" :style="pageWrap">
+          <view v-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
+          <view v-else :style="listWrap">
+            <view v-for="item in store.displayItems" :key="item.id" :style="reminderCard" @tap="toggleItem(item.id)">
+              <view :style="checkboxWrap">
+                <view :style="checkboxBox(selectedIds.indexOf(item.id) >= 0)" />
               </view>
-              <text :style="subLine">{{ item.typeText }} · {{ item.dateText }}</text>
-              <text v-if="item.note !== ''" :style="subLine">{{ item.note }}</text>
+              <view :style="dateBlock">
+                <text :style="dateMain">{{ item.dateText.length >= 10 ? item.dateText.substring(8, 10) : '--' }}</text>
+                <text :style="dateSub">{{ item.timeText !== '' ? item.timeText : '全天' }}</text>
+              </view>
+              <view :style="reminderCopy">
+                <view :style="titleRow">
+                  <text :style="reminderTitle">{{ item.title }}</text>
+                  <text :style="statusText(item.statusColor)">{{ item.statusText }}</text>
+                </view>
+                <text :style="subLine">{{ item.typeText }} · {{ item.dateText }}</text>
+                <text v-if="item.note !== ''" :style="subLine">{{ item.note }}</text>
+              </view>
             </view>
           </view>
         </view>
-      </view>
-    </template>
-  </MainLayout>
-  <AppFab @tap="goAdd" />
+      </template>
+    </MainLayout>
+    <view v-if="selectedIds.length > 0" :style="bottomBar"><view :style="deleteButton" @tap="showDeleteConfirm = true"><text :style="deleteButtonText">删除 ({{ selectedIds.length }})</text></view></view>
+    <AppDialog v-if="showDeleteConfirm" title="确认删除" @confirm="batchDelete" @cancel="showDeleteConfirm = false">
+      <text :style="dialogText">确定删除选中的 {{ selectedIds.length }} 条提醒吗？</text>
+    </AppDialog>
+  </view>
+
+  <view v-else>
+    <MainLayout navbar-content-height="88rpx">
+      <template #navbar><AppNavbar title="提醒" :show-back="true" /></template>
+      <template #default>
+        <view class="page-canvas" :style="pageWrap">
+          <view :style="focusCard">
+            <view :style="focusCopy">
+              <text :style="focusLabel">近期需要关注</text>
+              <text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text>
+            </view>
+            <view :style="focusStats">
+              <text :style="focusMetaToday">今天 {{ store.todayCount }}</text>
+              <text :style="focusMetaOverdue">逾期 {{ store.overdueCount }}</text>
+            </view>
+          </view>
+          <V2SectionHeader title="提醒列表" :compact="true" />
+          <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[600]" @change="onFilter" />
+          <AppLoading v-if="store.loading" />
+          <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
+          <view v-else :style="listWrap">
+            <view v-for="item in store.displayItems" :key="item.id" :style="reminderCard" @tap="openItem(item.id)" @longpress="enterSelectMode(item.id)">
+              <view :style="dateBlock">
+                <text :style="dateMain">{{ item.dateText.length >= 10 ? item.dateText.substring(8, 10) : '--' }}</text>
+                <text :style="dateSub">{{ item.timeText !== '' ? item.timeText : '全天' }}</text>
+              </view>
+              <view :style="reminderCopy">
+                <view :style="titleRow">
+                  <text :style="reminderTitle">{{ item.title }}</text>
+                  <text :style="statusText(item.statusColor)">{{ item.statusText }}</text>
+                </view>
+                <text :style="subLine">{{ item.typeText }} · {{ item.dateText }}</text>
+                <text v-if="item.note !== ''" :style="subLine">{{ item.note }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </template>
+    </MainLayout>
+    <AppFab @tap="goAdd" />
+  </view>
 </template>
 
 <script setup lang="uts">
@@ -50,17 +95,64 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
+import { showFeedback } from '@/utils/feedback'
 
 const store = useReminderStore()
 const activeFilter = ref('全部')
 const filters = ['全部', '待提醒', '已完成']
+const selectMode = ref(false)
+const selectedIds = ref<string[]>([])
+const showDeleteConfirm = ref(false)
+
 function onFilter(label: string) { activeFilter.value = label; store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : 'DONE')) }
 function goAdd() { uni.navigateTo({ url: '/pages/reminder/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` }) }
 onMounted(() => { store.fetchItems() })
+
+function enterSelectMode(id: string) {
+  selectMode.value = true
+  selectedIds.value = [id]
+}
+
+function exitSelectMode() {
+  selectMode.value = false
+  selectedIds.value = []
+  showDeleteConfirm.value = false
+}
+
+function toggleItem(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx >= 0) {
+    selectedIds.value.splice(idx, 1)
+    selectedIds.value = [...selectedIds.value]
+  } else {
+    selectedIds.value = [...selectedIds.value, id]
+  }
+  if (selectedIds.value.length == 0) exitSelectMode()
+}
+
+function toggleSelectAll() {
+  if (selectedIds.value.length == store.displayItems.length) {
+    selectedIds.value = []
+  } else {
+    selectedIds.value = store.displayItems.map((it) => it.id)
+  }
+}
+
+const selectAllLabel = computed((): string => selectedIds.value.length == store.displayItems.length ? '取消全选' : '全选')
+
+function batchDelete() {
+  for (let i = 0; i < selectedIds.value.length; i++) {
+    store.deleteItem(selectedIds.value[i])
+  }
+  showDeleteConfirm.value = false
+  showFeedback(`已删除 ${selectedIds.value.length} 条提醒`)
+  exitSelectMode()
+}
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surfacePink }))
@@ -82,4 +174,14 @@ function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fon
 const subLine = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
+
+const selectNavRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', width: '100%', height: '100%', paddingLeft: '20rpx', paddingRight: '20rpx' }))
+const selectAllText = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.medium, color: brand[600] as string }))
+const selectCancelText = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.medium, color: n.value.text }))
+const checkboxWrap = { width: '60rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '12rpx' }
+function checkboxBox(checked: boolean) { return { width: '44rpx', height: '44rpx', borderRadius: '22rpx', borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.cardBorder, backgroundColor: checked ? (brand[500] as string) : 'transparent', alignItems: 'center', justifyContent: 'center' } }
+const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.cardBorder }))
+const deleteButton = computed((): any => ({ height: '96rpx', borderRadius: '48rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }))
+const deleteButtonText = { fontSize: '32rpx', fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center' }))
 </script>

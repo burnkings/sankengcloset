@@ -65,6 +65,16 @@
           </view>
         </V2ListGroup>
 
+        <V2SectionHeader title="其他" />
+        <V2ListGroup>
+          <view :style="settingShell(0, 2)" @tap="onHelpTap">
+            <V2ListRow icon="help" label="帮助与反馈" />
+          </view>
+          <view :style="settingShell(1, 2)" @tap="onClearCacheTap">
+            <V2ListRow icon="clear" label="清理缓存" />
+          </view>
+        </V2ListGroup>
+
         <V2SectionHeader title="关于" />
         <V2ListGroup>
           <view v-for="(item, idx) in aboutGroup" :key="item.id" :style="settingShell(idx, aboutGroup.length)" @tap="onSettingTap(item.id)">
@@ -132,7 +142,7 @@ const preferences = usePreferencesStore()
 const openSettingsPanel = ref('')
 const preferenceDraft = ref<string[]>([])
 
-const themeOptions = ['system', 'light', 'dark']
+const themeOptions = ['system', 'dark']
 const preferenceOptions = ['JK', 'Lolita', '汉服']
 const preferenceSummary = computed((): string => {
   const values = preferences.preferences.pitTypes
@@ -152,13 +162,11 @@ function toggleSettingsPanel(id: string) {
   }
 }
 function themeOptionLabel(mode: string): string {
-  if (mode == 'light') return '浅色'
-  if (mode == 'dark') return '深色'
-  return '跟随系统'
+  if (mode == 'system') return '跟随系统'
+  return '深色'
 }
 function chooseTheme(mode: string) {
-  if (mode == 'light') setThemeMode('light')
-  else if (mode == 'dark') setThemeMode('dark')
+  if (mode == 'dark') setThemeMode('dark')
   else setThemeMode('system')
   openSettingsPanel.value = ''
 }
@@ -207,6 +215,18 @@ function onSettingTap(id: string) {
     return
   }
   if (id === 'logout') { logout(); return }
+}
+
+function onHelpTap() {
+  showFeedback('反馈入口将在账号服务接入后开放')
+}
+
+function onClearCacheTap() {
+  const cacheKeys = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic']
+  try {
+    for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i])
+  } catch (e) {}
+  showFeedback('缓存已清理，账号与个人数据已保留')
 }
 
 onLoad(() => { initPageTheme() })

@@ -20,17 +20,6 @@
         </view>
       </V2ListGroup>
 
-      <!-- 其他 -->
-      <text :style="groupTitle">其他</text>
-      <V2ListGroup>
-        <view :style="shell(0, 2)" @tap="onHelpTap">
-          <V2ListRow label="帮助与反馈" />
-        </view>
-        <view :style="shell(1, 2)" @tap="onClearCacheTap">
-          <V2ListRow label="清理缓存" />
-        </view>
-      </V2ListGroup>
-
       <text :style="copyright">© 2026 三坑绮橱 · 昆山三坑绮橱工作室</text>
     </view>
   </DetailLayout>

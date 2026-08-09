@@ -50,6 +50,7 @@
             "android" : {
                 "packageName" : "com.sankeng.closet"
             },
+            "screenOrientation" : "portrait",
             "modules" : {},
             "icons" : {
                 "hdpi" : "static/app-icon.png",
