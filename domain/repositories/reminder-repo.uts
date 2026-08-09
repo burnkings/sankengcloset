@@ -24,6 +24,7 @@ function loadAll(): Reminder[] {
       r.type = obj['type'] != null ? obj['type'] as string : 'CUSTOM'
       r.remindDate = obj['remindDate'] != null ? obj['remindDate'] as string : ''
       r.remindTime = obj['remindTime'] != null ? obj['remindTime'] as string : ''
+      r.isAllDay = obj['isAllDay'] != null ? obj['isAllDay'] as boolean : false
       r.relatedPurchaseId = obj['relatedPurchaseId'] != null ? obj['relatedPurchaseId'] as string : ''
       r.relatedWishId = obj['relatedWishId'] != null ? obj['relatedWishId'] as string : ''
       r.note = obj['note'] != null ? obj['note'] as string : ''
@@ -79,6 +80,7 @@ export function update(id: string, data: ReminderUpdateData): boolean {
   if (data.type != '') r.type = data.type
   if (data.remindDate != '') r.remindDate = data.remindDate
   if (data.remindTime != '') r.remindTime = data.remindTime
+  r.isAllDay = data.isAllDay
   if (data.relatedPurchaseId != '') r.relatedPurchaseId = data.relatedPurchaseId
   if (data.relatedWishId != '') r.relatedWishId = data.relatedWishId
   if (data.note != '') r.note = data.note
@@ -96,6 +98,10 @@ export function softDelete(id: string): boolean {
   r.updatedAt = new Date().toISOString()
   saveAll(items)
   return true
+}
+
+export function persist(items: Reminder[]) {
+  saveAll(items)
 }
 
 export function markDone(id: string): boolean {

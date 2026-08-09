@@ -1,7 +1,7 @@
 <template>
   <view>
     <view :style="wrapperStyle">
-      <view :style="prefixStyle"><slot name="prefix" /></view>
+      <view v-if="hasPrefix" :style="prefixStyle"><slot name="prefix" /></view>
       <input
         :style="inputStyle"
         :type="type"
@@ -27,6 +27,7 @@
 </template>
 
 <script setup lang="uts">
+import { useSlots } from 'vue'
 import { semantic } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize } from '@/theme/tokens/typography'
@@ -55,6 +56,9 @@ const emit = defineEmits<{
   confirm: [value: string]
   clear: []
 }>()
+
+const slots = useSlots()
+const hasPrefix = computed(() => slots.prefix != null)
 
 const wrapperStyle = computed((): any => ({
   ...flexRowCenter,

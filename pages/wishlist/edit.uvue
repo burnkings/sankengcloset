@@ -6,94 +6,83 @@
 
     <view :style="formStyle">
 
-      <!-- 名称 -->
-      <AppInput v-model="form.name" label="名称" placeholder="例如：草莓柄甜系 SK" />
+      <view :style="coverWrap" @tap="onCoverTap">
+        <text :style="coverIcon">+</text>
+        <text :style="coverText">上传封面图</text>
+      </view>
 
-      <!-- 品牌 -->
+      <AppInput v-model="form.name" label="商品名称" placeholder="例如：草莓柄甜系 SK" />
       <AppInput v-model="form.brand" label="品牌" placeholder="例如：Alice兔" />
-
-      <!-- 预估价格 -->
       <AppInput v-model="form.priceStr" label="预估价格" placeholder="0" type="digit" />
 
-      <!-- 优先级 -->
+      <view :style="fieldGroupStyle">
+        <text :style="labelStyle">状态</text>
+        <view :style="chipGridStyle">
+          <view v-for="opt in statusOptions" :key="opt.value" :style="gridChip(opt.value === form.status, opt.color)" @tap="form.status = opt.value">
+            <text :style="gridChipText(opt.value === form.status, opt.color)">{{ opt.label }}</text>
+          </view>
+        </view>
+        <text v-if="form.status === 'PURCHASED'" :style="purchasedHint">标记已买后，可在购买记录中查看</text>
+      </view>
+
       <view :style="fieldGroupStyle">
         <text :style="labelStyle">优先级</text>
         <view :style="chipRowStyle">
-          <view
-            v-for="opt in priorityOptions"
-            :key="opt.value"
-            :style="priorityChipStyle(opt.value === form.priority, opt.color)"
-            @tap="form.priority = opt.value"
-          >
-            <text :style="priorityChipText(opt.value === form.priority, opt.color)">{{ opt.label }}</text>
+          <view v-for="opt in priorityOptions" :key="opt.value" :style="gridChip(opt.value === form.priority, opt.color)" @tap="form.priority = opt.value">
+            <text :style="gridChipText(opt.value === form.priority, opt.color)">{{ opt.label }}</text>
           </view>
         </view>
       </view>
 
-      <!-- 状态 -->
-      <view :style="fieldGroupStyle">
-        <text :style="labelStyle">状态</text>
-        <view :style="chipRowStyle">
-          <view
-            v-for="opt in statusOptions"
-            :key="opt.value"
-            :style="statusChipStyle(opt.value === form.status, opt.color)"
-            @tap="form.status = opt.value"
-          >
-            <text :style="statusChipText(opt.value === form.status, opt.color)">{{ opt.label }}</text>
-          </view>
-        </view>
-      </view>
+      <AppInput v-model="form.url" label="商品链接" placeholder="粘贴商品链接" />
 
-      <!-- 链接 -->
-      <AppInput v-model="form.url" label="链接" placeholder="商品链接（可选）" />
-
-      <!-- 备注 -->
       <view :style="fieldGroupStyle">
         <text :style="labelStyle">备注</text>
-        <view :style="textareaWrapperStyle">
-          <input
-            :value="form.note"
-            placeholder="可选备注..."
-            :placeholder-style="placeholderStyleStr"
-            :style="textareaStyle"
-            @input="onNoteInput"
-          />
+        <view :style="noteShell">
+          <textarea :value="form.note" placeholder="补充尺码、再贩信息、种草原因等" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
         </view>
+        <text :style="noteCount">{{ form.note.length }}/160</text>
       </view>
+
     </view>
   </DetailLayout>
-
-  <AppDialog
-    v-model:visible="showConfirm"
-    title="保存确认"
-    :message="confirmMessage"
-    @confirm="onConfirmSave"
-  />
+  <AppDialog v-model:visible="deleteDialogVisible" title="确认删除" message="删除后无法恢复，确定要删除这个心愿吗？" confirm-text="删除" @confirm="onDeleteConfirm" />
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
 import { useWishListStore } from '@/stores/wishlist-store'
-import { WishItem, WishUpdateData, PRIORITY_LABELS, PRIORITY_COLORS, WISH_STATUS_LABELS, WISH_STATUS_COLORS } from '@/domain/wish-item'
-import { brand } from '@/theme/tokens/colors'
-import { spacing } from '@/theme/tokens/spacing'
-import { radius } from '@/theme/tokens/radius'
+import { WishItem, WishUpdateData, WISH_WISH, WISH_WATCHING, WISH_DECIDED, WISH_PURCHASED, WISH_PAUSED, WISH_CANCELED, PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW, WISH_STATUS_COLORS, PRIORITY_COLORS } from '@/domain/wish-item'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow } from '@/theme/layout/flex'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR, getCardRadius } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
-import { showFeedback } from '@/utils/feedback'
-
 
 const store = useWishListStore()
-
 const isEdit = ref(false)
 const editId = ref('')
-const showConfirm = ref(false)
-const confirmMessage = ref('')
+const deleteDialogVisible = ref(false)
+
+const sc = WISH_STATUS_COLORS as any
+const pc = PRIORITY_COLORS as any
+
+const statusOptions = [
+  { label: '种草', value: WISH_WISH, color: sc.WISH as string },
+  { label: '观望', value: WISH_WATCHING, color: sc.WATCHING as string },
+  { label: '决定买', value: WISH_DECIDED, color: sc.DECIDED as string },
+  { label: '已买', value: WISH_PURCHASED, color: sc.PURCHASED as string },
+  { label: '搁置', value: WISH_PAUSED, color: sc.PAUSED as string },
+  { label: '拔草', value: WISH_CANCELED, color: sc.CANCELED as string },
+]
+
+const priorityOptions = [
+  { label: '高', value: PRIORITY_HIGH, color: pc.HIGH as string },
+  { label: '中', value: PRIORITY_MEDIUM, color: pc.MEDIUM as string },
+  { label: '低', value: PRIORITY_LOW, color: pc.LOW as string },
+]
 
 type WishFormState = {
   name: string
@@ -104,36 +93,10 @@ type WishFormState = {
   url: string
   note: string
 }
+const form = ref<WishFormState>({ name: '', brand: '', priceStr: '', priority: PRIORITY_MEDIUM, status: WISH_WISH, url: '', note: '' })
 
-const form = ref<WishFormState>({
-  name: '',
-  brand: '',
-  priceStr: '',
-  priority: 'MEDIUM',
-  status: 'WISH',
-  url: '',
-  note: '' })
+function onCoverTap() { showFeedback('封面功能开发中，敬请期待') }
 
-type OptionItem = {
-  label: string
-  value: string
-  color: string
-}
-const priorityOptions: OptionItem[] = [
-  { label: PRIORITY_LABELS['HIGH'] as string, value: 'HIGH', color: PRIORITY_COLORS['HIGH'] as string },
-  { label: PRIORITY_LABELS['MEDIUM'] as string, value: 'MEDIUM', color: PRIORITY_COLORS['MEDIUM'] as string },
-  { label: PRIORITY_LABELS['LOW'] as string, value: 'LOW', color: PRIORITY_COLORS['LOW'] as string },
-]
-
-const statusOptions: OptionItem[] = [
-  { label: '种草', value: 'WISH', color: WISH_STATUS_COLORS['WISH'] as string },
-  { label: '观望', value: 'WATCHING', color: WISH_STATUS_COLORS['WATCHING'] as string },
-  { label: '决定买', value: 'DECIDED', color: WISH_STATUS_COLORS['DECIDED'] as string },
-  { label: '搁置', value: 'PAUSED', color: WISH_STATUS_COLORS['PAUSED'] as string },
-  { label: '拔草', value: 'CANCELED', color: WISH_STATUS_COLORS['CANCELED'] as string },
-]
-
-function goBack() { uni.navigateBack() }
 function onNoteInput(e: any) {
   const eObj = e as UTSJSONObject
   const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
@@ -141,148 +104,94 @@ function onNoteInput(e: any) {
 }
 
 function onSave() {
-  if (!form.value.name.trim()) {
-    showFeedback('请输入名称')
-    return
-  }
-  confirmMessage.value = isEdit.value ? '确认保存修改？' : '确认新增这个心愿？'
-  showConfirm.value = true
-}
-
-function onConfirmSave() {
-  const priceStr = form.value.priceStr
-  const price = priceStr !== '' ? parseFloat(priceStr) : 0
-
+  if (form.value.name.trim() === '') { showFeedback('请填写商品名称'); return }
   if (isEdit.value) {
     const data = new WishUpdateData()
     data.name = form.value.name.trim()
     data.brand = form.value.brand.trim()
-    data.estimatedPrice = price
+    data.estimatedPrice = parseFloat(form.value.priceStr) || 0
     data.priority = form.value.priority
     data.status = form.value.status
     data.url = form.value.url.trim()
-    data.note = form.value.note.trim()
-    const ok = store.updateItem(editId.value, data)
-    if (ok) {
-      showFeedback('保存成功')
-        setTimeout(goBack, 500)
-    }
+    data.note = form.value.note
+    if (!store.updateItem(editId.value, data)) { showFeedback('保存失败，请重试'); return }
   } else {
     const item = new WishItem()
     item.name = form.value.name.trim()
     item.brand = form.value.brand.trim()
-    item.estimatedPrice = price
+    item.estimatedPrice = parseFloat(form.value.priceStr) || 0
     item.priority = form.value.priority
     item.status = form.value.status
-    item.source = 'MANUAL'
     item.url = form.value.url.trim()
-    item.note = form.value.note.trim()
-    const added = store.addItem(item)
-    if (added != null) {
-      showFeedback('新增成功')
-        setTimeout(goBack, 500)
-    }
+    item.note = form.value.note
+    item.source = 'MANUAL'
+    if (store.addItem(item) === null) { showFeedback('保存失败，请重试'); return }
   }
+  showFeedback('保存成功')
+  setTimeout(() => { uni.navigateBack() }, 300)
 }
 
-onMounted(() => {
-    const pages = getCurrentPages()
-    const currentPage = pages[pages.length - 1]
-    const options = currentPage.options
-    const id = options != null && options['id'] != null ? options['id'] as string : ''
+function onDeleteConfirm() {
+  if (!store.deleteItem(editId.value)) { showFeedback('删除失败，请重试'); return }
+  showFeedback('已删除')
+  setTimeout(() => { uni.navigateBack() }, 220)
+}
 
-  if (id) {
-    editId.value = id
-    isEdit.value = true
-    const item = store.getById(id)
-    if (item != null) {
-      form.value.name = item.name
-      form.value.brand = item.brand
-      form.value.priceStr = item.estimatedPrice > 0 ? `${item.estimatedPrice}` : ''
-      form.value.priority = item.priority
-      form.value.status = item.status
-      form.value.url = item.url
-      form.value.note = item.note
+onLoad((options) => {
+  store.fetchItems()
+  if (options != null) {
+    const id = options['id'] != null ? options['id'] as string : ''
+    if (id !== '') {
+      editId.value = id; isEdit.value = true
+      const item = store.getById(id)
+      if (item != null) {
+        form.value.name = item.name
+        form.value.brand = item.brand
+        form.value.priceStr = item.estimatedPrice > 0 ? item.estimatedPrice.toString() : ''
+        form.value.priority = item.priority
+        form.value.status = item.status
+        form.value.url = item.url
+        form.value.note = item.note
+      }
+      return
     }
+    form.value.name = options['name'] != null ? (options['name'] as string) : ''
+    form.value.brand = options['brand'] != null ? (options['brand'] as string) : ''
+    form.value.url = options['url'] != null ? (options['url'] as string) : ''
+    form.value.note = options['note'] != null ? (options['note'] as string) : ''
   }
 })
 
-// ====== 样式 ======
+const cr = getCardRadius()
+const formStyle = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 
-const saveBtnStyle = {
-  fontSize: fontSize.sm,
-  color: brand[500],
-  fontWeight: fontWeight.medium,
-  paddingHorizontal: spacing[2] }
+const coverWrap = { height: '200rpx', borderRadius: cr, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: '24rpx' }
+const coverIcon = { fontSize: '48rpx', color: n.value.textTertiary }
+const coverText = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }
 
-  const formStyle = {
-    gap: spacing[3],
-    padding: `${spacing[3] as string} ${spacing[4] as string}` }
+const fieldGroupStyle = { marginTop: '24rpx' }
+const labelStyle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
 
-const fieldGroupStyle = {
-  gap: spacing[2] }
-
-const labelStyle = computed((): any => ({
-  fontSize: fontSize.sm,
-  fontWeight: fontWeight.medium,
-  color: n.value.text,
-  marginBottom: spacing[1] }))
-
-const chipRowStyle = {
-  ...flexRow,
-  gap: spacing[2],
-  flexWrap: 'wrap' as string }
-
-function priorityChipStyle(active: boolean, color: string) {
+const chipGridStyle = { flexDirection: 'row', flexWrap: 'wrap' as string }
+const chipRowStyle = { flexDirection: 'row' }
+function gridChip(active: boolean, color: string): any {
   return {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-    borderRadius: radius.full,
-    backgroundColor: active ? color + '20' : n.value.bgTertiary,
-    borderWidth: active ? '2rpx' : '0',
-    borderStyle: 'solid',
-    borderColor: active ? color : 'transparent' }
+    width: '210rpx', height: '64rpx', alignItems: 'center' as string, justifyContent: 'center' as string,
+    borderRadius: '20rpx', marginRight: '16rpx', marginBottom: '12rpx',
+    backgroundColor: active ? color : n.value.bgSecondary,
+    borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder,
+  }
+}
+function gridChipText(active: boolean, _color: string): any {
+  return { fontSize: '26rpx', fontWeight: fontWeight.medium, color: active ? '#FFFFFF' : n.value.textSecondary }
 }
 
-function priorityChipText(active: boolean, color: string) {
-  return {
-    fontSize: fontSize.sm,
-    color: active ? color : n.value.textSecondary,
-    fontWeight: active ? fontWeight.medium : fontWeight.regular }
-}
+const noteShell = computed((): any => ({ minHeight: '120rpx', padding: '24rpx', borderRadius: cr, backgroundColor: n.value.inputFill }))
+const noteInput = computed((): any => ({ width: '100%', minHeight: '80rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
+const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
+const noteCount = { fontSize: '22rpx', color: n.value.textTertiary, textAlign: 'right' as string, marginTop: '6rpx' }
 
-function statusChipStyle(active: boolean, color: string) {
-  return {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-    borderRadius: radius.full,
-    backgroundColor: active ? color + '20' : n.value.bgTertiary,
-    borderWidth: active ? '2rpx' : '0',
-    borderStyle: 'solid',
-    borderColor: active ? color : 'transparent' }
-}
+const purchasedHint = { fontSize: '22rpx', color: n.value.textTertiary, marginTop: '8rpx' }
 
-function statusChipText(active: boolean, color: string) {
-  return {
-    fontSize: fontSize.xs,
-    color: active ? color : n.value.textSecondary,
-    fontWeight: active ? fontWeight.medium : fontWeight.regular }
-}
-
-const textareaWrapperStyle = computed((): any => ({
-  height: '160rpx',
-  paddingHorizontal: spacing[3],
-  paddingTop: spacing[2],
-  backgroundColor: n.value.bgTertiary,
-  borderRadius: radius.md,
-  borderWidth: '2rpx',
-  borderStyle: 'solid',
-  borderColor: n.value.border }))
-
-const placeholderStyleStr = computed((): string => `color: ${n.value.placeholder}`)
-
-const textareaStyle = computed((): any => ({
-  fontSize: fontSize.sm,
-  color: n.value.text,
-  width: '100%' }))
+const saveBtnStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: brand[500] as string, paddingRight: '8rpx' }))
 </script>

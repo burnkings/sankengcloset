@@ -25,20 +25,20 @@ export const WISH_STATUS_LABELS = {
 
 export const WISH_STATUS_COLORS = {
   WISH: '#8B5CF6',
-  WATCHING: '#6366F1',
-  DECIDED: '#22C55E',
-  PURCHASED: '#9CA3AF',
-  PAUSED: '#F59E0B',
-  CANCELED: '#9CA3AF',
+  WATCHING: '#3B82F6',
+  DECIDED: '#D45F7E',
+  PURCHASED: '#389E0D',
+  PAUSED: '#FA8C16',
+  CANCELED: '#595959',
 }
 
 export const WISH_STATUS_EMOJI = {
-  WISH: '💡',
-  WATCHING: '👀',
-  DECIDED: '✅',
-  PURCHASED: '🛍️',
-  PAUSED: '⏸️',
-  CANCELED: '❌',
+  WISH: '',
+  WATCHING: '',
+  DECIDED: '',
+  PURCHASED: '',
+  PAUSED: '',
+  CANCELED: '',
 }
 
 /** 状态流转规则 */

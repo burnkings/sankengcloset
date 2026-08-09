@@ -3,32 +3,49 @@
     <template #navbar>
       <AppNavbar title="愿望单" :show-back="true" />
     </template>
-
     <template #default>
       <AppLoading v-if="store.loading" />
-
       <scroll-view v-else :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
-        <V2Segmented :items="viewTabs" :active="activeTab" variant="soft" :active-color="brand[500]" @change="onTab" />
 
-        <view v-if="viewItems.length === 0" :style="emptyWrap">
-          <text :style="emptyTitle">这个分类还是空的</text>
-          <text :style="emptySub">去添加一件想拥有的三坑宝贝吧~</text>
-        </view>
-
-        <view v-else :style="gridWrap">
-          <view v-for="(item, idx) in viewItems" :key="item.id" :style="itemCard(idx)" @tap="onItemTap(item.id)">
-            <view :style="itemImage">
-              <AppImage v-if="item.coverImage !== ''" :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+          <view :style="statsBar">
+            <view :style="statsLeft">
+              <text :style="statsText"><text :style="statsNum">种草 {{ stats.wishCount }}</text><text :style="statsSep"> · </text><text :style="statsNum">待买 {{ stats.decidedCount }}</text><text :style="statsSep"> · </text><text :style="statsNum">已买 {{ stats.purchasedCount }}</text></text>
             </view>
-            <view :style="itemBody">
-              <text :style="itemName">{{ item.name }}</text>
-                <text :style="itemPrice">{{ item.priceText }}</text>
+            <text :style="statsPrice">待买预估 ¥{{ stats.estimatedTotal }}</text>
+          </view>
+
+          <V2Segmented :items="viewTabs" :active="activeTab" variant="soft" :active-color="brand[500]" @change="onTab" />
+
+          <view v-if="viewItems.length === 0" :style="emptyWrap">
+            <text :style="emptyTitle">暂无心愿商品</text>
+            <text :style="emptySub">记录心仪好物，避免错过再贩</text>
+            <view :style="emptyBtn" @tap="onAddTap"><text :style="emptyBtnText">添加心愿</text></view>
+          </view>
+
+          <view v-else :style="gridWrap">
+            <view v-for="(item, idx) in viewItems" :key="item.id" :style="cardWrap(idx)" @tap="onItemTap(item.id)">
+              <view :style="cardImage">
+                <AppImage v-if="item.coverImage !== ''" :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                <view v-else :style="cardPlaceholder">
+                  <text :style="cardPlaceholderIcon">+</text>
+                </view>
+                <view v-if="item.priorityOrder <= 2" :style="prioBadge(item.priorityOrder)">
+                  <text :style="prioBadgeText">{{ item.priorityLabel }}</text>
+                </view>
+                <view :style="statusDot(item.statusColor)" />
+              </view>
+              <view :style="cardBody">
+                <text :style="cardName">{{ item.name }}</text>
+                <view :style="cardBottom">
+                  <text :style="cardBrand">{{ item.brand }}</text>
+                  <text :style="cardPrice">{{ item.priceText }}</text>
+                </view>
+              </view>
             </view>
           </view>
-        </view>
 
-        <view :style="bottomSpacer" />
+          <view :style="bottomSpacer" />
         </view>
       </scroll-view>
     </template>
@@ -38,10 +55,10 @@
 
 <script setup lang="uts">
 import { useWishListStore } from '@/stores/wishlist-store'
-import { WishDisplayModel } from '@/domain/wish-presenter'
+import { WishDisplayModel, calcStats } from '@/domain/wish-presenter'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
+import { flexRow } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR, PRODUCT_CARD_WIDTH, GROUP_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -52,42 +69,57 @@ import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 
 const store = useWishListStore()
-const viewTabs = ['商品', '搭配', '品牌']
-const activeTab = ref('商品')
+const viewTabs = ['全部', '待决策', '待购买', '已完成']
+const activeTab = ref('全部')
+
+const stats = computed(() => calcStats(store.activeItems))
+
 function onTab(label: string) { activeTab.value = label }
-
-  const viewItems = computed((): WishDisplayModel[] => {
-    const all = store.displayItems
-    if (activeTab.value === '搭配') return all.filter((w: WishDisplayModel) => w.status === 'WISH' || w.status === 'DECIDED')
-    if (activeTab.value === '品牌') return all.filter((w: WishDisplayModel) => w.status === 'WATCHING' || w.status === 'PURCHASED')
-    return all
-  })
-
-function onItemTap(id: string) {
-  uni.navigateTo({ url: `/pages/wishlist/detail?id=${id}` })
-}
-function onAddTap() {
-  uni.navigateTo({ url: '/pages/wishlist/edit' })
-}
-onMounted(() => {
-  store.fetchItems()
+const viewItems = computed((): WishDisplayModel[] => {
+  const all = store.displayItems
+  if (activeTab.value === '待决策') return all.filter((w) => w.status === 'WISH' || w.status === 'WATCHING')
+  if (activeTab.value === '待购买') return all.filter((w) => w.status === 'DECIDED')
+  if (activeTab.value === '已完成') return all.filter((w) => w.status === 'PURCHASED' || w.status === 'CANCELED')
+  return all
 })
 
-const scrollStyle = {
-  flex: 1,
-  backgroundColor: n.value.bg,
-}
+function onItemTap(id: string) { uni.navigateTo({ url: `/pages/wishlist/detail?id=${id}` }) }
+function onAddTap() { uni.navigateTo({ url: '/pages/wishlist/edit' }) }
+onMounted(() => { store.fetchItems() })
+
+const scrollStyle = { flex: 1, backgroundColor: n.value.bg }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
-const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '20rpx' }
-function itemCard(idx: number) {
+
+const statsBar = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12rpx', paddingBottom: '14rpx' }
+const statsLeft = { flex: 1 }
+const statsText = { fontSize: '24rpx', color: n.value.textSecondary }
+const statsNum = computed((): any => ({ color: brand[600] as string, fontWeight: fontWeight.semibold }))
+const statsSep = { color: n.value.textTertiary }
+const statsPrice = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text, flexShrink: 0 }
+
+const gridWrap = { ...flexRow, flexWrap: 'wrap' as string, paddingTop: '16rpx' }
+function cardWrap(idx: number) {
   return { width: PRODUCT_CARD_WIDTH, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, overflow: 'hidden' as string }
 }
-const itemImage = { width: PRODUCT_CARD_WIDTH, height: '420rpx', backgroundColor: n.value.bgTertiary }
-const itemBody = { padding: '20rpx' }
-const itemName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
-const itemPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[600], marginTop: '8rpx' }
+const cardImage = { width: PRODUCT_CARD_WIDTH, height: '420rpx', position: 'relative', backgroundColor: n.value.bgTertiary }
+const cardPlaceholder = { width: '100%', height: '100%', backgroundColor: '#FFF5F7', alignItems: 'center', justifyContent: 'center' }
+const cardPlaceholderIcon = { fontSize: '64rpx', color: brand[200] as string }
+function prioBadge(order: number): any {
+  const bg = order === 1 ? '#EF4444' : '#F59E0B'
+  return { position: 'absolute', top: '10rpx', left: '10rpx', paddingLeft: '10rpx', paddingRight: '10rpx', paddingTop: '3rpx', paddingBottom: '3rpx', borderRadius: '8rpx', backgroundColor: bg }
+}
+const prioBadgeText = { fontSize: '20rpx', color: '#FFFFFF', fontWeight: fontWeight.semibold }
+function statusDot(color: string) { return { position: 'absolute', top: '10rpx', right: '10rpx', width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: color } }
+const cardBody = { padding: '20rpx' }
+const cardName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
+const cardBottom = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx' }
+const cardBrand = { fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }
+const cardPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[600] as string, flexShrink: 0, marginLeft: '8rpx' }
+
 const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
-const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }
-const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }
+const emptyTitle = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }
+const emptySub = { fontSize: '24rpx', color: n.value.textTertiary, marginTop: '10rpx' }
+const emptyBtn = { marginTop: '28rpx', height: '72rpx', paddingLeft: '36rpx', paddingRight: '36rpx', borderRadius: '16rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
+const emptyBtnText = { fontSize: '28rpx', fontWeight: fontWeight.medium, color: brand[500] as string }
 const bottomSpacer = { height: '60rpx' }
 </script>

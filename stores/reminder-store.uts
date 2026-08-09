@@ -4,7 +4,7 @@
 import { reactive, computed } from 'vue'
 
 import { Reminder, ReminderUpdateData, STATUS_PENDING } from '@/domain/reminder'
-import { toDisplayModels, ReminderDisplayModel } from '@/domain/reminder-presenter'
+import { toDisplayModels, ReminderDisplayModel, groupByDate, ReminderGroupViewModel } from '@/domain/reminder-presenter'
 import * as repo from '@/domain/repositories/reminder-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
@@ -53,8 +53,12 @@ const _upcomingItems = computed((): Reminder[] => {
 })
 
 const _overdueItems = computed((): Reminder[] => {
+  return _activeItems.value.filter((r) => r.status === 'MISSED')
+})
+
+const _missedItems = computed((): Reminder[] => {
   const today = new Date().toISOString().split('T')[0]
-  return _activeItems.value.filter((r) => r.remindDate < today && r.status === STATUS_PENDING)
+  return _activeItems.value.filter((r) => r.remindDate < today && r.status === 'PENDING')
 })
 
 const _doneItems = computed((): Reminder[] => _activeItems.value.filter((r) => r.status === 'DONE'))
@@ -89,11 +93,14 @@ const _filteredItems = computed((): Reminder[] => {
 })
 
 const _displayItems = computed((): ReminderDisplayModel[] => toDisplayModels(_filteredItems.value))
+const _groupedItems = computed((): ReminderGroupViewModel[] => groupByDate(_displayItems.value))
 const _itemCount = computed((): number => _activeItems.value.length)
 const _pendingCount = computed((): number => _activeItems.value.filter((r) => r.status == 'PENDING').length)
 const _todayCount = computed((): number => _todayItems.value.length)
 const _upcomingCount = computed((): number => _upcomingItems.value.length)
 const _overdueCount = computed((): number => _overdueItems.value.length)
+const _missedCount = computed((): number => _missedItems.value.length)
+const _balancePendingCount = computed((): number => _activeItems.value.filter((r) => r.type === 'BALANCE' && r.status === 'PENDING').length)
 
 const CHANGE_EVENT = 'store:reminder-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -107,6 +114,7 @@ function mapRemoteReminder(raw: UTSJSONObject): Reminder {
   item.type = raw['type'] != null ? raw['type'] as string : 'CUSTOM'
   item.remindDate = raw['remindDate'] != null ? raw['remindDate'] as string : ''
   item.remindTime = raw['remindTime'] != null ? raw['remindTime'] as string : ''
+  item.isAllDay = raw['isAllDay'] != null ? (raw['isAllDay'] as boolean) : false
   item.relatedPurchaseId = raw['relatedPurchaseId'] != null ? raw['relatedPurchaseId'] as string : ''
   item.relatedWishId = raw['relatedWishId'] != null ? raw['relatedWishId'] as string : ''
   item.note = raw['note'] != null ? raw['note'] as string : ''
@@ -134,6 +142,7 @@ async function fetchItems() {
   } finally {
     _state.loading = false
   }
+  autoMarkOverdue()
   notifyChanged()
 }
 
@@ -160,6 +169,7 @@ function updateItem(id: string, data: ReminderUpdateData): boolean {
       if (data.type != '') existing.type = data.type
       if (data.remindDate != '') existing.remindDate = data.remindDate
       if (data.remindTime != '') existing.remindTime = data.remindTime
+      existing.isAllDay = data.isAllDay
       if (data.note != '') existing.note = data.note
       if (data.status != '') existing.status = data.status
       existing.updatedAt = new Date().toISOString()
@@ -203,6 +213,21 @@ function markDone(id: string): boolean {
   return ok
 }
 
+function markUndone(id: string): boolean {
+  const items = _state.items.filter((r) => !r.isDeleted)
+  const existing = items.find((r) => r.id == id)
+  if (existing == null) return false
+  existing.status = 'PENDING'
+  existing.updatedAt = new Date().toISOString()
+  repo.persist(items)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', 'status=PENDING')
+  if (getCachedAccessToken() != '') {
+    patchAssetRemote('reminders', id, existing as UTSJSONObject).catch(() => {})
+  }
+  notifyChanged()
+  return true
+}
+
 function setFilterStatus(status: string) {
   _state.filterStatus = status
   notifyChanged()
@@ -220,6 +245,20 @@ function setSort(sort: string) {
 
 function getById(id: string): Reminder | null { return _state.items.find((r) => r.id == id) }
 
+function autoMarkOverdue() {
+  const today = new Date().toISOString().split('T')[0]
+  let changed = false
+  for (let i = 0; i < _state.items.length; i++) {
+    const item = _state.items[i]
+    if (!item.isDeleted && item.status === 'PENDING' && item.remindDate !== '' && item.remindDate < today) {
+      item.status = 'MISSED'
+      item.updatedAt = new Date().toISOString()
+      changed = true
+    }
+  }
+  if (changed) { repo.persist(_state.items); notifyChanged() }
+}
+
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
 
 class ReminderStoreHandle {
@@ -235,20 +274,25 @@ class ReminderStoreHandle {
   get doneItems(): Reminder[] { return _doneItems.value }
   get filteredItems(): Reminder[] { return _filteredItems.value }
   get displayItems(): ReminderDisplayModel[] { return _displayItems.value }
+  get groupedItems(): ReminderGroupViewModel[] { return _groupedItems.value }
   get itemCount(): number { return _itemCount.value }
   get pendingCount(): number { return _pendingCount.value }
   get todayCount(): number { return _todayCount.value }
   get upcomingCount(): number { return _upcomingCount.value }
   get overdueCount(): number { return _overdueCount.value }
+  get missedCount(): number { return _missedCount.value }
+  get balancePendingCount(): number { return _balancePendingCount.value }
   fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: Reminder): Reminder | null { return addItem(item) }
   updateItem(id: string, data: ReminderUpdateData): boolean { return updateItem(id, data) }
   deleteItem(id: string): boolean { return deleteItem(id) }
   markDone(id: string): boolean { return markDone(id) }
+  markUndone(id: string): boolean { return markUndone(id) }
   setFilterStatus(status: string): void { setFilterStatus(status) }
   setSearch(keyword: string): void { setSearch(keyword) }
   setSort(sort: string): void { setSort(sort) }
   getById(id: string): Reminder | null { return getById(id) }
+  autoMarkOverdue(): void { autoMarkOverdue() }
 }
 
 let _handle: ReminderStoreHandle | null = null

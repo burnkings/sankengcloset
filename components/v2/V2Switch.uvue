@@ -1,0 +1,66 @@
+<template>
+  <view :class="disabled ? 'v2-switch-wrapper v2-switch-disabled' : 'v2-switch-wrapper'" @tap="onToggle">
+    <view class="v2-switch-track" :style="trackStyle">
+      <view class="v2-switch-thumb" :style="thumbStyle" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{
+  modelValue?: boolean
+  disabled?: boolean
+}>(), { modelValue: false, disabled: false })
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+}>()
+
+function onToggle() {
+  if (props.disabled) return
+  emit('update:modelValue', !props.modelValue)
+}
+
+const trackStyle = computed((): any => ({
+  display: 'flex',
+  flexDirection: 'row',
+  alignItems: 'center',
+  width: '88rpx',
+  height: '48rpx',
+  borderRadius: '24rpx',
+  backgroundColor: props.modelValue ? (brand[500] as string) : n.value.bgTertiary,
+}))
+
+const thumbStyle = computed((): any => ({
+  width: '38rpx',
+  height: '38rpx',
+  borderRadius: '19rpx',
+  backgroundColor: '#FFFFFF',
+  marginLeft: props.modelValue ? '45rpx' : '5rpx',
+}))
+</script>
+
+<style>
+.v2-switch-wrapper {
+  transition-property: none;
+}
+
+.v2-switch-track {
+  transition-property: background-color;
+  transition-duration: 250ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.v2-switch-thumb {
+  transition-property: margin-left;
+  transition-duration: 250ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.v2-switch-disabled {
+  opacity: 0.4;
+}
+</style>

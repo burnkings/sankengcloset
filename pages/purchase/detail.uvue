@@ -1,5 +1,5 @@
 <template>
-  <DetailLayout title="消费详情">
+  <DetailLayout title="订单详情">
     <template #right>
       <text :style="deleteBtnStyle" @tap="onDeleteTap">删除</text>
       <text :style="editBtnStyle" @tap="onEditTap">编辑</text>
@@ -80,10 +80,19 @@
             <text :style="deadlineValueStyle">{{ item!.deadlineLabel }}</text>
           </view>
           <view v-if="item!.isOverdue" :style="overdueBannerStyle">
-            <text :style="overdueTextStyle">⚠️ 已逾期</text>
+            <text :style="overdueTextStyle">已逾期</text>
           </view>
         </view>
       </AppCard>
+
+      <view :style="actionSection">
+        <view :style="actionBtn" @tap="onSetReminder">
+          <text :style="actionBtnText">设置尾款提醒</text>
+        </view>
+        <view v-if="item!.statusText === '已完成'" :style="actionBtnSecondary" @tap="onAddToWardrobe">
+          <text :style="actionBtnSecondaryText">收纳至衣橱</text>
+        </view>
+      </view>
 
       <!-- 备注 -->
       <AppCard v-if="item!.note">
@@ -139,6 +148,18 @@ function onDeleteTap() {
 
 function onEditTap() {
   uni.navigateTo({ url: `/pages/purchase/edit?id=${itemId.value}` })
+}
+function onSetReminder() {
+  if (item.value == null) return
+  const name = encodeURIComponent(item.value!.name)
+  const date = encodeURIComponent(item.value!.deadlineText !== '—' ? item.value!.deadlineText : '')
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${name}&date=${date}&type=BALANCE` })
+}
+function onAddToWardrobe() {
+  if (item.value == null) return
+  const name = encodeURIComponent(item.value!.name)
+  uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}` })
+  showFeedback('跳转至衣橱添加')
 }
 
 function onConfirmDelete() {
@@ -300,6 +321,12 @@ const overdueTextStyle = {
   fontSize: fontSize.sm,
   color: semantic.error,
   fontWeight: fontWeight.medium }
+
+const actionSection = { paddingTop: '16rpx', paddingBottom: '8rpx' }
+const actionBtn = { height: '80rpx', borderRadius: '40rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginBottom: '12rpx' }
+const actionBtnText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] as string }
+const actionBtnSecondary = { height: '80rpx', borderRadius: '40rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }
+const actionBtnSecondaryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.textSecondary }
 
 const noteTextStyle = computed((): any => ({
   fontSize: fontSize.sm,

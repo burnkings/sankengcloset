@@ -11,6 +11,7 @@ import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLi
  */
 
 const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
+const WISH_IDS_KEY = 'v2_library_wish_ids'
 const FOLLOWED_BRANDS_KEY = 'v2_library_followed_brands'
 const OUTFIT_IDS_KEY = 'v2_library_outfit_ids'
 const LIKED_POST_IDS_KEY = 'v2_library_liked_post_ids'
@@ -73,6 +74,7 @@ function removeOutfitStorage(id: string) {
 
 type ContentLibraryState = {
   favoriteIds: string[]
+  wishIds: string[]
   followedBrands: string[]
   outfitPosts: SavedOutfitPost[]
   likedPostIds: string[]
@@ -80,12 +82,14 @@ type ContentLibraryState = {
 
 const _state = reactive<ContentLibraryState>({
   favoriteIds: [] as string[],
+  wishIds: [] as string[],
   followedBrands: [] as string[],
   outfitPosts: [] as SavedOutfitPost[],
   likedPostIds: [] as string[],
 })
 
 const _favoriteCount = computed((): number => _state.favoriteIds.length)
+const _wishCount = computed((): number => _state.wishIds.length)
 const _followedBrandCount = computed((): number => _state.followedBrands.length)
 const _outfitCount = computed((): number => _state.outfitPosts.length)
 const _likedPostCount = computed((): number => _state.likedPostIds.length)
@@ -97,6 +101,7 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 function reload() {
   _state.favoriteIds = readList(FAVORITE_IDS_KEY)
+  _state.wishIds = readList(WISH_IDS_KEY)
   _state.followedBrands = readList(FOLLOWED_BRANDS_KEY)
   _state.likedPostIds = readList(LIKED_POST_IDS_KEY)
   const ids = readList(OUTFIT_IDS_KEY)
@@ -166,6 +171,23 @@ function toggleFavorite(entityId: string): boolean {
   _state.favoriteIds = values
   writeList(FAVORITE_IDS_KEY, values)
   enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, idx < 0 ? 'upsert' : 'delete', '')
+  notifyChanged()
+  return idx < 0
+}
+
+function isWished(entityId: string): boolean {
+  return _state.wishIds.indexOf(entityId) >= 0
+}
+
+function toggleWish(entityId: string): boolean {
+  if (entityId === '') return false
+  const values = [..._state.wishIds]
+  const idx = values.indexOf(entityId)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(entityId)
+  _state.wishIds = values
+  writeList(WISH_IDS_KEY, values)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'wish', entityId, idx < 0 ? 'upsert' : 'delete', '')
   notifyChanged()
   return idx < 0
 }
@@ -281,11 +303,14 @@ class ContentLibraryStoreHandle {
   get followedBrandCount(): number { return _followedBrandCount.value }
   get outfitCount(): number { return _outfitCount.value }
   get likedPostCount(): number { return _likedPostCount.value }
+  get wishCount(): number { return _wishCount.value }
   reload(): void { reload() }
   refreshRemotePosts(): Promise<void> { return refreshRemotePosts() }
   refreshRemoteBrands(): Promise<void> { return refreshRemoteBrands() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
   toggleFavorite(entityId: string): boolean { return toggleFavorite(entityId) }
+  isWished(entityId: string): boolean { return isWished(entityId) }
+  toggleWish(entityId: string): boolean { return toggleWish(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
   toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
   saveOutfit(image: string, caption: string, category: string, topic: string): string { return saveOutfit(image, caption, category, topic) }

@@ -45,7 +45,15 @@ export const SECTION_GAP_SM = '32rpx'
 /** Section header to content */
 export const SECTION_HEADER_GAP = '20rpx'
 
-// ====== 卡片 (rpx) ======
+export function getCardRadius(): string {
+  // #ifdef APP-IOS
+  return '26rpx'
+  // #endif
+  // #ifdef APP-HARMONY
+  return '28rpx'
+  // #endif
+  return '32rpx'
+}
 
 /** 卡片内边距 */
 export const CARD_PADDING = '24rpx'
