@@ -189,8 +189,8 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 // ====== 模块级 action ======
 
 // 首屏加载
-async function loadFirstPage() {
-  _state.state = 'loading'
+async function loadFirstPage(silent: boolean = false) {
+  if (!silent) _state.state = 'loading'
   _state.errorMessage = ''
   try {
     const page = await fetchFeedPage(0, _state.currentChannel, '全部', pitTypesToCategories())
@@ -296,7 +296,7 @@ class HomeFeedStoreHandle {
   get feedRows(): FeedRow[] { return _feedRows.value }
   get isLoadingMore(): boolean { return _state.isLoadingMore }
   get hasMore(): boolean { return _state.hasMore }
-  loadFirstPage(): Promise<void> { return loadFirstPage() }
+  loadFirstPage(silent: boolean = false): Promise<void> { return loadFirstPage(silent) }
   loadMore(): Promise<void> { return loadMore() }
   setChannel(ch: string): void { setChannel(ch) }
   retry(): void { retry() }

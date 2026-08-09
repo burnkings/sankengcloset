@@ -254,7 +254,7 @@ function onRetry() { store.retry() }
 const isRefreshing = ref(false)
 async function onRefresh() {
   isRefreshing.value = true
-  try { await store.loadFirstPage() }
+  try { await store.loadFirstPage(true) }
   finally { isRefreshing.value = false }
 }
 // 筛选后内容不足一屏时不展示“上拉加载更多/已显示全部”，避免制造虚假操作预期。
