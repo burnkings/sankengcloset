@@ -6,6 +6,7 @@
       <text v-if="subtitle !== ''" :style="subtitleStyle">{{ subtitle }}</text>
     </view>
     <text v-if="value !== ''" :style="valueStyle">{{ value }}</text>
+    <slot name="trailing" />
     <AppIcon v-if="showArrow" name="chevron-right" :size="34" />
   </view>
 </template>

@@ -1,5 +1,7 @@
 import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote } from '@/services/user-data/user-data-service'
 
 /**
  * ContentLibraryStore — V2.0 用户内容资产
@@ -9,6 +11,7 @@ import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/loc
  */
 
 const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
+const WISH_IDS_KEY = 'v2_library_wish_ids'
 const FOLLOWED_BRANDS_KEY = 'v2_library_followed_brands'
 const OUTFIT_IDS_KEY = 'v2_library_outfit_ids'
 const LIKED_POST_IDS_KEY = 'v2_library_liked_post_ids'
@@ -71,6 +74,7 @@ function removeOutfitStorage(id: string) {
 
 type ContentLibraryState = {
   favoriteIds: string[]
+  wishIds: string[]
   followedBrands: string[]
   outfitPosts: SavedOutfitPost[]
   likedPostIds: string[]
@@ -78,12 +82,14 @@ type ContentLibraryState = {
 
 const _state = reactive<ContentLibraryState>({
   favoriteIds: [] as string[],
+  wishIds: [] as string[],
   followedBrands: [] as string[],
   outfitPosts: [] as SavedOutfitPost[],
   likedPostIds: [] as string[],
 })
 
 const _favoriteCount = computed((): number => _state.favoriteIds.length)
+const _wishCount = computed((): number => _state.wishIds.length)
 const _followedBrandCount = computed((): number => _state.followedBrands.length)
 const _outfitCount = computed((): number => _state.outfitPosts.length)
 const _likedPostCount = computed((): number => _state.likedPostIds.length)
@@ -95,11 +101,12 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 function reload() {
   _state.favoriteIds = readList(FAVORITE_IDS_KEY)
+  _state.wishIds = readList(WISH_IDS_KEY)
   _state.followedBrands = readList(FOLLOWED_BRANDS_KEY)
   _state.likedPostIds = readList(LIKED_POST_IDS_KEY)
   const ids = readList(OUTFIT_IDS_KEY)
   // Phase 1C 只保存一条圈子；首次进入 V2.0 时无损迁移到多条内容库。
-  if (ids.length === 0) {
+  if (ids.length == 0) {
     const legacyImage = readString('local_outfit_image')
     if (legacyImage !== '') {
       const legacyId = `outfit_legacy_${Date.now()}`
@@ -126,6 +133,31 @@ function reload() {
   notifyChanged()
 }
 
+async function refreshRemotePosts(): Promise<void> {
+  if (getCachedAccessToken() == '') return
+  try {
+    const remote = await listCommunityPostsRemote('', '', '', true)
+    const saved = [] as SavedOutfitPost[]
+    for (let i = 0; i < remote.length; i++) {
+      const item = remote[i]
+      const post = new SavedOutfitPost()
+      post.id = item.id
+      post.image = item.imageUrl
+      post.caption = item.caption
+      post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : item.category
+      post.topic = item.topic
+      post.createdAt = item.createdAt
+      saved.push(post)
+      if (item.liked && _state.likedPostIds.indexOf(item.id) < 0) _state.likedPostIds.push(item.id)
+    }
+    const local = _state.outfitPosts.filter((post) => post.id.startsWith('outfit_'))
+    _state.outfitPosts = [...saved, ...local]
+    notifyChanged()
+  } catch (e) {
+    // Remote failure must not hide locally saved drafts or block the community page.
+  }
+}
+
 function isFavorite(entityId: string): boolean {
   return _state.favoriteIds.indexOf(entityId) >= 0
 }
@@ -143,6 +175,23 @@ function toggleFavorite(entityId: string): boolean {
   return idx < 0
 }
 
+function isWished(entityId: string): boolean {
+  return _state.wishIds.indexOf(entityId) >= 0
+}
+
+function toggleWish(entityId: string): boolean {
+  if (entityId === '') return false
+  const values = [..._state.wishIds]
+  const idx = values.indexOf(entityId)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(entityId)
+  _state.wishIds = values
+  writeList(WISH_IDS_KEY, values)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'wish', entityId, idx < 0 ? 'upsert' : 'delete', '')
+  notifyChanged()
+  return idx < 0
+}
+
 function isFollowingBrand(brandName: string): boolean {
   return _state.followedBrands.indexOf(brandName) >= 0
 }
@@ -156,8 +205,26 @@ function toggleBrandFollow(brandName: string): boolean {
   _state.followedBrands = values
   writeList(FOLLOWED_BRANDS_KEY, values)
   enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
+  if (getCachedAccessToken() != '') {
+    const following = idx < 0
+    const remote = following ? followBrandRemote(brandName) : unfollowBrandRemote(brandName)
+    remote.catch(() => { /* 队列保留为离线兜底 */ })
+  }
   notifyChanged()
   return idx < 0
+}
+
+/** 登录态下拉取服务端已关注品牌并合并（服务端为准） */
+async function refreshRemoteBrands(): Promise<void> {
+  if (getCachedAccessToken() == '') return
+  try {
+    const remote = await listFollowedBrandsRemote()
+    _state.followedBrands = remote
+    writeList(FOLLOWED_BRANDS_KEY, remote)
+    notifyChanged()
+  } catch (e) {
+    // 离线时保留本地关注列表
+  }
 }
 
 function saveOutfit(image: string, caption: string, category: string, topic: string): string {
@@ -186,7 +253,17 @@ function removeOutfit(id: string) {
   if (idx >= 0) ids.splice(idx, 1)
   writeList(OUTFIT_IDS_KEY, ids)
   removeOutfitStorage(id)
+  const liked = [..._state.likedPostIds]
+  const likedIdx = liked.indexOf(id)
+  if (likedIdx >= 0) {
+    liked.splice(likedIdx, 1)
+    _state.likedPostIds = liked
+    writeList(LIKED_POST_IDS_KEY, liked)
+  }
   enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
+  if (!id.startsWith('outfit_') && getCachedAccessToken() != '') {
+    deleteCommunityPostRemote(id).catch(() => { /* queue remains as offline fallback */ })
+  }
   reload()
 }
 
@@ -203,6 +280,12 @@ function togglePostLike(postId: string): boolean {
   _state.likedPostIds = values
   writeList(LIKED_POST_IDS_KEY, values)
   enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
+  if (getCachedAccessToken() != '') {
+    const wanted = idx < 0
+    setCommunityPostLikeRemote(postId, wanted).catch(() => {
+      // Keep the optimistic action in the local queue so it can be reconciled later.
+    })
+  }
   notifyChanged()
   return idx < 0
 }
@@ -220,9 +303,14 @@ class ContentLibraryStoreHandle {
   get followedBrandCount(): number { return _followedBrandCount.value }
   get outfitCount(): number { return _outfitCount.value }
   get likedPostCount(): number { return _likedPostCount.value }
+  get wishCount(): number { return _wishCount.value }
   reload(): void { reload() }
+  refreshRemotePosts(): Promise<void> { return refreshRemotePosts() }
+  refreshRemoteBrands(): Promise<void> { return refreshRemoteBrands() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
   toggleFavorite(entityId: string): boolean { return toggleFavorite(entityId) }
+  isWished(entityId: string): boolean { return isWished(entityId) }
+  toggleWish(entityId: string): boolean { return toggleWish(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
   toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
   saveOutfit(image: string, caption: string, category: string, topic: string): string { return saveOutfit(image, caption, category, topic) }

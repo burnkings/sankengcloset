@@ -1,0 +1,45 @@
+export function isAndroidVDOM(): boolean {
+  // #ifdef APP-ANDROID && !VUE3-VAPOR
+  return true
+  // #endif
+  return false
+}
+
+export function isHarmonyVapor(): boolean {
+  // #ifdef APP-HARMONY && VUE3-VAPOR
+  return true
+  // #endif
+  return false
+}
+
+export function isIOS(): boolean {
+  // #ifdef APP-IOS
+  return true
+  // #endif
+  return false
+}
+
+export function isVaporMode(): boolean {
+  // #ifdef VUE3-VAPOR
+  return true
+  // #endif
+  return false
+}
+
+/** 鸿蒙Steam支持锁屏系统闹钟级通知 */
+export function canLockScreenNotify(): boolean {
+  return isHarmonyVapor()
+}
+
+/** iOS支持写入系统日历实现双重提醒 */
+export function canSystemCalendar(): boolean {
+  return isIOS()
+}
+
+/** 当前设备是否为App平台（非小程序/非Web） */
+export function isAppPlatform(): boolean {
+  // #ifdef APP
+  return true
+  // #endif
+  return false
+}

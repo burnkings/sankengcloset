@@ -53,10 +53,14 @@
       </view>
     </template>
   </MainLayout>
-  <view v-if="item !== null" :style="botBar">
+    <view v-if="item !== null" :style="botBar">
     <view :style="botItem" @tap="toggleSaved">
       <view :style="botIcon"><AppIcon name="wardrobe" :size="40" :active="isSaved" /></view>
       <text :style="botLabel">{{ isSaved ? '已收藏' : '收藏' }}</text>
+    </view>
+    <view :style="botItem" @tap="onAddToWishlist">
+      <view :style="botIcon"><AppIcon name="wardrobe" :size="40" :active="false" /></view>
+      <text :style="botLabel">心愿</text>
     </view>
     <view :style="botItem" @tap="askQiling">
       <view :style="botIcon"><AppIcon name="sparkles" :size="40" :active="false" /></view>
@@ -69,6 +73,7 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
+import { WishItem } from '@/domain/wish-item'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice } from '@/stores/home-feed-store'
 import { apiGet, apiPost, apiDelete } from '@/services/platform/api-client'
@@ -80,11 +85,12 @@ import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR } from '@/theme/tokens/r
 import { n } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
+import { showFeedback } from '@/utils/feedback'
+import { useWishListStore } from '@/stores/wishlist-store'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-import { showFeedback } from '@/utils/feedback'
 
 const orderWhiteIcon = '/static/icons/order-white.svg'
 
@@ -169,6 +175,20 @@ async function toggleSaved() {
     isSaved.value = currentSaved
     showFeedback(e instanceof Error ? e.message : '操作失败，请重试')
   }
+}
+
+function onAddToWishlist() {
+  if (item.value == null) return
+  const wishStore = useWishListStore()
+  const wish = new WishItem()
+  wish.name = item.value!.title
+  wish.brand = item.value!.brandName
+  wish.estimatedPrice = item.value!.price
+  wish.url = item.value!.coverUrl
+  wish.coverImage = item.value!.coverUrl
+  wish.source = 'DISCOVERY'
+  if (wishStore.addItem(wish) != null) showFeedback('已加入心愿单')
+  else showFeedback('加入失败')
 }
 
 function openOfficial() {

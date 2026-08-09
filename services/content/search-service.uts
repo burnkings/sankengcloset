@@ -10,7 +10,7 @@ export class SearchResult {
 
 /**
  * 服务端商品搜索：GET /api/v1/search?q=<关键词>&cursor=<游标>&limit=20
- * 后端 pg_trgm 相似度 + ILIKE 兜底，支持中文模糊匹配（如"洛丽塔"）。
+ * 后端使用参数化 ILIKE，并补充坑向别名匹配（如“洛丽塔”→ LOLITA）。
  * 返回字段与 feed 相同（id/feedType/entityId/title/coverUrl/price 等），
  * 复用 feed-service 的 mapFeedItem 做 DTO 映射。
  */
@@ -18,7 +18,9 @@ export async function searchProducts(keyword: string, cursor: string = ''): Prom
   const q = keyword.trim()
   const result = new SearchResult()
   if (q === '') return result
-  const path = `/api/v1/search?q=${encodeQuery(q)}&cursor=${encodeQuery(cursor)}&limit=20`
+  // 只传用户输入的关键词与分页游标；limit 由后端默认 20，cursor 空不传
+  let path = '/api/v1/search?q=' + encodeQuery(q)
+  if (cursor != '') path += '&cursor=' + encodeQuery(cursor)
   const response = await apiGet(path)
   const rawItems = response.data as any[] | null
   if (rawItems != null) {

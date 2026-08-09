@@ -2,48 +2,63 @@
   <MainLayout navbar-content-height="88rpx">
     <template #navbar><AppNavbar title="购买记录" :show-back="true" /></template>
     <template #default>
-      <view class="page-canvas" :style="pageWrap">
-        <view :style="summaryCard">
-          <view :style="summaryPrimary">
-            <text :style="summaryLabel">累计记录</text>
-            <text :style="summaryCount">{{ store.itemCount }} 笔</text>
-            <text :style="summaryAmount">¥{{ store.totalSpent }}</text>
+      <scroll-view :style="scrollStyle">
+        <view class="page-canvas" :style="pageWrap">
+
+          <view :style="summaryCard">
+            <view :style="summaryLeft">
+              <text :style="sumLabel">累计下单</text>
+              <text :style="sumCount">{{ store.itemCount }} 笔</text>
+              <text :style="sumTotal">总消费 {{ store.totalSpent }}</text>
+            </view>
+            <view :style="summaryRight">
+              <text :style="sumRemainLabel">待付尾款</text>
+              <text :style="sumRemainValue">{{ store.remainingTotal }}</text>
+              <view :style="sumProgress"><view :style="sumProgressFill" /></view>
+            </view>
           </view>
-          <view :style="summarySide">
-            <text :style="sideLabel">待结清 ¥{{ store.remainingTotal }}</text>
-            <view :style="progressTrack"><view :style="progressFill" /></view>
+
+          <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[500]" @change="onFilter" />
+
+          <AppLoading v-if="store.loading" />
+
+          <view v-else-if="store.displayItems.length === 0" :style="emptyWrap">
+            <AppIcon name="order" :size="64" />
+            <text :style="emptyTitle">暂无订单记录</text>
+            <text :style="emptySub">录入定金尾款订单，避免逾期</text>
+            <view :style="emptyBtn" @tap="goAdd"><text :style="emptyBtnText">新增记录</text></view>
           </view>
-        </view>
-        <V2SectionHeader title="记录明细" :compact="true" />
-        <V2Segmented :items="filters" :active="activeFilter" variant="solid" :active-color="brand[500]" @change="onFilter" />
-        <AppLoading v-if="store.loading" />
-        <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="order" :size="64" /><text :style="emptyTitle">暂无符合条件的记录</text></view>
-        <view v-else :style="listWrap">
-          <view v-for="item in store.displayItems" :key="item.id" :style="recordCard" @tap="openItem(item.id)">
-            <view :style="recordTop">
-              <view :style="recordCopy">
-                <text :style="recordTitle">{{ item.name }}</text>
-                <text :style="recordBrand">{{ item.brand !== '' ? item.brand : item.shopName }}</text>
+
+          <view v-else>
+            <view v-for="group in groupedItems" :key="group.key">
+              <view :style="groupHeader"><text :style="groupHeaderText">{{ group.label }}（{{ group.items.length }} 条）</text></view>
+              <view v-for="item in group.items" :key="item.id" :style="cardStyle(item)" @tap="openItem(item.id)">
+                <view v-if="item.isOverdue" :style="overdueTag"><text :style="overdueTagText">已逾期</text></view>
+                <view :style="cardTop">
+                  <text :style="cardTitle">{{ item.name }}</text>
+                  <text :style="cardStatusTag(item.statusColor)">{{ item.statusText }}</text>
+                </view>
+                <text :style="cardBrand">{{ item.brand !== '' ? item.brand : item.shopName }}</text>
+                <view :style="cardAmountRow">
+                  <text :style="cardRemaining(item)">{{ item.remainingText }}</text>
+                  <text :style="cardTotal">{{ item.totalText }}</text>
+                </view>
+                <view :style="cardProgress"><view :style="cardProgressFill(item.progressPercent, item.statusColor)" /></view>
               </view>
-              <text :style="statusText(item.statusColor)">{{ item.statusText }}</text>
             </view>
-            <view :style="amountRow">
-              <text :style="totalText">{{ item.totalText }}</text>
-              <text :style="remainingText(item.statusColor)">{{ item.remainingText }}</text>
-            </view>
-            <view :style="progressTrack"><view :style="progressFillPct(item.progressPercent, item.statusColor)" /></view>
-            <text v-if="item.note !== ''" :style="noteText">{{ item.note }}</text>
-            <text v-if="item.deadlineLabel !== ''" :style="dueText">{{ item.deadlineLabel }}</text>
           </view>
+
+          <view :style="bottomSpacer" />
         </view>
-      </view>
+      </scroll-view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
+  <AppFab @tap="goAdd" />
 </template>
 
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
+import { PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -53,55 +68,95 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
-import { getSafeBottomInset } from '@/utils/window-info'
+import AppFab from '@/components/base/AppFab.uvue'
 
 const store = usePurchaseStore()
-const safeBottom = getSafeBottomInset()
 const activeFilter = ref('全部')
-const filters = ['全部', '预售中', '已付定金', '待付款', '已完成']
+const filters = ['全部', '预售中', '已付定金', '待付款', '已完成', '已取消']
+
 function onFilter(label: string) {
   activeFilter.value = label
   let status = ''
-  if (label === '预售中') status = 'PREORDER'
+  if (label === '预售中') status = 'PRE_ORDER'
   if (label === '已付定金') status = 'DEPOSIT_PAID'
-  if (label === '待付款') status = 'PENDING_PAYMENT'
+  if (label === '待付款') status = 'BALANCE_PENDING'
   if (label === '已完成') status = 'COMPLETED'
+  if (label === '已取消') status = 'CANCELLED'
   store.setFilterStatus(status)
 }
 function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
 onMounted(() => { store.fetchPurchases() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const summaryCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
-const summaryPrimary = { ...flexFill, justifyContent: 'center' }
-const summaryLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
-const summaryCount = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary, marginTop: '6rpx' }))
-const summaryAmount = { fontSize: '44rpx', fontWeight: fontWeight.semibold, color: brand[500], marginTop: '6rpx' }
-const summarySide = { alignItems: 'flex-end', justifyContent: 'center' }
-const sideLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
-const progressTrack = computed((): any => ({ width: '220rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: n.value.cardBorder, overflow: 'hidden', marginTop: '12rpx' }))
-const progressFill = computed((): any => {
+const groupedItems = computed(() => {
+  const items = store.displayItems
+  const pending: PurchaseDisplayModel[] = []
+  const thisMonth: PurchaseDisplayModel[] = []
+  const older: PurchaseDisplayModel[] = []
+  const now = new Date()
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    if (it.remainingText !== '已结清' && it.statusText !== '已取消') pending.push(it)
+    else if (it.purchaseDateText >= thisMonthStart) thisMonth.push(it)
+    else older.push(it)
+  }
+  const result: { key: string; label: string; items: PurchaseDisplayModel[] }[] = []
+  if (pending.length > 0) result.push({ key: 'pending', label: '待补尾款', items: pending })
+  if (thisMonth.length > 0) result.push({ key: 'month', label: '本月订单', items: thisMonth })
+  if (older.length > 0) result.push({ key: 'older', label: '往期订单', items: older })
+  return result
+})
+
+const scrollStyle = { flex: 1 }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const bottomSpacer = { height: '60rpx' }
+
+const summaryCard = { ...flexRow, alignItems: 'stretch', justifyContent: 'space-between', minHeight: '140rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '16rpx' }
+const summaryLeft = { justifyContent: 'center' }
+const sumLabel = { fontSize: '22rpx', color: n.value.textTertiary }
+const sumCount = { fontSize: '28rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary, marginTop: '4rpx' }
+const sumTotal = { fontSize: '22rpx', color: n.value.textTertiary, marginTop: '4rpx' }
+const summaryRight = { alignItems: 'flex-end', justifyContent: 'center' }
+const sumRemainLabel = { fontSize: '22rpx', color: n.value.textTertiary }
+const sumRemainValue = { fontSize: '36rpx', fontWeight: fontWeight.bold, color: brand[500] as string, marginTop: '2rpx' }
+const sumProgress = computed((): any => ({ width: '160rpx', height: '6rpx', borderRadius: '3rpx', backgroundColor: n.value.cardBorder, overflow: 'hidden', marginTop: '8rpx' }))
+const sumProgressFill = computed((): any => {
   const total = store.totalSpent > 0 ? store.totalSpent : 1
   const pct = Math.min(100, Math.round(store.remainingTotal / total * 100))
-  return { width: `${pct}%`, height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[500] }
+  return { width: `${pct}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: brand[500] }
 })
-const listWrap = { marginTop: '22rpx' }
-const recordCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '20rpx' }))
-const recordTop = { ...flexRow, alignItems: 'flex-start' }
-const recordCopy = { ...flexFill }
-const recordTitle = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
-const recordBrand = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
-function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fontWeight.semibold, color, marginLeft: '12rpx', flexShrink: 0 } }
-const amountRow = { ...flexRow, alignItems: 'center', marginTop: '18rpx' }
-const totalText = computed((): any => ({ ...flexFill, fontSize: '32rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
-function remainingText(color: string) { return { fontSize: '28rpx', fontWeight: fontWeight.semibold, color } }
-function progressFillPct(percent: number, color: string) { return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color } }
-const noteText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '14rpx' }))
-const dueText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
-const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[500], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+
+const groupHeader = { paddingTop: '24rpx', paddingBottom: '10rpx' }
+const groupHeaderText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
+
+function cardStyle(item: PurchaseDisplayModel): any {
+  const borderColor = item.isOverdue ? '#FF4D4F' : n.value.cardBorder
+  return { padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: item.isOverdue ? '2rpx' : '1rpx', borderStyle: 'solid' as string, borderColor, marginBottom: '14rpx' }
+}
+const overdueTag = { marginBottom: '8rpx' }
+const overdueTagText = { fontSize: '22rpx', fontWeight: fontWeight.semibold, color: '#FF4D4F' }
+const cardTop = { ...flexRow, alignItems: 'flex-start' }
+const cardTitle = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
+function cardStatusTag(color: string): any {
+  return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: '#FFFFFF', backgroundColor: color, paddingLeft: '14rpx', paddingRight: '14rpx', paddingTop: '4rpx', paddingBottom: '4rpx', borderRadius: '24rpx', flexShrink: 0, marginLeft: '10rpx' }
+}
+const cardBrand = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
+const cardAmountRow = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '14rpx' }
+function cardRemaining(item: PurchaseDisplayModel): any {
+  const isPending = item.remainingText !== '已结清' && item.statusText !== '已取消'
+  return { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: isPending ? '#FF4D4F' : '#52C41A' }
+}
+const cardTotal = { fontSize: '24rpx', color: n.value.textTertiary }
+const cardProgress = computed((): any => ({ height: '6rpx', borderRadius: '3rpx', backgroundColor: n.value.cardBorder, overflow: 'hidden', marginTop: '12rpx' }))
+function cardProgressFill(percent: number, color: string): any {
+  return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color }
+}
+
+const emptyWrap = { alignItems: 'center', paddingTop: '140rpx' }
+const emptyTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '18rpx' }
+const emptySub = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }
+const emptyBtn = { marginTop: '28rpx', height: '72rpx', paddingLeft: '36rpx', paddingRight: '36rpx', borderRadius: '16rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
+const emptyBtnText = { fontSize: '28rpx', fontWeight: fontWeight.medium, color: brand[500] as string }
 </script>

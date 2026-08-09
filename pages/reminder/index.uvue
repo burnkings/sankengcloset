@@ -1,89 +1,135 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="提醒" :show-back="true" /></template>
+    <template #navbar>
+      <AppNavbar title="提醒事项" :show-back="true">
+        <template #right>
+          <text :style="settingsIcon" @tap="onSettings">⚙</text>
+        </template>
+      </AppNavbar>
+    </template>
     <template #default>
-      <view class="page-canvas" :style="pageWrap">
-        <view :style="focusCard">
-          <view :style="focusCopy">
-            <text :style="focusLabel">近期需要关注</text>
-            <text :style="focusValue">{{ store.todayCount + store.upcomingCount }} 条</text>
-          </view>
-          <view :style="focusStats">
-            <text :style="focusMetaToday">今天 {{ store.todayCount }}</text>
-            <text :style="focusMetaOverdue">逾期 {{ store.overdueCount }}</text>
-          </view>
-        </view>
-        <V2SectionHeader title="提醒列表" :compact="true" />
-        <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[600]" @change="onFilter" />
-        <AppLoading v-if="store.loading" />
-        <view v-else-if="store.displayItems.length === 0" :style="emptyWrap"><AppIcon name="reminder" :size="64" /><text :style="emptyTitle">暂无符合条件的提醒</text></view>
-        <view v-else :style="listWrap">
-          <view v-for="item in store.displayItems" :key="item.id" :style="reminderCard" @tap="openItem(item.id)">
-            <view :style="dateBlock">
-              <text :style="dateMain">{{ item.dateText.length >= 10 ? item.dateText.substring(8, 10) : '--' }}</text>
-              <text :style="dateSub">{{ item.timeText !== '' ? item.timeText : '全天' }}</text>
+      <scroll-view :style="scrollWrap">
+        <view class="page-canvas" :style="pageWrap">
+
+          <view :style="statsCard">
+            <view :style="statsLeft">
+              <text :style="statsLabel">近期待处理</text>
+              <text :style="statsValue">{{ store.todayCount + store.upcomingCount + store.missedCount }} 条</text>
             </view>
-            <view :style="reminderCopy">
-              <view :style="titleRow">
-                <text :style="reminderTitle">{{ item.title }}</text>
-                <text :style="statusText(item.statusColor)">{{ item.statusText }}</text>
+            <view :style="statsRight">
+              <text :style="statsMeta(store.todayCount > 0)">今日到期 {{ store.todayCount }}</text>
+              <text :style="statsMetaMuted">已过期 {{ store.missedCount }}</text>
+            </view>
+          </view>
+
+          <V2Segmented :items="filters" :active="activeFilter" variant="soft" :active-color="brand[600]" @change="onFilter" />
+
+          <AppLoading v-if="store.loading" />
+
+          <view v-else-if="store.groupedItems.length === 0" :style="emptyWrap">
+            <AppIcon name="reminder" :size="72" />
+            <text :style="emptyTitle">暂无提醒</text>
+            <text :style="emptySub">新建提醒，避免事项遗漏</text>
+            <view :style="emptyAddBtn" @tap="goAdd"><text :style="emptyAddBtnText">+ 新建提醒</text></view>
+          </view>
+
+          <view v-else>
+            <view v-for="group in store.groupedItems" :key="group.group">
+              <view :style="groupHeader">
+                <text :style="groupHeaderText">{{ group.label }}</text>
               </view>
-              <text :style="subLine">{{ item.typeText }} · {{ item.dateText }}</text>
-              <text v-if="item.note !== ''" :style="subLine">{{ item.note }}</text>
+              <view v-for="item in group.items" :key="item.id" :style="itemCard" @tap="openItem(item.id)">
+                <view :style="colorBar(item.typeColor)" />
+                <view :style="cardCenter">
+                  <text :style="cardTitle">{{ item.title }}</text>
+                  <view :style="cardMeta">
+                    <text :style="cardTime">{{ item.dateText }}{{ item.timeDisplay !== '' ? ' ' + item.timeDisplay : '' }}</text>
+                    <text :style="cardSource">· {{ item.sourceLabel }}</text>
+                  </view>
+                </view>
+                <text :style="statusBadge(item)" @tap.stop="onQuickToggle(item)">{{ item.statusText }}</text>
+              </view>
             </view>
           </view>
+
+          <view :style="bottomSpacer" />
         </view>
-      </view>
+      </scroll-view>
     </template>
   </MainLayout>
-  <view :style="fabStyle" @tap="goAdd"><AppIcon name="add" :size="40" :active="true" /></view>
+  <AppFab v-if="!store.loading" @tap="goAdd" />
 </template>
 
 <script setup lang="uts">
 import { useReminderStore } from '@/stores/reminder-store'
-import { brand, semantic } from '@/theme/tokens/colors'
+import { ReminderDisplayModel } from '@/domain/reminder-presenter'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, getCardRadius, CARD_PADDING } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
-import { getSafeBottomInset } from '@/utils/window-info'
+import AppFab from '@/components/base/AppFab.uvue'
 
 const store = useReminderStore()
-const safeBottom = getSafeBottomInset()
 const activeFilter = ref('全部')
-const filters = ['全部', '待提醒', '已完成']
-function onFilter(label: string) { activeFilter.value = label; store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : 'DONE')) }
+const filters = ['全部', '待提醒', '已完成', '已过期']
+const PAGE_GUTTER = '30rpx'
+const cr = getCardRadius()
+
+function onFilter(label: string) {
+  activeFilter.value = label
+  store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : (label === '已过期' ? 'MISSED' : 'DONE')))
+}
 function goAdd() { uni.navigateTo({ url: '/pages/reminder/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` }) }
+function onSettings() { showFeedback('设置功能开发中') }
+function onQuickToggle(item: ReminderDisplayModel) {
+  if (item.statusText === '已过期') return
+  if (item.statusText === '已完成') { store.markUndone(item.id); showFeedback('已恢复提醒') }
+  else { store.markDone(item.id); showFeedback('已标记完成') }
+}
 onMounted(() => { store.fetchItems() })
-// 新增/编辑/删除返回后立即刷新列表（本机 Storage 读取，成本低）
-onPageShow(() => { store.fetchItems() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const focusCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '152rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surfacePink }))
-const focusCopy = { ...flexFill }
-const focusLabel = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary }))
-const focusValue = { fontSize: '56rpx', fontWeight: fontWeight.bold, color: brand[500], marginTop: '8rpx' }
-const focusStats = { alignItems: 'flex-end' }
-const focusMetaToday = computed((): any => ({ fontSize: '26rpx', fontWeight: fontWeight.medium, color: n.value.text, marginTop: '6rpx' }))
-const focusMetaOverdue = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
-const listWrap = { marginTop: '22rpx' }
-const reminderCard = computed((): any => ({ ...flexRow, alignItems: 'stretch', minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '32rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '20rpx' }))
-const dateBlock = { width: '96rpx', marginRight: '20rpx', flexShrink: 0, alignItems: 'center' }
-const dateMain = computed((): any => ({ fontSize: '44rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
-const dateSub = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '4rpx' }))
-const reminderCopy = { ...flexFill, justifyContent: 'center' }
-const titleRow = { ...flexRow, alignItems: 'center' }
-const reminderTitle = computed((): any => ({ ...flexFill, fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
-function statusText(color: string) { return { fontSize: '24rpx', fontWeight: fontWeight.semibold, color, marginLeft: '12rpx' } }
-const subLine = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
-const emptyWrap = { alignItems: 'center', paddingTop: '160rpx' }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '18rpx' }))
-const fabStyle = computed((): any => ({ position: 'fixed' as string, right: '40rpx', bottom: `${safeBottom + 160}px`, width: '104rpx', height: '104rpx', borderRadius: '52rpx', backgroundColor: brand[600], alignItems: 'center' as string, justifyContent: 'center' as string, zIndex: 100 }))
+const scrollWrap = { flex: 1 }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER, paddingRight: PAGE_GUTTER }
+const bottomSpacer = { height: '200rpx' }
+
+const statsCard = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: '140rpx', padding: CARD_PADDING, borderRadius: cr, backgroundColor: n.value.surfacePink, marginBottom: '20rpx' }
+const statsLeft = { flex: 1 }
+const statsLabel = computed((): any => ({ fontSize: '24rpx', color: n.value.textSecondary }))
+const statsValue = { fontSize: '48rpx', fontWeight: fontWeight.bold, color: brand[500] as string, marginTop: '4rpx' }
+const statsRight = { alignItems: 'flex-end' }
+const statsMeta = (hl: boolean) => ({ fontSize: '24rpx', fontWeight: fontWeight.medium, color: hl ? n.value.text : n.value.textSecondary, marginTop: '2rpx' })
+const statsMetaMuted = { fontSize: '24rpx', color: n.value.textSecondary, marginTop: '2rpx' }
+
+const groupHeader = { paddingTop: '24rpx', paddingBottom: '12rpx' }
+const groupHeaderText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
+
+const itemCard = computed((): any => ({ flexDirection: 'row', alignItems: 'center', height: '136rpx', paddingRight: '24rpx', borderRadius: cr, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '12rpx', overflow: 'hidden' }))
+const colorBar = (color: string) => ({ width: '16rpx', height: '100%', backgroundColor: color, flexShrink: 0, marginRight: '20rpx' })
+const cardCenter = { flex: 1, justifyContent: 'center' }
+const cardTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis', marginBottom: '6rpx' }))
+const cardMeta = { flexDirection: 'row', alignItems: 'center' }
+const cardTime = { fontSize: '22rpx', color: n.value.textSecondary }
+const cardSource = { fontSize: '22rpx', color: n.value.textTertiary }
+
+function statusBadge(item: ReminderDisplayModel): any {
+  const bg = item.statusText === '已完成' ? '#E8F2EA' : (item.statusText === '已过期' ? n.value.bgSecondary : '#E6F4FF')
+  const clr = item.statusText === '已完成' ? '#52C41A' : (item.statusText === '已过期' ? n.value.textTertiary : '#3B82F6')
+  const td = item.statusText === '已过期' ? 'line-through' : 'none'
+  return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: clr, backgroundColor: bg, paddingLeft: '14rpx', paddingRight: '14rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '16rpx', textDecoration: td, flexShrink: 0, marginLeft: '12rpx' }
+}
+
+const emptyWrap = { alignItems: 'center', paddingTop: '120rpx' }
+const emptyTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
+const emptySub = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '10rpx' }))
+const emptyAddBtn = { marginTop: '32rpx', height: '80rpx', paddingLeft: '40rpx', paddingRight: '40rpx', borderRadius: '40rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
+const emptyAddBtnText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white }
+
+const settingsIcon = computed((): any => ({ fontSize: '36rpx', color: n.value.text }))
 </script>

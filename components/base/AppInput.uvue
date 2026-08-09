@@ -1,7 +1,7 @@
 <template>
   <view>
     <view :style="wrapperStyle">
-      <view v-if="$slots.has('prefix')" :style="prefixStyle"><slot name="prefix" /></view>
+      <view v-if="hasPrefix" :style="prefixStyle"><slot name="prefix" /></view>
       <input
         :style="inputStyle"
         :type="type"
@@ -15,18 +15,19 @@
         @input="onInput"
         @focus="emit('focus')"
         @blur="emit('blur')"
-        @confirm="emit('confirm')"
+        @confirm="onConfirm"
       />
       <view v-if="clearable && modelValue !== ''" :style="clearStyle" @tap="onClear">
         <text :style="clearIconStyle">×</text>
       </view>
-      <view v-if="$slots.has('suffix')" :style="suffixStyle"><slot name="suffix" /></view>
+      <view :style="suffixStyle"><slot name="suffix" /></view>
     </view>
     <text v-if="error" :style="errorTextStyle">{{ error }}</text>
   </view>
 </template>
 
 <script setup lang="uts">
+import { useSlots } from 'vue'
 import { semantic } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize } from '@/theme/tokens/typography'
@@ -52,9 +53,12 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   focus: []
   blur: []
-  confirm: []
+  confirm: [value: string]
   clear: []
 }>()
+
+const slots = useSlots()
+const hasPrefix = computed(() => slots.prefix != null)
 
 const wrapperStyle = computed((): any => ({
   ...flexRowCenter,
@@ -62,9 +66,9 @@ const wrapperStyle = computed((): any => ({
   paddingLeft: '28rpx',
   paddingRight: '24rpx',
   borderRadius: radius.full,
-  backgroundColor: n.value.surface,
-  borderWidth: '1rpx',
-  borderColor: n.value.border,
+  backgroundColor: n.value.inputFill,
+  borderWidth: '0',
+  borderColor: 'transparent',
 }))
 const inputStyle = computed((): any => ({ flex: 1, height: '100%', minWidth: '0', fontSize: fontSize.base, color: n.value.text }))
 const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
@@ -75,10 +79,11 @@ const clearStyle = { width: '64rpx', height: '64rpx', alignItems: 'center', just
 const clearIconStyle = computed((): any => ({ fontSize: fontSize.base, color: n.value.iconLight, textAlign: 'center' }))
 const errorTextStyle = { fontSize: fontSize.xs, color: semantic.error, marginTop: '4rpx', paddingLeft: '8rpx' }
 
-function onInput(e: UTSJSONObject) {
-  const detail = e['detail'] as UTSJSONObject | null
-  const val = detail != null ? (detail['value'] as string | null) : null
-  emit('update:modelValue', val ?? '')
+function onInput(e: UniInputEvent) {
+  emit('update:modelValue', e.detail.value)
+}
+function onConfirm(e: UniInputConfirmEvent) {
+  emit('confirm', e.detail.value)
 }
 function onClear() {
   emit('update:modelValue', '')

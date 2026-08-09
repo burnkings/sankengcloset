@@ -1,0 +1,29 @@
+<template>
+  <view :style="fabStyle" @tap="emit('tap')">
+    <AppIcon name="add" :size="48" :active="true" />
+  </view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { getSafeBottomInset } from '@/utils/window-info'
+import AppIcon from '@/components/base/AppIcon.uvue'
+
+const emit = defineEmits<{ tap: [] }>()
+const safeBottom = getSafeBottomInset()
+
+// 750rpx 画布下固定居中：圆形 104rpx，(750 - 104) / 2 = 323。
+// 直接使用明确的背景色字符串，避免 Android UTS 对 UTSJSONObject 索引值推断失败后丢失背景。
+const fabStyle = {
+  position: 'fixed' as string,
+  left: '323rpx',
+  bottom: `${safeBottom + 64}px`,
+  width: '104rpx',
+  height: '104rpx',
+  borderRadius: '52rpx',
+  backgroundColor: brand[500] as string,
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 100,
+}
+</script>

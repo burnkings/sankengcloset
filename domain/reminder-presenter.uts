@@ -1,47 +1,106 @@
 /**
  * ReminderPresenter — 提醒展示层
  * domain model → display model
+ * V3: 新增分组标签、来源标签、时间展示
  */
 
 import {
   Reminder,
-  TYPE_LABELS,
-  TYPE_EMOJI,
   TYPE_COLORS,
-  STATUS_LABELS,
-  STATUS_COLORS,
+  STATUS_PENDING,
+  STATUS_DONE,
+  STATUS_MISSED,
 } from './reminder'
+
+function getTypeText(type: string): string {
+  if (type === 'ARRIVAL') return '到货提醒'
+  if (type === 'BALANCE') return '尾款提醒'
+  if (type === 'RELEASE') return '发售提醒'
+  return '自定义'
+}
+
+function getTypeEmoji(type: string): string {
+  if (type === 'ARRIVAL') return '📦'
+  if (type === 'BALANCE') return '💰'
+  if (type === 'RELEASE') return '🔔'
+  return '⏰'
+}
+
+function getTypeColor(type: string): string {
+  if (type === 'ARRIVAL') return TYPE_COLORS.ARRIVAL as string
+  if (type === 'BALANCE') return TYPE_COLORS.BALANCE as string
+  if (type === 'RELEASE') return TYPE_COLORS.RELEASE as string
+  return TYPE_COLORS.CUSTOM as string
+}
+
+function getStatusLabel(status: string): string {
+  if (status === STATUS_DONE) return '已完成'
+  if (status === STATUS_MISSED) return '已过期'
+  return '待提醒'
+}
+
+function getStatusColor(status: string): string {
+  if (status === STATUS_DONE) return '#52C41A'
+  if (status === STATUS_MISSED) return '#9CA3AF'
+  return '#3B82F6'
+}
+
+export type ReminderGroup = 'today' | 'tomorrow' | 'week' | 'later' | 'overdue'
 
 export class ReminderDisplayModel {
   id: string = ''
   title: string = ''
-  // 类型
   typeText: string = ''
   typeEmoji: string = ''
   typeColor: string = ''
-  // 状态
   statusText: string = ''
   statusColor: string = ''
-  // 时间
   dateText: string = ''
   timeText: string = ''
-  // 关联
+  isAllDay: boolean = false
   hasPurchase: boolean = false
   hasWish: boolean = false
-  // 其他
   note: string = ''
-  // 时间判断
   isToday: boolean = false
-  isUpcoming: boolean = false // 7天内
+  isUpcoming: boolean = false
   isOverdue: boolean = false
+  group: ReminderGroup = 'later'
+  groupLabel: string = ''
+  timeDisplay: string = ''
+  sourceLabel: string = ''
 }
+
+export class ReminderGroupViewModel {
+  group: ReminderGroup = 'today'
+  label: string = ''
+  items: ReminderDisplayModel[] = []
+}
+
+const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六']
 
 function formatDate(dateStr: string): string {
   if (dateStr === '') return '未设置'
-  return dateStr
+  try {
+    const parts = dateStr.split('-')
+    if (parts.length !== 3) return dateStr
+    const year = parseInt(parts[0])
+    const month = parseInt(parts[1])
+    const day = parseInt(parts[2])
+    const d = new Date(year, month - 1, day)
+    const weekday = WEEKDAY_NAMES[d.getDay()]
+    return `${year}年${month}月${day}日 周${weekday}`
+  } catch {
+    return dateStr
+  }
 }
 
 function formatTime(timeStr: string): string {
+  if (timeStr === '') return ''
+  return timeStr
+}
+
+function formatTimeDisplay(timeStr: string, isAllDay: boolean): string {
+  if (isAllDay) return '全天'
   if (timeStr === '') return ''
   return timeStr
 }
@@ -58,33 +117,79 @@ function diffDays(dateStr: string): number {
   }
 }
 
+function getGroupInfo(days: number, status: string): { group: ReminderGroup, groupLabel: string } {
+  if (status === 'MISSED' || (days < 0 && status === 'PENDING')) {
+    return { group: 'overdue', groupLabel: '已过期' }
+  }
+  if (days === 0) return { group: 'today', groupLabel: '今天' }
+  if (days === 1) return { group: 'tomorrow', groupLabel: '明天' }
+  if (days > 1 && days <= 7) return { group: 'week', groupLabel: '本周' }
+  return { group: 'later', groupLabel: '稍后' }
+}
+
+function getSourceLabel(item: Reminder): string {
+  if (item.relatedPurchaseId !== '') return '来自订单'
+  if (item.relatedWishId !== '') return '来自愿望单'
+  return '手动创建'
+}
+
 export function toDisplayModel(item: Reminder): ReminderDisplayModel {
   const dm = new ReminderDisplayModel()
   dm.id = item.id
   dm.title = item.title
-  // 类型
-  dm.typeText = TYPE_LABELS[item.type] != null ? TYPE_LABELS[item.type] as string : '自定义'
-  dm.typeEmoji = TYPE_EMOJI[item.type] != null ? TYPE_EMOJI[item.type] as string : '⏰'
-  dm.typeColor = TYPE_COLORS[item.type] != null ? TYPE_COLORS[item.type] as string : '#6B7280'
-  // 状态
-  dm.statusText = STATUS_LABELS[item.status] != null ? STATUS_LABELS[item.status] as string : '待提醒'
-  dm.statusColor = STATUS_COLORS[item.status] != null ? STATUS_COLORS[item.status] as string : '#3B82F6'
-  // 时间
+  dm.typeText = getTypeText(item.type)
+  dm.typeEmoji = getTypeEmoji(item.type)
+  dm.typeColor = getTypeColor(item.type)
+  dm.statusText = getStatusLabel(item.status)
+  dm.statusColor = getStatusColor(item.status)
   dm.dateText = formatDate(item.remindDate)
   dm.timeText = formatTime(item.remindTime)
-  // 关联
+  dm.timeDisplay = formatTimeDisplay(item.remindTime, item.isAllDay)
+  dm.isAllDay = item.isAllDay
   dm.hasPurchase = item.relatedPurchaseId !== ''
   dm.hasWish = item.relatedWishId !== ''
-  // 其他
   dm.note = item.note
-  // 时间判断
+  dm.sourceLabel = getSourceLabel(item)
   const days = diffDays(item.remindDate)
-  dm.isToday = days === 0
+  dm.isToday = days == 0
   dm.isUpcoming = days > 0 && days <= 7
   dm.isOverdue = days < 0 && item.status === 'PENDING'
+  const gi = getGroupInfo(days, item.status)
+  dm.group = gi.group
+  dm.groupLabel = gi.groupLabel
   return dm
 }
 
 export function toDisplayModels(items: Reminder[]): ReminderDisplayModel[] {
   return items.map((item) => toDisplayModel(item))
+}
+
+export function groupByDate(items: ReminderDisplayModel[]): ReminderGroupViewModel[] {
+  const map: Record<string, ReminderGroupViewModel> = {}
+  const order: ReminderGroup[] = ['today', 'tomorrow', 'week', 'later', 'overdue']
+  for (let g = 0; g < order.length; g++) {
+    const v = new ReminderGroupViewModel()
+    v.group = order[g]
+    map[order[g]] = v
+  }
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const target = map[item.group]
+    if (target != null) target.items.push(item)
+  }
+  const result: ReminderGroupViewModel[] = []
+  for (let g = 0; g < order.length; g++) {
+    const v = map[order[g]]
+    if (v.items.length > 0) {
+      switch (v.group) {
+        case 'today': v.label = '今天'; break
+        case 'tomorrow': v.label = '明天'; break
+        case 'week': v.label = '本周'; break
+        case 'later': v.label = '稍后'; break
+        case 'overdue': v.label = '已过期'; break
+      }
+      result.push(v)
+    }
+  }
+  return result
 }

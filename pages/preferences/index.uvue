@@ -1,23 +1,15 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="设置与偏好" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="坑向偏好" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-
-        <!-- 坑向偏好 -->
-        <V2SectionHeader title="坑向偏好" :compact="true" />
-        <text :style="hintText">选择你感兴趣的坑向，相关内容会优先展示</text>
+        <text :style="hintText">选择你感兴趣的坑向，默认展示全部</text>
         <view :style="pitRow">
           <view v-for="(item, idx) in pitItems" :key="item" :style="pitChip(idx, item)" @tap="togglePit(item)">
             <text :style="pitText(item)">{{ item }}</text>
           </view>
         </view>
-
-        <view :style="resetRow" @tap="onReset">
-          <text :style="resetText">重置为默认偏好</text>
-        </view>
-
-        <text :style="footerNote">修改后首页 Feed 下次刷新即生效</text>
+        <view :style="resetRow" @tap="onReset"><text :style="resetText">重置默认</text></view>
       </view>
     </template>
   </MainLayout>
@@ -32,53 +24,28 @@ import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, GROUP_GAP, PAGE_GUTTER_REGULAR } 
 import { n } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { usePreferencesStore } from '@/stores/preferences-store'
 
-// ====== 现有偏好逻辑 ======
-
 const prefs = usePreferencesStore()
-
 const pitItems = ['JK', 'Lolita', '汉服']
 
 function isPitSelected(name: string): boolean {
   const values = prefs.preferences.pitTypes
-  for (let i = 0; i < values.length; i++) {
-    if (values[i] === name) return true
-  }
+  for (let i = 0; i < values.length; i++) { if (values[i] == name) return true }
   return false
 }
-
-function togglePit(name: string) {
-  prefs.togglePitType(name)
-}
-
-function onReset() {
-  prefs.resetPreferences()
-  showFeedback('已重置为默认偏好')
-}
-
-// ====== Styles ======
+function togglePit(name: string) { prefs.togglePitType(name) }
+function onReset() { prefs.resetPreferences(); showFeedback('已重置') }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const descText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '32rpx' }))
-const hintText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginBottom: '20rpx' }))
-const pitRow = { ...flexRow, marginBottom: '40rpx' }
+const hintText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginBottom: '24rpx', lineHeight: '38rpx' }))
+const pitRow = { ...flexRow, marginBottom: '32rpx' }
 function pitChip(idx: number, item: string) {
   const selected = isPitSelected(item)
-  return {
-    width: '200rpx', height: '88rpx', borderRadius: CARD_RADIUS,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: selected ? (brand[50]) : n.value.surface,
-    borderWidth: selected ? '1rpx' : '0', borderStyle: 'solid', borderColor: brand[200],
-    marginRight: idx < 2 ? GROUP_GAP : '0',
-  }
+  return { ...flexRow, alignItems: 'center', justifyContent: 'center', width: '200rpx', height: '88rpx', borderRadius: CARD_RADIUS, backgroundColor: selected ? brand[50] : n.value.surface, borderWidth: selected ? '2rpx' : '1rpx', borderStyle: 'solid' as string, borderColor: selected ? (brand[500] as string) : n.value.cardBorder, marginRight: idx < 2 ? GROUP_GAP : '0' }
 }
-function pitText(item: string) {
-  return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand[700] : n.value.textSecondary }
-}
-const resetRow = { alignItems: 'center', paddingTop: '24rpx', paddingBottom: '24rpx' }
+function pitText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? (brand[700] as string) : n.value.textSecondary } }
+const resetRow = { alignItems: 'center', paddingTop: '20rpx' }
 const resetText = { fontSize: fontSize.sm, color: brand[600] }
-const footerNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', marginTop: '24rpx' }))
 </script>

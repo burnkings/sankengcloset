@@ -84,8 +84,8 @@ const hintCard = computed((): any => ({
   padding: '24rpx',
   marginBottom: '32rpx',
 }))
-const hintTitle = computed((): any => ({ display: 'block', color: n.value.text, fontSize: '31rpx', fontWeight: '700', lineHeight: '40rpx', marginBottom: '8rpx' }))
-const hintDesc = computed((): any => ({ display: 'block', color: n.value.textSecondary, fontSize: '25rpx', fontWeight: '400', lineHeight: '34rpx' }))
+const hintTitle = computed((): any => ({ color: n.value.text, fontSize: '31rpx', fontWeight: '700', lineHeight: '40rpx', marginBottom: '8rpx' }))
+const hintDesc = computed((): any => ({ color: n.value.textSecondary, fontSize: '25rpx', fontWeight: '400', lineHeight: '34rpx' }))
 
 // 输入行
 const composerWrap = { ...flexRow, alignItems: 'center', gap: '16rpx', marginBottom: '40rpx' } as UTSJSONObject
@@ -139,8 +139,8 @@ const capIconWrap = computed((): any => ({
   justifyContent: 'center',
   marginBottom: '14rpx',
 }))
-const capTitle = computed((): any => ({ display: 'block', color: n.value.text, fontSize: '27rpx', fontWeight: '700', lineHeight: '34rpx', marginBottom: '6rpx' }))
-const capDesc = computed((): any => ({ display: 'block', color: n.value.textSecondary, fontSize: '21rpx', fontWeight: '400', lineHeight: '28rpx' }))
+const capTitle = computed((): any => ({ color: n.value.text, fontSize: '27rpx', fontWeight: '700', lineHeight: '34rpx', marginBottom: '6rpx' }))
+const capDesc = computed((): any => ({ color: n.value.textSecondary, fontSize: '21rpx', fontWeight: '400', lineHeight: '28rpx' }))
 
 function onSend() {
   showFeedback('已收到，正在生成本机建议…')

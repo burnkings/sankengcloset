@@ -41,28 +41,11 @@
       </view>
 
       <!-- #ifdef MP-WEIXIN -->
-      <scroll-view v-else scroll-y :style="listViewStyle" @scrolltolower="onLoadMore">
+      <scroll-view v-else scroll-y refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :style="listViewStyle" @scrolltolower="onLoadMore">
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
-      <list-view v-else :style="listViewStyle" @scrolltolower="onLoadMore">
+      <list-view v-else refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :style="listViewStyle" @scrolltolower="onLoadMore">
       <!-- #endif -->
-        <!-- Secondary category filter: scrolls away with content -->
-        <!-- #ifdef MP-WEIXIN -->
-        <view>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        <list-item :type="'categoryFilters'">
-        <!-- #endif -->
-          <view :style="categoryFilterWrap">
-            <V2Segmented :items="categories" :active="store.currentCategory" variant="solid" :active-color="brand[500]" :edge-inset="true" @change="onCategoryTap" />
-          </view>
-        <!-- #ifdef MP-WEIXIN -->
-        </view>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        </list-item>
-        <!-- #endif -->
-
         <!-- Empty channel -->
         <!-- #ifdef MP-WEIXIN -->
         <view v-if="store.isEmpty">
@@ -81,27 +64,38 @@
         </list-item>
         <!-- #endif -->
 
-        <!-- Feed rows -->
+        <!-- Products: two-column waterfall -->
         <!-- #ifdef MP-WEIXIN -->
-        <view v-for="row in store.feedRows" :key="row.id">
+        <view v-if="store.waterfallItems.length > 0" class="feed-pair-row" :style="waterfallRow">
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
-        <list-item v-for="row in store.feedRows" :key="row.id" :type="row.rowType">
+        <list-item v-if="store.waterfallItems.length > 0" :type="'waterfall'">
+          <view class="feed-pair-row" :style="waterfallRow">
         <!-- #endif -->
-          <!-- Product pair -->
-          <view v-if="row.rowType === 'pair'" class="feed-pair-row" :style="pairRow">
-            <view v-if="row.left !== null" :style="productShellLeft">
-              <V2ProductCard :image="row.left!.coverUrl" :brand-name="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :original-price-text="rowLeftOldPrice(row)" :badge="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" @click="onTap(row.left!)" />
+            <view :style="waterfallLeftCol">
+              <view v-for="item in store.waterfallLeft" :key="item.id" :style="waterfallCardShell">
+                <V2ProductCard :image="item.coverUrl" :brand-name="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''" :badge="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" @click="onTap(item)" />
+              </view>
             </view>
-            <view v-if="row.right !== null" :style="productShellRight">
-              <V2ProductCard :image="row.right!.coverUrl" :brand-name="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :original-price-text="rowRightOldPrice(row)" :badge="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" @click="onTap(row.right!)" />
+            <view :style="waterfallRightCol">
+              <view v-for="item in store.waterfallRight" :key="item.id" :style="waterfallCardShell">
+                <V2ProductCard :image="item.coverUrl" :brand-name="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''" :badge="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" @click="onTap(item)" />
+              </view>
             </view>
-            <!-- Filler when one side is null -->
-            <view v-if="row.right === null" :style="cardFiller" />
+        <!-- #ifndef MP-WEIXIN -->
           </view>
+        </list-item>
+        <!-- #endif -->
 
+        <!-- Singles -->
+        <!-- #ifdef MP-WEIXIN -->
+        <view v-for="row in store.singleRows" :key="row.id">
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <list-item v-for="row in store.singleRows" :key="row.id" :type="row.rowType">
+        <!-- #endif -->
           <!-- ReleaseEvent single -->
-          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" :style="eventCard" @tap="onTap(row.single!)">
+          <view v-if="row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" :style="eventCard" @tap="onTap(row.single!)">
             <view :style="imgWrap169">
               <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
               <view :style="eventOverlay">
@@ -118,7 +112,7 @@
           </view>
 
           <!-- Outfit single 4:5 -->
-          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType === 'outfit'" class="feed-single-card" :style="outfitCard" @tap="onTap(row.single!)">
+          <view v-if="row.single !== null && row.single!.feedType === 'outfit'" class="feed-single-card" :style="outfitCard" @tap="onTap(row.single!)">
             <view :style="imgWrap45">
               <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
               <view :style="outfitInfoOverlay">
@@ -129,7 +123,7 @@
           </view>
 
           <!-- Brand post / other -->
-          <view v-if="row.rowType === 'single' && row.single !== null && row.single!.feedType !== 'release_event' && row.single!.feedType !== 'outfit' && row.single!.feedType !== 'product'" class="feed-single-card" :style="postCard" @tap="onTap(row.single!)">
+          <view v-if="row.single !== null && row.single!.feedType !== 'release_event' && row.single!.feedType !== 'outfit' && row.single!.feedType !== 'product'" class="feed-single-card" :style="postCard" @tap="onTap(row.single!)">
             <view :style="imgWrap169">
               <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             </view>
@@ -179,7 +173,7 @@
 </template>
 
 <script setup lang="uts">
-import { useHomeFeedStore, CHANNELS, CATEGORY_FILTERS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
+import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { FeedItem, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
@@ -199,14 +193,12 @@ import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 
 const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
 const notices = useNotificationCenterStore()
 const channels = CHANNELS
-const categories = CATEGORY_FILTERS
 
 const statusBarH = getStatusBarHeight()
 const homeNavbarPx = upx2px(288)
@@ -256,7 +248,6 @@ function rowSingleRelTime(row: FeedRow): string {
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openNotifications() { uni.navigateTo({ url: '/pages/notification/index' }) }
 function onChannelTap(ch: string) { store.setChannel(ch) }
-function onCategoryTap(category: string) { store.setCategory(category) }
 function onTap(item: FeedItem) {
   if (item.feedType === FEED_OUTFIT) {
     openPrimaryTab('/pages/community/index')
@@ -266,16 +257,22 @@ function onTap(item: FeedItem) {
     uni.navigateTo({ url: `/pages/editorial/detail?title=${encodeURIComponent(item.title)}&category=${item.category}&image=${encodeURIComponent(item.coverUrl)}` })
     return
   }
-  if (item.entityId === '') return
+  if (item.entityId == '') return
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
+const isRefreshing = ref(false)
+async function onRefresh() {
+  isRefreshing.value = true
+  try { await store.loadFirstPage(true) }
+  finally { isRefreshing.value = false }
+}
 // 筛选后内容不足一屏时不展示“上拉加载更多/已显示全部”，避免制造虚假操作预期。
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
 onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
-onLoad(() => { initPageTheme() })
+onLoad(() => { initPageTheme(); refreshViewport() })
 onPageShow(() => { initPageTheme(); store.refreshIfPreferencesChanged(); notices.reload() })
 
 // --- Spacing tokens (no gap) ---
@@ -292,6 +289,8 @@ const statusBarPad = computed((): any => ({ height: `${statusBarH}px` }))
 const layer1 = {
   height: '96rpx', ...flexRow, alignItems: 'center',
   justifyContent: 'space-between',
+  paddingLeft: PAGE_GUTTER_REGULAR,
+  paddingRight: PAGE_GUTTER_REGULAR,
 }
 const brandText = computed((): any => ({
   fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[500],
@@ -314,8 +313,7 @@ const searchTabsSpacer = { height: '12rpx' }
 
 // --- Styles ---
 // 真机 list-view 必须拿到明确高度；height:0 + flex 在微信 VDOM 下会失效。
-const listViewStyle = computed((): any => ({ width: '750rpx', height: `${homeViewportPx.value}px`, minHeight: `${homeViewportPx.value}px` }))
-const categoryFilterWrap = computed((): any => ({ paddingTop: '6rpx', paddingBottom: '2rpx', backgroundColor: n.value.bg }))
+const listViewStyle = computed((): any => ({ width: '750rpx', flex: 1, minHeight: `${homeViewportPx.value}px` }))
 
 // Error
 const errorWrap = { ...flexFill, alignItems: 'center', justifyContent: 'center', padding: spacing[8] }
@@ -329,10 +327,16 @@ const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: spa
 const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textSecondary }))
 const emptyMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: spacing[2] }))
 
-// Product card pair — no gap, use margin on left card
-const pairRow = { ...flexRow, marginTop: CARD_V_GAP }
-const productShellLeft = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginRight: CARD_PAIR_GAP }
-const productShellRight = { width: PRODUCT_CARD_WIDTH, flexShrink: 0 }
+// Product card pair — waterfall: each card own marginTop, no forced row height
+const pairRow = { ...flexRow, alignItems: 'flex-start' as string }
+const productShellLeft = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
+const productShellRight = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginTop: CARD_V_GAP }
+
+// Waterfall two-column layout
+const waterfallRow = { ...flexRow, alignItems: 'flex-start' as string }
+const waterfallLeftCol = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
+const waterfallRightCol = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginTop: CARD_V_GAP }
+const waterfallCardShell = { marginBottom: CARD_V_GAP }
 const cardFiller = { width: PRODUCT_CARD_WIDTH, flexShrink: 0 }
 
 const imgWrap169 = { width: '670rpx', height: '360rpx', position: 'relative' as string, overflow: 'hidden' }

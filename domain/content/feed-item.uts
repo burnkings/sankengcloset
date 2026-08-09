@@ -34,6 +34,7 @@ export class FeedItem {
   eventEndAt: string = ''       // 发售事件结束时间
   liked: boolean = false
   saved: boolean = false
+  wished: boolean = false
   sourceLabel: string = ''      // 来源标签 ("淘宝" / "官方" / "用户投稿")
   rankingScore: number = 0      // 排序分数
   category: string = ''         // JK / LOLITA / HANFU (用于频道筛选)

@@ -3,6 +3,8 @@ import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
 import * as repo from '@/domain/repositories/wardrobe-repo'
 import { CATEGORY_LABELS } from '@/domain/clothing-category'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { createAssetRemote, deleteAssetRemote, listWardrobeRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -83,14 +85,45 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
-function fetchItems() {
+function mapRemoteWardrobe(raw: UTSJSONObject): WardrobeItem {
+  const item = new WardrobeItem()
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.name = raw['name'] != null ? raw['name'] as string : ''
+  item.category = raw['category'] != null ? raw['category'] as string : 'OTHER'
+  item.style = raw['style'] != null ? raw['style'] as string : ''
+  item.brand = raw['brand'] != null ? raw['brand'] as string : ''
+  item.color = raw['color'] != null ? raw['color'] as string : ''
+  item.size = raw['size'] != null ? raw['size'] as string : ''
+  item.wearStatus = raw['wearStatus'] != null ? raw['wearStatus'] as string : 'UNWORN'
+  item.seasons = raw['seasons'] != null ? raw['seasons'] as string[] : []
+  item.images = raw['images'] != null ? raw['images'] as string[] : []
+  item.tags = raw['tags'] != null ? raw['tags'] as string[] : []
+  item.purchaseDate = raw['purchaseDate'] != null ? raw['purchaseDate'] as string : ''
+  item.purchasePrice = raw['purchasePrice'] != null ? raw['purchasePrice'] as number : 0
+  item.purchaseSource = raw['purchaseSource'] != null ? raw['purchaseSource'] as string : ''
+  item.note = raw['note'] != null ? raw['note'] as string : ''
+  item.isFavorite = raw['isFavorite'] == true
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  item.updatedAt = raw['updatedAt'] != null ? raw['updatedAt'] as string : ''
+  return item
+}
+
+async function fetchItems() {
   _state.loading = true
   _state.error = ''
   try {
-    repo.initMockData()
-    _state.items = repo.getAll()
+    if (getCachedAccessToken() != '') {
+      const remote = await listWardrobeRemote()
+      const restored = [] as WardrobeItem[]
+      for (let i = 0; i < remote.length; i++) restored.push(mapRemoteWardrobe(remote[i]))
+      _state.items = restored
+    } else {
+      repo.initMockData()
+      _state.items = repo.getAll()
+    }
   } catch (err) {
     _state.error = err instanceof Error ? err.message : '加载失败'
+    _state.items = repo.getAll()
   } finally {
     _state.loading = false
   }
@@ -102,6 +135,7 @@ function addItem(item: WardrobeItem): WardrobeItem | null {
     const added = repo.add(item)
     _state.items = [..._state.items, added]
     enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', added.id, 'create', JSON.stringify(added))
+    if (getCachedAccessToken() != '') createAssetRemote('wardrobe', added as UTSJSONObject).catch(() => {})
     notifyChanged()
     return added
   } catch (err) {
@@ -115,6 +149,10 @@ function updateItem(id: string, data: WardrobeUpdateData): boolean {
   if (ok) {
     _state.items = repo.getAll()
     enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', id, 'update', JSON.stringify(data))
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('wardrobe', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -125,6 +163,7 @@ function deleteItem(id: string): boolean {
   if (ok) {
     _state.items = _state.items.filter((item) => item.id !== id)
     enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', id, 'delete', '')
+    if (getCachedAccessToken() != '') deleteAssetRemote('wardrobe', id).catch(() => {})
     notifyChanged()
   }
   return ok
@@ -134,6 +173,10 @@ function toggleFavorite(id: string) {
   if (repo.toggleFavorite(id)) {
     _state.items = repo.getAll()
     enqueueLocalOperation(getCurrentSyncUserId(), 'wardrobe_item', id, 'update', 'favorite=toggle')
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('wardrobe', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
 }
@@ -185,7 +228,7 @@ class WardrobeStoreHandle {
   get categoryCounts(): UTSJSONObject { return _categoryCounts.value }
   get activeFilterCount(): number { return _activeFilterCount.value }
   get sortLabel(): string { return _sortLabel.value }
-  fetchItems(): void { fetchItems() }
+  fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: WardrobeItem): WardrobeItem | null { return addItem(item) }
   updateItem(id: string, data: WardrobeUpdateData): boolean { return updateItem(id, data) }
   deleteItem(id: string): boolean { return deleteItem(id) }

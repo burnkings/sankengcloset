@@ -1,56 +1,91 @@
-/**
- * WishPresenter — 心愿单展示层
- * domain model → display model，页面/组件零计算
- */
-
 import {
   WishItem,
-  WISH_STATUS_LABELS,
-  WISH_STATUS_COLORS,
-  WISH_STATUS_EMOJI,
-  PRIORITY_LABELS,
-  PRIORITY_COLORS,
-  PRIORITY_ORDER,
-  SOURCE_LABELS,
+  WISH_WISH, WISH_WATCHING, WISH_DECIDED, WISH_PURCHASED, WISH_PAUSED, WISH_CANCELED,
+  WISH_STATUS_COLORS, PRIORITY_COLORS, PRIORITY_ORDER,
+  PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW,
+  SOURCE_MANUAL, SOURCE_AI_IMPORT, SOURCE_DISCOVERY,
 } from './wish-item'
 
-/** 展示模型 — WishCard 直接使用 */
 export class WishDisplayModel {
   id: string = ''
   name: string = ''
   brand: string = ''
   coverImage: string = ''
   hasCover: boolean = false
-  // 状态
   status: string = ''
   statusText: string = ''
   statusColor: string = ''
-  statusEmoji: string = ''
-  // 优先级
   priorityLabel: string = ''
   priorityColor: string = ''
   priorityOrder: number = 3
-  // 价格
   priceText: string = ''
-  // 来源
   sourceText: string = ''
-  // 关联
   hasPurchase: boolean = false
   hasWardrobe: boolean = false
-  // 其他
   note: string = ''
   url: string = ''
-  // 收藏
   isFavorite: boolean = false
+  daysSinceCreated: number = 0
 }
 
-/** 价格格式化 */
+function getStatusText(s: string): string {
+  if (s === WISH_WISH) return '种草'
+  if (s === WISH_WATCHING) return '观望'
+  if (s === WISH_DECIDED) return '决定买'
+  if (s === WISH_PURCHASED) return '已买'
+  if (s === WISH_PAUSED) return '搁置'
+  if (s === WISH_CANCELED) return '拔草'
+  return '未知'
+}
+
+function getStatusColor(s: string): string {
+  if (s === WISH_WISH) return WISH_STATUS_COLORS.WISH as string
+  if (s === WISH_WATCHING) return WISH_STATUS_COLORS.WATCHING as string
+  if (s === WISH_DECIDED) return WISH_STATUS_COLORS.DECIDED as string
+  if (s === WISH_PURCHASED) return WISH_STATUS_COLORS.PURCHASED as string
+  if (s === WISH_PAUSED) return WISH_STATUS_COLORS.PAUSED as string
+  if (s === WISH_CANCELED) return WISH_STATUS_COLORS.CANCELED as string
+  return '#9CA3AF'
+}
+
+function getPriorityLabel(p: string): string {
+  if (p === PRIORITY_HIGH) return '高'
+  if (p === PRIORITY_MEDIUM) return '中'
+  return '低'
+}
+
+function getPriorityColor(p: string): string {
+  if (p === PRIORITY_HIGH) return PRIORITY_COLORS.HIGH as string
+  if (p === PRIORITY_MEDIUM) return PRIORITY_COLORS.MEDIUM as string
+  return PRIORITY_COLORS.LOW as string
+}
+
+function getPriorityOrder(p: string): number {
+  if (p === PRIORITY_HIGH) return 1
+  if (p === PRIORITY_MEDIUM) return 2
+  return 3
+}
+
+function getSourceText(s: string): string {
+  if (s === SOURCE_AI_IMPORT) return 'AI导入'
+  if (s === SOURCE_DISCOVERY) return '发现'
+  return '手动添加'
+}
+
 function formatPrice(price: number): string {
   if (price <= 0) return ''
   return `¥${price.toFixed(0)}`
 }
 
-/** 单条转换 */
+function calcDaysSince(createdAt: string): number {
+  if (createdAt === '') return 0
+  try {
+    const created = new Date(createdAt).getTime()
+    const now = Date.now()
+    return Math.floor((now - created) / (1000 * 60 * 60 * 24))
+  } catch { return 0 }
+}
+
 export function toDisplayModel(item: WishItem): WishDisplayModel {
   const dm = new WishDisplayModel()
   dm.id = item.id
@@ -58,30 +93,42 @@ export function toDisplayModel(item: WishItem): WishDisplayModel {
   dm.brand = item.brand
   dm.coverImage = item.coverImage
   dm.hasCover = item.coverImage !== ''
-  // 状态
   dm.status = item.status
-  dm.statusText = WISH_STATUS_LABELS[item.status] != null ? WISH_STATUS_LABELS[item.status] as string : '未知'
-  dm.statusColor = WISH_STATUS_COLORS[item.status] != null ? WISH_STATUS_COLORS[item.status] as string : '#9CA3AF'
-  dm.statusEmoji = WISH_STATUS_EMOJI[item.status] != null ? WISH_STATUS_EMOJI[item.status] as string : '💡'
-  // 优先级
-  dm.priorityLabel = PRIORITY_LABELS[item.priority] != null ? PRIORITY_LABELS[item.priority] as string : '中'
-  dm.priorityColor = PRIORITY_COLORS[item.priority] != null ? PRIORITY_COLORS[item.priority] as string : '#F59E0B'
-  dm.priorityOrder = PRIORITY_ORDER[item.priority] != null ? PRIORITY_ORDER[item.priority] as number : 2
-  // 价格
+  dm.statusText = getStatusText(item.status)
+  dm.statusColor = getStatusColor(item.status)
+  dm.priorityLabel = getPriorityLabel(item.priority)
+  dm.priorityColor = getPriorityColor(item.priority)
+  dm.priorityOrder = getPriorityOrder(item.priority)
   dm.priceText = formatPrice(item.estimatedPrice)
-  // 来源
-  dm.sourceText = SOURCE_LABELS[item.source] != null ? SOURCE_LABELS[item.source] as string : '手动添加'
-  // 关联
+  dm.sourceText = getSourceText(item.source)
   dm.hasPurchase = item.purchaseId !== ''
   dm.hasWardrobe = item.wardrobeId !== ''
-  // 其他
   dm.note = item.note
   dm.url = item.url
   dm.isFavorite = item.isFavorite
+  dm.daysSinceCreated = calcDaysSince(item.createdAt)
   return dm
 }
 
-/** 批量转换 */
 export function toDisplayModels(items: WishItem[]): WishDisplayModel[] {
   return items.map((item) => toDisplayModel(item))
+}
+
+export class WishStatsData {
+  wishCount: number = 0
+  decidedCount: number = 0
+  purchasedCount: number = 0
+  estimatedTotal: number = 0
+}
+
+export function calcStats(items: WishItem[]): WishStatsData {
+  const s = new WishStatsData()
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    if (it.isDeleted) continue
+    if (it.status === WISH_WISH || it.status === WISH_WATCHING) s.wishCount++
+    if (it.status === WISH_DECIDED) { s.decidedCount++; s.estimatedTotal += it.estimatedPrice }
+    if (it.status === WISH_PURCHASED) s.purchasedCount++
+  }
+  return s
 }

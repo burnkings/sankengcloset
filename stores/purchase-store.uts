@@ -5,6 +5,8 @@ import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 import { toDisplayModels, PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import * as repo from '@/domain/repositories/purchase-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { createAssetRemote, deleteAssetRemote, listPurchasesRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -43,14 +45,43 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
-function fetchPurchases() {
+function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
+  const item = new PurchaseRecord()
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.name = raw['name'] != null ? raw['name'] as string : ''
+  item.brand = raw['brand'] != null ? raw['brand'] as string : ''
+  item.shopName = raw['shopName'] != null ? raw['shopName'] as string : ''
+  item.category = raw['category'] != null ? raw['category'] as string : 'OTHER'
+  item.totalAmount = raw['totalAmount'] != null ? raw['totalAmount'] as number : 0
+  item.depositAmount = raw['depositAmount'] != null ? raw['depositAmount'] as number : 0
+  item.paidAmount = raw['paidAmount'] != null ? raw['paidAmount'] as number : 0
+  item.remainingAmount = raw['remainingAmount'] != null ? raw['remainingAmount'] as number : 0
+  item.paymentStatus = raw['paymentStatus'] != null ? raw['paymentStatus'] as string : 'PRE_ORDER'
+  item.purchaseDate = raw['purchaseDate'] != null ? raw['purchaseDate'] as string : ''
+  item.deadline = raw['deadline'] != null ? raw['deadline'] as string : ''
+  item.note = raw['note'] != null ? raw['note'] as string : ''
+  item.isFavorite = raw['isFavorite'] == true
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  item.updatedAt = raw['updatedAt'] != null ? raw['updatedAt'] as string : ''
+  return item
+}
+
+async function fetchPurchases() {
   _state.loading = true
   _state.error = ''
   try {
-    repo.initMockData()
-    _state.items = repo.getAll()
+    if (getCachedAccessToken() != '') {
+      const remote = await listPurchasesRemote()
+      const restored = [] as PurchaseRecord[]
+      for (let i = 0; i < remote.length; i++) restored.push(mapRemotePurchase(remote[i]))
+      _state.items = restored
+    } else {
+      repo.initMockData()
+      _state.items = repo.getAll()
+    }
   } catch (err) {
     _state.error = err instanceof Error ? err.message : '加载失败'
+    _state.items = repo.getAll()
   } finally {
     _state.loading = false
   }
@@ -62,6 +93,7 @@ function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
     const added = repo.add(record)
     _state.items = [..._state.items, added]
     enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
+    if (getCachedAccessToken() != '') createAssetRemote('purchases', added as UTSJSONObject).catch(() => {})
     notifyChanged()
     return added
   } catch (err) {
@@ -75,6 +107,10 @@ function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
   if (ok) {
     _state.items = repo.getAll()
     enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('purchases', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -85,6 +121,7 @@ function deletePurchase(id: string): boolean {
   if (ok) {
     _state.items = _state.items.filter((r) => r.id !== id)
     enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
+    if (getCachedAccessToken() != '') deleteAssetRemote('purchases', id).catch(() => {})
     notifyChanged()
   }
   return ok
@@ -109,7 +146,7 @@ class PurchaseStoreHandle {
   get totalSpent(): number { return _totalSpent.value }
   get remainingTotal(): number { return _remainingTotal.value }
   get itemCount(): number { return _itemCount.value }
-  fetchPurchases(): void { fetchPurchases() }
+  fetchPurchases(): Promise<void> { return fetchPurchases() }
   addPurchase(record: PurchaseRecord): PurchaseRecord | null { return addPurchase(record) }
   updatePurchase(id: string, data: PurchaseUpdateData): boolean { return updatePurchase(id, data) }
   deletePurchase(id: string): boolean { return deletePurchase(id) }

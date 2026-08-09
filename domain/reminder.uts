@@ -25,10 +25,24 @@ export const TYPE_EMOJI = {
 }
 
 export const TYPE_COLORS = {
-  ARRIVAL: '#22C55E',
-  BALANCE: '#F59E0B',
-  RELEASE: '#8B5CF6',
-  CUSTOM: '#6B7280',
+  ARRIVAL: '#1890FF',
+  BALANCE: '#FF4D4F',
+  RELEASE: '#722ED1',
+  CUSTOM: '#8C8C8C',
+}
+
+export const TYPE_COLORS_DARK = {
+  ARRIVAL: '#69B1FF',
+  BALANCE: '#FF7875',
+  RELEASE: '#B37FEB',
+  CUSTOM: '#BFBFBF',
+}
+
+export const TYPE_PLACEHOLDERS = {
+  ARRIVAL: '例：包裹预计送达',
+  BALANCE: '例：月光曲 JSK 尾款截止',
+  RELEASE: '例：新品限定 10 点开售',
+  CUSTOM: '例：去驿站取件',
 }
 
 // ====== 提醒状态 ======
@@ -45,8 +59,14 @@ export const STATUS_LABELS = {
 
 export const STATUS_COLORS = {
   PENDING: '#3B82F6',
-  DONE: '#22C55E',
+  DONE: '#52C41A',
   MISSED: '#9CA3AF',
+}
+
+export const STATUS_COLORS_DARK = {
+  PENDING: '#69B1FF',
+  DONE: '#73D13D',
+  MISSED: '#8C8C8C',
 }
 
 // ====== 筛选选项 ======
@@ -78,6 +98,7 @@ export class Reminder {
   type: string = 'CUSTOM' // ARRIVAL / BALANCE / RELEASE / CUSTOM
   remindDate: string = '' // YYYY-MM-DD
   remindTime: string = '' // HH:mm
+  isAllDay: boolean = false
   relatedPurchaseId: string = ''
   relatedWishId: string = ''
   note: string = ''
@@ -93,6 +114,7 @@ export class ReminderUpdateData {
   type: string = ''
   remindDate: string = ''
   remindTime: string = ''
+  isAllDay: boolean = false
   relatedPurchaseId: string = ''
   relatedWishId: string = ''
   note: string = ''

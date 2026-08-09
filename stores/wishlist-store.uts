@@ -9,6 +9,8 @@ import { toDisplayModel, toDisplayModels, WishDisplayModel } from '@/domain/wish
 import * as repo from '@/domain/repositories/wishlist-repo'
 import { PurchaseRecord } from '@/domain/purchase-record'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { createAssetRemote, deleteAssetRemote, listWishesRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -130,13 +132,42 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
-function fetchItems() {
+function mapRemoteWish(raw: UTSJSONObject): WishItem {
+  const item = new WishItem()
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.name = raw['name'] != null ? raw['name'] as string : ''
+  item.coverImage = raw['coverImage'] != null ? raw['coverImage'] as string : ''
+  item.brand = raw['brand'] != null ? raw['brand'] as string : ''
+  item.estimatedPrice = raw['estimatedPrice'] != null ? raw['estimatedPrice'] as number : 0
+  item.priority = raw['priority'] != null ? raw['priority'] as string : 'MEDIUM'
+  item.status = raw['status'] != null ? raw['status'] as string : 'WISH'
+  item.source = raw['source'] != null ? raw['source'] as string : 'MANUAL'
+  item.wardrobeId = raw['wardrobeId'] != null ? raw['wardrobeId'] as string : ''
+  item.purchaseId = raw['purchaseId'] != null ? raw['purchaseId'] as string : ''
+  item.convertedAt = raw['convertedAt'] != null ? raw['convertedAt'] as string : ''
+  item.note = raw['note'] != null ? raw['note'] as string : ''
+  item.url = raw['url'] != null ? raw['url'] as string : ''
+  item.isFavorite = raw['isFavorite'] == true
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  item.updatedAt = raw['updatedAt'] != null ? raw['updatedAt'] as string : ''
+  return item
+}
+
+async function fetchItems() {
   _state.loading = true
   _state.error = ''
   try {
-    _state.items = repo.getAll()
+    if (getCachedAccessToken() != '') {
+      const remote = await listWishesRemote()
+      const restored = [] as WishItem[]
+      for (let i = 0; i < remote.length; i++) restored.push(mapRemoteWish(remote[i]))
+      _state.items = restored
+    } else {
+      _state.items = repo.getAll()
+    }
   } catch (err) {
     _state.error = err instanceof Error ? err.message : '加载失败'
+    _state.items = repo.getAll()
   } finally {
     _state.loading = false
   }
@@ -148,6 +179,7 @@ function addItem(item: WishItem): WishItem | null {
     const added = repo.add(item)
     _state.items = [..._state.items, added]
     enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', added.id, 'create', JSON.stringify(added))
+    if (getCachedAccessToken() != '') createAssetRemote('wishes', added as UTSJSONObject).catch(() => {})
     notifyChanged()
     return added
   } catch (err) {
@@ -173,6 +205,10 @@ function updateItem(id: string, data: WishUpdateData): boolean {
       existing.updatedAt = new Date().toISOString()
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(data))
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -183,6 +219,7 @@ function deleteItem(id: string): boolean {
   if (ok) {
     _state.items = _state.items.filter((w) => w.id !== id)
     enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'delete', '')
+    if (getCachedAccessToken() != '') deleteAssetRemote('wishes', id).catch(() => {})
     notifyChanged()
   }
   return ok
@@ -197,6 +234,10 @@ function changeStatus(id: string, newStatus: string): boolean {
       existing.updatedAt = new Date().toISOString()
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `status=${newStatus}`)
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -210,6 +251,10 @@ function toggleFavorite(id: string): boolean {
       existing.isFavorite = !existing.isFavorite
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', 'favorite=toggle')
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -243,6 +288,10 @@ function markPurchased(id: string, purchaseId: string): boolean {
       existing.updatedAt = existing.convertedAt
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `purchaseId=${purchaseId}`)
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -257,6 +306,10 @@ function linkWardrobe(id: string, wardrobeId: string): boolean {
       existing.updatedAt = new Date().toISOString()
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `wardrobeId=${wardrobeId}`)
+    if (getCachedAccessToken() != '') {
+      const current = _state.items.find((item) => item.id == id)
+      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+    }
     notifyChanged()
   }
   return ok
@@ -312,7 +365,7 @@ class WishListStoreHandle {
   get highPriorityCount(): number { return _highPriorityCount.value }
   get estimatedTotal(): number { return _estimatedTotal.value }
   get convertedCount(): number { return _convertedCount.value }
-  fetchItems(): void { fetchItems() }
+  fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: WishItem): WishItem | null { return addItem(item) }
   updateItem(id: string, data: WishUpdateData): boolean { return updateItem(id, data) }
   deleteItem(id: string): boolean { return deleteItem(id) }
