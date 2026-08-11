@@ -45,7 +45,6 @@
         </view>
 
         <view v-else>
-          <V2SectionHeader :title="`搜索结果 · ${results.length}`" :compact="true" />
           <view v-if="searching && results.length === 0" :style="emptyWrap">
             <AppLoading />
             <text :style="emptyTitle">搜索中...</text>

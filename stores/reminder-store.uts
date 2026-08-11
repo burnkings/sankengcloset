@@ -64,8 +64,16 @@ const _missedItems = computed((): Reminder[] => {
 const _doneItems = computed((): Reminder[] => _activeItems.value.filter((r) => r.status === 'DONE'))
 
 const _filteredItems = computed((): Reminder[] => {
+  autoMarkOverdue()
   let result = _activeItems.value
-  if (_state.filterStatus) result = result.filter((r) => r.status == _state.filterStatus)
+  if (_state.filterStatus) {
+    if (_state.filterStatus === 'MISSED') {
+      const today = new Date().toISOString().split('T')[0]
+      result = result.filter((r) => r.status === 'MISSED' || (r.status === 'PENDING' && r.remindDate < today))
+    } else {
+      result = result.filter((r) => r.status == _state.filterStatus)
+    }
+  }
   if (_state.searchKeyword) {
     const kw = _state.searchKeyword.toLowerCase()
     result = result.filter((r) => r.title.toLowerCase().includes(kw) || r.note.toLowerCase().includes(kw))
@@ -172,6 +180,7 @@ function updateItem(id: string, data: ReminderUpdateData): boolean {
       existing.isAllDay = data.isAllDay
       if (data.note != '') existing.note = data.note
       if (data.status != '') existing.status = data.status
+      existing.wardrobeBindings = data.wardrobeBindings
       existing.updatedAt = new Date().toISOString()
     }
     enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify(data))
@@ -245,15 +254,41 @@ function setSort(sort: string) {
 
 function getById(id: string): Reminder | null { return _state.items.find((r) => r.id == id) }
 
+function swapItems(id1: string, id2: string) {
+  const idx1 = _state.items.findIndex((r) => r.id == id1)
+  const idx2 = _state.items.findIndex((r) => r.id == id2)
+  if (idx1 >= 0 && idx2 >= 0) {
+    const tmp = _state.items[idx1]
+    _state.items.splice(idx1, 1, _state.items[idx2])
+    _state.items.splice(idx2, 1, tmp)
+    repo.persist(_state.items)
+    notifyChanged()
+  }
+}
+
 function autoMarkOverdue() {
-  const today = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const today = now.toISOString().split('T')[0]
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
   let changed = false
   for (let i = 0; i < _state.items.length; i++) {
     const item = _state.items[i]
-    if (!item.isDeleted && item.status === 'PENDING' && item.remindDate !== '' && item.remindDate < today) {
-      item.status = 'MISSED'
-      item.updatedAt = new Date().toISOString()
-      changed = true
+    if (!item.isDeleted && item.status === 'PENDING' && item.remindDate !== '') {
+      let isOverdue = false
+      if (item.remindDate < today) {
+        isOverdue = true
+      } else if (item.remindDate === today && !item.isAllDay && item.remindTime !== '') {
+        const parts = item.remindTime.split(':')
+        if (parts.length === 2) {
+          const remindMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1])
+          if (remindMinutes < nowMinutes) isOverdue = true
+        }
+      }
+      if (isOverdue) {
+        item.status = 'MISSED'
+        item.updatedAt = new Date().toISOString()
+        changed = true
+      }
     }
   }
   if (changed) { repo.persist(_state.items); notifyChanged() }
@@ -292,6 +327,7 @@ class ReminderStoreHandle {
   setSearch(keyword: string): void { setSearch(keyword) }
   setSort(sort: string): void { setSort(sort) }
   getById(id: string): Reminder | null { return getById(id) }
+  swapItems(id1: string, id2: string): void { swapItems(id1, id2) }
   autoMarkOverdue(): void { autoMarkOverdue() }
 }
 

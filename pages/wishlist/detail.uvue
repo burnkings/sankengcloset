@@ -1,7 +1,7 @@
 <template>
   <DetailLayout title="心愿详情">
     <template #right>
-      <text :style="favBtnStyle" @tap="onFavTap">{{ item!.isFavorite ? '已收藏' : '收藏' }}</text>
+      <text :style="favBtnStyle" @tap="onFavTap">{{ item != null && item.isFavorite ? '已收藏' : '收藏' }}</text>
       <text :style="editBtnStyle" @tap="onEditTap">编辑</text>
       <text :style="deleteBtnStyle" @tap="onDeleteTap">删除</text>
     </template>

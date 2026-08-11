@@ -11,7 +11,6 @@
           <view :style="actionRow">
             <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">{{ store.sortLabel }}</text><text :style="sortArrow">&#9662;</text></view>
             <view :style="quickFilters">
-              <view :style="quickChip(favOnly)" @tap="toggleFavOnly"><text :style="quickChipText(favOnly)">仅看收藏</text></view>
               <view :style="quickChip(unwornOnly)" @tap="toggleUnwornOnly"><text :style="quickChipText(unwornOnly)">仅看未穿</text></view>
             </view>
           </view>
@@ -74,7 +73,6 @@ import { showFeedback } from '@/utils/feedback'
 const store = useWardrobeStore()
 const searchValue = ref('')
 const activeFilter = ref('全部')
-const favOnly = ref(false)
 const unwornOnly = ref(false)
 const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
 
@@ -86,15 +84,9 @@ function onFilter(label: string) {
   const map = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
   store.setCategory(label === '全部' ? '' : (map[label] != null ? map[label] as string : ''))
 }
-function toggleFavOnly() {
-  favOnly.value = !favOnly.value
-  store.setStatus(favOnly.value ? 'favorite' : '')
-  if (favOnly.value) unwornOnly.value = false
-}
 function toggleUnwornOnly() {
   unwornOnly.value = !unwornOnly.value
   store.setStatus(unwornOnly.value ? 'UNWORN' : '')
-  if (unwornOnly.value) favOnly.value = false
 }
 const hasAnyItems = computed((): boolean => store.itemCount > 0)
 const visibleItems = computed((): WardrobeItem[] => store.sortedItems)

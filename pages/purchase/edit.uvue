@@ -5,43 +5,44 @@
       <scroll-view :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
 
-          <V2FormSection title="商品信息">
+          <V2FormSection title="基本信息">
             <text :style="fieldLabel">商品名称</text>
             <AppInput v-model="form.name" placeholder="商品名称" :clearable="true" />
 
-            <view :style="twoColumnRow">
-              <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
-              <view :style="halfFieldLast"><text :style="fieldLabelCompact">购买店铺</text><AppInput v-model="form.shopName" placeholder="店铺" /></view>
+            <text :style="fieldLabel">品牌</text>
+            <AppInput v-model="form.brand" placeholder="输入品牌名" :clearable="true" @input="onBrandInput" />
+            <view v-if="brandSuggestions.length > 0" :style="brandDropdown">
+              <view v-for="b in brandSuggestions" :key="b" :style="brandItem" @tap="selectBrand(b)">
+                <text :style="brandItemText">{{ b }}</text>
+              </view>
             </view>
 
             <text :style="fieldLabel">坑向</text>
             <V2Segmented :items="categoryLabels" :active="activeCategoryLabel" variant="solid" @change="onCategoryChange" />
 
             <text :style="fieldLabel">付款状态</text>
-            <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" @change="onStatusChange" />
-          </V2FormSection>
+            <scroll-view direction="horizontal" :show-scrollbar="false" :style="statusScroll">
+              <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" @change="onStatusChange" />
+            </scroll-view>
 
-          <V2FormSection title="金额与时间">
             <view :style="amountCard">
-              <view :style="amountColumn"><text :style="amountLabel">总金额</text><AppInput v-model="form.totalAmountStr" placeholder="0" type="digit" /></view>
-              <view :style="amountColumn"><text :style="amountLabel">定金</text><AppInput v-model="form.depositAmountStr" placeholder="0" type="digit" /></view>
-              <view :style="amountColumnLast"><text :style="amountLabel">已支付</text><AppInput v-model="form.paidAmountStr" placeholder="0" type="digit" /></view>
+              <view :style="amountColumn"><AppInput v-model="form.totalAmountStr" placeholder="总金额" type="digit" /></view>
+              <view :style="amountColumn"><AppInput v-model="form.depositAmountStr" placeholder="定金" type="digit" /></view>
+              <view :style="amountColumnLast"><AppInput v-model="form.paidAmountStr" placeholder="已支付" type="digit" /></view>
             </view>
 
             <view :style="twoColumnRow">
               <view :style="halfField">
-                <text :style="fieldLabelCompact">购买日期</text>
-                <V2DatePicker label="" :value="form.purchaseDate" placeholder="选择日期" mode="date" @change="onPurchaseDatePick" />
+                <V2DatePicker label="" :value="form.purchaseDate" placeholder="购买日期" mode="date" @change="onPurchaseDatePick" />
               </view>
               <view :style="halfFieldLast">
-                <text :style="fieldLabelCompact">尾款截止日</text>
-                <V2DatePicker label="" :value="form.deadline" placeholder="选择日期" mode="date" @change="onDeadlinePick" />
+                <V2DatePicker label="" :value="form.deadline" placeholder="尾款截止日" mode="date" @change="onDeadlinePick" />
               </view>
             </view>
           </V2FormSection>
 
-          <V2FormSection title="备注">
-            <view :style="noteShell"><textarea :value="form.note" placeholder="填写尺码、尾款时间、店铺备注等" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
+          <V2FormSection title="补充">
+            <view :style="noteShell"><textarea :value="form.note" placeholder="尺码、尾款时间等信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
           </V2FormSection>
 
           <view :style="bottomSpacer" />
@@ -80,7 +81,6 @@ const editId = ref('')
 type FormState = {
   name: string
   brand: string
-  shopName: string
   category: string
   totalAmountStr: string
   depositAmountStr: string
@@ -90,7 +90,20 @@ type FormState = {
   deadline: string
   note: string
 }
-const form = ref<FormState>({ name: '', brand: '', shopName: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', note: '' })
+const form = ref<FormState>({ name: '', brand: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', note: '' })
+
+const brandSuggestions = ref<string[]>([])
+function onBrandInput(e: any) {
+  const val = e.detail != null ? e.detail.value as string : ''
+  form.value.brand = val
+  if (val.trim() === '') { brandSuggestions.value = []; return }
+  const kw = val.trim().toLowerCase()
+  brandSuggestions.value = store.brands.filter((b) => b.toLowerCase().includes(kw)).slice(0, 6)
+}
+function selectBrand(b: string) {
+  form.value.brand = b
+  brandSuggestions.value = []
+}
 
 const categoryLabels = ['JK', 'Lolita', '汉服', '其他']
 const statusLabels = ['预售中', '已付定金', '待付款', '已完成', '已取消']
@@ -100,21 +113,10 @@ const activeStatusLabel = computed((): string => form.value.paymentStatus === 'D
 function onCategoryChange(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK')) }
 function onStatusChange(label: string) {
   form.value.paymentStatus = label === '已付定金' ? 'DEPOSIT_PAID' : (label === '待付款' ? 'BALANCE_PENDING' : (label === '已完成' ? 'COMPLETED' : (label === '已取消' ? 'CANCELLED' : 'PRE_ORDER')))
-  if (form.value.paymentStatus === 'DEPOSIT_PAID') {
-    if (form.value.paidAmountStr === '' || form.value.paidAmountStr === '0') form.value.paidAmountStr = form.value.depositAmountStr
-    if (form.value.deadline === '') {
-      const d = new Date(Date.now() + 15 * 86400000)
-      form.value.deadline = d.toISOString().split('T')[0]
-    }
-  }
-  if (form.value.paymentStatus === 'COMPLETED') {
-    if (form.value.paidAmountStr === '' || form.value.paidAmountStr === '0') form.value.paidAmountStr = form.value.totalAmountStr
-  }
 }
 function onNoteInput(e: any) {
-  const eObj = e as UTSJSONObject
-  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
-  form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
+  const val = e.detail != null ? e.detail.value as string : ''
+  form.value.note = val
 }
 function onPurchaseDatePick(value: string) { form.value.purchaseDate = value }
 function onDeadlinePick(value: string) { form.value.deadline = value }
@@ -124,15 +126,10 @@ function save() {
   const total = parseFloat(form.value.totalAmountStr)
   const deposit = parseFloat(form.value.depositAmountStr)
   const paid = parseFloat(form.value.paidAmountStr)
-  if (form.value.totalAmountStr !== '' && (isNaN(total) || total < 0)) { showFeedback('请填写正确的总金额'); return }
-  if (form.value.depositAmountStr !== '' && (isNaN(deposit) || deposit < 0)) { showFeedback('请填写正确的定金'); return }
-  if (form.value.paidAmountStr !== '' && (isNaN(paid) || paid < 0)) { showFeedback('请填写正确的已支付金额'); return }
-  if (total > 0 && paid > total) { showFeedback('已支付金额不能大于总金额'); return }
   if (isEdit.value) {
     const data = new PurchaseUpdateData()
     data.name = form.value.name.trim()
     data.brand = form.value.brand.trim()
-    data.shopName = form.value.shopName.trim()
     data.category = form.value.category
     data.paymentStatus = form.value.paymentStatus
     data.totalAmount = total > 0 ? total : 0
@@ -146,7 +143,6 @@ function save() {
     const record = new PurchaseRecord()
     record.name = form.value.name.trim()
     record.brand = form.value.brand.trim()
-    record.shopName = form.value.shopName.trim()
     record.category = form.value.category
     record.paymentStatus = form.value.paymentStatus
     record.totalAmount = total > 0 ? total : 0
@@ -168,30 +164,23 @@ onLoad((options) => {
     if (id !== '') {
       editId.value = id; isEdit.value = true
       const record = store.getPurchaseById(id)
-      const now = new Date().toISOString().substring(0, 10)
       if (record != null) {
         form.value.name = record.name
         form.value.brand = record.brand
-        form.value.shopName = record.shopName
         form.value.category = record.category
         form.value.paymentStatus = record.paymentStatus
         form.value.totalAmountStr = record.totalAmount > 0 ? record.totalAmount.toString() : ''
         form.value.depositAmountStr = record.depositAmount > 0 ? record.depositAmount.toString() : ''
         form.value.paidAmountStr = record.paidAmount > 0 ? record.paidAmount.toString() : ''
-        form.value.purchaseDate = record.purchaseDate !== '' ? record.purchaseDate : now
+        form.value.purchaseDate = record.purchaseDate
         form.value.deadline = record.deadline
         form.value.note = record.note
       }
       return
     }
-    const now = new Date().toISOString().substring(0, 10)
-    form.value.purchaseDate = now
     form.value.name = options['name'] != null ? (options['name'] as string) : ''
     form.value.brand = options['brand'] != null ? (options['brand'] as string) : ''
     form.value.category = options['category'] != null ? (options['category'] as string) : 'JK'
-    form.value.deadline = options['deadline'] != null ? (options['deadline'] as string) : ''
-    const amount = options['amount'] != null ? (options['amount'] as string) : ''
-    if (amount !== '') form.value.totalAmountStr = amount
   }
 })
 
@@ -200,21 +189,30 @@ const scrollStyle = { flex: 1 }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: '160rpx' }
 const bottomSpacer = { height: '40rpx' }
 const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx', marginBottom: '14rpx' }))
-const fieldLabelCompact = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
-const twoColumnRow = { ...flexRow, marginTop: '24rpx' }
-const halfField = { width: '326rpx', marginRight: '16rpx' }
-const halfFieldLast = { ...flexFill }
-const amountCard = { ...flexRow, marginTop: '24rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }
-const amountColumn = { width: '194rpx', marginRight: '16rpx' }
-const amountColumnLast = { ...flexFill }
-const amountLabel = computed((): any => ({ fontSize: '24rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary, marginBottom: '10rpx' }))
-const pickerBox = { height: '80rpx', paddingLeft: '28rpx', borderRadius: '9999rpx', backgroundColor: n.value.inputFill, justifyContent: 'center' }
-const pickerText = (filled: boolean) => ({ fontSize: '28rpx', color: filled ? n.value.text : n.value.placeholder })
+const statusScroll = { marginBottom: '0' }
+const amountCard = { flexDirection: 'row', marginTop: '24rpx' }
+const amountColumn = { flex: 1, marginRight: '12rpx' }
+const amountColumnLast = { flex: 1 }
+const twoColumnRow = { flexDirection: 'row', marginTop: '12rpx' }
+const halfField = { flex: 1, marginRight: '12rpx' }
+const halfFieldLast = { flex: 1 }
+
+const brandDropdown = computed((): any => ({
+  borderRadius: '24rpx', backgroundColor: n.value.surface, overflow: 'hidden',
+  borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder,
+  marginTop: '8rpx', marginBottom: '8rpx',
+}))
+const brandItem = computed((): any => ({
+  height: '80rpx', paddingLeft: '28rpx', justifyContent: 'center',
+  borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.divider,
+}))
+const brandItemText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text }))
+
 const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 
-const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', flexDirection: 'row', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: `${safeBottom + 20}px`, paddingTop: '16rpx', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
+const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', flexDirection: 'row', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: `${safeBottom + 20}px`, paddingTop: '16rpx', backgroundColor: n.value.surface }))
 const saveBtn = computed((): any => ({ flex: 1 as const, height: '88rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 </script>

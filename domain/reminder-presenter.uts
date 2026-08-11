@@ -15,15 +15,23 @@ import {
 function getTypeText(type: string): string {
   if (type === 'ARRIVAL') return '到货提醒'
   if (type === 'BALANCE') return '尾款提醒'
-  if (type === 'RELEASE') return '发售提醒'
-  return '自定义'
+  if (type === 'RELEASE') return '上新发售'
+  if (type === 'OUTFIT') return '穿搭计划'
+  if (type === 'PHOTO') return '拍照日程'
+  if (type === 'ORGANIZE') return '整理衣橱'
+  if (type === 'WISH') return '蹲新品'
+  return '打卡'
 }
 
 function getTypeEmoji(type: string): string {
   if (type === 'ARRIVAL') return '📦'
   if (type === 'BALANCE') return '💰'
   if (type === 'RELEASE') return '🔔'
-  return '⏰'
+  if (type === 'OUTFIT') return '👗'
+  if (type === 'PHOTO') return '📸'
+  if (type === 'ORGANIZE') return '🗂'
+  if (type === 'WISH') return '💝'
+  return '✅'
 }
 
 function getTypeColor(type: string): string {
@@ -68,6 +76,7 @@ export class ReminderDisplayModel {
   groupLabel: string = ''
   timeDisplay: string = ''
   sourceLabel: string = ''
+  wardrobeBindings: string[] = []
 }
 
 export class ReminderGroupViewModel {
@@ -88,7 +97,7 @@ function formatDate(dateStr: string): string {
     const day = parseInt(parts[2])
     const d = new Date(year, month - 1, day)
     const weekday = WEEKDAY_NAMES[d.getDay()]
-    return `${year}年${month}月${day}日 周${weekday}`
+    return `${month}月${day}日`
   } catch {
     return dateStr
   }
@@ -150,6 +159,7 @@ export function toDisplayModel(item: Reminder): ReminderDisplayModel {
   dm.hasWish = item.relatedWishId !== ''
   dm.note = item.note
   dm.sourceLabel = getSourceLabel(item)
+  dm.wardrobeBindings = item.wardrobeBindings
   const days = diffDays(item.remindDate)
   dm.isToday = days == 0
   dm.isUpcoming = days > 0 && days <= 7

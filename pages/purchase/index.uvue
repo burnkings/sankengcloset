@@ -1,6 +1,12 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="购买记录" :show-back="true" /></template>
+    <template #navbar>
+      <AppNavbar v-if="!selectMode" title="购买记录" :show-back="true" />
+      <AppNavbar v-else title="选择订单" :show-back="false">
+        <template #left><text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text></template>
+        <template #right><text :style="selectCancelText" @tap="exitSelect">取消</text></template>
+      </AppNavbar>
+    </template>
     <template #default>
       <scroll-view :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
@@ -26,16 +32,16 @@
           <view v-else>
             <view v-for="group in groupedItems" :key="group.key">
               <view :style="groupHeader"><text :style="groupHeaderText">{{ group.label }}（{{ group.items.length }} 条）</text></view>
-              <view v-for="item in group.items" :key="item.id" :style="cardStyle(item)" @tap="openItem(item.id)">
+               <view v-for="item in group.items" :key="item.id" :style="cardStyle(item)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelect(item.id)">
+                <view v-if="selectMode" :style="selectCheckWrap" @tap.stop="toggleItem(item.id)">
+                  <view :style="selectCheckStyle(selectedIds.indexOf(item.id) >= 0)">
+                    <text v-if="selectedIds.indexOf(item.id) >= 0" :style="selectCheckIcon">✓</text>
+                  </view>
+                </view>
                 <view v-if="item.isOverdue" :style="overdueTag"><text :style="overdueTagText">已逾期</text></view>
                 <view :style="cardTop">
                   <text :style="cardTitle">{{ item.name }}</text>
                   <V2StatusChip :label="item.statusText" :status="statusClass(item.statusText)" size="sm" />
-                </view>
-                <text :style="cardBrand">{{ item.brand !== '' ? item.brand : item.shopName }}</text>
-                <view :style="cardAmountRow">
-                  <text :style="cardRemaining(item)">{{ item.remainingText }}</text>
-                  <text :style="cardTotal">{{ item.totalText }}</text>
                 </view>
                 <view :style="cardProgress"><view :style="cardProgressFill(item.progressPercent, item.statusColor)" /></view>
               </view>
@@ -47,7 +53,24 @@
       </scroll-view>
     </template>
   </MainLayout>
-  <AppFab @tap="goAdd" />
+  <AppFab v-if="!selectMode" @tap="goAdd" />
+
+  <view v-if="selectMode && selectedIds.length > 0" :style="bottomBar">
+    <view :style="deleteBtn" @tap="confirmDelete"><text :style="deleteBtnText">删除 ({{ selectedIds.length }})</text></view>
+  </view>
+  <view v-if="selectMode && selectedIds.length === 0" :style="bottomBar">
+    <view :style="deleteDisabled"><text :style="deleteDisabledText">请选择订单</text></view>
+  </view>
+
+  <AppDialog :visible="showDeleteDialog" title="确认删除" @confirm="batchDelete" @cancel="showDeleteDialog = false">
+    <text :style="dialogText">确定删除选中的 {{ selectedIds.length }} 条订单吗？</text>
+    <template #actions>
+      <view :style="dialogActions">
+        <view :style="dialogCancelBtn" @tap="showDeleteDialog = false"><text :style="dialogCancelBtnText">取消</text></view>
+        <view :style="dialogDelBtn" @tap="batchDelete"><text :style="dialogDelBtnText">删除</text></view>
+      </view>
+    </template>
+  </AppDialog>
 </template>
 
 <script setup lang="uts">
@@ -67,8 +90,12 @@ import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
 import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
 import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = usePurchaseStore()
+const selectMode = ref(false)
+const selectedIds = ref<string[]>([])
+const showDeleteDialog = ref(false)
 const activeFilter = ref('全部')
 const filters = ['全部', '预售中', '已付定金', '待付款', '已完成', '已取消']
 const formattedTotal = computed((): string => String(store.totalSpent))
@@ -91,7 +118,29 @@ function statusClass(statusText: string): string {
   return 'pending'
 }
 function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
-function openItem(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
+function openItem(id: string) { if (!selectMode.value) uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
+
+function enterSelect(id: string) { selectMode.value = true; selectedIds.value = [id] }
+function exitSelect() { selectMode.value = false; selectedIds.value = [] }
+function toggleItem(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx >= 0) { const n = [...selectedIds.value]; n.splice(idx, 1); selectedIds.value = n }
+  else selectedIds.value = [...selectedIds.value, id]
+}
+function toggleSelectAll() {
+  const allIds = groupedItems.value.flatMap((g) => g.items.map((it) => it.id))
+  selectedIds.value = selectedIds.value.length === allIds.length ? [] : allIds
+}
+const selectAllLabel = computed((): string => {
+  const allIds = groupedItems.value.flatMap((g) => g.items.map((it) => it.id))
+  return selectedIds.value.length === allIds.length && selectedIds.value.length > 0 ? '取消全选' : '全选'
+})
+function confirmDelete() { if (selectedIds.value.length > 0) showDeleteDialog.value = true }
+function batchDelete() {
+  for (let i = 0; i < selectedIds.value.length; i++) store.deletePurchase(selectedIds.value[i])
+  showDeleteDialog.value = false
+  exitSelect()
+}
 onMounted(() => { store.fetchPurchases() })
 
 const groupedItems = computed(() => {
@@ -140,4 +189,24 @@ const cardProgress = computed((): any => ({ height: '6rpx', borderRadius: '3rpx'
 function cardProgressFill(percent: number, color: string): any {
   return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color }
 }
+
+const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
+const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const selectCheckWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '4rpx' }
+function selectCheckStyle(checked: boolean): any {
+  return { width: '40rpx', height: '40rpx', borderRadius: '8rpx', borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.cardBorder, backgroundColor: checked ? (brand[500] as string) : 'transparent', alignItems: 'center', justifyContent: 'center' }
+}
+const selectCheckIcon = { fontSize: '24rpx', color: '#FFFFFF', fontWeight: 'bold' }
+
+const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
+const deleteBtn = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const deleteBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const deleteDisabled = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
+const deleteDisabledText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }
+const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', gap: '24rpx', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
+const dialogDelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center' }))
+const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 </script>

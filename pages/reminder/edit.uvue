@@ -1,50 +1,42 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
-    <template #navbar>
-      <AppNavbar :title="isEdit ? '编辑提醒' : '新建提醒'" :show-back="false">
-        <template #left>
-          <text :style="customBackStyle" @tap="handleBack"><AppIcon name="arrow-back" :size="40" /></text>
-        </template>
-      </AppNavbar>
-    </template>
-    <template #default>
-      <scroll-view :style="scrollWrap">
-        <view class="page-canvas" :style="pageWrap">
+  <view :style="pageStyle">
+    <scroll-view :style="scrollWrap">
+      <view :style="contentWrap">
 
           <V2FormSection title="基础信息">
             <view :style="typeRow">
-              <view v-for="t in typeOptions" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
+              <view v-for="t in typeOptions.slice(0, 4)" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
+            </view>
+            <view :style="typeRow">
+              <view v-for="t in typeOptions.slice(4)" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
             </view>
             <AppInput v-model="form.title" :placeholder="typePlaceholder" :clearable="true" />
           </V2FormSection>
 
           <V2FormSection title="提醒时间">
-            <V2DatePicker label="日期" :value="form.remindDate" placeholder="选择日期" mode="date" @change="onDatePick" />
-            <view :style="timeFieldRow">
+            <view :style="timeFieldRow" @tap="initDateTimePicker">
               <text :style="timeFieldLabel">时间</text>
               <view :style="timeRight">
-                <view :style="timeSwitchRow">
-                  <text :style="timeSwitchLabel">全天</text>
-                  <V2Switch :model-value="form.isAllDay" @update:model-value="onAllDayChange" />
-                </view>
-                <V2DatePicker v-if="!form.isAllDay" label="" :value="form.remindTime" placeholder="选择时间" mode="time" @change="onTimePick" />
-                <text v-else :style="timeDisabledText">全天</text>
+                <text :style="timeValue">{{ dateTimeDisplay }}</text>
+                <text :style="timeArrow">›</text>
               </view>
             </view>
           </V2FormSection>
 
-          <V2FormSection title="提醒配置" :collapsible="true" :open="advancedOpen" @toggle="toggleAdvanced">
-            <view :style="advancedFieldRow">
-              <text :style="advancedFieldLabel">多级预警提醒</text>
-              <V2Switch :model-value="form.multiAlert" :disabled="!isMultiAlertAvailable" @update:model-value="onMultiAlertChange" />
+          <V2FormSection title="关联衣橱单品">
+            <view :style="wardrobeBtnRow" @tap="openWardrobePicker">
+              <text :style="wardrobeBtnText">{{ form.wardrobeBindings.length > 0 ? '已选 ' + form.wardrobeBindings.length + ' 件' : '选择衣橱单品' }}</text>
+              <text :style="wardrobeBtnArrow">›</text>
             </view>
-            <view v-if="form.type === 'BALANCE'" :style="advancedFieldRow">
-              <text :style="advancedFieldLabel">同步预算</text>
-              <V2Switch :model-value="false" :disabled="true" />
+            <view v-if="form.wardrobeBindings.length > 0" :style="wardrobeTagsWrap">
+              <view v-for="wdId in form.wardrobeBindings" :key="wdId" :style="wardrobeTag">
+                <text :style="wardrobeTagText">{{ getWardrobeName(wdId) }}</text>
+                <text :style="wardrobeTagRemove" @tap.stop="removeWardrobe(wdId)">✕</text>
+              </view>
             </view>
           </V2FormSection>
 
-          <V2FormSection title="备注">
+          <V2FormSection title="补充">
             <view :style="noteShell">
               <textarea :value="form.note" placeholder="店铺、尺码、尾款金额等备忘" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
             </view>
@@ -53,10 +45,6 @@
           <V2FormSection v-if="isEdit" title="当前状态">
             <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" @change="onStatusChange" />
           </V2FormSection>
-
-          <view :style="tipsBanner">
-            <text :style="tipsText">提醒数据保存在本地，建议开启通知权限以确保准时提醒</text>
-          </view>
 
           <view v-if="isEdit" :style="deleteBtn" @tap="onDeleteTap"><text :style="deleteBtnText">删除提醒</text></view>
           <view :style="saveBtnWrap" @tap="onSaveTap">
@@ -67,15 +55,66 @@
           <view :style="bottomSpacer" />
         </view>
       </scroll-view>
-    </template>
-  </MainLayout>
+  </view>
 
   <AppDialog :visible="showDeleteDialog" title="确认删除" message="删除后无法恢复，请谨慎操作" confirm-text="删除" :show-cancel="true" cancel-text="取消" @confirm="deleteItem" @cancel="showDeleteDialog = false" />
   <AppDialog :visible="showLeaveDialog" title="确认离开" message="内容尚未保存，确定离开吗？" confirm-text="离开" :show-cancel="true" cancel-text="取消" @confirm="handleLeave" @cancel="showLeaveDialog = false" />
+
+  <AppDialog :visible="showWardrobePicker" title="选择衣橱单品" @confirm="confirmWardrobe" @cancel="showWardrobePicker = false">
+    <view :style="wardrobePickerWrap">
+      <view v-if="wardrobeStore.sortedItems.length === 0" :style="wardrobeEmptyWrap">
+        <text :style="wardrobeEmptyText">暂无衣橱单品</text>
+      </view>
+      <scroll-view v-else :style="wardrobePickerScroll">
+        <view :style="wardrobeGrid">
+          <view v-for="wd in wardrobeStore.sortedItems" :key="wd.id" :style="wardrobeGridCard(wd.id)" @tap="toggleWardrobePicker(wd.id)">
+            <image v-if="wd.coverImage !== ''" :src="wd.coverImage" :style="wardrobeGridImg" mode="aspectFill" />
+            <view v-else :style="wardrobeGridPlaceholder"><text :style="wardrobeGridPhText">👗</text></view>
+            <text :style="wardrobeGridName">{{ wd.name }}</text>
+            <text :style="wardrobePickerCat">{{ getWardrobeCat(wd.category) }}</text>
+            <view v-if="tempSelected.indexOf(wd.id) >= 0" :style="wardrobeGridCheck">
+              <text :style="wardrobeCheckIcon">✓</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+    <template #actions>
+      <view :style="dialogActions">
+        <view :style="dialogCancelBtn" @tap="showWardrobePicker = false"><text :style="dialogCancelBtnText">取消</text></view>
+        <view :style="dialogWardrobeBtn" @tap="confirmWardrobe"><text :style="dialogWardrobeBtnText">确定</text></view>
+      </view>
+    </template>
+  </AppDialog>
+
+  <view v-if="showDatePicker" :style="pickerOverlay" @tap="showDatePicker = false">
+    <view :style="pickerPanel" @tap.stop>
+      <view :style="pickerHeader">
+        <text :style="pickerCancel" @tap="showDatePicker = false">取消</text>
+        <text :style="pickerTitle">选择日期时间</text>
+        <text :style="pickerConfirm" @tap="confirmDateTime">确定</text>
+      </view>
+      <picker-view :value="dateTimePickerVal" :style="pickerViewStyle" @change="onDateTimeChange">
+        <picker-view-column>
+          <view v-for="m in 12" :key="m" :style="pickerItem"><text :style="pickerItemText">{{ m }}月</text></view>
+        </picker-view-column>
+        <picker-view-column>
+          <view v-for="d in getDaysInMonth()" :key="d" :style="pickerItem"><text :style="pickerItemText">{{ d }}日</text></view>
+        </picker-view-column>
+        <picker-view-column>
+          <view v-for="h in 24" :key="h" :style="pickerItem"><text :style="pickerItemText">{{ h - 1 }}时</text></view>
+        </picker-view-column>
+        <picker-view-column>
+          <view v-for="m in 60" :key="m" :style="pickerItem"><text :style="pickerItemText">{{ m - 1 }}分</text></view>
+        </picker-view-column>
+      </picker-view>
+    </view>
+  </view>
 </template>
 
 <script setup lang="uts">
 import { useReminderStore } from '@/stores/reminder-store'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { Reminder, ReminderUpdateData, TYPE_COLORS } from '@/domain/reminder'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -83,30 +122,36 @@ import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/th
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
-import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
-import AppIcon from '@/components/base/AppIcon.uvue'
+import { getStatusBarHeight } from '@/utils/window-info'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
-import V2Switch from '@/components/v2/V2Switch.uvue'
 import V2FormSection from '@/components/v2/V2FormSection.uvue'
-import V2DatePicker from '@/components/v2/V2DatePicker.uvue'
 
 function getTypePlaceholder(type: string): string {
   if (type === 'ARRIVAL') return '例：包裹预计送达'
   if (type === 'BALANCE') return '例：月光曲 JSK 尾款截止'
   if (type === 'RELEASE') return '例：新品限定 10 点开售'
-  return '例：提醒标题'
+  if (type === 'OUTFIT') return '例：周末茶会穿搭'
+  if (type === 'PHOTO') return '例：Lolita外拍日程'
+  if (type === 'ORGANIZE') return '例：换季整理衣橱'
+  if (type === 'WISH') return '例：中牌新款蹲守'
+  return '例：每日穿搭打卡'
 }
 
 const store = useReminderStore()
+const wardrobeStore = useWardrobeStore()
 const isEdit = ref(false)
 const editId = ref('')
 const saving = ref(false)
 const showDeleteDialog = ref(false)
 const showLeaveDialog = ref(false)
-const advancedOpen = ref(true)
+const showWardrobePicker = ref(false)
+const showDatePicker = ref(false)
+const tempSelected = ref<string[]>([])
+const dateTimePickerVal = ref([0, 0, 0, 0])
+const tempMonthDay = ref('')
+const tempHourMin = ref('')
 
 type ReminderFormState = {
   title: string
@@ -116,22 +161,25 @@ type ReminderFormState = {
   note: string
   status: string
   isAllDay: boolean
-  multiAlert: boolean
+  wardrobeBindings: string[]
 }
-let initialFormSnapshot: ReminderFormState = { title: '', type: 'CUSTOM', remindDate: '', remindTime: '', note: '', status: 'PENDING', isAllDay: false, multiAlert: false }
-const form = ref<ReminderFormState>({ title: '', type: 'CUSTOM', remindDate: '', remindTime: '', note: '', status: 'PENDING', isAllDay: false, multiAlert: false })
+let initialFormSnapshot: ReminderFormState = { title: '', type: 'CHECKIN', remindDate: '', remindTime: '', note: '', status: 'PENDING', isAllDay: false, wardrobeBindings: [] as string[] }
+const form = ref<ReminderFormState>({ title: '', type: 'CHECKIN', remindDate: '', remindTime: '', note: '', status: 'PENDING', isAllDay: false, wardrobeBindings: [] as string[] })
 
 const typeOptions = [
   { label: '尾款', value: 'BALANCE', color: TYPE_COLORS.BALANCE },
   { label: '上新发售', value: 'RELEASE', color: TYPE_COLORS.RELEASE },
   { label: '到货提醒', value: 'ARRIVAL', color: TYPE_COLORS.ARRIVAL },
-  { label: '自定义', value: 'CUSTOM', color: TYPE_COLORS.CUSTOM },
+  { label: '穿搭计划', value: 'OUTFIT', color: TYPE_COLORS.OUTFIT },
+  { label: '拍照日程', value: 'PHOTO', color: TYPE_COLORS.PHOTO },
+  { label: '整理衣橱', value: 'ORGANIZE', color: TYPE_COLORS.ORGANIZE },
+  { label: '蹲新品', value: 'WISH', color: TYPE_COLORS.WISH },
+  { label: '打卡', value: 'CHECKIN', color: TYPE_COLORS.CHECKIN },
 ]
 
 const statusLabels = ['待提醒', '已完成', '已过期']
 const activeStatusLabel = computed((): string => form.value.status === 'DONE' ? '已完成' : (form.value.status === 'MISSED' ? '已过期' : '待提醒'))
 const typePlaceholder = computed((): string => getTypePlaceholder(form.value.type))
-const isMultiAlertAvailable = computed((): boolean => form.value.type === 'BALANCE' || form.value.type === 'RELEASE')
 
 function getDefaultTime(): string {
   if (form.value.type === 'BALANCE' || form.value.type === 'RELEASE') return '20:00'
@@ -139,10 +187,55 @@ function getDefaultTime(): string {
   return '12:00'
 }
 
+const dateTimeDisplay = computed((): string => {
+  if (form.value.remindDate === '') return '选择时间'
+  const parts = form.value.remindDate.split('-')
+  if (parts.length !== 3) return form.value.remindDate
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+  const wd = ['日', '一', '二', '三', '四', '五', '六']
+  let display = `${parseInt(parts[1])}月${parseInt(parts[2])}日 周${wd[d.getDay()]}`
+  if (form.value.remindTime !== '') display += ` ${form.value.remindTime}`
+  return display
+})
+
+function getDaysInMonth(): number {
+  const m = dateTimePickerVal.value[0] + 1
+  if (m === 2) return 29
+  if (m === 4 || m === 6 || m === 9 || m === 11) return 30
+  return 31
+}
+
+function initDateTimePicker() {
+  const now = new Date()
+  const d = form.value.remindDate !== '' ? form.value.remindDate : now.toISOString().split('T')[0]
+  const t = form.value.remindTime !== '' ? form.value.remindTime : '12:00'
+  const dp = d.split('-')
+  const tp = t.split(':')
+  dateTimePickerVal.value = [parseInt(dp[1]) - 1, parseInt(dp[2]) - 1, parseInt(tp[0]), parseInt(tp[1])]
+  tempMonthDay.value = d
+  tempHourMin.value = t
+  showDatePicker.value = true
+}
+
+function onDateTimeChange(e: any) {
+  const val = e.detail.value as number[]
+  dateTimePickerVal.value = val
+  const m = val[0] + 1
+  const day = Math.min(val[1] + 1, m === 2 ? 29 : (m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31))
+  const yr = new Date().getFullYear()
+  tempMonthDay.value = `${yr}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  tempHourMin.value = `${String(val[2]).padStart(2, '0')}:${String(val[3]).padStart(2, '0')}`
+}
+
+function confirmDateTime() {
+  form.value.remindDate = tempMonthDay.value
+  form.value.remindTime = tempHourMin.value
+  showDatePicker.value = false
+}
+
 function onTypeSelect(value: string) {
   form.value.type = value
   if (form.value.remindTime === '') form.value.remindTime = getDefaultTime()
-  form.value.multiAlert = value === 'BALANCE' || value === 'RELEASE'
 }
 
 function typeChip(t: { label: string; value: string; color: string }): any {
@@ -164,11 +257,36 @@ function onNoteInput(e: any) {
   const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
   form.value.note = d != null && d['value'] != null ? d['value'] as string : ''
 }
-function onDatePick(value: string) { form.value.remindDate = value }
-function onTimePick(value: string) { form.value.remindTime = value }
 function onAllDayChange(val: boolean) { form.value.isAllDay = val }
-function onMultiAlertChange(val: boolean) { form.value.multiAlert = val }
-function toggleAdvanced() { advancedOpen.value = !advancedOpen.value }
+
+function openWardrobePicker() {
+  tempSelected.value = [...form.value.wardrobeBindings]
+  wardrobeStore.fetchItems()
+  showWardrobePicker.value = true
+}
+function toggleWardrobePicker(id: string) {
+  const idx = tempSelected.value.indexOf(id)
+  if (idx >= 0) { const next = [...tempSelected.value]; next.splice(idx, 1); tempSelected.value = next }
+  else { tempSelected.value = [...tempSelected.value, id] }
+}
+function confirmWardrobe() {
+  form.value.wardrobeBindings = [...tempSelected.value]
+  showWardrobePicker.value = false
+}
+function removeWardrobe(id: string) {
+  const idx = form.value.wardrobeBindings.indexOf(id)
+  if (idx >= 0) { const next = [...form.value.wardrobeBindings]; next.splice(idx, 1); form.value.wardrobeBindings = next }
+}
+function getWardrobeName(id: string): string {
+  const item = wardrobeStore.getById(id)
+  return item != null ? item.name : '未知单品'
+}
+function getWardrobeCat(cat: string): string {
+  if (cat === 'JK') return 'JK制服'
+  if (cat === 'LOLITA') return 'Lolita'
+  if (cat === 'HANFU') return '汉服'
+  return '其他'
+}
 
 function onSaveTap() {
   if (saving.value) return
@@ -184,6 +302,7 @@ function onSaveTap() {
     data.isAllDay = form.value.isAllDay
     data.note = form.value.note.trim()
     data.status = form.value.status
+    data.wardrobeBindings = form.value.wardrobeBindings
     if (!store.updateItem(editId.value, data)) { saving.value = false; showFeedback('保存失败，请重试'); return }
   } else {
     const item = new Reminder()
@@ -194,6 +313,7 @@ function onSaveTap() {
     item.isAllDay = form.value.isAllDay
     item.note = form.value.note.trim()
     item.status = 'PENDING'
+    item.wardrobeBindings = form.value.wardrobeBindings
     if (store.addItem(item) === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
   }
   showFeedback(isEdit.value ? '修改已保存' : '创建成功')
@@ -226,6 +346,7 @@ function handleLeave() { showLeaveDialog.value = false; uni.navigateBack() }
 
 onLoad((options) => {
   store.fetchItems()
+  wardrobeStore.fetchItems()
   if (options != null) {
     const id = options['id'] != null ? options['id'] as string : ''
     if (id !== '') {
@@ -235,13 +356,14 @@ onLoad((options) => {
         form.value.title = item.title; form.value.type = item.type
         form.value.remindDate = item.remindDate; form.value.remindTime = item.remindTime
         form.value.isAllDay = item.isAllDay; form.value.note = item.note; form.value.status = item.status
+        form.value.wardrobeBindings = [...item.wardrobeBindings]
         initialFormSnapshot = { ...form.value }
       }
       return
     }
     form.value.title = options['title'] != null ? safeParam(options['title'] as string) : ''
     const typeRaw = options['type'] != null ? options['type'] as string : ''
-    form.value.type = typeRaw !== '' ? typeRaw : 'CUSTOM'
+    form.value.type = typeRaw !== '' ? typeRaw : 'CHECKIN'
     form.value.remindDate = options['date'] != null ? safeParam(options['date'] as string) : ''
     form.value.note = options['note'] != null ? safeParam(options['note'] as string) : ''
     if (form.value.remindTime === '') form.value.remindTime = getDefaultTime()
@@ -250,25 +372,106 @@ onLoad((options) => {
 })
 
 const safeBottom = getSafeBottomInset()
+const statusBarH = getStatusBarHeight()
+const pageStyle = computed((): any => ({ flex: 1, backgroundColor: n.value.bg, paddingTop: `${statusBarH}px` }))
 const scrollWrap = { flex: 1 }
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const bottomSpacer = { height: '20rpx' }
 
 const typeRow = { flexDirection: 'row', marginBottom: '12rpx' }
 
 const timeFieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
+const timeValue = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '8rpx' }))
+const timeArrow = computed((): any => ({ fontSize: '36rpx', color: n.value.textTertiary }))
+const timePickWrap = { flexDirection: 'row', alignItems: 'center' }
+const pickerOverlay = computed((): any => ({
+  position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
+  backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 999, justifyContent: 'flex-end',
+  display: 'flex', flexDirection: 'column',
+}))
+const pickerPanel = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderTopLeftRadius: '32rpx', borderTopRightRadius: '32rpx',
+}))
+const pickerHeader = computed((): any => ({
+  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx',
+  borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.divider,
+}))
+const pickerCancel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
+const pickerTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
+const pickerConfirm = computed((): any => ({ fontSize: fontSize.sm, color: '#007AFF', fontWeight: fontWeight.medium }))
+const pickerViewStyle = { width: '100%', height: '440rpx' }
+const pickerItem = computed((): any => ({ height: '70rpx', alignItems: 'center', justifyContent: 'center' }))
+const pickerItemText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text }))
 const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
 const timeSwitchRow = { flexDirection: 'row', alignItems: 'center', marginRight: '16rpx' }
 const timeSwitchLabel = { fontSize: fontSize.sm, color: n.value.text, marginRight: '10rpx' }
 const timeDisabledText = { fontSize: fontSize.sm, color: n.value.textDisabled }
 
-const advancedFieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
-const advancedFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text }))
-
 const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: fontSize.base, color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
+
+const wardrobeBtnRow = computed((): any => ({
+  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx',
+  borderRadius: '24rpx', backgroundColor: n.value.inputFill,
+}))
+const wardrobeBtnText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
+const wardrobeBtnArrow = computed((): any => ({ fontSize: '36rpx', color: n.value.textTertiary }))
+const wardrobeTagsWrap = computed((): any => ({ flexDirection: 'row', flexWrap: 'wrap', marginTop: '16rpx' }))
+const wardrobeTag = computed((): any => ({
+  flexDirection: 'row', alignItems: 'center', height: '52rpx',
+  paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '26rpx',
+  backgroundColor: n.value.surfacePink, marginRight: '12rpx', marginBottom: '8rpx',
+}))
+const wardrobeTagText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, marginRight: '12rpx' }))
+const wardrobeTagRemove = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+
+const wardrobeEmptyWrap = { alignItems: 'center', paddingTop: '40rpx', paddingBottom: '40rpx' }
+const wardrobeEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+const wardrobePickerWrap = { paddingTop: '8rpx' }
+const wardrobePickerScroll = { maxHeight: '600rpx' }
+const wardrobeGrid = computed((): any => ({ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }))
+function wardrobeGridCard(id: string): any {
+  const selected = tempSelected.value.indexOf(id) >= 0
+  return {
+    width: '48%', borderRadius: '24rpx', overflow: 'hidden',
+    backgroundColor: n.value.surface, marginBottom: '24rpx',
+    borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid',
+    borderColor: selected ? '#007AFF' : n.value.cardBorder,
+    position: 'relative',
+  }
+}
+const wardrobeGridImg = { width: '100%', height: '240rpx', borderRadius: '0' }
+const wardrobeGridPlaceholder = computed((): any => ({ width: '100%', height: '240rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const wardrobeGridPhText = { fontSize: '64rpx' }
+const wardrobeGridName = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', lines: 1, textOverflow: 'ellipsis' }))
+const wardrobeGridCheck = computed((): any => ({
+  position: 'absolute', top: '12rpx', right: '12rpx',
+  width: '44rpx', height: '44rpx', borderRadius: '22rpx',
+  backgroundColor: '#007AFF', alignItems: 'center', justifyContent: 'center',
+}))
+const wardrobePickerItem = computed((): any => ({
+  flexDirection: 'row', alignItems: 'center', height: '80rpx',
+  paddingLeft: '8rpx', paddingRight: '8rpx',
+}))
+const wardrobePickerName = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flex: 1, lines: 1, textOverflow: 'ellipsis' }))
+const wardrobePickerCat = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '12rpx' }))
+function wardrobeCheckbox(checked: boolean): any {
+  return {
+    width: '36rpx', height: '36rpx', borderRadius: '18rpx',
+    borderWidth: '2rpx', borderStyle: 'solid',
+    borderColor: checked ? (brand[500] as string) : n.value.cardBorder,
+    backgroundColor: checked ? (brand[500] as string) : 'transparent',
+    alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0,
+  }
+}
+const wardrobeCheckIcon = { fontSize: '20rpx', color: '#FFFFFF', fontWeight: 'bold' }
+const wardrobeName = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flex: 1, lines: 1, textOverflow: 'ellipsis' }))
+const wardrobeCatStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '12rpx' }))
 
 const tipsBanner = computed((): any => ({ padding: '20rpx', borderRadius: '24rpx', backgroundColor: n.value.surfacePink, marginTop: '24rpx' }))
 const tipsText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx' }))
@@ -279,5 +482,10 @@ const deleteBtnText = { fontSize: fontSize.sm, color: '#FF4D4F' }
 const saveBtnWrap = computed((): any => ({ height: '88rpx', borderRadius: '24rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '12rpx' }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 const savingBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', gap: '24rpx', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
+const dialogWardrobeBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: '#007AFF', alignItems: 'center', justifyContent: 'center' }))
+const dialogWardrobeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const customBackStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
 </script>

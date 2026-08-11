@@ -4,12 +4,10 @@
       <AppNavbar v-if="!selectMode" title="提醒事项" :show-back="true" />
       <AppNavbar v-else title="选择提醒" :show-back="false">
         <template #left>
-          <text :style="selectBackText" @tap="exitSelectMode">取消</text>
+          <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
         </template>
-        <template #default>
-          <view :style="selectNavRow">
-            <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
-          </view>
+        <template #right>
+          <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
         </template>
       </AppNavbar>
     </template>
@@ -43,21 +41,25 @@
               <view :style="groupHeader">
                 <text :style="groupHeaderText">{{ group.label }}</text>
               </view>
-              <view v-for="item in group.items" :key="item.id" :style="itemCard(item)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelectMode(item.id)">
-                <view v-if="selectMode" :style="checkboxWrap">
-                  <view :style="checkboxMark(selectedIds.indexOf(item.id) >= 0)"><text v-if="selectedIds.indexOf(item.id) >= 0" :style="checkIcon">✓</text></view>
-                </view>
-                <view :style="cardCenter">
-                  <text :style="cardTitle">{{ item.title }}</text>
-                  <view :style="cardMeta">
-                    <text :style="cardTime">{{ item.dateText }}{{ item.timeDisplay !== '' ? ' ' + item.timeDisplay : '' }}</text>
-                    <text :style="cardSource">· {{ item.sourceLabel }}</text>
-                  </view>
-                </view>
-                <view v-if="!selectMode" @tap.stop="onQuickToggle(item)">
-                  <V2StatusChip :label="item.statusText" :status="reminderStatusClass(item.statusText)" size="sm" />
-                </view>
-              </view>
+               <view v-for="item in group.items" :key="item.id" :style="itemCard(item)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelectMode(item.id)">
+                 <view v-if="selectMode" :style="selectCheckWrap" @tap.stop="toggleItem(item.id)">
+                   <view :style="selectCheckStyle(selectedIds.indexOf(item.id) >= 0)">
+                     <text v-if="selectedIds.indexOf(item.id) >= 0" :style="selectCheckIcon">✓</text>
+                   </view>
+                 </view>
+                 <view v-if="!selectMode" :style="checkboxWrap" @tap.stop="onQuickToggle(item)">
+                   <view :style="checkboxMarkNormal(item)">
+                     <text v-if="item.statusText !== '待提醒'" :style="checkIcon">✓</text>
+                   </view>
+                 </view>
+                 <view :style="cardCenter">
+                   <text :style="cardTitle">{{ item.title }}</text>
+                   <view :style="cardMeta">
+                     <text :style="cardTime">{{ item.dateText }}{{ item.timeDisplay !== '' ? ' ' + item.timeDisplay : '' }}</text>
+                     <text :style="cardStatus(item)">· {{ item.statusText }}</text>
+                   </view>
+                 </view>
+               </view>
             </view>
           </view>
 
@@ -74,8 +76,14 @@
     <view :style="deleteDisabled"><text :style="deleteDisabledText">请选择提醒</text></view>
   </view>
 
-  <AppDialog v-if="showDeleteConfirm" title="确认删除" confirm-text="删除" @confirm="batchDelete" @cancel="showDeleteConfirm = false">
+  <AppDialog :visible="showDeleteConfirm" title="确认删除" @confirm="batchDelete" @cancel="showDeleteConfirm = false">
     <text :style="dialogText">确定删除选中的 {{ selectedIds.length }} 条提醒吗？</text>
+    <template #actions>
+      <view :style="dialogActions">
+        <view :style="dialogCancelBtn" @tap="showDeleteConfirm = false"><text :style="dialogCancelBtnText">取消</text></view>
+        <view :style="dialogDelBtn" @tap="batchDelete"><text :style="dialogDelBtnText">删除</text></view>
+      </view>
+    </template>
   </AppDialog>
 
   <AppFab v-if="!selectMode && !store.loading" @tap="goAdd" />
@@ -87,7 +95,6 @@ import { ReminderDisplayModel } from '@/domain/reminder-presenter'
 import { TYPE_COLORS, TYPE_COLORS_DARK } from '@/domain/reminder'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
 import { n, isDark } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
@@ -98,7 +105,6 @@ import AppLoading from '@/components/base/AppLoading.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
 import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
-import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 
 const store = useReminderStore()
@@ -112,15 +118,9 @@ function onFilter(label: string) {
   activeFilter.value = label
   store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : (label === '已过期' ? 'MISSED' : 'DONE')))
 }
-function reminderStatusClass(statusText: string): string {
-  if (statusText === '已完成') return 'positive'
-  if (statusText === '已过期') return 'neutral'
-  return 'pending'
-}
 function goAdd() { uni.navigateTo({ url: '/pages/reminder/edit' }) }
 function openItem(id: string) { if (!selectMode.value) uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` }) }
 function onQuickToggle(item: ReminderDisplayModel) {
-  if (item.statusText === '已过期') return
   if (item.statusText === '已完成') { store.markUndone(item.id); showFeedback('已恢复提醒') }
   else { store.markDone(item.id); showFeedback('已标记完成') }
 }
@@ -195,13 +195,54 @@ const cardCenter = { flex: 1, justifyContent: 'center' }
 const cardTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis', marginBottom: '6rpx' }))
 const cardMeta = { flexDirection: 'row', alignItems: 'center' }
 const cardTime = { fontSize: '22rpx', color: n.value.textSecondary }
-const cardSource = { fontSize: '22rpx', color: n.value.textTertiary }
 
-const selectNavRow = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '100%' }))
+function cardStatus(item: ReminderDisplayModel): any {
+  if (item.statusText === '已完成') return { fontSize: '22rpx', color: '#52C41A' }
+  if (item.statusText === '已过期') return { fontSize: '22rpx', color: '#9CA3AF' }
+  return { fontSize: '22rpx', color: '#3B82F6' }
+}
 const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
-const selectBackText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text, paddingRight: '16rpx' }))
+const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const checkboxWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '10rpx' }
-function checkboxMark(checked: boolean) { return { width: '40rpx', height: '40rpx', borderRadius: '20rpx', borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.cardBorder, backgroundColor: checked ? (brand[500] as string) : 'transparent', alignItems: 'center', justifyContent: 'center' } }
+const selectCheckWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '4rpx' }
+function selectCheckStyle(checked: boolean): any {
+  return {
+    width: '40rpx', height: '40rpx', borderRadius: '8rpx',
+    borderWidth: '3rpx', borderStyle: 'solid' as string,
+    borderColor: checked ? (brand[500] as string) : n.value.cardBorder,
+    backgroundColor: checked ? (brand[500] as string) : 'transparent',
+    alignItems: 'center', justifyContent: 'center',
+  }
+}
+const selectCheckIcon = { fontSize: '24rpx', color: '#FFFFFF', fontWeight: 'bold' }
+function checkboxMarkNormal(item: ReminderDisplayModel): any {
+  const isSelectChecked = selectMode.value && selectedIds.value.indexOf(item.id) >= 0
+  const isStatusChecked = !selectMode.value && item.statusText !== '待提醒'
+  const checked = selectMode.value ? isSelectChecked : isStatusChecked
+  let fillColor = 'transparent'
+  let strokeColor = n.value.cardBorder
+  if (checked) {
+    if (selectMode.value) {
+      fillColor = brand[500] as string
+      strokeColor = brand[500] as string
+    } else {
+      if (item.statusText === '已完成') {
+        fillColor = '#52C41A'
+        strokeColor = '#52C41A'
+      } else {
+        fillColor = '#9CA3AF'
+        strokeColor = '#9CA3AF'
+      }
+    }
+  }
+  return {
+    width: '40rpx', height: '40rpx', borderRadius: '20rpx',
+    borderWidth: '3rpx', borderStyle: 'solid' as string,
+    borderColor: strokeColor,
+    backgroundColor: fillColor,
+    alignItems: 'center', justifyContent: 'center',
+  }
+}
 const checkIcon = { fontSize: '24rpx', color: '#FFFFFF', fontWeight: 'bold' }
 const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
 const deleteButton = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
@@ -209,6 +250,11 @@ const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semib
 const deleteDisabled = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }
 const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', gap: '24rpx', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx' }))
+const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
+const dialogDelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx' }))
+const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 
 const emptyWrap = { alignItems: 'center', paddingTop: '120rpx' }
 const emptyTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))

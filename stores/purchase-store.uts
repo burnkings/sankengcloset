@@ -134,6 +134,16 @@ function setFilterStatus(status: string) {
 
 function getPurchaseById(id: string): PurchaseRecord | null { return _state.items.find((r) => r.id == id) }
 
+const _brands = computed((): string[] => {
+  const set = new Set<string>()
+  for (let i = 0; i < _state.items.length; i++) {
+    if (_state.items[i].brand.trim() !== '') set.add(_state.items[i].brand.trim())
+  }
+  const arr = Array.from(set) as string[]
+  arr.sort()
+  return arr
+})
+
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
 
 class PurchaseStoreHandle {
@@ -146,6 +156,7 @@ class PurchaseStoreHandle {
   get totalSpent(): number { return _totalSpent.value }
   get remainingTotal(): number { return _remainingTotal.value }
   get itemCount(): number { return _itemCount.value }
+  get brands(): string[] { return _brands.value }
   fetchPurchases(): Promise<void> { return fetchPurchases() }
   addPurchase(record: PurchaseRecord): PurchaseRecord | null { return addPurchase(record) }
   updatePurchase(id: string, data: PurchaseUpdateData): boolean { return updatePurchase(id, data) }

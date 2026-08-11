@@ -8,41 +8,65 @@
 export const TYPE_ARRIVAL = 'ARRIVAL'
 export const TYPE_BALANCE = 'BALANCE'
 export const TYPE_RELEASE = 'RELEASE'
-export const TYPE_CUSTOM = 'CUSTOM'
+export const TYPE_OUTFIT = 'OUTFIT'
+export const TYPE_PHOTO = 'PHOTO'
+export const TYPE_ORGANIZE = 'ORGANIZE'
+export const TYPE_WISH = 'WISH'
+export const TYPE_CHECKIN = 'CHECKIN'
 
 export const TYPE_LABELS = {
   ARRIVAL: '到货提醒',
   BALANCE: '尾款提醒',
-  RELEASE: '发售提醒',
-  CUSTOM: '自定义',
+  RELEASE: '上新发售',
+  OUTFIT: '穿搭计划',
+  PHOTO: '拍照日程',
+  ORGANIZE: '整理衣橱',
+  WISH: '蹲新品',
+  CHECKIN: '打卡',
 }
 
 export const TYPE_EMOJI = {
   ARRIVAL: '📦',
   BALANCE: '💰',
   RELEASE: '🔔',
-  CUSTOM: '⏰',
+  OUTFIT: '👗',
+  PHOTO: '📸',
+  ORGANIZE: '🗂',
+  WISH: '💝',
+  CHECKIN: '✅',
 }
 
 export const TYPE_COLORS = {
-  ARRIVAL: '#D6EDFF',
-  BALANCE: '#FFF0E0',
-  RELEASE: '#FFE7EC',
-  CUSTOM: '#FFF7CC',
+  ARRIVAL: '#D6E9FB',
+  BALANCE: '#FFE8D6',
+  RELEASE: '#E9E4FC',
+  OUTFIT: '#DBF6E9',
+  PHOTO: '#FFF4BC',
+  ORGANIZE: '#D6E9FB',
+  WISH: '#E9E4FC',
+  CHECKIN: '#DBF6E9',
 }
 
 export const TYPE_COLORS_DARK = {
-  ARRIVAL: 'rgba(214,237,255,0.20)',
-  BALANCE: 'rgba(255,240,224,0.20)',
-  RELEASE: 'rgba(255,231,236,0.20)',
-  CUSTOM: 'rgba(255,247,204,0.20)',
+  ARRIVAL: 'rgba(214,233,251,0.20)',
+  BALANCE: 'rgba(255,232,214,0.20)',
+  RELEASE: 'rgba(233,228,252,0.20)',
+  OUTFIT: 'rgba(219,246,233,0.20)',
+  PHOTO: 'rgba(255,244,188,0.20)',
+  ORGANIZE: 'rgba(214,233,251,0.20)',
+  WISH: 'rgba(233,228,252,0.20)',
+  CHECKIN: 'rgba(219,246,233,0.20)',
 }
 
 export const TYPE_PLACEHOLDERS = {
   ARRIVAL: '例：包裹预计送达',
   BALANCE: '例：月光曲 JSK 尾款截止',
   RELEASE: '例：新品限定 10 点开售',
-  CUSTOM: '例：去驿站取件',
+  OUTFIT: '例：周末茶会穿搭',
+  PHOTO: '例：Lolita外拍日程',
+  ORGANIZE: '例：换季整理衣橱',
+  WISH: '例：中牌新款蹲守',
+  CHECKIN: '例：每日穿搭打卡',
 }
 
 // ====== 提醒状态 ======
@@ -95,7 +119,7 @@ export const REMINDER_FILTER_OPTIONS: ReminderFilterOption[] = [
 export class Reminder {
   id: string = ''
   title: string = ''
-  type: string = 'CUSTOM' // ARRIVAL / BALANCE / RELEASE / CUSTOM
+  type: string = 'CHECKIN' // ARRIVAL / BALANCE / RELEASE / CUSTOM
   remindDate: string = '' // YYYY-MM-DD
   remindTime: string = '' // HH:mm
   isAllDay: boolean = false
@@ -106,6 +130,7 @@ export class Reminder {
   isDeleted: boolean = false
   createdAt: string = ''
   updatedAt: string = ''
+  wardrobeBindings: string[] = []
 }
 
 /** 更新数据 */
@@ -119,4 +144,5 @@ export class ReminderUpdateData {
   relatedWishId: string = ''
   note: string = ''
   status: string = ''
+  wardrobeBindings: string[] = []
 }
