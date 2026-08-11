@@ -1,0 +1,116 @@
+import { PurchaseImportFieldConfidence, PurchaseImportSuggestion, PurchaseImportTask } from '@/domain/ai/purchase-import-task'
+import { getCachedAccessToken } from '@/config/runtime'
+import { apiGetAuthorized, apiPostAuthorized, apiUploadBinary, encodeQuery, readFileAsArrayBuffer } from '@/services/platform/api-client'
+import { parseCommerceLink } from '@/services/ai/ai-import-service'
+
+function asObject(value: any): UTSJSONObject | null { return value != null ? value as UTSJSONObject : null }
+function asString(value: any): string { return value != null ? value as string : '' }
+function asNumber(value: any): number { return value != null ? value as number : 0 }
+
+function dateOnly(value: string): string { return value.length >= 10 ? value.substring(0, 10) : value }
+
+function mapConfidence(raw: any): PurchaseImportFieldConfidence[] {
+  const object = asObject(raw)
+  const result = [] as PurchaseImportFieldConfidence[]
+  if (object == null) return result
+  const keys = ['name', 'brand', 'shopName', 'orderNumber', 'orderDate', 'totalCents', 'depositCents', 'paidCents', 'balanceDueDate', 'arrivalDate']
+  for (let i = 0; i < keys.length; i++) {
+    const value = object![keys[i]]
+    if (value == null) continue
+    const item = new PurchaseImportFieldConfidence()
+    item.field = keys[i]
+    item.confidence = asNumber(value)
+    result.push(item)
+  }
+  return result
+}
+
+function mapSuggestion(raw: UTSJSONObject | null): PurchaseImportSuggestion {
+  const suggestion = new PurchaseImportSuggestion()
+  if (raw == null) return suggestion
+  suggestion.name = asString(raw['name'])
+  suggestion.brand = asString(raw['brand'])
+  suggestion.shopName = asString(raw['shopName'])
+  suggestion.category = asString(raw['category']) !== '' ? asString(raw['category']) : 'OTHER'
+  suggestion.orderNumber = asString(raw['orderNumber'])
+  suggestion.orderDate = dateOnly(asString(raw['orderDate']))
+  suggestion.totalCents = asNumber(raw['totalCents'] != null ? raw['totalCents'] : raw['priceCents'])
+  suggestion.depositCents = asNumber(raw['depositCents'] != null ? raw['depositCents'] : raw['depositAmountCents'])
+  suggestion.paidCents = asNumber(raw['paidCents'] != null ? raw['paidCents'] : raw['paidAmountCents'])
+  suggestion.balanceDueDate = dateOnly(asString(raw['balanceDueDate'] != null ? raw['balanceDueDate'] : raw['deadline']))
+  suggestion.arrivalDate = dateOnly(asString(raw['arrivalDate']))
+  suggestion.note = asString(raw['note'])
+  return suggestion
+}
+
+function mapTask(raw: UTSJSONObject, sourceImage: string, sourceLink: string, sourcePlatform: string): PurchaseImportTask {
+  const task = new PurchaseImportTask()
+  task.taskId = asString(raw['taskId'] != null ? raw['taskId'] : raw['id'])
+  task.state = asString(raw['state'])
+  task.sourceImage = sourceImage
+  task.sourceLink = sourceLink
+  task.sourcePlatform = sourcePlatform
+  const model = asObject(raw['model'])
+  task.modelName = model != null ? asString(model['name']) : asString(raw['modelName'])
+  task.modelVersion = model != null ? asString(model['version']) : asString(raw['modelVersion'])
+  task.requestId = asString(raw['requestId'])
+  task.confidence = asNumber(raw['confidence'])
+  task.fieldConfidence = mapConfidence(raw['fieldConfidence'])
+  task.suggestion = mapSuggestion(asObject(raw['suggestion']))
+  const evidence = raw['evidence'] as string[] | null
+  if (evidence != null) task.evidence = evidence
+  const warnings = raw['warnings'] as string[] | null
+  if (warnings != null) task.warnings = warnings
+  return task
+}
+
+function contentType(path: string): string {
+  const lower = path.toLowerCase()
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  return 'image/jpeg'
+}
+
+/**
+ * 尾款一键入库的远程识别入口。
+ * 仅上传用户主动选择的订单截图；服务端始终返回草稿，不能直接建订单。
+ */
+export async function analyzePurchaseScreenshot(sourceImage: string, sourceLink: string): Promise<PurchaseImportTask> {
+  if (getCachedAccessToken() === '') throw new Error('登录后才能安全识别订单截图')
+  if (sourceImage === '') throw new Error('请先选择订单截图')
+
+  let sourcePlatform = ''
+  if (sourceLink.trim() !== '') sourcePlatform = parseCommerceLink(sourceLink).platform
+
+  const type = contentType(sourceImage)
+  const prepared = await apiPostAuthorized('/api/v1/uploads:prepare', { purpose: 'purchase_import', contentType: type })
+  const preparedData = asObject(prepared.data)
+  if (preparedData == null || preparedData['uploadId'] == null || preparedData['mediaId'] == null) throw new Error('截图上传准备失败，请重试')
+  const binary = await readFileAsArrayBuffer(sourceImage)
+  await apiUploadBinary('/api/v1/uploads/' + encodeQuery(preparedData['uploadId'] as string) + '/content', binary, type)
+
+  const created = await apiPostAuthorized('/api/v1/ai/import-tasks', {
+    mediaId: preparedData['mediaId'] as string,
+    taskType: 'purchase_order',
+    sourcePlatform,
+    sourceLink: sourceLink.trim(),
+  } as UTSJSONObject)
+  let task = mapTask(asObject(created.data) ?? {} as UTSJSONObject, sourceImage, sourceLink.trim(), sourcePlatform)
+  if (task.taskId === '') throw new Error('识别任务创建失败，请改为手动补全')
+
+  // 最多轮询约 8 秒；尚未完成时明确告知用户，而不伪造识别结果。
+  for (let i = 0; i < 8 && (task.state === 'pending' || task.state === 'processing'); i++) {
+    await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, 1000) })
+    const polled = await apiGetAuthorized('/api/v1/ai/import-tasks/' + encodeQuery(task.taskId))
+    task = mapTask(asObject(polled.data) ?? {} as UTSJSONObject, sourceImage, sourceLink.trim(), sourcePlatform)
+  }
+  if (task.state !== 'ready') throw new Error(task.state === 'failed' ? '订单截图识别失败，请手动补全' : '识别仍在处理中，请稍后重试')
+  return task
+}
+
+export async function confirmPurchaseImport(taskId: string, purchaseId: string, confirmedPayload: UTSJSONObject): Promise<void> {
+  if (taskId === '' || getCachedAccessToken() === '') return
+  await apiPostAuthorized('/api/v1/ai/import-tasks/' + encodeQuery(taskId) + '/confirm', {
+    targetType: 'purchase', targetId: purchaseId, confirmed: confirmedPayload,
+  } as UTSJSONObject)
+}

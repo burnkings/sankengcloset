@@ -10,7 +10,7 @@ const requiredFiles = [
   'common/vendor.js',
   'pages/home/index.js',
   'pages/discover/index.js',
-  'pages/ai/index.js',
+  'pages/purchase/import.js',
   'pages/favorites/index.js',
   'pages/profile/index.js',
   'components/v2/V2PageHeader.js',

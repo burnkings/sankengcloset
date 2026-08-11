@@ -31,12 +31,6 @@
       }
     },
     {
-      "path": "pages/ai/index",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/profile/index",
       "style": {
         "navigationStyle": "custom"
@@ -98,6 +92,12 @@
     },
     {
       "path": "pages/purchase/edit",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/purchase/import",
       "style": {
         "navigationStyle": "custom"
       }
@@ -196,10 +196,10 @@
         "selectedIconPath": "static/tabbar/tab-discover-active.png"
       },
       {
-        "pagePath": "pages/ai/index",
-        "text": "绮灵AI",
-        "iconPath": "static/tabbar/tab-ai.png",
-        "selectedIconPath": "static/tabbar/tab-ai-active.png"
+        "pagePath": "pages/favorites/index",
+        "text": "收藏",
+        "iconPath": "static/tabbar/tab-fav.png",
+        "selectedIconPath": "static/tabbar/tab-fav-active.png"
       },
       {
         "pagePath": "pages/community/index",
@@ -237,10 +237,10 @@
         "selectedIconPath": "static/tabbar/tab-discover-active.png"
       },
       {
-        "pagePath": "pages/ai/index",
-        "text": "绮灵AI",
-        "iconPath": "static/tabbar/tab-ai.png",
-        "selectedIconPath": "static/tabbar/tab-ai-active.png"
+        "pagePath": "pages/favorites/index",
+        "text": "收藏",
+        "iconPath": "static/tabbar/tab-fav.png",
+        "selectedIconPath": "static/tabbar/tab-fav-active.png"
       },
       {
         "pagePath": "pages/community/index",

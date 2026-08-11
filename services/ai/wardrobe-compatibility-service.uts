@@ -1,0 +1,61 @@
+import { FeedItem } from '@/domain/content/feed-item'
+import { WardrobeItem } from '@/domain/wardrobe-item'
+
+/**
+ * 第一版搭配度：明确是基于已结构化衣橱的规则计算，不冒充视觉模型。
+ * 只使用坑向、颜色、风格和用户主动填写的标签；衣橱为空时返回 -1，不展示数值。
+ */
+export class WardrobeCompatibilityResult {
+  score: number = -1
+  categoryMatches: number = 0
+  colorMatches: number = 0
+  styleMatches: number = 0
+  matchedItems: WardrobeItem[] = []
+  explanation: string = ''
+}
+
+const COLORS = ['黑', '白', '红', '粉', '蓝', '绿', '棕', '米', '紫', '灰', '黄', '金', '银']
+const STYLES = ['甜', '哥特', '古典', '学院', '森', '优雅', '华丽', '日常', '洛丽塔', '中式', '明制', '宋制', '旗袍']
+
+function normalized(value: string): string { return value.trim().toLowerCase() }
+function containsOne(haystack: string, words: string[]): string {
+  for (let i = 0; i < words.length; i++) if (haystack.includes(words[i])) return words[i]
+  return ''
+}
+
+function productText(item: FeedItem): string { return normalized(item.title + ' ' + item.subtitle + ' ' + item.badgeText) }
+function wardrobeText(item: WardrobeItem): string { return normalized(item.name + ' ' + item.style + ' ' + item.color + ' ' + item.tags.join(' ')) }
+
+export function calculateWardrobeCompatibility(product: FeedItem, wardrobe: WardrobeItem[]): WardrobeCompatibilityResult {
+  const result = new WardrobeCompatibilityResult()
+  if (wardrobe.length === 0) return result
+
+  const target = productText(product)
+  const targetColor = containsOne(target, COLORS)
+  const targetStyle = containsOne(target, STYLES)
+  const matches = [] as WardrobeItem[]
+  for (let i = 0; i < wardrobe.length; i++) {
+    const item = wardrobe[i]
+    if (item.isDeleted) continue
+    const text = wardrobeText(item)
+    let matched = false
+    if (product.category !== '' && item.category === product.category) { result.categoryMatches++; matched = true }
+    if (targetColor !== '' && text.includes(targetColor)) { result.colorMatches++; matched = true }
+    if (targetStyle !== '' && text.includes(targetStyle)) { result.styleMatches++; matched = true }
+    if (matched && matches.length < 3) matches.push(item)
+  }
+  result.matchedItems = matches
+
+  const categoryScore = Math.min(result.categoryMatches, 3) * 12
+  const colorScore = result.colorMatches > 0 ? 24 : 0
+  const styleScore = result.styleMatches > 0 ? 24 : 0
+  const coverageScore = Math.min(16, wardrobe.length * 2)
+  result.score = Math.min(100, categoryScore + colorScore + styleScore + coverageScore)
+
+  const reasons = [] as string[]
+  if (result.categoryMatches > 0) reasons.push(`${result.categoryMatches} 件同坑向`)
+  if (result.colorMatches > 0) reasons.push(`${result.colorMatches} 件同色系`)
+  if (result.styleMatches > 0) reasons.push(`${result.styleMatches} 件同风格`)
+  result.explanation = reasons.length > 0 ? `基于衣橱中的${reasons.join('、')}计算` : '衣橱标签不足，暂按坑向和已有单品数量计算'
+  return result
+}

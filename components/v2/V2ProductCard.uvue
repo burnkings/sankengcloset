@@ -2,6 +2,10 @@
     <view :style="cardStyle" @tap="emit('click')" @longpress="emit('longpress')">
     <view :style="imageStyle">
       <AppImage :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+      <view v-if="compatibilityScore >= 0" :style="compatibilityBadge">
+        <view :style="compatibilityTrack"><view :style="compatibilityFill" /></view>
+        <text :style="compatibilityText">搭配度 {{ compatibilityScore }}%</text>
+      </view>
     </view>
     <view :style="infoStyle">
       <text :style="brandStyle">{{ brandName }}</text>
@@ -38,11 +42,16 @@ const props = withDefaults(defineProps<{
   originalPriceText?: string
   badge?: string
   deadlineText?: string
-}>(), { image: '', brandName: '', title: '', priceText: '', originalPriceText: '', badge: '', deadlineText: '' })
+  compatibilityScore?: number
+}>(), { image: '', brandName: '', title: '', priceText: '', originalPriceText: '', badge: '', deadlineText: '', compatibilityScore: -1 })
 const emit = defineEmits<{ click: []; longpress: [] }>()
 
 const cardStyle = computed((): any => ({ width: PRODUCT_CARD_WIDTH, flexShrink: 0, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, overflow: 'hidden' }))
 const imageStyle = { width: PRODUCT_CARD_WIDTH, height: PRODUCT_CARD_IMAGE_HEIGHT, position: 'relative', overflow: 'hidden' }
+const compatibilityBadge = { position: 'absolute', right: '12rpx', bottom: '12rpx', minWidth: '138rpx', paddingLeft: '12rpx', paddingRight: '12rpx', paddingTop: '8rpx', paddingBottom: '8rpx', borderRadius: '16rpx', backgroundColor: 'rgba(35, 28, 31, 0.78)' }
+const compatibilityTrack = { width: '110rpx', height: '5rpx', borderRadius: '4rpx', backgroundColor: 'rgba(255,255,255,0.35)', overflow: 'hidden' }
+const compatibilityFill = computed((): any => ({ width: `${Math.max(0, Math.min(100, props.compatibilityScore))}%`, height: '5rpx', borderRadius: '4rpx', backgroundColor: '#F3A9B7' }))
+const compatibilityText = { fontSize: '19rpx', fontWeight: fontWeight.semibold, color: '#FFFFFF', marginTop: '6rpx' }
 function statusColor(): string {
   if (props.badge === '现货' || props.badge === '新品') return semantic.success as string
   if (props.badge === '预览' || props.badge === '图透') return accent[600] as string

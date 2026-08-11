@@ -21,6 +21,12 @@
             :tertiary-value="store.itemCount + ' 笔订单'"
           />
 
+          <view :style="importCard" @tap="goImport">
+            <view :style="importIcon"><AppIcon name="import" :size="36" :active="true" /></view>
+            <view :style="importCopy"><text :style="importTitle">尾款一键入库</text><text :style="importDesc">订单截图识别后再逐项确认，自动接入提醒</text></view>
+            <AppIcon name="arrow-right" :size="32" :active="true" />
+          </view>
+
           <V2CapsuleFilter :items="filters" :active="activeFilter" @change="onFilter" />
 
           <AppLoading v-if="store.loading" />
@@ -118,6 +124,7 @@ function statusClass(statusText: string): string {
   return 'pending'
 }
 function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
+function goImport() { uni.navigateTo({ url: '/pages/purchase/import' }) }
 function openItem(id: string) { if (!selectMode.value) uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
 
 function enterSelect(id: string) { selectMode.value = true; selectedIds.value = [id] }
@@ -166,6 +173,12 @@ const groupedItems = computed(() => {
 const scrollStyle = { flex: 1 }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
 const bottomSpacer = { height: '60rpx' }
+
+const importCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '22rpx', borderRadius: '24rpx', backgroundColor: n.value.surfacePink, marginTop: '18rpx', marginBottom: '8rpx' }))
+const importIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const importCopy = { ...flexFill }
+const importTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const importDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '5rpx' }))
 
 const groupHeader = { paddingTop: '24rpx', paddingBottom: '10rpx' }
 const groupHeaderText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))

@@ -24,6 +24,12 @@
               <view :style="statusDot" />
               <text :style="statusTagText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text>
             </view>
+            <view v-if="compatibility.score >= 0" :style="compatibilityCard">
+              <view :style="compatibilityHeader"><text :style="compatibilityTitle">与你衣橱的搭配度</text><text :style="compatibilityScore">{{ compatibility.score }}%</text></view>
+              <view :style="compatibilityTrack"><view :style="compatibilityFill" /></view>
+              <text :style="compatibilityReason">{{ compatibility.explanation }}</text>
+              <text v-if="compatibility.matchedItems.length > 0" :style="compatibilityMatches">可优先试搭：{{ compatibilityNames }}</text>
+            </view>
             <view :style="decisionRow">
               <view :style="decisionBtn(false)" @tap="createReminder"><AppIcon name="reminder" :size="32" :active="true" /><text :style="decisionText">设置提醒</text></view>
               <view :style="decisionBtn(true)" @tap="createPurchase"><image :src="orderWhiteIcon" :style="decisionIcon" mode="aspectFit" /><text :style="decisionTextLight">记入购买</text></view>
@@ -64,7 +70,7 @@
     </view>
     <view :style="botItem" @tap="askQiling">
       <view :style="botIcon"><AppIcon name="sparkles" :size="40" :active="false" /></view>
-      <text :style="botLabel">问绮灵</text>
+      <text :style="botLabel">看搭配</text>
     </view>
     <view :style="goBtn" @tap="openOfficial"><text :style="goBtnText">前往官方渠道</text></view>
   </view>
@@ -87,6 +93,8 @@ import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
 import { useWishListStore } from '@/stores/wishlist-store'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { calculateWardrobeCompatibility } from '@/services/ai/wardrobe-compatibility-service'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
@@ -102,7 +110,10 @@ const description = ref('')
 const shopUrl = ref('')
 // 收藏态：与收藏页共用 content-library-store 统一数据源（后端 /api/v1/wishlist）
 const library = useContentLibraryStore()
+const wardrobe = useWardrobeStore()
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
+const compatibility = computed(() => item.value !== null ? calculateWardrobeCompatibility(item.value!, wardrobe.items) : calculateWardrobeCompatibility(new FeedItem(), wardrobe.items))
+const compatibilityNames = computed((): string => compatibility.value.matchedItems.map((entry) => entry.name).join('、'))
 const stages = ['图透', '定金', '尾款', '现货']
 const currentImageIndex = ref(0)
 function formatMoney(cents: number): string { return formatPrice(cents) }
@@ -155,7 +166,8 @@ function openOfficial() {
 }
 
 function askQiling() {
-  uni.navigateTo({ url: '/pages/ai/index' })
+  if (wardrobe.items.length === 0) { showFeedback('先添加衣橱单品，才能计算搭配度'); return }
+  showFeedback(compatibility.value.explanation)
 }
 
 function dateOnly(value: string): string {
@@ -184,7 +196,6 @@ async function loadDetail() {
   loading.value = true
   errorMessage.value = ''
   currentImageIndex.value = 0
-  isSaved.value = false
   try {
     const result = await fetchProductDetail(itemId.value)
     if (result === null) { item.value = null; errorMessage.value = '商品信息不存在'; return }
@@ -210,6 +221,7 @@ onMounted(() => {
   const options = current.options
   itemId.value = options != null && options['id'] != null ? options['id'] as string : ''
   loadDetail()
+  wardrobe.fetchItems()
 })
 
 const safeBottom = getSafeBottomInset()
@@ -229,6 +241,14 @@ const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.t
 const statusTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: baseColors.white, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }))
 const statusDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '8rpx' }
 const statusTagText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500] }
+const compatibilityCard = computed((): any => ({ padding: '18rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, marginTop: '18rpx' }))
+const compatibilityHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between' }
+const compatibilityTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const compatibilityScore = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
+const compatibilityTrack = { height: '8rpx', borderRadius: '4rpx', backgroundColor: '#E9C5CD', overflow: 'hidden', marginTop: '12rpx' }
+const compatibilityFill = computed((): any => ({ height: '8rpx', width: `${Math.max(0, compatibility.value.score)}%`, borderRadius: '4rpx', backgroundColor: brand[500] }))
+const compatibilityReason = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '32rpx', marginTop: '10rpx' }))
+const compatibilityMatches = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '32rpx', marginTop: '4rpx' }))
 const decisionRow = { ...flexRow, marginTop: '22rpx' }
 function decisionBtn(primary: boolean) {
   return {

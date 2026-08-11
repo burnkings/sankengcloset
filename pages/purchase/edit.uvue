@@ -4,6 +4,7 @@
     <template #default>
       <scroll-view :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
+          <view v-if="isAiDraft" :style="aiDraftBanner"><text :style="aiDraftText">这是订单识别草稿：请核对每个金额、日期和商品信息后再保存。</text></view>
 
           <V2FormSection title="基本信息">
             <text :style="fieldLabel">商品名称</text>
@@ -16,6 +17,9 @@
                 <text :style="brandItemText">{{ b }}</text>
               </view>
             </view>
+
+            <text :style="fieldLabel">店铺 / 团长</text>
+            <AppInput v-model="form.shopName" placeholder="可选，便于回看订单来源" :clearable="true" />
 
             <text :style="fieldLabel">坑向</text>
             <V2Segmented :items="categoryLabels" :active="activeCategoryLabel" variant="solid" @change="onCategoryChange" />
@@ -65,6 +69,7 @@
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
+import { confirmPurchaseImport } from '@/services/ai/purchase-import-service'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -85,6 +90,7 @@ const editId = ref('')
 type FormState = {
   name: string
   brand: string
+  shopName: string
   category: string
   totalAmountStr: string
   depositAmountStr: string
@@ -95,8 +101,10 @@ type FormState = {
   arrivalDate: string
   note: string
 }
-const form = ref<FormState>({ name: '', brand: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', arrivalDate: '', note: '' })
+const form = ref<FormState>({ name: '', brand: '', shopName: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', arrivalDate: '', note: '' })
 const sourceWishId = ref('')
+const sourceImportTaskId = ref('')
+const isAiDraft = ref(false)
 
 const brandSuggestions = ref<string[]>([])
 function onBrandInput(e: any) {
@@ -137,6 +145,7 @@ function save() {
     const data = new PurchaseUpdateData()
     data.name = form.value.name.trim()
     data.brand = form.value.brand.trim()
+    data.shopName = form.value.shopName.trim()
     data.category = form.value.category
     data.paymentStatus = form.value.paymentStatus
     data.totalAmount = total > 0 ? total : 0
@@ -151,6 +160,7 @@ function save() {
     const record = new PurchaseRecord()
     record.name = form.value.name.trim()
     record.brand = form.value.brand.trim()
+    record.shopName = form.value.shopName.trim()
     record.category = form.value.category
     record.paymentStatus = form.value.paymentStatus
     record.totalAmount = total > 0 ? total : 0
@@ -161,7 +171,13 @@ function save() {
     record.arrivalDate = form.value.arrivalDate.trim()
     record.wishId = sourceWishId.value
     record.note = form.value.note.trim()
-    if (store.addPurchase(record) === null) { showFeedback('保存失败，请重试'); return }
+    const added = store.addPurchase(record)
+    if (added === null) { showFeedback('保存失败，请重试'); return }
+    if (sourceImportTaskId.value !== '') {
+      confirmPurchaseImport(sourceImportTaskId.value, added.id, added as UTSJSONObject).catch(() => {
+        // 订单本身已保存；确认回执会由服务端任务保留待下次重试，不影响用户记录。
+      })
+    }
   }
   showFeedback(isEdit.value ? '修改已保存' : '添加成功')
   setTimeout(() => { uni.navigateBack() }, 300)
@@ -177,6 +193,7 @@ onLoad((options) => {
       if (record != null) {
         form.value.name = record.name
         form.value.brand = record.brand
+        form.value.shopName = record.shopName
         form.value.category = record.category
         form.value.paymentStatus = record.paymentStatus
         form.value.totalAmountStr = record.totalAmount > 0 ? record.totalAmount.toString() : ''
@@ -191,9 +208,22 @@ onLoad((options) => {
     }
     form.value.name = options['name'] != null ? safeParam(options['name'] as string) : ''
     form.value.brand = options['brand'] != null ? safeParam(options['brand'] as string) : ''
+    form.value.shopName = options['shopName'] != null ? safeParam(options['shopName'] as string) : ''
     form.value.category = options['category'] != null ? (options['category'] as string) : 'JK'
     sourceWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
+    sourceImportTaskId.value = options['importTaskId'] != null ? safeParam(options['importTaskId'] as string) : ''
+    isAiDraft.value = options['fromAiImport'] != null && (options['fromAiImport'] as string) === '1'
     form.value.totalAmountStr = options['amount'] != null ? safeParam(options['amount'] as string) : ''
+    form.value.depositAmountStr = options['deposit'] != null ? safeParam(options['deposit'] as string) : ''
+    form.value.paidAmountStr = options['paid'] != null ? safeParam(options['paid'] as string) : ''
+    form.value.purchaseDate = options['purchaseDate'] != null ? safeParam(options['purchaseDate'] as string) : ''
+    form.value.deadline = options['deadline'] != null ? safeParam(options['deadline'] as string) : ''
+    form.value.arrivalDate = options['arrivalDate'] != null ? safeParam(options['arrivalDate'] as string) : ''
+    form.value.note = options['note'] != null ? safeParam(options['note'] as string) : ''
+    const paid = parseFloat(form.value.paidAmountStr)
+    const total = parseFloat(form.value.totalAmountStr)
+    if (total > 0 && paid >= total) form.value.paymentStatus = 'COMPLETED'
+    else if (paid > 0) form.value.paymentStatus = 'DEPOSIT_PAID'
   }
 })
 function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
@@ -203,6 +233,8 @@ const scrollStyle = { flex: 1 }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: '160rpx' }
 const bottomSpacer = { height: '40rpx' }
 const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx', marginBottom: '14rpx' }))
+const aiDraftBanner = computed((): any => ({ padding: '20rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, marginBottom: '20rpx' }))
+const aiDraftText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '36rpx' }))
 const statusScroll = { marginBottom: '0' }
 const amountCard = { flexDirection: 'row', marginTop: '24rpx' }
 const amountColumn = { flex: 1, marginRight: '12rpx' }

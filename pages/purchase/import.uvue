@@ -1,0 +1,157 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="尾款一键入库" :show-back="true" /></template>
+    <template #default>
+      <scroll-view :style="scrollStyle">
+        <view class="page-canvas" :style="pageWrap">
+          <view :style="heroCard">
+            <text :style="heroTitle">拍张订单截图，尾款帮你记好</text>
+            <text :style="heroDescription">只提取订单、定金、已付金额与补款时间。识别结果会先进入确认页，绝不会自动建单或扣款。</text>
+          </view>
+
+          <text :style="sectionTitle">1. 添加订单截图</text>
+          <view :style="imagePicker" @tap="chooseScreenshot">
+            <AppImage v-if="sourceImage !== ''" :src="sourceImage" width="100%" height="100%" mode="aspectFill" />
+            <view v-else :style="imagePlaceholder">
+              <AppIcon name="import" :size="52" :active="true" />
+              <text :style="imagePlaceholderTitle">选择淘宝、微店或团长订单截图</text>
+              <text :style="imagePlaceholderDesc">相册和相机都可以，截图仅用于本次识别</text>
+            </view>
+          </view>
+
+          <text :style="sectionTitle">2. 补充来源链接（可选）</text>
+          <AppInput v-model="sourceLink" placeholder="粘贴淘宝 / 闲鱼 / 拼多多商品链接" :clearable="true" />
+          <text :style="fieldHint">链接只用于标注来源；短链无法解析时仍可继续，不会中断入库。</text>
+
+          <view v-if="errorMessage !== ''" :style="errorCard"><text :style="errorText">{{ errorMessage }}</text></view>
+
+          <view :style="privacyCard">
+            <text :style="privacyTitle">你的截图如何被使用</text>
+            <text :style="privacyText">仅上传你主动选择的图片以生成订单草稿；识别后仍由你逐项确认。不会识别人脸、身份或身体信息。</text>
+          </view>
+
+          <view :style="bottomSpacer" />
+        </view>
+      </scroll-view>
+    </template>
+  </MainLayout>
+  <view :style="bottomBar">
+    <view :style="secondaryButton" @tap="continueManually"><text :style="secondaryButtonText">手动补全</text></view>
+    <view :style="primaryButton(working)" @tap="startRecognition"><text :style="primaryButtonText">{{ working ? '正在识别…' : '识别并确认' }}</text></view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { analyzePurchaseScreenshot } from '@/services/ai/purchase-import-service'
+import { parseCommerceLink } from '@/services/ai/ai-import-service'
+import { PurchaseImportTask } from '@/domain/ai/purchase-import-task'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+import { getSafeBottomInset } from '@/utils/window-info'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+
+const sourceImage = ref('')
+const sourceLink = ref('')
+const working = ref(false)
+const errorMessage = ref('')
+
+function chooseScreenshot() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (result) => {
+      const paths = result.tempFilePaths
+      if (paths != null && paths.length > 0) {
+        sourceImage.value = paths[0]
+        errorMessage.value = ''
+      }
+    },
+  })
+}
+
+function encoded(value: string): string { return encodeURIComponent(value) ?? '' }
+function yuan(cents: number): string { return cents > 0 ? (cents / 100).toString() : '' }
+
+function navigateToConfirmation(task: PurchaseImportTask | null, manual: boolean) {
+  let platform = ''
+  let urlNote = ''
+  if (sourceLink.value.trim() !== '') {
+    try {
+      const parsed = parseCommerceLink(sourceLink.value)
+      platform = parsed.platform
+      urlNote = `${platform}链接：${parsed.normalizedUrl}`
+    } catch (e) {
+      urlNote = `来源链接：${sourceLink.value.trim()}`
+    }
+  }
+  const s = task != null ? task.suggestion : null
+  const noteParts = [] as string[]
+  if (task != null) noteParts.push(`AI订单草稿 ${task.taskId}，请逐项核对`)
+  if (s != null && s.orderNumber !== '') noteParts.push(`订单号：${s.orderNumber}`)
+  if (urlNote !== '') noteParts.push(urlNote)
+  const category = s != null && s.category !== '' && s.category !== 'OTHER' ? s.category : 'JK'
+  const path = '/pages/purchase/edit?fromAiImport=' + (manual ? '0' : '1')
+    + '&importTaskId=' + encoded(task != null ? task.taskId : '')
+    + '&name=' + encoded(s != null ? s.name : '')
+    + '&brand=' + encoded(s != null ? s.brand : '')
+    + '&shopName=' + encoded(s != null ? s.shopName : platform)
+    + '&amount=' + encoded(s != null ? yuan(s.totalCents) : '')
+    + '&deposit=' + encoded(s != null ? yuan(s.depositCents) : '')
+    + '&paid=' + encoded(s != null ? yuan(s.paidCents) : '')
+    + '&category=' + encoded(category)
+    + '&purchaseDate=' + encoded(s != null ? s.orderDate : '')
+    + '&deadline=' + encoded(s != null ? s.balanceDueDate : '')
+    + '&arrivalDate=' + encoded(s != null ? s.arrivalDate : '')
+    + '&note=' + encoded(noteParts.join('\n'))
+  uni.navigateTo({ url: path })
+}
+
+async function startRecognition() {
+  if (working.value) return
+  if (sourceImage.value === '') { errorMessage.value = '请先选择订单截图；若暂时没有截图，可直接手动补全。'; return }
+  working.value = true
+  errorMessage.value = ''
+  try {
+    const task = await analyzePurchaseScreenshot(sourceImage.value, sourceLink.value)
+    navigateToConfirmation(task, false)
+  } catch (e) {
+    errorMessage.value = e instanceof Error ? e.message : '识别失败，请手动补全订单字段'
+  } finally {
+    working.value = false
+  }
+}
+
+function continueManually() { navigateToConfirmation(null, true) }
+
+const safeBottom = getSafeBottomInset()
+const scrollStyle = { flex: 1 }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const heroCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surfacePink, marginBottom: '36rpx' }))
+const heroTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, lineHeight: '48rpx' }))
+const heroDescription = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '38rpx', marginTop: '10rpx' }))
+const sectionTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '16rpx', marginTop: '24rpx' }))
+const imagePicker = computed((): any => ({ height: '340rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.bgSecondary, borderWidth: '2rpx', borderStyle: 'dashed', borderColor: n.value.cardBorder }))
+const imagePlaceholder = { height: '100%', alignItems: 'center', justifyContent: 'center' }
+const imagePlaceholderTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '16rpx' }))
+const imagePlaceholderDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const fieldHint = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '32rpx', marginTop: '10rpx' }))
+const errorCard = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: '#FFF1F0', marginTop: '24rpx' }))
+const errorText = { fontSize: fontSize.sm, color: '#CF1322', lineHeight: '36rpx' }
+const privacyCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, marginTop: '28rpx' }))
+const privacyTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const privacyText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginTop: '8rpx' }))
+const bottomSpacer = { height: '160rpx' }
+const bottomBar = computed((): any => ({ ...flexRow, position: 'fixed', left: '0', right: '0', bottom: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingTop: '16rpx', paddingBottom: `${safeBottom + 20}px`, backgroundColor: n.value.surface }))
+const secondaryButton = computed((): any => ({ height: '88rpx', width: '190rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const secondaryButtonText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+function primaryButton(disabled: boolean): any { return { ...flexFill, height: '88rpx', borderRadius: '24rpx', backgroundColor: disabled ? brand[300] as string : brand[500] as string, alignItems: 'center', justifyContent: 'center' } }
+const primaryButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+</script>

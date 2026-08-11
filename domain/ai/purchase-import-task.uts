@@ -1,0 +1,39 @@
+/**
+ * 订单与尾款识别的可审计草稿。
+ * 这不是 PurchaseRecord；任何字段都必须在确认页由用户复核后才能入库。
+ */
+export class PurchaseImportSuggestion {
+  name: string = ''
+  brand: string = ''
+  shopName: string = ''
+  category: string = 'OTHER'
+  orderNumber: string = ''
+  orderDate: string = ''
+  totalCents: number = 0
+  depositCents: number = 0
+  paidCents: number = 0
+  balanceDueDate: string = ''
+  arrivalDate: string = ''
+  note: string = ''
+}
+
+export class PurchaseImportFieldConfidence {
+  field: string = ''
+  confidence: number = 0
+}
+
+export class PurchaseImportTask {
+  taskId: string = ''
+  state: string = 'pending'
+  sourceImage: string = ''
+  sourceLink: string = ''
+  sourcePlatform: string = ''
+  modelName: string = ''
+  modelVersion: string = ''
+  requestId: string = ''
+  confidence: number = 0
+  fieldConfidence: PurchaseImportFieldConfidence[] = []
+  evidence: string[] = []
+  warnings: string[] = []
+  suggestion: PurchaseImportSuggestion = new PurchaseImportSuggestion()
+}

@@ -247,6 +247,8 @@ class WardrobeStoreHandle {
   get currentStatus(): string { return _state.currentStatus }
   get viewMode(): string { return _state.viewMode }
   get sortedItems(): WardrobeItem[] { return _sortedItems.value }
+  /** 供 Feed 搭配度计算使用；页面仍应使用 sortedItems 渲染。 */
+  get items(): WardrobeItem[] { return _state.items }
   get itemCount(): number { return _itemCount.value }
   get categoryCounts(): UTSJSONObject { return _categoryCounts.value }
   get activeFilterCount(): number { return _activeFilterCount.value }

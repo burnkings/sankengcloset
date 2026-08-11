@@ -22,6 +22,12 @@ const required = {
   'stores/reminder-store.uts': ['syncPurchaseReminders', 'relatedPurchaseId', '预计到货后可一键入橱'],
   'pages/wardrobe/edit.uvue': ['purchaseId', 'wishId', 'linkWardrobe'],
   'pages/budget/index.uvue': ['decisionReserveTotal', 'monthlyCommitted', 'monthOutstanding'],
+  'services/ai/purchase-import-service.uts': ["'/api/v1/ai/import-tasks'", "'/api/v1/uploads:prepare'", 'purchase_order', 'confirmPurchaseImport'],
+  'pages/purchase/import.uvue': ['尾款一键入库', 'analyzePurchaseScreenshot', '手动补全', '识别并确认'],
+  'services/ai/wardrobe-compatibility-service.uts': ['calculateWardrobeCompatibility', '衣橱为空时返回 -1'],
+  'pages/home/index.uvue': ['compatibility-score', 'calculateWardrobeCompatibility'],
+  'pages/product/detail.uvue': ['与你衣橱的搭配度', 'calculateWardrobeCompatibility'],
+  'pages.json': ['"pagePath": "pages/favorites/index"', '"text": "收藏"'],
 }
 const notAllowed = {
   'config/runtime.uts': ['setRuntimeMode', 'setApiBaseUrl', 'setMockOnline', 'setMockLatency', 'DATA_MODE_LOCAL', 'DATA_MODE_MOCK'],
@@ -31,6 +37,7 @@ const notAllowed = {
   'pages/product/detail.uvue': ["'/api/v1/wishlist'"],
   'pages/favorites/index.uvue': ['远程收藏数据获取将在后续迭代中集成', 'recommendationProducts'],
   'pages/budget/index.uvue': ['monthSpent'],
+  'pages.json': ['"text": "绮灵AI"'],
 }
 let failed = false
 for (const [file, needles] of Object.entries(required)) {
