@@ -2,6 +2,37 @@ import { AiImportTask, AiImportSuggestion, AI_IMPORT_READY } from '@/domain/ai/a
 import { createRequestId } from '@/domain/platform/api-contract'
 import { getRuntimeConfig } from '@/config/runtime'
 
+export class ParsedCommerceLink {
+  platform: string = ''
+  productId: string = ''
+  normalizedUrl: string = ''
+  warnings: string[] = []
+}
+
+/**
+ * 第一优先级：只解析公开 URL 的平台与商品标识，不访问电商页面、不伪造商品资料。
+ * 调用方必须让用户补全并确认名称/价格后才可创建愿望或订单。
+ */
+export function parseCommerceLink(rawLink: string): ParsedCommerceLink {
+  const raw = rawLink.trim()
+  if (raw === '') throw new Error('请粘贴商品链接')
+  const value = raw.toLowerCase()
+  const result = new ParsedCommerceLink()
+  result.normalizedUrl = raw
+  if (value.includes('taobao.com') || value.includes('tmall.com')) result.platform = '淘宝'
+  else if (value.includes('goofish.com') || value.includes('idlefish.com')) result.platform = '闲鱼'
+  else if (value.includes('yangkeduo.com') || value.includes('pinduoduo.com')) result.platform = '拼多多'
+  else throw new Error('暂支持淘宝、闲鱼和拼多多链接')
+
+  const patterns = [/id=(\\d+)/, /itemId=(\\d+)/, /goods_id=(\\d+)/, /[?&]id=(\\d+)/]
+  for (const pattern of patterns) {
+    const match = raw.match(pattern)
+    if (match != null && match.length > 1) { result.productId = match[1]; break }
+  }
+  if (result.productId === '') result.warnings = ['未能从短链提取商品 ID；已保留原链接，请在确认页补充商品信息。']
+  return result
+}
+
 function safeSuggestion(): AiImportSuggestion {
   const suggestion = new AiImportSuggestion()
   suggestion.name = '待确认单品'
