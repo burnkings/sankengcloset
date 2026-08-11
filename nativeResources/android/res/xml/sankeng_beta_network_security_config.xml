@@ -1,18 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Beta 配置：允许所有明文 HTTP 流量（仅限内测）。
-  上线前替换为以下生产配置：
-
-  <network-security-config>
-      <base-config cleartextTrafficPermitted="false">
-          <trust-anchors>
-              <certificates src="system" />
-          </trust-anchors>
-      </base-config>
-      <domain-config cleartextTrafficPermitted="true">
-          <domain includeSubdomains="false">YOUR_PRODUCTION_API_HOST</domain>
-      </domain-config>
-  </network-security-config>
+  BETA 专用网络配置（与正式包隔离）：
+  允许所有明文 HTTP 流量，仅限本地内测 / 连调试服务器使用。
+  ⚠️ release 构建不得引用本文件 —— 正式包使用 sankeng_network_security_config.xml（cleartext 禁用）。
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">

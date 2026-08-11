@@ -1,11 +1,14 @@
 {
   "name": "sankengcloset",
-  "version": "1.6.2",
+  "version": "2.5.0-beta.2",
   "description": "三坑绮橱 AppX",
   "scripts": {
     "build:mp-weixin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-mp-weixin.ps1",
     "patch:mp-weixin": "python scripts/patch-vendor.py unpackage/dist/dev/mp-weixin",
-    "check:mp-weixin": "node scripts/check-uts-compile.js unpackage/dist/dev/mp-weixin"
+    "check:mp-weixin": "node scripts/check-uts-compile.js unpackage/dist/dev/mp-weixin",
+    "check:runtime": "node scripts/check-v24-remote-runtime.js",
+    "check:android": "node scripts/check-v25-android-beta.js",
+    "check": "node scripts/check.js"
   },
   "dependencies": {
     "@dcloudio/uni-components": "^3.0.0-alpha-5010220260604001",

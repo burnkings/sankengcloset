@@ -1,22 +1,33 @@
 <script setup lang="uts">
 import { initializeTheme, syncSystemChrome, syncTabBarChrome } from '@/theme/use-theme'
 import { warmRuntimeCache } from '@/config/runtime'
+import { useSyncStore } from '@/stores/sync-store'
+
+// 网络恢复监听（仅注册一次）：恢复联网后冲刷本地待同步队列
+let networkListenerBound = false
+function bindNetworkListener() {
+  if (networkListenerBound) return
+  networkListenerBound = true
+  uni.onNetworkStatusChange((res) => {
+    if (res.isConnected) useSyncStore().syncNow()
+  })
+}
 
 onLaunch(() => {
   warmRuntimeCache()
   initializeTheme()
   syncTabBarChrome()
-  console.log('App Launch')
+  // 启动时冲刷队列（离线期间的写操作补上送）
+  useSyncStore().syncNow()
+  bindNetworkListener()
 })
 
 onAppShow(() => {
   syncSystemChrome()
-  console.log('App Show')
+  useSyncStore().syncNow()
 })
 
-onAppHide(() => {
-  console.log('App Hide')
-})
+onAppHide(() => {})
 </script>
 
 <style>

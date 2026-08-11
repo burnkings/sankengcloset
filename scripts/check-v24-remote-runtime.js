@@ -1,17 +1,26 @@
 #!/usr/bin/env node
+/**
+ * V2.6 远程运行时契约检查
+ * - 验证当前微信登录实现（POST /api/v1/sessions/wechat），不再要求已删除的 sessions/dev
+ * - 验证 401 刷新单飞锁（apiGetAuthorized / refreshWithSingleFlight）
+ * - 验证 Feed opaque cursor（不再用 pageIndex × 20 伪造）
+ * - 验证同步策略（直接远程写 + 失败才入队，flush 重放真实 CRUD）
+ */
 const fs = require('fs')
 
 const required = {
   'config/runtime.uts': ['DATA_MODE_REMOTE', 'saveSessionTokens'],
-  'services/platform/api-client.uts': ["apiGet", "apiPostAuthorized", "refreshRemoteSession", "'/health'"],
-  'services/content/feed-service.uts': ['/api/v1/feed', 'mapFeedItem'],
-  'services/sync/local-sync-queue.uts': ["'/api/v1/sync/operations:batch'", 'receipts', 'apiPostAuthorized'],
-  'stores/session-store.uts': ["'/api/v1/sessions/dev'", 'loginWithRuntime', 'saveSessionTokens'],
+  'services/platform/api-client.uts': ['apiGetAuthorized', 'apiPostAuthorized', 'refreshWithSingleFlight', "apiPost('/api/v1/sessions/refresh'", "'/health'"],
+  'services/content/feed-service.uts': ['/api/v1/feed', 'mapFeedItem', 'cursor'],
+  'services/sync/local-sync-queue.uts': ['replayOperation', 'apiPostAuthorized', 'apiPatchAuthorized', 'apiDeleteAuthorized'],
+  'stores/session-store.uts': ["'/api/v1/sessions/wechat'", 'loginWithWechat', 'saveSessionTokens', 'flushLocalOperations'],
+  'stores/home-feed-store.uts': ['nextCursor', 'MAX_FEED_ITEMS', '_requestSeq'],
 }
 const notAllowed = {
   'config/runtime.uts': ['setRuntimeMode', 'setApiBaseUrl', 'setMockOnline', 'setMockLatency', 'DATA_MODE_LOCAL', 'DATA_MODE_MOCK'],
   'stores/sync-store.uts': ['setMockOnline'],
-  'stores/session-store.uts': ['loginPreview', 'localAssetsPending', 'markLocalAssetsQueued'],
+  'stores/session-store.uts': ['loginPreview', 'localAssetsPending', 'markLocalAssetsQueued', "'/api/v1/sessions/dev'"],
+  'services/content/feed-service.uts': ['__DEV__', 'pageIndex'],
 }
 let failed = false
 for (const [file, needles] of Object.entries(required)) {
@@ -25,4 +34,4 @@ for (const [file, needles] of Object.entries(notAllowed)) {
   for (const needle of needles) if (text.includes(needle)) { console.error(`[FAIL] ${file} still contains ${needle}`); failed = true }
 }
 if (failed) process.exit(1)
-console.log('[PASS] V2.5 runtime contract checks — mock/local modes fully removed')
+console.log('[PASS] V2.6 runtime contract checks — wechat login, 401 single-flight refresh, opaque cursor, unified write strategy')

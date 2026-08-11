@@ -76,7 +76,7 @@ import { FeedItem } from '@/domain/content/feed-item'
 import { WishItem } from '@/domain/wish-item'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice } from '@/stores/home-feed-store'
-import { apiGet, apiPost, apiDelete } from '@/services/platform/api-client'
+import { apiGetAuthorized, apiPostAuthorized, apiDeleteAuthorized } from '@/services/platform/api-client'
 import { getCachedAccessToken } from '@/config/runtime'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -125,7 +125,8 @@ function isLoggedIn(): boolean {
 
 async function fetchWishlist() {
   try {
-    const response = await apiGet('/api/v1/wishlist')
+    // Authorized：token 过期自动刷新重试
+    const response = await apiGetAuthorized('/api/v1/wishlist')
     const items = response.data as any[]
     if (items != null) {
         savedEntityIds = items.map((w: any): string => {
@@ -159,14 +160,14 @@ async function toggleSaved() {
     if (currentSaved) {
       const targetId = findWishlistId(entityId)
       if (targetId !== '') {
-        await apiDelete(`/api/v1/wishlist/${encodeURIComponent(targetId)}`)
+        await apiDeleteAuthorized(`/api/v1/wishlist/${encodeURIComponent(targetId)}`)
       }
       isSaved.value = false
       const idx = savedEntityIds.indexOf(entityId)
       if (idx >= 0) savedEntityIds.splice(idx, 1)
       showFeedback('已移出收藏')
     } else {
-      await apiPost('/api/v1/wishlist', { entityId, feedType: item.value!.feedType, title: item.value!.title })
+      await apiPostAuthorized('/api/v1/wishlist', { entityId, feedType: item.value!.feedType, title: item.value!.title })
       isSaved.value = true
       savedEntityIds.unshift(entityId)
       showFeedback('已收进心动收藏')

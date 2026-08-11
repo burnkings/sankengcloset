@@ -8,7 +8,7 @@
           <text :style="mineTitle">我的发布</text>
         </view>
         <view v-if="viewMode !== 'mine'">
-        <text :style="introText">看真实同好如何搭配，也分享你的今日造型</text>
+        <text :style="introText">穿搭灵感 Gallery · 看同好如何搭配，也分享你的今日造型</text>
         <view :style="composerCard" @tap="goCreate">
           <view :style="composerIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
@@ -26,26 +26,47 @@
         </view>
         </view>
 
+        <!-- 公开 Gallery：loading / empty / error 三态 -->
+        <view v-if="viewMode !== 'mine' && library.publicLoading" :style="stateWrap">
+          <AppLoading />
+        </view>
+        <view v-else-if="viewMode !== 'mine' && library.publicError !== ''" :style="stateWrap">
+          <text :style="stateText">灵感加载失败：{{ library.publicError }}</text>
+          <view :style="retryButton" @tap="reloadPublic"><text :style="retryText">重新加载</text></view>
+        </view>
+        <view v-else-if="viewMode !== 'mine' && visibleLooks.length === 0" :style="stateWrap">
+          <text :style="stateTitle">还没有穿搭灵感</text>
+          <text :style="stateSub">发布你的第一套搭配，成为大家的灵感</text>
+        </view>
+
+        <!-- 公开 Gallery 帖子 -->
+        <view v-if="viewMode !== 'mine'">
+        <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
+          <view :style="heroImage" @tap="previewPostImage(look.imageUrl)"><AppImage :src="look.imageUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+            <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
+          </view>
+          <view :style="lookBody">
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.authorNickname }}</text><text :style="timeText">{{ postTime(look.createdAt) }}</text></view>
+            <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
+            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><view :style="likeAction" @tap="togglePublicLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ publicLikeCount(look) }}</text></view></view>
+          </view>
+        </view>
+        </view>
+
+        <!-- 我的发布 -->
+        <view v-if="viewMode === 'mine'">
+        <view v-if="visibleUserLooks.length === 0" :style="stateWrap">
+          <text :style="stateTitle">还没有发布过穿搭</text>
+          <text :style="stateSub">点击右上角「发布」，分享你的第一套搭配</text>
+        </view>
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
           <view :style="heroImage" @tap="previewPostImage(look.image)"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
             <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
           </view>
           <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的圈子</text><text :style="timeText">{{ postTime(look.createdAt) }}</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId == look.id ? '确认删除' : '删除' }}</text></view>
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的发布</text><text :style="timeText">{{ postTime(look.createdAt) }}</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId == look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
             <view :style="lookMeta"><view :style="ownMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ ownLikeCount(look.id) }}</text></view></view>
-          </view>
-        </view>
-
-        <view v-if="viewMode !== 'mine'">
-        <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage" @tap="previewPostImage(look.image)"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-            <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
-          </view>
-          <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.author }}</text><text :style="timeText">{{ look.time }}</text></view>
-            <text :style="lookCaption">{{ look.caption }}</text>
-            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ likeCount(look.id, look.likes) }}</text></view></view>
           </view>
         </view>
         </view>
@@ -65,22 +86,11 @@ import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import AppLoading from '@/components/base/AppLoading.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
-import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
+import { useContentLibraryStore, SavedOutfitPost, PublicLookPost } from '@/stores/content-library-store'
 import { getWindowHeight } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
-
-type LookItem = {
-  id: string
-  image: string
-  topic: string
-  pitType: string
-  initial: string
-  author: string
-  time: string
-  caption: string
-  likes: number
-}
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
@@ -90,18 +100,20 @@ const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑']
 const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']
-const looks: LookItem[] = []
-function filterByPitAndTopic(items: LookItem[]): LookItem[] {
+
+// 公开 Gallery：仅筛选作用于公开帖子
+function filterByPitAndTopic(items: PublicLookPost[]): PublicLookPost[] {
   let result = items
   if (activePitType.value !== '全部') {
-    result = result.filter((item: LookItem): boolean => item.pitType === activePitType.value)
+    result = result.filter((item: PublicLookPost): boolean => item.category === activePitType.value || (activePitType.value === '混搭' && item.category === '混搭'))
   }
   if (activeTopic.value !== '全部') {
-    result = result.filter((item: LookItem): boolean => item.topic === activeTopic.value)
+    result = result.filter((item: PublicLookPost): boolean => item.topic === activeTopic.value)
   }
   return result
 }
-const visibleLooks = computed((): LookItem[] => filterByPitAndTopic(looks))
+const visibleLooks = computed((): PublicLookPost[] => filterByPitAndTopic(library.publicPosts))
+// 我的发布：筛选只作用于我的帖子
 const visibleUserLooks = computed((): SavedOutfitPost[] => {
   let result: SavedOutfitPost[] = library.outfitPosts
   if (activePitType.value !== '全部') {
@@ -121,8 +133,26 @@ function openPitPicker() {
 }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
+function reloadPublic() { library.refreshPublicPosts() }
+// 公开帖点赞：作用于公开实体
+function togglePublicLike(id: string) {
+  library.togglePostLike(id)
+  // 同步本地乐观计数
+  const posts = library.publicPosts
+  for (let i = 0; i < posts.length; i++) {
+    if (posts[i].id == id) {
+      const liked = library.isPostLiked(id)
+      posts[i].liked = liked
+      posts[i].likeCount = Math.max(0, posts[i].likeCount + (liked ? 1 : -1))
+      break
+    }
+  }
+}
+function publicLikeCount(look: PublicLookPost): number {
+  return look.likeCount
+}
+// 我的发布点赞
 function toggleLike(id: string) { library.togglePostLike(id) }
-function likeCount(id: string, baseCount: number): number { return baseCount + (library.isPostLiked(id) ? 1 : 0) }
 function ownLikeCount(id: string): number { return library.isPostLiked(id) ? 1 : 0 }
 function deleteOwnPost(id: string) {
   if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
@@ -135,8 +165,16 @@ let clockTimer: number | null = null
 function postTime(createdAt: string): string {
   if (createdAt == '') return '刚刚'
   const timestamp = parseInt(createdAt)
-  if (isNaN(timestamp)) return '刚刚'
-  const minutes = Math.floor(Math.max(0, nowTs.value - timestamp) / 60000)
+  if (isNaN(timestamp)) {
+    // ISO 字符串时间
+    const t = new Date(createdAt).getTime()
+    if (isNaN(t)) return '刚刚'
+    return relativeTime(t)
+  }
+  return relativeTime(timestamp)
+}
+function relativeTime(ts: number): string {
+  const minutes = Math.floor(Math.max(0, nowTs.value - ts) / 60000)
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes}分钟前`
   const hours = Math.floor(minutes / 60)
@@ -158,7 +196,9 @@ onLoad(() => { initPageTheme() })
 onShow(() => {
   initPageTheme()
   library.reload()
-  library.refreshRemotePosts()
+  // 公开 Gallery 与我的发布分别拉取
+  library.refreshPublicPosts()
+  library.refreshMyPosts()
   startClock()
   try {
     const pendingView = uni.getStorageSync('community_view') as string
@@ -216,4 +256,11 @@ const likeAction = { ...flexRow, alignItems: 'center', minWidth: '76rpx', height
 function likeText(id: string) { return { fontSize: '24rpx', color: library.isPostLiked(id) ? brand[500] as string : n.value.textTertiary, marginLeft: '6rpx' } }
 const categoryText = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary, marginTop: '10rpx' }))
 function deleteOwnText(id: string) { return { fontSize: '20rpx', color: pendingDeleteId.value == id ? brand[700] as string : n.value.textTertiary, marginLeft: '16rpx' } }
+// 三态样式
+const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '120rpx', paddingBottom: '120rpx' }
+const stateTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textSecondary }))
+const stateSub = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '10rpx' }))
+const stateText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
+const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }
+const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
 </script>

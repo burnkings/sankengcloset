@@ -116,8 +116,19 @@ function onManageTap(id: string) {
 }
 function onHelpTap() { showFeedback('反馈入口将在账号服务接入后开放') }
 function onClearCacheTap() {
-  try { uni.removeStorageSync('search_recent'); uni.removeStorageSync('community_view') } catch (e) {}
-  showFeedback('已清理')
+  // 清理范围 = 搜索历史 + 浏览临时状态；文案与真实删除范围一致（不含用户数据/同步队列）
+  try {
+    uni.removeStorageSync('search_recent')
+    uni.removeStorageSync('pending_search_keyword')
+    uni.removeStorageSync('community_view')
+    uni.removeStorageSync('community_topic')
+    // 旧版本地穿搭草稿迁移遗留 key
+    uni.removeStorageSync('local_outfit_image')
+    uni.removeStorageSync('local_outfit_caption')
+    uni.removeStorageSync('local_outfit_category')
+    uni.removeStorageSync('local_outfit_topic')
+  } catch (e) {}
+  showFeedback('已清理搜索与浏览缓存')
 }
 
 onLoad(() => { initPageTheme() })

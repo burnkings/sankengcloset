@@ -82,33 +82,6 @@ export function apiPost(path: string, payload: any): Promise<ApiResponse> {
   })
 }
 
-export async function refreshRemoteSession(): Promise<boolean> {
-  const refreshToken = getCachedRefreshToken()
-  if (refreshToken === '') return false
-  const response = await apiPost('/api/v1/sessions/refresh', { refreshToken })
-  const data = response.data != null ? response.data as UTSJSONObject : null
-  if (data == null || data['accessToken'] == null) return false
-  saveSessionTokens(data['accessToken'] as string, data['refreshToken'] != null ? data['refreshToken'] as string : refreshToken)
-  return true
-}
-
-export async function apiPostAuthorized(path: string, payload: any): Promise<ApiResponse> {
-  try { return await apiPost(path, payload) }
-  catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode === 401 && (await refreshRemoteSession())) {
-      return await apiPost(path, payload)
-    }
-    throw e
-  }
-}
-
-export async function testApiConnection(): Promise<string> {
-  const response = await apiGet('/health')
-  const data = response.data != null ? response.data as UTSJSONObject : null
-  if (data == null || data['status'] == null || data['status'] as string !== 'ok') throw new Error('服务健康检查未通过')
-  return data['service'] != null ? data['service'] as string : 'sankengcloset-api'
-}
-
 export function apiDelete(path: string): Promise<ApiResponse> {
   return new Promise<ApiResponse>((resolve, reject) => {
     let url = ''
@@ -126,12 +99,6 @@ export function apiDelete(path: string): Promise<ApiResponse> {
     })
   })
 }
-
-export function encodeQuery(value: string): string {
-  const encoded = encodeURIComponent(value)
-  return encoded != null ? encoded : value
-}
-
 
 function apiMutation(path: string, method: string, payload: any): Promise<ApiResponse> {
   return new Promise<ApiResponse>((resolve, reject) => {
@@ -155,10 +122,74 @@ function apiMutation(path: string, method: string, payload: any): Promise<ApiRes
 export function apiPut(path: string, payload: any): Promise<ApiResponse> { return apiMutation(path, 'PUT', payload) }
 export function apiPatch(path: string, payload: any): Promise<ApiResponse> { return apiMutation(path, 'PATCH', payload) }
 
+export function encodeQuery(value: string): string {
+  const encoded = encodeURIComponent(value)
+  return encoded != null ? encoded : value
+}
+
+// ====== 401 刷新令牌：单飞锁 ======
+// 多个并发请求同时 401 时，只发起一次 refresh，其余请求等待同一个刷新 Promise。
+
+let _refreshInFlight: Promise<boolean> | null = null
+
+async function refreshWithSingleFlight(): Promise<boolean> {
+  const inFlight = _refreshInFlight
+  if (inFlight != null) return await inFlight
+  const started = doRefreshRemoteSession()
+  _refreshInFlight = started
+  try {
+    return await started
+  } finally {
+    _refreshInFlight = null
+  }
+}
+
+async function doRefreshRemoteSession(): Promise<boolean> {
+  const refreshToken = getCachedRefreshToken()
+  if (refreshToken === '') return false
+  try {
+    const response = await apiPost('/api/v1/sessions/refresh', { refreshToken })
+    const data = response.data != null ? response.data as UTSJSONObject : null
+    if (data == null || data['accessToken'] == null) return false
+    saveSessionTokens(data['accessToken'] as string, data['refreshToken'] != null ? data['refreshToken'] as string : refreshToken)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+export async function refreshRemoteSession(): Promise<boolean> {
+  return await refreshWithSingleFlight()
+}
+
+/**
+ * 通用 Authorized 请求：401 时单飞刷新令牌并重试一次。
+ * 所有需认证读取（/api/v1/me/*、/wishlist、/brands/followed 等）必须走此方法。
+ */
+export async function apiGetAuthorized(path: string): Promise<ApiResponse> {
+  try { return await apiGet(path) }
+  catch (e) {
+    if (e instanceof ApiRequestError && e.statusCode === 401 && (await refreshWithSingleFlight())) {
+      return await apiGet(path)
+    }
+    throw e
+  }
+}
+
+export async function apiPostAuthorized(path: string, payload: any): Promise<ApiResponse> {
+  try { return await apiPost(path, payload) }
+  catch (e) {
+    if (e instanceof ApiRequestError && e.statusCode === 401 && (await refreshWithSingleFlight())) {
+      return await apiPost(path, payload)
+    }
+    throw e
+  }
+}
+
 export async function apiPutAuthorized(path: string, payload: any): Promise<ApiResponse> {
   try { return await apiPut(path, payload) }
   catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshRemoteSession())) return await apiPut(path, payload)
+    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshWithSingleFlight())) return await apiPut(path, payload)
     throw e
   }
 }
@@ -166,7 +197,7 @@ export async function apiPutAuthorized(path: string, payload: any): Promise<ApiR
 export async function apiPatchAuthorized(path: string, payload: any): Promise<ApiResponse> {
   try { return await apiPatch(path, payload) }
   catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshRemoteSession())) return await apiPatch(path, payload)
+    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshWithSingleFlight())) return await apiPatch(path, payload)
     throw e
   }
 }
@@ -174,7 +205,7 @@ export async function apiPatchAuthorized(path: string, payload: any): Promise<Ap
 export async function apiDeleteAuthorized(path: string): Promise<ApiResponse> {
   try { return await apiDelete(path) }
   catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshRemoteSession())) return await apiDelete(path)
+    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshWithSingleFlight())) return await apiDelete(path)
     throw e
   }
 }
@@ -224,4 +255,11 @@ export function readFileAsArrayBuffer(filePath: string): Promise<ArrayBuffer> {
     reject(new Error('当前平台不支持二进制上传'))
     // #endif
   })
+}
+
+export async function testApiConnection(): Promise<string> {
+  const response = await apiGet('/health')
+  const data = response.data != null ? response.data as UTSJSONObject : null
+  if (data == null || data['status'] == null || data['status'] as string !== 'ok') throw new Error('服务健康检查未通过')
+  return data['service'] != null ? data['service'] as string : 'sankengcloset-api'
 }

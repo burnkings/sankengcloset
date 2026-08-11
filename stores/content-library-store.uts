@@ -1,14 +1,28 @@
 import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
-import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote } from '@/services/user-data/user-data-service'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, CommunityPostRemote } from '@/services/user-data/user-data-service'
 
 /**
- * ContentLibraryStore — V2.0 用户内容资产
+ * ContentLibraryStore — V2.6 用户内容资产 + 圈子穿搭灵感 Gallery
  *
- * 当前以本地持久化实现商品收藏、品牌关注与圈子发布记录。
- * 页面只依赖本 Store，后续接入账号与服务端同步时无需重写页面交互。
+ * 圈子定位：轻量「穿搭灵感 Gallery」—— 公开穿搭帖子（灵感流）+ 我的发布。
+ * 不做评论、私信、关注流等完整社交 Timeline。
+ * 公开 Feed 调 listCommunityPostsRemote(..., false)；我的发布调用 mine=true。
  */
+
+export class PublicLookPost {
+  id: string = ''
+  imageUrl: string = ''
+  caption: string = ''
+  category: string = ''
+  topic: string = ''
+  authorNickname: string = ''
+  likeCount: number = 0
+  liked: boolean = false
+  createdAt: string = ''
+  initial: string = ''
+}
 
 const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
 const WISH_IDS_KEY = 'v2_library_wish_ids'
@@ -78,6 +92,9 @@ type ContentLibraryState = {
   followedBrands: string[]
   outfitPosts: SavedOutfitPost[]
   likedPostIds: string[]
+  publicPosts: PublicLookPost[]
+  publicLoading: boolean
+  publicError: string
 }
 
 const _state = reactive<ContentLibraryState>({
@@ -86,6 +103,9 @@ const _state = reactive<ContentLibraryState>({
   followedBrands: [] as string[],
   outfitPosts: [] as SavedOutfitPost[],
   likedPostIds: [] as string[],
+  publicPosts: [] as PublicLookPost[],
+  publicLoading: false,
+  publicError: '',
 })
 
 const _favoriteCount = computed((): number => _state.favoriteIds.length)
@@ -133,7 +153,41 @@ function reload() {
   notifyChanged()
 }
 
-async function refreshRemotePosts(): Promise<void> {
+/** 公开穿搭灵感 Gallery：listCommunityPostsRemote(..., false) */
+async function refreshPublicPosts(): Promise<void> {
+  _state.publicLoading = true
+  _state.publicError = ''
+  try {
+    const remote = await listCommunityPostsRemote('', '', '', false)
+    const posts: PublicLookPost[] = []
+    for (let i = 0; i < remote.length; i++) {
+      const item = remote[i]
+      const post = new PublicLookPost()
+      post.id = item.id
+      post.imageUrl = item.imageUrl
+      post.caption = item.caption
+      post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : 'JK'
+      post.topic = item.topic
+      post.authorNickname = item.authorNickname !== '' ? item.authorNickname : '同好'
+      post.likeCount = item.likeCount
+      post.liked = item.liked
+      post.createdAt = item.createdAt
+      const nick = post.authorNickname
+      post.initial = nick.length > 0 ? nick.substring(0, 1) : '同'
+      posts.push(post)
+      if (item.liked && _state.likedPostIds.indexOf(item.id) < 0) _state.likedPostIds.push(item.id)
+    }
+    _state.publicPosts = posts
+  } catch (e) {
+    _state.publicError = e instanceof Error ? e.message : '加载失败'
+  } finally {
+    _state.publicLoading = false
+  }
+  notifyChanged()
+}
+
+/** 我的发布：listCommunityPostsRemote(..., true) —— 服务端帖子 + 本地草稿合并 */
+async function refreshMyPosts(): Promise<void> {
   if (getCachedAccessToken() == '') return
   try {
     const remote = await listCommunityPostsRemote('', '', '', true)
@@ -204,11 +258,15 @@ function toggleBrandFollow(brandName: string): boolean {
   else values.unshift(brandName)
   _state.followedBrands = values
   writeList(FOLLOWED_BRANDS_KEY, values)
-  enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
+  // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
   if (getCachedAccessToken() != '') {
     const following = idx < 0
     const remote = following ? followBrandRemote(brandName) : unfollowBrandRemote(brandName)
-    remote.catch(() => { /* 队列保留为离线兜底 */ })
+    remote.catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
+    })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
   }
   notifyChanged()
   return idx < 0
@@ -260,13 +318,17 @@ function removeOutfit(id: string) {
     _state.likedPostIds = liked
     writeList(LIKED_POST_IDS_KEY, liked)
   }
-  enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
-  if (!id.startsWith('outfit_') && getCachedAccessToken() != '') {
-    deleteCommunityPostRemote(id).catch(() => { /* queue remains as offline fallback */ })
+  // 统一策略：远程帖子直接 DELETE（Authorized），失败才入队；本地草稿只入队
+  const isRemotePost = !id.startsWith('outfit_')
+  if (isRemotePost && getCachedAccessToken() != '') {
+    deleteCommunityPostRemote(id).catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
+    })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
   }
   reload()
 }
-
 function isPostLiked(postId: string): boolean {
   return _state.likedPostIds.indexOf(postId) >= 0
 }
@@ -279,12 +341,14 @@ function togglePostLike(postId: string): boolean {
   else values.unshift(postId)
   _state.likedPostIds = values
   writeList(LIKED_POST_IDS_KEY, values)
-  enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
+  // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
   if (getCachedAccessToken() != '') {
     const wanted = idx < 0
     setCommunityPostLikeRemote(postId, wanted).catch(() => {
-      // Keep the optimistic action in the local queue so it can be reconciled later.
+      enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
     })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
   }
   notifyChanged()
   return idx < 0
@@ -299,13 +363,17 @@ class ContentLibraryStoreHandle {
   get followedBrands(): string[] { return _state.followedBrands }
   get outfitPosts(): SavedOutfitPost[] { return _state.outfitPosts }
   get likedPostIds(): string[] { return _state.likedPostIds }
+  get publicPosts(): PublicLookPost[] { return _state.publicPosts }
+  get publicLoading(): boolean { return _state.publicLoading }
+  get publicError(): string { return _state.publicError }
   get favoriteCount(): number { return _favoriteCount.value }
   get followedBrandCount(): number { return _followedBrandCount.value }
   get outfitCount(): number { return _outfitCount.value }
   get likedPostCount(): number { return _likedPostCount.value }
   get wishCount(): number { return _wishCount.value }
   reload(): void { reload() }
-  refreshRemotePosts(): Promise<void> { return refreshRemotePosts() }
+  refreshPublicPosts(): Promise<void> { return refreshPublicPosts() }
+  refreshMyPosts(): Promise<void> { return refreshMyPosts() }
   refreshRemoteBrands(): Promise<void> { return refreshRemoteBrands() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
   toggleFavorite(entityId: string): boolean { return toggleFavorite(entityId) }

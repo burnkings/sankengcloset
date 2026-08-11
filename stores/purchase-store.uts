@@ -92,8 +92,14 @@ function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
   try {
     const added = repo.add(record)
     _state.items = [..._state.items, added]
-    enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
-    if (getCachedAccessToken() != '') createAssetRemote('purchases', added as UTSJSONObject).catch(() => {})
+    // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
+    if (getCachedAccessToken() != '') {
+      createAssetRemote('purchases', added as UTSJSONObject).catch(() => {
+        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
+      })
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
+    }
     notifyChanged()
     return added
   } catch (err) {
@@ -106,10 +112,15 @@ function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
   const ok = repo.update(id, data)
   if (ok) {
     _state.items = repo.getAll()
-    enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
-      if (current != null) patchAssetRemote('purchases', id, current as UTSJSONObject).catch(() => {})
+      if (current != null) {
+        patchAssetRemote('purchases', id, current as UTSJSONObject).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(current))
+        })
+      }
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
     }
     notifyChanged()
   }
@@ -120,8 +131,13 @@ function deletePurchase(id: string): boolean {
   const ok = repo.softDelete(id)
   if (ok) {
     _state.items = _state.items.filter((r) => r.id !== id)
-    enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
-    if (getCachedAccessToken() != '') deleteAssetRemote('purchases', id).catch(() => {})
+    if (getCachedAccessToken() != '') {
+      deleteAssetRemote('purchases', id).catch(() => {
+        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
+      })
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
+    }
     notifyChanged()
   }
   return ok
@@ -134,6 +150,7 @@ function setFilterStatus(status: string) {
 
 function getPurchaseById(id: string): PurchaseRecord | null { return _state.items.find((r) => r.id == id) }
 
+// 品牌联想（购买记录编辑页用）：去重排序的品牌清单
 const _brands = computed((): string[] => {
   const set = new Set<string>()
   for (let i = 0; i < _state.items.length; i++) {

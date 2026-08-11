@@ -1,6 +1,7 @@
 import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-operation'
 import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
-import { apiPostAuthorized } from '@/services/platform/api-client'
+import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized } from '@/services/platform/api-client'
+import { encodeQuery } from '@/services/platform/api-client'
 
 const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
 const PREFIX = 'v21_sync_op_'
@@ -37,23 +38,67 @@ export function enqueueLocalOperation(userId: string, entityType: string, entity
 }
 export function readPendingOperations(): SyncOperation[] { const ids = readIds(); const result: SyncOperation[] = []; for (let i = 0; i < ids.length; i++) result.push(readOperation(ids[i])); return result }
 
+/**
+ * 逐条重放一个操作到真实业务端点（依据后端实际能力）：
+ * - 后端 /api/v1/sync/operations:batch 仅写入 sync_operations 审计表、不应用业务数据，
+ *   因此离线期间入队的操作必须在恢复后重放真实的 /api/v1/me/* CRUD 端点。
+ * - 支持实体：reminder / wardrobe_item / wishlist_item / purchase（/me/* 资产 CRUD）。
+ * - 其余实体（outfit 缺图、post_like 等）不在此自动重放，保持队列等待后续扩展。
+ * @returns true 重放成功；false 失败（保留队列）
+ */
+async function replayOperation(op: SyncOperation): Promise<boolean> {
+  let path = ''
+  if (op.entityType == 'reminder') path = '/api/v1/me/reminders'
+  else if (op.entityType == 'wardrobe_item') path = '/api/v1/me/wardrobe'
+  else if (op.entityType == 'wishlist_item') path = '/api/v1/me/wishes'
+  else if (op.entityType == 'purchase') path = '/api/v1/me/purchases'
+  else return false // 暂不支持自动重放的实体：保留队列，不阻塞其他操作
+
+  try {
+    if (op.action == 'create' || op.action == 'upsert' || op.action == 'import') {
+      const payload = safePayload(op.payload)
+      const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
+      await apiPostAuthorized(path, body)
+      return true
+    }
+    if (op.action == 'delete') {
+      await apiDeleteAuthorized(path + '/' + encodeQuery(op.entityId))
+      return true
+    }
+    // update / 状态动作：PATCH 部分字段
+    const payload = safePayload(op.payload)
+    const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
+    await apiPatchAuthorized(path + '/' + encodeQuery(op.entityId), body)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+/**
+ * 冲刷队列：逐条重放真实 CRUD；成功移除，失败保留并标记 SYNC_FAILED。
+ * 返回成功条数。
+ */
 async function flushRemote(ids: string[]): Promise<number> {
   if (getAccessToken() === '') throw new Error('请先登录远程体验账号')
-  const operations: any[] = []
+  const remaining: string[] = []
+  let acceptedCount = 0
   for (let i = 0; i < ids.length; i++) {
     const op = readOperation(ids[i])
-    operations.push({ opId: op.opId, deviceId: op.deviceId, entityType: op.entityType, entityId: op.entityId, action: op.action === 'migrate' ? 'import' : op.action, payload: safePayload(op.payload), createdAt: op.createdAt })
+    const ok = await replayOperation(op)
+    if (ok) {
+      removeOperation(ids[i])
+      acceptedCount++
+    } else {
+      op.status = SYNC_FAILED
+      op.retryCount += 1
+      writeOperation(op)
+      remaining.push(ids[i])
+    }
   }
-  const response = await apiPostAuthorized('/api/v1/sync/operations:batch', { operations })
-  const data = response.data != null ? response.data as UTSJSONObject : null
-  const receipts = data != null && data['receipts'] != null ? data['receipts'] as any[] : []
-  const accepted: string[] = []
-  if (receipts != null) for (let i = 0; i < receipts.length; i++) if (receipts[i] as UTSJSONObject != null && (receipts[i] as UTSJSONObject)['result'] === 'accepted') accepted.push((receipts[i] as UTSJSONObject)['opId'] as string)
-  const remaining: string[] = []
-  for (let i = 0; i < ids.length; i++) { if (accepted.indexOf(ids[i]) >= 0) removeOperation(ids[i]); else remaining.push(ids[i]) }
   writeIds(remaining)
-  if (accepted.length > 0) uni.setStorageSync('v21_sync_last_success_at', Date.now().toString())
-  return accepted.length
+  if (acceptedCount > 0) uni.setStorageSync('v21_sync_last_success_at', Date.now().toString())
+  return acceptedCount
 }
 
 export async function flushLocalOperations(): Promise<number> {

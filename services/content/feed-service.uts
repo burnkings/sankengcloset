@@ -3,8 +3,6 @@ import { createRequestId } from '@/domain/platform/api-contract'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 import { getRuntimeConfig } from '@/config/runtime'
 
-const __DEV__ = true
-
 export class FeedPage {
   items: FeedItem[] = []
   nextCursor: string = ''
@@ -54,24 +52,22 @@ function categoryCode(category: string): string {
   return category == '全部' ? '' : category
 }
 
-async function fetchRemoteFeed(pageIndex: number, channel: string, category: string, categories: string = ''): Promise<FeedPage> {
-  const offset = Math.max(pageIndex, 0) * 20
+/**
+ * 拉取 Feed 一页。
+ * @param cursor 服务端返回的 opaque cursor（首屏传 ''）；禁止用页号×每页条数伪造。
+ * @param channel 频道名（推荐/新品/预约/降价/穿搭）
+ */
+async function fetchRemoteFeed(cursor: string, channel: string, category: string, categories: string = ''): Promise<FeedPage> {
   let path = '/api/v1/feed'
   let hasQuery = false
   // 只传前端真实设置的值：cursor 首页(0)不传、channel 默认推荐不传、category/categories 空不传；limit 由后端默认 20
-  if (offset > 0) { path += '?cursor=' + offset; hasQuery = true }
+  if (cursor != '') { path += '?cursor=' + encodeQuery(cursor); hasQuery = true }
   const ch = channelCode(channel)
   if (ch != '' && ch != 'recommend') { path += (hasQuery ? '&' : '?') + 'channel=' + encodeQuery(ch); hasQuery = true }
   const cat = categoryCode(category)
   if (cat != '') { path += (hasQuery ? '&' : '?') + 'category=' + encodeQuery(cat); hasQuery = true }
   if (categories != '') { path += (hasQuery ? '&' : '?') + 'categories=' + encodeQuery(categories); hasQuery = true }
-  if (__DEV__) console.log('[Feed] request:', getRuntimeConfig().apiBaseUrl + path)
   const response = await apiGet(path)
-  if (__DEV__) {
-    console.log('[Feed] HTTP status:', response.statusCode)
-    const first = Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : null
-    if (first != null) console.log('[Feed] first:', JSON.stringify(first))
-  }
   const rawItems = response.data as any[]
   const result = new FeedPage()
   result.requestId = response.requestId
@@ -82,10 +78,14 @@ async function fetchRemoteFeed(pageIndex: number, channel: string, category: str
   return result
 }
 
-export async function fetchFeedPage(pageIndex: number, channel: string = '推荐', category: string = '全部', categories: string = ''): Promise<FeedPage> {
-  return await fetchRemoteFeed(pageIndex, channel, category, categories)
+export async function fetchFeedPage(cursor: string, channel: string = '推荐', category: string = '全部', categories: string = ''): Promise<FeedPage> {
+  return await fetchRemoteFeed(cursor, channel, category, categories)
 }
 
+/**
+ * 频道轻量过滤兜底（服务端已按 channel 参数过滤，此函数仅用于本地补充筛选）。
+ * 注意：频道切换时 Store 已重新请求该频道第 1 页，这里不再承担主过滤职责。
+ */
 export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
   if (channel == '' || channel == '推荐') return items
   if (channel == '新品') return items.filter((i) => i.badgeText == '新品')

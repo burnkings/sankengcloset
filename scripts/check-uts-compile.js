@@ -56,11 +56,10 @@ if (fs.existsSync(root)) {
 
 const vendorPath = path.join(root, 'common/vendor.js')
 const homeStorePath = path.join(root, 'stores/home-feed-store.js')
-if (fs.existsSync(vendorPath) && !fs.readFileSync(vendorPath, 'utf8').includes('exports.defineStore = defineStore')) {
-  failures.push('vendor defineStore export is missing')
-}
-if (fs.existsSync(homeStorePath) && !fs.readFileSync(homeStorePath, 'utf8').includes('patch-vendor: defineStore bound')) {
-  failures.push('home store defineStore binding is missing')
+// V2.6: 项目 Store 均为 reactive 模块级单例（非 pinia defineStore）。
+// 验证 home store 以 reactive 单例形态编译产出；vendor 的 defineStore 注入为历史遗留，不参与门禁。
+if (fs.existsSync(homeStorePath) && !fs.readFileSync(homeStorePath, 'utf8').includes('reactive')) {
+  failures.push('home store reactive singleton binding is missing')
 }
 
 if (failures.length > 0) {

@@ -178,8 +178,14 @@ function addItem(item: WishItem): WishItem | null {
   try {
     const added = repo.add(item)
     _state.items = [..._state.items, added]
-    enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', added.id, 'create', JSON.stringify(added))
-    if (getCachedAccessToken() != '') createAssetRemote('wishes', added as UTSJSONObject).catch(() => {})
+    // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
+    if (getCachedAccessToken() != '') {
+      createAssetRemote('wishes', added as UTSJSONObject).catch(() => {
+        enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', added.id, 'create', JSON.stringify(added))
+      })
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', added.id, 'create', JSON.stringify(added))
+    }
     notifyChanged()
     return added
   } catch (err) {
@@ -204,10 +210,15 @@ function updateItem(id: string, data: WishUpdateData): boolean {
       if (data.isFavorite >= 0) existing.isFavorite = data.isFavorite == 1
       existing.updatedAt = new Date().toISOString()
     }
-    enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(data))
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
-      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+      if (current != null) {
+        patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(current))
+        })
+      }
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(data))
     }
     notifyChanged()
   }
@@ -218,8 +229,13 @@ function deleteItem(id: string): boolean {
   const ok = repo.softDelete(id)
   if (ok) {
     _state.items = _state.items.filter((w) => w.id !== id)
-    enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'delete', '')
-    if (getCachedAccessToken() != '') deleteAssetRemote('wishes', id).catch(() => {})
+    if (getCachedAccessToken() != '') {
+      deleteAssetRemote('wishes', id).catch(() => {
+        enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'delete', '')
+      })
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'delete', '')
+    }
     notifyChanged()
   }
   return ok
@@ -233,10 +249,15 @@ function changeStatus(id: string, newStatus: string): boolean {
       existing.status = newStatus
       existing.updatedAt = new Date().toISOString()
     }
-    enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `status=${newStatus}`)
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
-      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+      if (current != null) {
+        patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(current))
+        })
+      }
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `status=${newStatus}`)
     }
     notifyChanged()
   }
@@ -250,10 +271,15 @@ function toggleFavorite(id: string): boolean {
     if (existing != null) {
       existing.isFavorite = !existing.isFavorite
     }
-    enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', 'favorite=toggle')
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
-      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+      if (current != null) {
+        patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(current))
+        })
+      }
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', 'favorite=toggle')
     }
     notifyChanged()
   }
@@ -287,10 +313,15 @@ function markPurchased(id: string, purchaseId: string): boolean {
       existing.convertedAt = new Date().toISOString()
       existing.updatedAt = existing.convertedAt
     }
-    enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `purchaseId=${purchaseId}`)
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
-      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+      if (current != null) {
+        patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(current))
+        })
+      }
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `purchaseId=${purchaseId}`)
     }
     notifyChanged()
   }
@@ -305,10 +336,15 @@ function linkWardrobe(id: string, wardrobeId: string): boolean {
       existing.wardrobeId = wardrobeId
       existing.updatedAt = new Date().toISOString()
     }
-    enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `wardrobeId=${wardrobeId}`)
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
-      if (current != null) patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {})
+      if (current != null) {
+        patchAssetRemote('wishes', id, current as UTSJSONObject).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', JSON.stringify(current))
+        })
+      }
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'wishlist_item', id, 'update', `wardrobeId=${wardrobeId}`)
     }
     notifyChanged()
   }

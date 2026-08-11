@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- V2.5 Android configuration. -->
+<!-- V2.6 Android configuration — 正式包安全默认。
+  cleartext HTTP 全局禁用；仅允许生产 API 域名走 HTTPS。
+  内测如需明文 HTTP，请临时切换引用 beta 网络配置（见 res/xml/ 下 beta 文件），
+  并确保 release 构建不继承该 beta 配置。 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="io.dcloud.sankengcloset">
@@ -14,7 +17,6 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <application
-        android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/sankeng_beta_network_security_config"
-        tools:replace="android:usesCleartextTraffic,android:networkSecurityConfig" />
+        android:networkSecurityConfig="@xml/sankeng_network_security_config"
+        tools:replace="android:networkSecurityConfig" />
 </manifest>

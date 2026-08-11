@@ -34,7 +34,7 @@
           </view>
           <text v-else :style="recentEmptyText">暂无最近搜索</text>
 
-          <V2SectionHeader title="热门搜索" />
+          <V2SectionHeader title="编辑推荐" />
           <view :style="hotList">
             <view v-for="(item, idx) in hotRank" :key="item.keyword" :style="hotRow" @tap="selectKeyword(item.keyword)">
               <text :style="rankText(idx)">{{ idx + 1 }}</text>
@@ -182,17 +182,17 @@ watch(keyword, (val: string) => {
   }
 })
 
-// 热门搜索：design 编号榜 + 热度
+// 编辑推荐：真实内容关键词，不展示虚构热度数字（待接入真实趋势接口后再显示热度）
 type HotItem = {
   keyword: string
   heat: string
 }
 const hotRank: HotItem[] = [
-  { keyword: '樱茶JK制服 秋冬系列', heat: '18.2万' },
-  { keyword: '梦境蝴蝶结 Lolita裙', heat: '15.6万' },
-  { keyword: '绮灵AI 搭配方案', heat: '12.8万' },
-  { keyword: '汉服明制 上新', heat: '9.4万' },
-  { keyword: '甜系 JK小物', heat: '7.1万' },
+  { keyword: '樱茶JK制服 秋冬系列', heat: '编辑推荐' },
+  { keyword: '梦境蝴蝶结 Lolita裙', heat: '编辑推荐' },
+  { keyword: '绮灵AI 搭配方案', heat: '编辑推荐' },
+  { keyword: '汉服明制 上新', heat: '编辑推荐' },
+  { keyword: '甜系 JK小物', heat: '编辑推荐' },
 ]
 
 function selectKeyword(value: string) {

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  正式网络配置：全局禁止明文 HTTP，仅信任系统证书。
+  生产 API 域名为 https://api.sankengcloset.icu，走 HTTPS，无需 cleartext。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.sankengcloset.icu</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

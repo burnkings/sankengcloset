@@ -35,7 +35,7 @@
         <view :style="publishButton" @tap="publishLook">
           <text :style="publishText">发布到圈子</text>
         </view>
-        <text :style="privacyNote">当前内容仅保存在本机；登录同步上线后可在多端继续查看。</text>
+        <text :style="privacyNote">{{ privacyNoteText }}</text>
       </view>
     </template>
   </MainLayout>
@@ -123,6 +123,13 @@ function toBackendCategory(value: string): string {
   if (value === '混搭') return 'MIXED'
   return 'JK'
 }
+
+// 隐私提示随登录态变化：登录后走远程上传，不再承诺「仅保存在本机」
+const privacyNoteText = computed((): string => {
+  return getCachedAccessToken() != ''
+    ? '发布后将公开到圈子穿搭灵感 Gallery，其他用户可浏览与点赞。'
+    : '当前未登录：内容仅保存在本机，登录后可同步到云端。'
+})
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const photoCard = computed((): any => ({ width: '686rpx', height: '560rpx', borderRadius: '24rpx', backgroundColor: '#F5EFEC', overflow: 'hidden' }))
