@@ -38,6 +38,10 @@ export class PurchaseRecord {
   paymentStatus: string = 'PRE_ORDER'
   purchaseDate: string = ''
   deadline: string = ''
+  // 预计到货日与来源关系让订单成为履约中心，而不是孤立账本。
+  arrivalDate: string = ''
+  wishId: string = ''
+  wardrobeId: string = ''
   note: string = ''
   isFavorite: boolean = false
   isDeleted: boolean = false
@@ -57,6 +61,7 @@ export class PurchaseUpdateData {
   paymentStatus: string = ''
   purchaseDate: string = ''
   deadline: string = ''
+  arrivalDate: string = ''
   note: string = ''
 }
 

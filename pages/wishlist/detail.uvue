@@ -215,7 +215,7 @@ function onSetReminder() {
   if (itemId.value === '') return
   const name = item.value!.name !== '' ? encodeURIComponent(item.value!.name) : ''
   const type = 'RELEASE'
-  uni.navigateTo({ url: `/pages/reminder/edit?title=${name}&type=${type}` })
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${name}&type=${type}&wishId=${itemId.value}` })
 }
 
 function onConvertTap() {

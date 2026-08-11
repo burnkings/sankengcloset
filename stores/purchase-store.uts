@@ -7,6 +7,7 @@ import * as repo from '@/domain/repositories/purchase-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listPurchasesRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
+import { useReminderStore } from '@/stores/reminder-store'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -59,6 +60,9 @@ function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
   item.paymentStatus = raw['paymentStatus'] != null ? raw['paymentStatus'] as string : 'PRE_ORDER'
   item.purchaseDate = raw['purchaseDate'] != null ? raw['purchaseDate'] as string : ''
   item.deadline = raw['deadline'] != null ? raw['deadline'] as string : ''
+  item.arrivalDate = raw['arrivalDate'] != null ? raw['arrivalDate'] as string : ''
+  item.wishId = raw['wishId'] != null ? raw['wishId'] as string : ''
+  item.wardrobeId = raw['wardrobeId'] != null ? raw['wardrobeId'] as string : ''
   item.note = raw['note'] != null ? raw['note'] as string : ''
   item.isFavorite = raw['isFavorite'] == true
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
@@ -92,6 +96,7 @@ function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
   try {
     const added = repo.add(record)
     _state.items = [..._state.items, added]
+    useReminderStore().syncPurchaseReminders(added)
     // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
     if (getCachedAccessToken() != '') {
       createAssetRemote('purchases', added as UTSJSONObject).catch(() => {
@@ -112,6 +117,8 @@ function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
   const ok = repo.update(id, data)
   if (ok) {
     _state.items = repo.getAll()
+    const refreshed = _state.items.find((item) => item.id == id)
+    if (refreshed != null) useReminderStore().syncPurchaseReminders(refreshed)
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
       if (current != null) {
@@ -150,6 +157,29 @@ function setFilterStatus(status: string) {
 
 function getPurchaseById(id: string): PurchaseRecord | null { return _state.items.find((r) => r.id == id) }
 
+function linkWardrobe(id: string, wardrobeId: string): boolean {
+  const ok = repo.linkWardrobe(id, wardrobeId)
+  if (!ok) return false
+  const record = _state.items.find((item) => item.id == id)
+  if (record != null) {
+    record.wardrobeId = wardrobeId
+    record.updatedAt = new Date().toISOString()
+    useReminderStore().syncPurchaseReminders(record)
+    if (getCachedAccessToken() != '') patchAssetRemote('purchases', id, record as UTSJSONObject).catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(record))
+    })
+  }
+  notifyChanged()
+  return true
+}
+
+function recordsForMonth(monthCode: string): PurchaseRecord[] {
+  return _activeItems.value.filter((item) => item.paymentStatus != 'CANCELLED' && item.purchaseDate.indexOf(monthCode) == 0)
+}
+function monthlyCommitted(monthCode: string): number { return recordsForMonth(monthCode).reduce((sum, item) => sum + item.totalAmount, 0) }
+function monthlyPaid(monthCode: string): number { return recordsForMonth(monthCode).reduce((sum, item) => sum + item.paidAmount, 0) }
+function monthlyOutstanding(monthCode: string): number { return recordsForMonth(monthCode).reduce((sum, item) => sum + item.remainingAmount, 0) }
+
 // 品牌联想（购买记录编辑页用）：去重排序的品牌清单
 const _brands = computed((): string[] => {
   const set = new Set<string>()
@@ -174,12 +204,16 @@ class PurchaseStoreHandle {
   get remainingTotal(): number { return _remainingTotal.value }
   get itemCount(): number { return _itemCount.value }
   get brands(): string[] { return _brands.value }
+  monthlyCommitted(monthCode: string): number { return monthlyCommitted(monthCode) }
+  monthlyPaid(monthCode: string): number { return monthlyPaid(monthCode) }
+  monthlyOutstanding(monthCode: string): number { return monthlyOutstanding(monthCode) }
   fetchPurchases(): Promise<void> { return fetchPurchases() }
   addPurchase(record: PurchaseRecord): PurchaseRecord | null { return addPurchase(record) }
   updatePurchase(id: string, data: PurchaseUpdateData): boolean { return updatePurchase(id, data) }
   deletePurchase(id: string): boolean { return deletePurchase(id) }
   setFilterStatus(status: string): void { setFilterStatus(status) }
   getPurchaseById(id: string): PurchaseRecord | null { return getPurchaseById(id) }
+  linkWardrobe(id: string, wardrobeId: string): boolean { return linkWardrobe(id, wardrobeId) }
 }
 
 let _handle: PurchaseStoreHandle | null = null

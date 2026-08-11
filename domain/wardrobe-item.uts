@@ -2,6 +2,8 @@ export class WardrobeItem {
   id: string = ''; name: string = ''; category: string = 'OTHER'; style: string = ''; brand: string = ''; color: string = ''; size: string = ''
   wearStatus: string = 'UNWORN'; seasons: string[] = []; images: string[] = []; tags: string[] = []; purchaseDate: string = ''
   purchasePrice: number = 0; purchaseSource: string = ''; note: string = ''; isFavorite: boolean = false; isDeleted: boolean = false
+  // 由订单入橱时保留来源，便于回看价格、履约和原始种草。
+  purchaseId: string = ''; wishId: string = ''
   createdAt: string = ''; updatedAt: string = ''
   get coverImage(): string { return this.images.length > 0 ? this.images[0] : '' }
 }

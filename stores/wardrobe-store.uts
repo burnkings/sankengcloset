@@ -101,6 +101,8 @@ function mapRemoteWardrobe(raw: UTSJSONObject): WardrobeItem {
   item.purchaseDate = raw['purchaseDate'] != null ? raw['purchaseDate'] as string : ''
   item.purchasePrice = raw['purchasePrice'] != null ? raw['purchasePrice'] as number : 0
   item.purchaseSource = raw['purchaseSource'] != null ? raw['purchaseSource'] as string : ''
+  item.purchaseId = raw['purchaseId'] != null ? raw['purchaseId'] as string : ''
+  item.wishId = raw['wishId'] != null ? raw['wishId'] as string : ''
   item.note = raw['note'] != null ? raw['note'] as string : ''
   item.isFavorite = raw['isFavorite'] == true
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''

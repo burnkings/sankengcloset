@@ -4,6 +4,7 @@
 import { reactive, computed } from 'vue'
 
 import { Reminder, ReminderUpdateData, STATUS_PENDING } from '@/domain/reminder'
+import { PurchaseRecord } from '@/domain/purchase-record'
 import { toDisplayModels, ReminderDisplayModel, groupByDate, ReminderGroupViewModel } from '@/domain/reminder-presenter'
 import * as repo from '@/domain/repositories/reminder-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
@@ -179,6 +180,8 @@ function updateItem(id: string, data: ReminderUpdateData): boolean {
       if (data.remindTime != '') existing.remindTime = data.remindTime
       existing.isAllDay = data.isAllDay
       if (data.note != '') existing.note = data.note
+      if (data.relatedPurchaseId != '') existing.relatedPurchaseId = data.relatedPurchaseId
+      if (data.relatedWishId != '') existing.relatedWishId = data.relatedWishId
       if (data.status != '') existing.status = data.status
       existing.wardrobeBindings = data.wardrobeBindings
       existing.updatedAt = new Date().toISOString()
@@ -254,6 +257,45 @@ function setSort(sort: string) {
 
 function getById(id: string): Reminder | null { return _state.items.find((r) => r.id == id) }
 
+function updateLinkedReminder(existing: Reminder, title: string, date: string, type: string, note: string, purchase: PurchaseRecord) {
+  const data = new ReminderUpdateData()
+  data.title = title; data.type = type; data.remindDate = date; data.note = note; data.status = 'PENDING'
+  data.relatedPurchaseId = purchase.id; data.relatedWishId = purchase.wishId
+  updateItem(existing.id, data)
+}
+
+/**
+ * 订单是履约单一事实来源：尾款与到货提醒只按关联订单各保留一条。
+ * 改订单金额、日期、取消或入橱时，这些提醒会同步更新/结束，而不是留下孤儿提醒。
+ */
+function syncPurchaseReminders(purchase: PurchaseRecord): void {
+  const balance = _activeItems.value.find((item) => item.relatedPurchaseId == purchase.id && item.type == 'BALANCE')
+  const arrival = _activeItems.value.find((item) => item.relatedPurchaseId == purchase.id && item.type == 'ARRIVAL')
+  const active = purchase.paymentStatus != 'CANCELLED'
+  const needsBalance = active && purchase.remainingAmount > 0 && purchase.deadline != ''
+  if (needsBalance) {
+    const note = `待付 ¥${purchase.remainingAmount.toFixed(2)}${purchase.brand != '' ? ' · ' + purchase.brand : ''}`
+    if (balance != null) updateLinkedReminder(balance, `${purchase.name} 尾款截止`, purchase.deadline, 'BALANCE', note, purchase)
+    else {
+      const item = new Reminder(); item.title = `${purchase.name} 尾款截止`; item.type = 'BALANCE'; item.remindDate = purchase.deadline
+      item.relatedPurchaseId = purchase.id; item.relatedWishId = purchase.wishId; item.note = note; addItem(item)
+    }
+  } else if (balance != null && balance.status == 'PENDING') {
+    const data = new ReminderUpdateData(); data.status = 'DONE'; updateItem(balance.id, data)
+  }
+  const needsArrival = active && purchase.arrivalDate != '' && purchase.wardrobeId == ''
+  if (needsArrival) {
+    const note = `${purchase.brand != '' ? purchase.brand + ' · ' : ''}预计到货后可一键入橱`
+    if (arrival != null) updateLinkedReminder(arrival, `${purchase.name} 到货提醒`, purchase.arrivalDate, 'ARRIVAL', note, purchase)
+    else {
+      const item = new Reminder(); item.title = `${purchase.name} 到货提醒`; item.type = 'ARRIVAL'; item.remindDate = purchase.arrivalDate
+      item.relatedPurchaseId = purchase.id; item.relatedWishId = purchase.wishId; item.note = note; addItem(item)
+    }
+  } else if (arrival != null && arrival.status == 'PENDING') {
+    const data = new ReminderUpdateData(); data.status = 'DONE'; updateItem(arrival.id, data)
+  }
+}
+
 function swapItems(id1: string, id2: string) {
   const idx1 = _state.items.findIndex((r) => r.id == id1)
   const idx2 = _state.items.findIndex((r) => r.id == id2)
@@ -327,6 +369,7 @@ class ReminderStoreHandle {
   setSearch(keyword: string): void { setSearch(keyword) }
   setSort(sort: string): void { setSort(sort) }
   getById(id: string): Reminder | null { return getById(id) }
+  syncPurchaseReminders(purchase: PurchaseRecord): void { syncPurchaseReminders(purchase) }
   swapItems(id1: string, id2: string): void { swapItems(id1, id2) }
   autoMarkOverdue(): void { autoMarkOverdue() }
 }

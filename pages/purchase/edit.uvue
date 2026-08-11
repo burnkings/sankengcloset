@@ -39,6 +39,10 @@
                 <V2DatePicker label="" :value="form.deadline" placeholder="尾款截止日" mode="date" @change="onDeadlinePick" />
               </view>
             </view>
+            <view :style="twoColumnRow">
+              <view :style="halfField"><V2DatePicker label="" :value="form.arrivalDate" placeholder="预计到货日（可选）" mode="date" @change="onArrivalDatePick" /></view>
+              <view :style="halfFieldLast"><text :style="fieldHint">保存后会自动维护尾款和到货提醒</text></view>
+            </view>
           </V2FormSection>
 
           <V2FormSection title="补充">
@@ -88,9 +92,11 @@ type FormState = {
   paymentStatus: string
   purchaseDate: string
   deadline: string
+  arrivalDate: string
   note: string
 }
-const form = ref<FormState>({ name: '', brand: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', note: '' })
+const form = ref<FormState>({ name: '', brand: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', arrivalDate: '', note: '' })
+const sourceWishId = ref('')
 
 const brandSuggestions = ref<string[]>([])
 function onBrandInput(e: any) {
@@ -120,6 +126,7 @@ function onNoteInput(e: any) {
 }
 function onPurchaseDatePick(value: string) { form.value.purchaseDate = value }
 function onDeadlinePick(value: string) { form.value.deadline = value }
+function onArrivalDatePick(value: string) { form.value.arrivalDate = value }
 
 function save() {
   if (form.value.name.trim() === '') { showFeedback('请填写商品名称'); return }
@@ -137,6 +144,7 @@ function save() {
     data.paidAmount = paid > 0 ? paid : 0
     data.purchaseDate = form.value.purchaseDate.trim()
     data.deadline = form.value.deadline.trim()
+    data.arrivalDate = form.value.arrivalDate.trim()
     data.note = form.value.note.trim()
     if (!store.updatePurchase(editId.value, data)) { showFeedback('保存失败，请重试'); return }
   } else {
@@ -150,6 +158,8 @@ function save() {
     record.paidAmount = paid > 0 ? paid : 0
     record.purchaseDate = form.value.purchaseDate.trim()
     record.deadline = form.value.deadline.trim()
+    record.arrivalDate = form.value.arrivalDate.trim()
+    record.wishId = sourceWishId.value
     record.note = form.value.note.trim()
     if (store.addPurchase(record) === null) { showFeedback('保存失败，请重试'); return }
   }
@@ -174,15 +184,19 @@ onLoad((options) => {
         form.value.paidAmountStr = record.paidAmount > 0 ? record.paidAmount.toString() : ''
         form.value.purchaseDate = record.purchaseDate
         form.value.deadline = record.deadline
+        form.value.arrivalDate = record.arrivalDate
         form.value.note = record.note
       }
       return
     }
-    form.value.name = options['name'] != null ? (options['name'] as string) : ''
-    form.value.brand = options['brand'] != null ? (options['brand'] as string) : ''
+    form.value.name = options['name'] != null ? safeParam(options['name'] as string) : ''
+    form.value.brand = options['brand'] != null ? safeParam(options['brand'] as string) : ''
     form.value.category = options['category'] != null ? (options['category'] as string) : 'JK'
+    sourceWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
+    form.value.totalAmountStr = options['amount'] != null ? safeParam(options['amount'] as string) : ''
   }
 })
+function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
 
 const safeBottom = getSafeBottomInset()
 const scrollStyle = { flex: 1 }
@@ -196,6 +210,7 @@ const amountColumnLast = { flex: 1 }
 const twoColumnRow = { flexDirection: 'row', marginTop: '12rpx' }
 const halfField = { flex: 1, marginRight: '12rpx' }
 const halfFieldLast = { flex: 1 }
+const fieldHint = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary, lineHeight: '34rpx', paddingTop: '12rpx' }))
 
 const brandDropdown = computed((): any => ({
   borderRadius: '24rpx', backgroundColor: n.value.surface, overflow: 'hidden',

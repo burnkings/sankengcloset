@@ -17,6 +17,11 @@ const required = {
   'stores/home-feed-store.uts': ['nextCursor', 'MAX_FEED_ITEMS', '_requestSeq'],
   'stores/content-library-store.uts': ['listWishlistRemote', 'addWishlistRemote', 'deleteWishlistRemote', 'refreshRemoteFavorites', 'refreshFavorites', 'isRemote'],
   'services/user-data/user-data-service.uts': ["'/api/v1/wishlist'", 'addWishlistRemote', 'deleteWishlistRemote', 'createCommunityPostRemote', 'uploadOutfitImageRemote'],
+  'domain/purchase-record.uts': ['arrivalDate', 'wishId', 'wardrobeId'],
+  'stores/purchase-store.uts': ['syncPurchaseReminders', 'linkWardrobe', 'monthlyCommitted', 'monthlyPaid', 'monthlyOutstanding'],
+  'stores/reminder-store.uts': ['syncPurchaseReminders', 'relatedPurchaseId', '预计到货后可一键入橱'],
+  'pages/wardrobe/edit.uvue': ['purchaseId', 'wishId', 'linkWardrobe'],
+  'pages/budget/index.uvue': ['decisionReserveTotal', 'monthlyCommitted', 'monthOutstanding'],
 }
 const notAllowed = {
   'config/runtime.uts': ['setRuntimeMode', 'setApiBaseUrl', 'setMockOnline', 'setMockLatency', 'DATA_MODE_LOCAL', 'DATA_MODE_MOCK'],
@@ -25,6 +30,7 @@ const notAllowed = {
   'services/content/feed-service.uts': ['__DEV__', 'pageIndex'],
   'pages/product/detail.uvue': ["'/api/v1/wishlist'"],
   'pages/favorites/index.uvue': ['远程收藏数据获取将在后续迭代中集成', 'recommendationProducts'],
+  'pages/budget/index.uvue': ['monthSpent'],
 }
 let failed = false
 for (const [file, needles] of Object.entries(required)) {

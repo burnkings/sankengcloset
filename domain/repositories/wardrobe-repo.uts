@@ -16,6 +16,7 @@ function loadAll(): WardrobeItem[] {
       item.color = obj['color'] != null ? obj['color'] as string : ''; item.size = obj['size'] != null ? obj['size'] as string : ''; item.wearStatus = obj['wearStatus'] != null ? obj['wearStatus'] as string : 'UNWORN'; item.seasons = obj['seasons'] != null ? obj['seasons'] as string[] : []
       item.images = obj['images'] != null ? obj['images'] as string[] : []; item.tags = obj['tags'] != null ? obj['tags'] as string[] : []; item.purchaseDate = obj['purchaseDate'] != null ? obj['purchaseDate'] as string : ''; item.purchasePrice = obj['purchasePrice'] != null ? obj['purchasePrice'] as number : 0
       item.purchaseSource = obj['purchaseSource'] != null ? obj['purchaseSource'] as string : ''; item.note = obj['note'] != null ? obj['note'] as string : ''; item.isFavorite = obj['isFavorite'] != null ? obj['isFavorite'] as boolean : false; item.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
+      item.purchaseId = obj['purchaseId'] != null ? obj['purchaseId'] as string : ''; item.wishId = obj['wishId'] != null ? obj['wishId'] as string : ''
       item.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''; item.updatedAt = obj['updatedAt'] != null ? obj['updatedAt'] as string : ''
       result.push(item)
     }

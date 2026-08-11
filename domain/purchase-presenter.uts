@@ -27,6 +27,7 @@ export class PurchaseDisplayModel {
   purchaseDateText: string = ''
   deadlineText: string = ''
   deadlineLabel: string = ''
+  arrivalDateText: string = ''
   note: string = ''
   isOverdue: boolean = false
   isFavorite: boolean = false
@@ -85,6 +86,7 @@ export function toDisplayModel(record: PurchaseRecord): PurchaseDisplayModel {
   const dl = formatDate(record.deadline)
   dm.deadlineText = dl
   dm.deadlineLabel = dl !== '—' ? `截止 ${dl}` : ''
+  dm.arrivalDateText = formatDate(record.arrivalDate)
   dm.note = record.note
   dm.isOverdue = checkOverdue(record.deadline, record.paymentStatus)
   dm.isFavorite = record.isFavorite

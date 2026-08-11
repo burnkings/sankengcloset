@@ -5,12 +5,12 @@
       <view class="page-canvas" :style="pageWrap">
         <V2StatsCard
           :primary-label="currentMonth"
-          :primary-value="'¥' + formatAmount(monthSpent)"
+          :primary-value="'¥' + formatAmount(monthCommitted)"
           primary-color="#2E2A28"
-          secondary-label="月预算"
-          :secondary-value="'¥' + formatAmount(limitValue)"
-          tertiary-label="剩余"
-          :tertiary-value="'¥' + formatAmount(remaining)"
+          secondary-label="已支付"
+          :secondary-value="'¥' + formatAmount(monthPaid)"
+          tertiary-label="待支付"
+          :tertiary-value="'¥' + formatAmount(monthOutstanding)"
         />
 
         <text :style="fieldLabel">月预算上限</text>
@@ -22,8 +22,8 @@
         <view :style="ruleCard">
           <view :style="ruleIcon"><text :style="ruleMark">!</text></view>
           <view :style="ruleTextWrap">
-            <text :style="ruleText">按购买记录中的商品总额计算，包含尚未支付的尾款；</text>
-            <text :style="ruleText">不会读取外部平台账单。</text>
+            <text :style="ruleText">已承诺 ¥{{ formatAmount(monthCommitted) }}，预算剩余 ¥{{ formatAmount(remaining) }}。</text>
+            <text :style="ruleText">其中含“决定买”的 ¥{{ formatAmount(decisionReserve) }} 预留；{{ alertText }}</text>
           </view>
         </view>
 
@@ -36,6 +36,7 @@
 <script setup lang="uts">
 import { useBudgetStore } from '@/stores/budget-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
+import { useWishListStore } from '@/stores/wishlist-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -49,20 +50,33 @@ import AppInput from '@/components/base/AppInput.uvue'
 import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
 import V2Segmented from '@/components/v2/V2Segmented.uvue'
 
-const budget = useBudgetStore(); const purchases = usePurchaseStore()
+const budget = useBudgetStore(); const purchases = usePurchaseStore(); const wishes = useWishListStore()
 const limitText = ref(budget.monthlyLimit > 0 ? budget.monthlyLimit.toString() : '')
 const alertValue = ref(budget.alertPercent)
 const alertLabels = ['70%', '80%', '90%']
 const activeAlert = computed((): string => `${alertValue.value}%`)
 const now = new Date(); const monthNumber = now.getMonth() + 1; const currentMonth = `${now.getFullYear()}年${monthNumber}月`; const monthCode = `${now.getFullYear()}-${monthNumber < 10 ? '0' + monthNumber.toString() : monthNumber.toString()}`
-const monthSpent = computed((): number => purchases.filteredItems.filter((item) => item.purchaseDate.indexOf(monthCode) === 0).reduce((sum, item) => sum + item.totalAmount, 0))
+const decisionReserve = computed((): number => wishes.decisionReserveTotal)
+const purchaseCommitted = computed((): number => purchases.monthlyCommitted(monthCode))
+const monthCommitted = computed((): number => purchaseCommitted.value + decisionReserve.value)
+const monthPaid = computed((): number => purchases.monthlyPaid(monthCode))
+const monthOutstanding = computed((): number => purchases.monthlyOutstanding(monthCode))
 const limitValue = computed((): number => { const value = limitText.value.trim() === '' ? 0 : parseFloat(limitText.value); return isNaN(value) ? 0 : value })
-const remaining = computed((): number => Math.max(0, limitValue.value - monthSpent.value))
+const remaining = computed((): number => Math.max(0, limitValue.value - monthCommitted.value))
+const usagePercent = computed((): number => limitValue.value <= 0 ? 0 : Math.round(monthCommitted.value / limitValue.value * 100))
+const alertText = computed((): string => usagePercent.value >= alertValue.value ? `已触及 ${alertValue.value}% 预警线` : `距 ${alertValue.value}% 预警线还有空间`)
 function onAlert(label: string) { alertValue.value = parseInt(label.replace('%', '')) }
 function formatAmount(value: number): string { return value === Math.floor(value) ? Math.floor(value).toString() : value.toFixed(2) }
 function save() { if (limitValue.value <= 0) { showFeedback('请填写大于 0 的月预算'); return }; budget.save(limitValue.value, alertValue.value); showFeedback('月预算已保存'); setTimeout(() => { uni.navigateBack() }, 220) }
 const safeBottom = getSafeBottomInset()
-onMounted(() => { purchases.fetchPurchases() })
+onMounted(() => {
+  purchases.fetchPurchases()
+  wishes.fetchItems()
+  budget.refreshRemoteBudget().then(() => {
+    if (limitText.value === '') limitText.value = budget.monthlyLimit > 0 ? budget.monthlyLimit.toString() : ''
+    alertValue.value = budget.alertPercent
+  })
+})
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 60}px` , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
 const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '40rpx', marginBottom: '14rpx' }))

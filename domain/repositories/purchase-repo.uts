@@ -27,6 +27,9 @@ function loadAll(): PurchaseRecord[] {
       r.paymentStatus = obj['paymentStatus'] != null ? obj['paymentStatus'] as string : 'PRE_ORDER'
       r.purchaseDate = obj['purchaseDate'] != null ? obj['purchaseDate'] as string : ''
       r.deadline = obj['deadline'] != null ? obj['deadline'] as string : ''
+      r.arrivalDate = obj['arrivalDate'] != null ? obj['arrivalDate'] as string : ''
+      r.wishId = obj['wishId'] != null ? obj['wishId'] as string : ''
+      r.wardrobeId = obj['wardrobeId'] != null ? obj['wardrobeId'] as string : ''
       r.note = obj['note'] != null ? obj['note'] as string : ''
       r.isFavorite = obj['isFavorite'] != null ? obj['isFavorite'] as boolean : false
       r.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
@@ -50,6 +53,7 @@ export function add(record: PurchaseRecord): PurchaseRecord {
   const records = loadAll()
   record.id = generateId()
   record.remainingAmount = Math.max(0, record.totalAmount - record.paidAmount)
+  if (record.paymentStatus != 'CANCELLED' && record.totalAmount > 0 && record.remainingAmount == 0) record.paymentStatus = 'COMPLETED'
   record.createdAt = new Date().toISOString()
   record.updatedAt = record.createdAt
   records.push(record)
@@ -72,9 +76,21 @@ export function update(id: string, data: PurchaseUpdateData): boolean {
   if (data.paymentStatus != '') r.paymentStatus = data.paymentStatus
   r.purchaseDate = data.purchaseDate
   r.deadline = data.deadline
+  r.arrivalDate = data.arrivalDate
   r.note = data.note
   r.remainingAmount = Math.max(0, r.totalAmount - r.paidAmount)
+  if (r.paymentStatus != 'CANCELLED' && r.totalAmount > 0 && r.remainingAmount == 0) r.paymentStatus = 'COMPLETED'
   r.updatedAt = new Date().toISOString()
+  saveAll(records)
+  return true
+}
+
+export function linkWardrobe(id: string, wardrobeId: string): boolean {
+  const records = loadAll()
+  const record = records.find((item) => item.id == id)
+  if (record == null) return false
+  record.wardrobeId = wardrobeId
+  record.updatedAt = new Date().toISOString()
   saveAll(records)
   return true
 }

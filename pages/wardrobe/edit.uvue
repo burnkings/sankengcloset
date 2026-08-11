@@ -45,6 +45,8 @@
 <script setup lang="uts">
 import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { useWishListStore } from '@/stores/wishlist-store'
 import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -61,10 +63,15 @@ import V2Segmented from '@/components/v2/V2Segmented.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = useWardrobeStore()
+const purchaseStore = usePurchaseStore()
+const wishStore = useWishListStore()
 const isEdit = ref(false)
 const editId = ref('')
 const imagePath = ref('')
 const showDeleteDialog = ref(false)
+const sourcePurchaseId = ref('')
+const sourceWishId = ref('')
+const sourcePurchaseDate = ref('')
 type WardrobeFormState = {
   name: string
   category: string
@@ -110,16 +117,34 @@ function save() {
     item.name = form.value.name.trim(); item.category = form.value.category; item.brand = form.value.brand.trim(); item.purchasePrice = price
     item.color = form.value.color.trim(); item.size = form.value.size.trim(); item.wearStatus = form.value.wearStatus; item.note = form.value.note.trim()
     item.images = imagePath.value === '' ? [] : [imagePath.value]
-    if (store.addItem(item) === null) { showFeedback('保存失败，请重试'); return }
+    item.purchaseId = sourcePurchaseId.value
+    item.wishId = sourceWishId.value
+    item.purchaseDate = sourcePurchaseDate.value
+    const added = store.addItem(item)
+    if (added === null) { showFeedback('保存失败，请重试'); return }
+    if (sourcePurchaseId.value !== '') purchaseStore.linkWardrobe(sourcePurchaseId.value, added.id)
+    if (sourceWishId.value !== '') wishStore.linkWardrobe(sourceWishId.value, added.id)
   }
   showFeedback(isEdit.value ? '衣橱单品已更新' : '已加入衣橱')
   setTimeout(() => { uni.navigateBack() }, 240)
 }
 function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); setTimeout(() => { uni.navigateBack() }, 220) } }
+function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
 onMounted(() => {
   store.fetchItems()
-    const pages = getCurrentPages(); const current = pages[pages.length - 1]; const options = current.options; const id = options != null && options['id'] != null ? options['id'] as string : ''
-  if (id === '') return
+  const pages = getCurrentPages(); const current = pages[pages.length - 1]; const options = current.options; const id = options != null && options['id'] != null ? options['id'] as string : ''
+  if (id === '') {
+    if (options != null) {
+      form.value.name = options['name'] != null ? safeParam(options['name'] as string) : ''
+      form.value.brand = options['brand'] != null ? safeParam(options['brand'] as string) : ''
+      form.value.category = options['category'] != null ? options['category'] as string : 'JK'
+      form.value.price = options['price'] != null ? safeParam(options['price'] as string) : ''
+      sourcePurchaseId.value = options['purchaseId'] != null ? options['purchaseId'] as string : ''
+      sourceWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
+      sourcePurchaseDate.value = options['purchaseDate'] != null ? safeParam(options['purchaseDate'] as string) : ''
+    }
+    return
+  }
   editId.value = id; isEdit.value = true
   const item = store.getById(id)
   if (item == null) return
@@ -149,5 +174,3 @@ const moreBtn = computed((): any => ({ fontSize: fontSize.sm, color: '#FF4D4F', 
 const contentDeleteBtn = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: `${editSafeBottom + 108}px`, height: '44rpx', alignItems: 'center', justifyContent: 'center', zIndex: 99 }))
 const contentDeleteBtnText = { fontSize: fontSize.sm, color: '#C4666B' }
 </script>
-
-

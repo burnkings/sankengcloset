@@ -122,6 +122,9 @@ const _estimatedTotal = computed((): number =>
     .filter((w) => w.status != 'PURCHASED' && w.status != 'CANCELED')
     .reduce((sum, w) => sum + w.estimatedPrice, 0)
 )
+const _decisionReserveTotal = computed((): number =>
+  _activeItems.value.filter((w) => w.status == 'DECIDED').reduce((sum, w) => sum + w.estimatedPrice, 0)
+)
 
 const _convertedCount = computed((): number =>
   _activeItems.value.filter((w) => w.purchaseId !== '').length
@@ -299,6 +302,7 @@ function convertToPurchase(id: string): PurchaseRecord | null {
   record.remainingAmount = item.estimatedPrice
   record.paymentStatus = 'PRE_ORDER'
   record.purchaseDate = new Date().toISOString().split('T')[0]
+  record.wishId = item.id
   record.note = `从心愿单转入: ${item.name}`
   return record
 }
@@ -400,6 +404,7 @@ class WishListStoreHandle {
   get purchasedCount(): number { return _purchasedCount.value }
   get highPriorityCount(): number { return _highPriorityCount.value }
   get estimatedTotal(): number { return _estimatedTotal.value }
+  get decisionReserveTotal(): number { return _decisionReserveTotal.value }
   get convertedCount(): number { return _convertedCount.value }
   fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: WishItem): WishItem | null { return addItem(item) }

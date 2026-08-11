@@ -77,6 +77,10 @@
             <text :style="infoLabelStyle">截止日期</text>
             <text :style="deadlineValueStyle">{{ item!.deadlineLabel }}</text>
           </view>
+          <view v-if="item!.arrivalDateText !== '—'" :style="infoRowStyle">
+            <text :style="infoLabelStyle">预计到货</text>
+            <text :style="infoValueStyle">{{ item!.arrivalDateText }}</text>
+          </view>
           <view v-if="item!.isOverdue" :style="overdueBannerStyle">
             <text :style="overdueTextStyle">已逾期</text>
           </view>
@@ -113,6 +117,7 @@
 
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
+import { PurchaseRecord } from '@/domain/purchase-record'
 import { toDisplayModel, PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import { brand, semantic } from '@/theme/tokens/colors'
 import { spacing } from '@/theme/tokens/spacing'
@@ -134,12 +139,11 @@ const deleteDialogVisible = ref(false)
 const itemId = ref('')
 
 // 展示模型
-const item = computed((): PurchaseDisplayModel | null => {
+const record = computed((): PurchaseRecord | null => {
   if (!itemId.value) return null
-  const record = store.getPurchaseById(itemId.value)
-  if (record == null) return null
-  return toDisplayModel(record)
+  return store.getPurchaseById(itemId.value)
 })
+const item = computed((): PurchaseDisplayModel | null => record.value == null ? null : toDisplayModel(record.value))
 
 function statusClass(s: string): string {
   if (s === '已完成') return 'positive'
@@ -156,16 +160,16 @@ function onEditTap() {
   uni.navigateTo({ url: `/pages/purchase/edit?id=${itemId.value}` })
 }
 function onSetReminder() {
-  if (item.value == null) return
+  if (item.value == null || record.value == null) return
   const name = encodeURIComponent(item.value!.name)
   const date = encodeURIComponent(item.value!.deadlineText !== '—' ? item.value!.deadlineText : '')
-  uni.navigateTo({ url: `/pages/reminder/edit?title=${name}&date=${date}&type=BALANCE` })
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${name}&date=${date}&type=BALANCE&purchaseId=${record.value.id}&wishId=${record.value.wishId}` })
 }
 function onAddToWardrobe() {
-  if (item.value == null) return
+  if (item.value == null || record.value == null) return
   const name = encodeURIComponent(item.value!.name)
-  uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}` })
-  showFeedback('跳转至衣橱添加')
+  const source = record.value
+  uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}&category=${source.category}&price=${source.totalAmount}&purchaseDate=${source.purchaseDate}&purchaseId=${source.id}&wishId=${source.wishId}` })
 }
 
 function onConfirmDelete() {

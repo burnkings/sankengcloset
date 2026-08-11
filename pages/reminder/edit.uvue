@@ -148,6 +148,8 @@ const showDeleteDialog = ref(false)
 const showLeaveDialog = ref(false)
 const showWardrobePicker = ref(false)
 const showDatePicker = ref(false)
+const relatedPurchaseId = ref('')
+const relatedWishId = ref('')
 const tempSelected = ref<string[]>([])
 const dateTimePickerVal = ref([0, 0, 0, 0])
 const tempMonthDay = ref('')
@@ -303,6 +305,8 @@ function onSaveTap() {
     data.note = form.value.note.trim()
     data.status = form.value.status
     data.wardrobeBindings = form.value.wardrobeBindings
+    data.relatedPurchaseId = relatedPurchaseId.value
+    data.relatedWishId = relatedWishId.value
     if (!store.updateItem(editId.value, data)) { saving.value = false; showFeedback('保存失败，请重试'); return }
   } else {
     const item = new Reminder()
@@ -314,6 +318,8 @@ function onSaveTap() {
     item.note = form.value.note.trim()
     item.status = 'PENDING'
     item.wardrobeBindings = form.value.wardrobeBindings
+    item.relatedPurchaseId = relatedPurchaseId.value
+    item.relatedWishId = relatedWishId.value
     if (store.addItem(item) === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
   }
   showFeedback(isEdit.value ? '修改已保存' : '创建成功')
@@ -357,6 +363,8 @@ onLoad((options) => {
         form.value.remindDate = item.remindDate; form.value.remindTime = item.remindTime
         form.value.isAllDay = item.isAllDay; form.value.note = item.note; form.value.status = item.status
         form.value.wardrobeBindings = [...item.wardrobeBindings]
+        relatedPurchaseId.value = item.relatedPurchaseId
+        relatedWishId.value = item.relatedWishId
         initialFormSnapshot = { ...form.value }
       }
       return
@@ -366,6 +374,8 @@ onLoad((options) => {
     form.value.type = typeRaw !== '' ? typeRaw : 'CHECKIN'
     form.value.remindDate = options['date'] != null ? safeParam(options['date'] as string) : ''
     form.value.note = options['note'] != null ? safeParam(options['note'] as string) : ''
+    relatedPurchaseId.value = options['purchaseId'] != null ? options['purchaseId'] as string : ''
+    relatedWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
     if (form.value.remindTime === '') form.value.remindTime = getDefaultTime()
     initialFormSnapshot = { ...form.value }
   }
