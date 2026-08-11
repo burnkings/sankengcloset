@@ -1,7 +1,9 @@
 import { reactive, computed } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
-import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, CommunityPostRemote } from '@/services/user-data/user-data-service'
+import { FeedItem } from '@/domain/content/feed-item'
+import { fetchProductDetail } from '@/services/content/product-service'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, CommunityPostRemote } from '@/services/user-data/user-data-service'
 
 /**
  * ContentLibraryStore — V2.6 用户内容资产 + 圈子穿搭灵感 Gallery
@@ -25,12 +27,23 @@ export class PublicLookPost {
 }
 
 const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
+const FAVORITE_ENTRIES_KEY = 'v2_library_favorite_entries'
 const WISH_IDS_KEY = 'v2_library_wish_ids'
 const FOLLOWED_BRANDS_KEY = 'v2_library_followed_brands'
 const OUTFIT_IDS_KEY = 'v2_library_outfit_ids'
 const LIKED_POST_IDS_KEY = 'v2_library_liked_post_ids'
 const OUTFIT_PREFIX = 'v2_library_outfit_'
 const MAX_LOCAL_OUTFITS = 30
+
+/**
+ * 收藏条目：商品/实体 ID（详情页 entityId）↔ 后端 wishlist_items.id 映射。
+ * itemId 为空表示尚未同步到服务端（离线/未登录收藏），登录或网络恢复后回填。
+ */
+export class FavoriteEntry {
+  productId: string = ''
+  itemId: string = ''
+  title: string = ''
+}
 
 export class SavedOutfitPost {
   id: string = ''
@@ -39,6 +52,8 @@ export class SavedOutfitPost {
   category: string = ''
   topic: string = ''
   createdAt: string = ''
+  // true = 远程已发布（listCommunityPostsRemote mine）；false = 本地草稿（outfit_ 前缀）
+  isRemote: boolean = false
 }
 
 function readString(key: string): string {
@@ -60,6 +75,57 @@ function writeList(key: string, values: string[]) {
   uni.setStorageSync(key, values.join(','))
 }
 
+function readEntries(): FavoriteEntry[] {
+  const raw = readString(FAVORITE_ENTRIES_KEY)
+  if (raw === '') {
+    // 迁移旧存量：v2_library_favorite_ids（逗号分隔 ID）→ entries（无 itemId，登录后由远程刷新回填）
+    const legacy = readList(FAVORITE_IDS_KEY)
+    const migrated: FavoriteEntry[] = []
+    for (let i = 0; i < legacy.length; i++) {
+      const entry = new FavoriteEntry()
+      entry.productId = legacy[i]
+      migrated.push(entry)
+    }
+    if (migrated.length > 0) writeEntries(migrated)
+    return migrated
+  }
+  try {
+    const parsed = JSON.parse(raw) as UTSJSONObject[]
+    const entries: FavoriteEntry[] = []
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i]
+      if (item == null) continue
+      const entry = new FavoriteEntry()
+      entry.productId = item['productId'] != null ? item['productId'] as string : ''
+      entry.itemId = item['itemId'] != null ? item['itemId'] as string : ''
+      entry.title = item['title'] != null ? item['title'] as string : ''
+      if (entry.productId != '') entries.push(entry)
+    }
+    return entries
+  } catch (e) {
+    return []
+  }
+}
+
+function writeEntries(entries: FavoriteEntry[]) {
+  try {
+    const serializable: UTSJSONObject[] = []
+    for (let i = 0; i < entries.length; i++) {
+      serializable.push({
+        productId: entries[i].productId,
+        itemId: entries[i].itemId,
+        title: entries[i].title,
+      } as UTSJSONObject)
+    }
+    uni.setStorageSync(FAVORITE_ENTRIES_KEY, JSON.stringify(serializable))
+    const ids: string[] = []
+    for (let i = 0; i < entries.length; i++) ids.push(entries[i].productId)
+    writeList(FAVORITE_IDS_KEY, ids)
+  } catch (e) {
+    // write failure is non-fatal
+  }
+}
+
 
 function outfitKey(id: string, field: string): string {
   return `${OUTFIT_PREFIX}${id}_${field}`
@@ -73,6 +139,8 @@ function readOutfit(id: string): SavedOutfitPost {
   post.category = readString(outfitKey(id, 'category'))
   post.topic = readString(outfitKey(id, 'topic'))
   post.createdAt = readString(outfitKey(id, 'created_at'))
+  // 本地草稿（outfit_ 前缀）未发布到服务端；远程帖子在 refreshMyPosts 中标记 isRemote=true
+  post.isRemote = !id.startsWith('outfit_')
   return post
 }
 
@@ -87,7 +155,11 @@ function removeOutfitStorage(id: string) {
 // ====== 模块级 reactive 状态（单例）======
 
 type ContentLibraryState = {
+  favoriteEntries: FavoriteEntry[]
   favoriteIds: string[]
+  favoriteProducts: FeedItem[]
+  favoritesLoading: boolean
+  favoritesError: string
   wishIds: string[]
   followedBrands: string[]
   outfitPosts: SavedOutfitPost[]
@@ -98,7 +170,11 @@ type ContentLibraryState = {
 }
 
 const _state = reactive<ContentLibraryState>({
+  favoriteEntries: [] as FavoriteEntry[],
   favoriteIds: [] as string[],
+  favoriteProducts: [] as FeedItem[],
+  favoritesLoading: false,
+  favoritesError: '',
   wishIds: [] as string[],
   followedBrands: [] as string[],
   outfitPosts: [] as SavedOutfitPost[],
@@ -120,7 +196,9 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 // ====== 模块级 action ======
 
 function reload() {
-  _state.favoriteIds = readList(FAVORITE_IDS_KEY)
+  const entries = readEntries()
+  _state.favoriteEntries = entries
+  syncFavoriteIds()
   _state.wishIds = readList(WISH_IDS_KEY)
   _state.followedBrands = readList(FOLLOWED_BRANDS_KEY)
   _state.likedPostIds = readList(LIKED_POST_IDS_KEY)
@@ -201,6 +279,7 @@ async function refreshMyPosts(): Promise<void> {
       post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : item.category
       post.topic = item.topic
       post.createdAt = item.createdAt
+      post.isRemote = true
       saved.push(post)
       if (item.liked && _state.likedPostIds.indexOf(item.id) < 0) _state.likedPostIds.push(item.id)
     }
@@ -212,21 +291,129 @@ async function refreshMyPosts(): Promise<void> {
   }
 }
 
+function syncFavoriteIds() {
+  const ids: string[] = []
+  const entries = _state.favoriteEntries
+  for (let i = 0; i < entries.length; i++) ids.push(entries[i].productId)
+  _state.favoriteIds = ids
+}
+
 function isFavorite(entityId: string): boolean {
   return _state.favoriteIds.indexOf(entityId) >= 0
 }
 
-function toggleFavorite(entityId: string): boolean {
+/**
+ * 统一收藏（心动收藏）：
+ * - 数据源 = 后端 /api/v1/wishlist（wishlist_items 表），商品详情页与收藏页共用本 Store。
+ * - 已登录：直接远程写（Authorized CRUD），仅失败时入队由 syncNow 重放。
+ * - 未登录：本地乐观更新 + 入队，登录后 flush 重放真实 CRUD。
+ */
+function toggleFavorite(entityId: string, title: string = ''): boolean {
   if (entityId === '') return false
-  const values = [..._state.favoriteIds]
-  const idx = values.indexOf(entityId)
-  if (idx >= 0) values.splice(idx, 1)
-  else values.unshift(entityId)
-  _state.favoriteIds = values
-  writeList(FAVORITE_IDS_KEY, values)
-  enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, idx < 0 ? 'upsert' : 'delete', '')
+  const entries = [..._state.favoriteEntries]
+  let found = -1
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].productId == entityId) { found = i; break }
+  }
+  if (found >= 0) {
+    // 取消收藏：删除 wishlist_items 条目
+    const removed = entries[found]
+    entries.splice(found, 1)
+    _state.favoriteEntries = entries
+    writeEntries(entries)
+    syncFavoriteIds()
+    const remoteItemId = removed.itemId
+    if (getCachedAccessToken() != '') {
+      if (remoteItemId != '') {
+        deleteWishlistRemote(remoteItemId).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', remoteItemId, 'delete', JSON.stringify({ productId: entityId }))
+        })
+      } else {
+        enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'delete', JSON.stringify({ productId: entityId }))
+      }
+    } else {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'delete', JSON.stringify({ productId: entityId }))
+    }
+    notifyChanged()
+    return false
+  }
+  // 添加收藏：创建 wishlist_items 条目
+  const entry = new FavoriteEntry()
+  entry.productId = entityId
+  entry.title = title
+  entry.itemId = ''
+  entries.unshift(entry)
+  _state.favoriteEntries = entries
+  writeEntries(entries)
+  syncFavoriteIds()
+  if (getCachedAccessToken() != '') {
+    addWishlistRemote(entityId, title).then((itemId: string) => {
+      if (itemId == '') return
+      // 回填服务端条目 ID，保证后续取消收藏可精确删除
+      const current = [..._state.favoriteEntries]
+      for (let i = 0; i < current.length; i++) {
+        if (current[i].productId == entityId) {
+          current[i].itemId = itemId
+          break
+        }
+      }
+      _state.favoriteEntries = current
+      writeEntries(current)
+      notifyChanged()
+    }).catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'upsert', JSON.stringify({ productId: entityId, title }))
+    })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'upsert', JSON.stringify({ productId: entityId, title }))
+  }
   notifyChanged()
-  return idx < 0
+  return true
+}
+
+/** 登录态拉取服务端收藏（服务端为准），未登录保留本地缓存 */
+async function refreshRemoteFavorites(): Promise<void> {
+  if (getCachedAccessToken() == '') return
+  try {
+    const items = await listWishlistRemote()
+    const entries: FavoriteEntry[] = []
+    for (let i = 0; i < items.length; i++) {
+      const raw = items[i]
+      const productId = raw['productId'] != null ? raw['productId'] as string : ''
+      if (productId == '') continue
+      const entry = new FavoriteEntry()
+      entry.productId = productId
+      entry.itemId = raw['id'] != null ? raw['id'] as string : ''
+      entry.title = raw['title'] != null ? raw['title'] as string : ''
+      entries.push(entry)
+    }
+    _state.favoriteEntries = entries
+    writeEntries(entries)
+    syncFavoriteIds()
+    notifyChanged()
+  } catch (e) {
+    // 离线时保留本地收藏缓存
+  }
+}
+
+/** 收藏页：刷新收藏列表并拉取商品详情（公开 /api/v1/products/:id，未登录也可展示本地收藏） */
+async function refreshFavorites(): Promise<void> {
+  await refreshRemoteFavorites()
+  _state.favoritesLoading = true
+  _state.favoritesError = ''
+  const products: FeedItem[] = []
+  const entries = _state.favoriteEntries
+  try {
+    for (let i = 0; i < entries.length; i++) {
+      const detail = await fetchProductDetail(entries[i].productId)
+      if (detail != null) products.push(detail.item)
+    }
+    _state.favoriteProducts = products
+  } catch (e) {
+    _state.favoritesError = e instanceof Error ? e.message : '加载失败'
+  } finally {
+    _state.favoritesLoading = false
+    notifyChanged()
+  }
 }
 
 function isWished(entityId: string): boolean {
@@ -360,6 +547,9 @@ reload()
 
 class ContentLibraryStoreHandle {
   get favoriteIds(): string[] { return _state.favoriteIds }
+  get favoriteProducts(): FeedItem[] { return _state.favoriteProducts }
+  get favoritesLoading(): boolean { return _state.favoritesLoading }
+  get favoritesError(): string { return _state.favoritesError }
   get followedBrands(): string[] { return _state.followedBrands }
   get outfitPosts(): SavedOutfitPost[] { return _state.outfitPosts }
   get likedPostIds(): string[] { return _state.likedPostIds }
@@ -375,8 +565,10 @@ class ContentLibraryStoreHandle {
   refreshPublicPosts(): Promise<void> { return refreshPublicPosts() }
   refreshMyPosts(): Promise<void> { return refreshMyPosts() }
   refreshRemoteBrands(): Promise<void> { return refreshRemoteBrands() }
+  refreshRemoteFavorites(): Promise<void> { return refreshRemoteFavorites() }
+  refreshFavorites(): Promise<void> { return refreshFavorites() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
-  toggleFavorite(entityId: string): boolean { return toggleFavorite(entityId) }
+  toggleFavorite(entityId: string, title: string = ''): boolean { return toggleFavorite(entityId, title) }
   isWished(entityId: string): boolean { return isWished(entityId) }
   toggleWish(entityId: string): boolean { return toggleWish(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }

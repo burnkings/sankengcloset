@@ -8,7 +8,7 @@
           <text :style="mineTitle">我的发布</text>
         </view>
         <view v-if="viewMode !== 'mine'">
-        <text :style="introText">穿搭灵感 Gallery · 看同好如何搭配，也分享你的今日造型</text>
+        <text :style="introText">穿搭灵感 Gallery · 内测中，看同好如何搭配，也分享你的今日造型</text>
         <view :style="composerCard" @tap="goCreate">
           <view :style="composerIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
@@ -64,7 +64,7 @@
             <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
           </view>
           <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的发布</text><text :style="timeText">{{ postTime(look.createdAt) }}</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId == look.id ? '确认删除' : '删除' }}</text></view>
+            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的发布</text><text v-if="!look.isRemote" :style="draftTag">本地草稿</text><text :style="timeText">{{ postTime(look.createdAt) }}</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId == look.id ? '确认删除' : '删除' }}</text></view>
             <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
             <view :style="lookMeta"><view :style="ownMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ ownLikeCount(look.id) }}</text></view></view>
           </view>
@@ -248,6 +248,8 @@ const avatar = computed((): any => ({ width: '56rpx', height: '56rpx', borderRad
 const avatarText = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text }
 const authorName = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const timeText = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary }))
+// 本地草稿标识：未同步到服务端的发布
+const draftTag = { height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', marginLeft: '12rpx', borderRadius: '18rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[700] }
 const lookCaption = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
 const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx', alignItems: 'center' }
 const ownMeta = { ...flexRow, alignItems: 'center' }

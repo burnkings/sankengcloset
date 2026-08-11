@@ -88,8 +88,10 @@ function publishLook() {
   }
   publishing.value = true
   const completePublish = (imagePath: string) => {
+    // 未登录：保存为本地草稿（outfit_ 前缀，登录后由同步队列重放）
     library.saveOutfit(imagePath, caption.value, category.value, topic.value)
-    showFeedback('已发布到圈子')
+    publishing.value = false
+    showFeedback('已保存为本地草稿')
     setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
   }
   const publishRemote = async () => {
@@ -102,6 +104,7 @@ function publishLook() {
         topic: topic.value,
       } as UTSJSONObject
       await createCommunityPostRemote(payload)
+      publishing.value = false
       showFeedback('已发布到圈子')
       setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
     } catch (e) {
@@ -124,11 +127,12 @@ function toBackendCategory(value: string): string {
   return 'JK'
 }
 
-// 隐私提示随登录态变化：登录后走远程上传，不再承诺「仅保存在本机」
+// 隐私提示随登录态变化：登录后走远程上传，未登录仅存本机草稿
+// 圈子 Gallery 为内测功能：商品/系列/衣橱关联、举报与审核尚未上线，不做公开社区承诺
 const privacyNoteText = computed((): string => {
   return getCachedAccessToken() != ''
-    ? '发布后将公开到圈子穿搭灵感 Gallery，其他用户可浏览与点赞。'
-    : '当前未登录：内容仅保存在本机，登录后可同步到云端。'
+    ? '圈子 Gallery 内测中：发布后将展示在穿搭灵感流，供同好浏览与点赞。'
+    : '当前未登录：内容仅保存在本机作为草稿，登录后可同步到圈子。'
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}

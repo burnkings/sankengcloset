@@ -6,9 +6,19 @@
       <V2CapsuleFilter :items="tabs" :active="activeTab" @change="onTabTap" />
 
       <view :style="pageCanvasStyle">
-        <view v-if="activeTab === '商品' && favoriteProducts.length > 0" :style="contentTop">
+        <!-- 商品收藏：统一数据源（content-library-store → 后端 /api/v1/wishlist），三态展示 -->
+        <view v-if="activeTab === '商品' && library.favoritesLoading" :style="emptyContainer">
+          <AppLoading />
+        </view>
+        <view v-else-if="activeTab === '商品' && library.favoritesError !== ''" :style="emptyContainer">
+          <view :style="errorWrap">
+            <text :style="errorText">收藏加载失败：{{ library.favoritesError }}</text>
+            <view :style="retryButton" @tap="reloadFavorites"><text :style="retryText">重新加载</text></view>
+          </view>
+        </view>
+        <view v-else-if="activeTab === '商品' && library.favoriteProducts.length > 0" :style="contentTop">
           <view :style="productGrid">
-            <view v-for="(item, idx) in favoriteProducts" :key="item.id" :style="productShell(idx)">
+            <view v-for="(item, idx) in library.favoriteProducts" :key="item.id" :style="productShell(idx)">
               <V2ProductCard
                 :image="item.coverUrl"
                 :brand-name="item.brandName"
@@ -35,24 +45,6 @@
         <view v-else :style="emptyContainer">
           <AppEmptyState :icon="emptyIcon" :title="emptyTitleText" :description="emptyDescText" action-text="去发现" @action="goDiscover" />
         </view>
-
-        <view v-if="activeTab === '商品'">
-          <V2SectionHeader title="可能喜欢" />
-          <view :style="productGrid">
-            <view v-for="(item, idx) in recommendationProducts" :key="item.id" :style="productShell(idx)">
-              <V2ProductCard
-                :image="item.coverUrl"
-                :brand-name="item.brandName"
-                :title="item.title"
-                :price-text="productPriceText(item.price)"
-                :original-price-text="item.originalPrice > item.price ? productPriceText(item.originalPrice) : ''"
-                :badge="item.badgeText"
-                :deadline-text="productDeadlineText(item.eventEndAt)"
-                @click="openProduct(item)"
-              />
-            </view>
-          </view>
-        </view>
       </view>
     </template>
   </MainLayout>
@@ -60,7 +52,7 @@
 
 <script setup lang="uts">
 import { openPrimaryTab } from '@/utils/tab-navigation'
-import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { FeedItem } from '@/domain/content/feed-item'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { brand } from '@/theme/tokens/colors'
@@ -71,20 +63,15 @@ import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, CARD_RADIUS, PAGE_GUTTER_REGULAR } 
 import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import AppLoading from '@/components/base/AppLoading.uvue'
 import AppEmptyState from '@/components/base/AppEmptyState.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
 import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
 import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
 
 const activeTab = ref('商品')
 const tabs = ['商品', '穿搭', '品牌', '合集']
 const library = useContentLibraryStore()
-
-// 收藏数据将通过远程 API 获取，当前阶段展示基于本地收藏 ID 映射
-// 远程收藏数据获取将在后续迭代中集成
-  const favoriteProducts = ref<FeedItem[]>([])
-  const recommendationProducts = ref<FeedItem[]>([])
 
 const emptyTitleText = computed((): string => {
   if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
@@ -108,8 +95,9 @@ function openBrand(brandName: string) {
   uni.setStorageSync('pending_search_keyword', brandName)
   uni.navigateTo({ url: '/pages/search/index' })
 }
+function reloadFavorites() { library.refreshFavorites() }
 onLoad(() => { initPageTheme() })
-onPageShow(() => { initPageTheme(); library.reload() })
+onPageShow(() => { initPageTheme(); library.reload(); library.refreshFavorites() })
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
 const pageCanvasStyle = { paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
@@ -128,6 +116,11 @@ const brandAvatar = computed((): any => ({ width: '64rpx', height: '64rpx', bord
 const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const brandNameText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const followedText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '8rpx' }))
+// 收藏加载失败态
+const errorWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '60rpx', paddingBottom: '60rpx' }
+const errorText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
+const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }
+const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
 </script>
 
 

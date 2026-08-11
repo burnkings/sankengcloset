@@ -2,6 +2,7 @@ import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-ope
 import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
 import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized } from '@/services/platform/api-client'
 import { encodeQuery } from '@/services/platform/api-client'
+import { listWishlistRemote } from '@/services/user-data/user-data-service'
 
 const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
 const PREFIX = 'v21_sync_op_'
@@ -39,14 +40,51 @@ export function enqueueLocalOperation(userId: string, entityType: string, entity
 export function readPendingOperations(): SyncOperation[] { const ids = readIds(); const result: SyncOperation[] = []; for (let i = 0; i < ids.length; i++) result.push(readOperation(ids[i])); return result }
 
 /**
+ * 收藏（favorite）操作重放：直接作用于 /api/v1/wishlist 真实业务端点。
+ * - create/upsert：POST 创建条目（status 必填 'WISH'，productId 关联商品）。
+ * - delete：按 productId 查服务端条目后 DELETE（幂等：不存在视为已删除）。
+ */
+async function replayFavorite(op: SyncOperation): Promise<boolean> {
+  try {
+    const payload = safePayload(op.payload)
+    if (op.action == 'delete') {
+      let productId = op.entityId
+      if (payload != '' && payload != '{}') {
+        const body = JSON.parse(payload) as UTSJSONObject
+        if (body['productId'] != null && body['productId'] as string != '') productId = body['productId'] as string
+      }
+      const items = await listWishlistRemote()
+      for (let i = 0; i < items.length; i++) {
+        const raw = items[i]
+        if (raw['productId'] != null && raw['productId'] as string == productId) {
+          const itemId = raw['id'] != null ? raw['id'] as string : ''
+          if (itemId != '') await apiDeleteAuthorized('/api/v1/wishlist/' + encodeQuery(itemId))
+          return true
+        }
+      }
+      return true
+    }
+    const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
+    const productId = body['productId'] != null ? body['productId'] as string : op.entityId
+    const title = body['title'] != null ? body['title'] as string : productId
+    if (productId == '') return false
+    await apiPostAuthorized('/api/v1/wishlist', { title, status: 'WISH', productId } as UTSJSONObject)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+/**
  * 逐条重放一个操作到真实业务端点（依据后端实际能力）：
  * - 后端 /api/v1/sync/operations:batch 仅写入 sync_operations 审计表、不应用业务数据，
  *   因此离线期间入队的操作必须在恢复后重放真实的 /api/v1/me/* CRUD 端点。
- * - 支持实体：reminder / wardrobe_item / wishlist_item / purchase（/me/* 资产 CRUD）。
+ * - 支持实体：reminder / wardrobe_item / wishlist_item / purchase / favorite（真实 CRUD 重放）。
  * - 其余实体（outfit 缺图、post_like 等）不在此自动重放，保持队列等待后续扩展。
  * @returns true 重放成功；false 失败（保留队列）
  */
 async function replayOperation(op: SyncOperation): Promise<boolean> {
+  if (op.entityType == 'favorite') return await replayFavorite(op)
   let path = ''
   if (op.entityType == 'reminder') path = '/api/v1/me/reminders'
   else if (op.entityType == 'wardrobe_item') path = '/api/v1/me/wardrobe'

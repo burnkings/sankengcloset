@@ -12,15 +12,19 @@ const required = {
   'config/runtime.uts': ['DATA_MODE_REMOTE', 'saveSessionTokens'],
   'services/platform/api-client.uts': ['apiGetAuthorized', 'apiPostAuthorized', 'refreshWithSingleFlight', "apiPost('/api/v1/sessions/refresh'", "'/health'"],
   'services/content/feed-service.uts': ['/api/v1/feed', 'mapFeedItem', 'cursor'],
-  'services/sync/local-sync-queue.uts': ['replayOperation', 'apiPostAuthorized', 'apiPatchAuthorized', 'apiDeleteAuthorized'],
+  'services/sync/local-sync-queue.uts': ['replayOperation', 'replayFavorite', 'apiPostAuthorized', 'apiPatchAuthorized', 'apiDeleteAuthorized'],
   'stores/session-store.uts': ["'/api/v1/sessions/wechat'", 'loginWithWechat', 'saveSessionTokens', 'flushLocalOperations'],
   'stores/home-feed-store.uts': ['nextCursor', 'MAX_FEED_ITEMS', '_requestSeq'],
+  'stores/content-library-store.uts': ['listWishlistRemote', 'addWishlistRemote', 'deleteWishlistRemote', 'refreshRemoteFavorites', 'refreshFavorites', 'isRemote'],
+  'services/user-data/user-data-service.uts': ["'/api/v1/wishlist'", 'addWishlistRemote', 'deleteWishlistRemote', 'createCommunityPostRemote', 'uploadOutfitImageRemote'],
 }
 const notAllowed = {
   'config/runtime.uts': ['setRuntimeMode', 'setApiBaseUrl', 'setMockOnline', 'setMockLatency', 'DATA_MODE_LOCAL', 'DATA_MODE_MOCK'],
   'stores/sync-store.uts': ['setMockOnline'],
   'stores/session-store.uts': ['loginPreview', 'localAssetsPending', 'markLocalAssetsQueued', "'/api/v1/sessions/dev'"],
   'services/content/feed-service.uts': ['__DEV__', 'pageIndex'],
+  'pages/product/detail.uvue': ["'/api/v1/wishlist'"],
+  'pages/favorites/index.uvue': ['远程收藏数据获取将在后续迭代中集成', 'recommendationProducts'],
 }
 let failed = false
 for (const [file, needles] of Object.entries(required)) {

@@ -126,6 +126,32 @@ export async function listFollowedBrandsRemote(): Promise<string[]> {
 
 // ─── 圈子发帖 + 图片上传 ───────────────────────────────────
 
+// ─── 心动收藏（统一数据源 /api/v1/wishlist）────────────────
+
+/** 拉取当前用户收藏列表（wishlist_items，含 id/title/productId/status） */
+export async function listWishlistRemote(): Promise<UTSJSONObject[]> {
+  const response = await apiGetAuthorized('/api/v1/wishlist')
+  const values = response.data as any[] | null
+  const result = [] as UTSJSONObject[]
+  if (values != null) for (let i = 0; i < values.length; i++) {
+    const value = asObject(values[i])
+    if (value != null) result.push(value)
+  }
+  return result
+}
+
+/** 添加收藏（POST /api/v1/wishlist，status 必填）。返回新条目 id；失败抛错由调用方入队兜底。 */
+export async function addWishlistRemote(productId: string, title: string): Promise<string> {
+  const response = await apiPostAuthorized('/api/v1/wishlist', { title, status: 'WISH', productId } as UTSJSONObject)
+  const data = asObject(response.data)
+  return data != null && data['id'] != null ? data['id'] as string : ''
+}
+
+/** 取消收藏（DELETE /api/v1/wishlist/:id） */
+export function deleteWishlistRemote(itemId: string) {
+  return apiDeleteAuthorized('/api/v1/wishlist/' + encodeQuery(itemId))
+}
+
 /** 创建帖子（POST /api/v1/community/posts），mediaId 来自上传返回 */
 export function createCommunityPostRemote(payload: UTSJSONObject) {
   return apiPostAuthorized('/api/v1/community/posts', payload)

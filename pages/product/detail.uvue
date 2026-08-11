@@ -76,8 +76,8 @@ import { FeedItem } from '@/domain/content/feed-item'
 import { WishItem } from '@/domain/wish-item'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice } from '@/stores/home-feed-store'
-import { apiGetAuthorized, apiPostAuthorized, apiDeleteAuthorized } from '@/services/platform/api-client'
 import { getCachedAccessToken } from '@/config/runtime'
+import { useContentLibraryStore } from '@/stores/content-library-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -100,16 +100,13 @@ const loading = ref(true)
 const errorMessage = ref('')
 const description = ref('')
 const shopUrl = ref('')
-const isSaved = ref(false)
+// 收藏态：与收藏页共用 content-library-store 统一数据源（后端 /api/v1/wishlist）
+const library = useContentLibraryStore()
+const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
 const stages = ['图透', '定金', '尾款', '现货']
 const currentImageIndex = ref(0)
 function formatMoney(cents: number): string { return formatPrice(cents) }
   const detailImages = ref<string[]>([])
-let savedEntityIds: string[] = []
-
-function findWishlistId(entityId: string): string {
-  return entityId
-}
 
  function onGalleryChange(e: any) {
    const eObj = e as UTSJSONObject
@@ -123,29 +120,7 @@ function isLoggedIn(): boolean {
   return getCachedAccessToken() !== ''
 }
 
-async function fetchWishlist() {
-  try {
-    // Authorized：token 过期自动刷新重试
-    const response = await apiGetAuthorized('/api/v1/wishlist')
-    const items = response.data as any[]
-    if (items != null) {
-        savedEntityIds = items.map((w: any): string => {
-          const o = w as UTSJSONObject
-          const eid = o['entityId'] != null ? o['entityId'] as string : ''
-          if (eid != '') return eid
-          const wid = o['id'] != null ? o['id'] as string : ''
-          return wid
-        })
-      if (item.value !== null) {
-        isSaved.value = savedEntityIds.indexOf(item.value!.entityId) >= 0
-      }
-    }
-  } catch (_) {
-    // 未登录或网络错误 — 收藏态保持 false
-  }
-}
-
-async function toggleSaved() {
+function toggleSaved() {
   if (item.value === null) return
   const entityId = item.value!.entityId
   if (entityId === '') return
@@ -155,27 +130,9 @@ async function toggleSaved() {
     return
   }
 
-  const currentSaved = isSaved.value
-  try {
-    if (currentSaved) {
-      const targetId = findWishlistId(entityId)
-      if (targetId !== '') {
-        await apiDeleteAuthorized(`/api/v1/wishlist/${encodeURIComponent(targetId)}`)
-      }
-      isSaved.value = false
-      const idx = savedEntityIds.indexOf(entityId)
-      if (idx >= 0) savedEntityIds.splice(idx, 1)
-      showFeedback('已移出收藏')
-    } else {
-      await apiPostAuthorized('/api/v1/wishlist', { entityId, feedType: item.value!.feedType, title: item.value!.title })
-      isSaved.value = true
-      savedEntityIds.unshift(entityId)
-      showFeedback('已收进心动收藏')
-    }
-  } catch (e) {
-    isSaved.value = currentSaved
-    showFeedback(e instanceof Error ? e.message : '操作失败，请重试')
-  }
+  // 统一数据源：content-library-store → 后端 /api/v1/wishlist（失败自动入队，恢复后重放）
+  const saved = library.toggleFavorite(entityId, item.value!.title)
+  showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
 }
 
 function onAddToWishlist() {
@@ -236,7 +193,7 @@ async function loadDetail() {
     description.value = result.description
     shopUrl.value = result.shopUrl
     if (isLoggedIn()) {
-      await fetchWishlist()
+      await library.refreshRemoteFavorites()
     }
   } catch (e) {
     item.value = null
