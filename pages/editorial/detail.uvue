@@ -89,7 +89,7 @@ onLoad((query) => {
   }
 
   // Filter products by category — 后续将接入远程 API 获取专题商品
-  // 当前阶段先展示空态，由 V2ProductCard 的 empty 展示逻辑兜底
+  // 当前阶段先展示空态，由 PageState 兜底
   filteredItems.value = []
 })
 
