@@ -1,8 +1,0 @@
-<template><view :style="groupStyle"><slot /></view></template>
-
-<script setup lang="uts">
-import { CARD_RADIUS } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
-
-const groupStyle = computed((): any => ({ backgroundColor: n.value.surface, borderRadius: CARD_RADIUS, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, overflow: 'hidden' }))
-</script>
