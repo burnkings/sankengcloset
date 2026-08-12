@@ -1,6 +1,6 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
-    <MainLayout :scrollable="false" navbar-content-height="288rpx">
+    <MainLayout :scrollable="false" navbar-content-height="252rpx">
     <template #navbar>
       <view :style="navbarStyle">
         <view :style="statusBarPad" />
@@ -20,25 +20,19 @@
         <view class="nav-canvas" :style="layer2Wrap">
           <view :style="searchBox" @tap="onSearch">
             <AppIcon name="search" :size="36" />
-            <text :style="searchPlaceholder">搜索你喜欢的风格</text>
+            <text :style="searchPlaceholder">搜索商品、品牌或风格</text>
           </view>
         </view>
         <view :style="searchTabsSpacer" />
         <!-- Layer 3: Channels -->
-        <V2HorizontalTabs :items="channels" :active="store.currentChannel" @change="onChannelTap" />
+        <ChannelTabs :items="channels" :active="store.currentChannel" @change="onChannelTap" />
       </view>
     </template>
 
     <template #default>
-      <AppLoading v-if="store.loading" />
+      <FeedSkeleton v-if="store.loading" />
 
-      <view v-else-if="store.state === 'error'" :style="errorWrap">
-        <text :style="errorTitle">加载失败</text>
-        <text :style="errorMsg">{{ store.errorMessage }}</text>
-        <view :style="retryBtn" @tap="onRetry">
-          <text :style="retryBtnText">点击重试</text>
-        </view>
-      </view>
+      <PageState v-else-if="store.state === 'error'" icon="info" title="加载失败" :message="store.errorMessage" action-text="点击重试" @action="onRetry" />
 
       <!-- #ifdef MP-WEIXIN -->
       <scroll-view v-else scroll-y refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :style="listViewStyle" @scrolltolower="onLoadMore">
@@ -54,8 +48,7 @@
         <list-item v-if="store.isEmpty" :type="'empty'">
         <!-- #endif -->
           <view :style="emptyWrap">
-            <text :style="emptyTitle">暂无内容</text>
-            <text :style="emptyMsg">切换其他频道看看</text>
+            <PageState icon="info" title="暂无内容" message="切换其他频道看看" />
           </view>
         <!-- #ifdef MP-WEIXIN -->
         </view>
@@ -69,26 +62,14 @@
         <list-item v-for="row in store.feedRows" :key="row.id" :type="row.rowType">
           <view v-if="row.rowType === 'pair'" class="feed-pair-row" :style="waterfallRow">
             <view v-if="row.left !== null" :style="waterfallCardShellLeft">
-              <V2ProductCard :image="row.left!.coverUrl" :brand-name="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :original-price-text="rowLeftOldPrice(row)" :badge="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" :compatibility-score="compatibilityScore(row.left!)" @click="onTap(row.left!)" />
+              <ProductCard :image="row.left!.coverUrl" :brand="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :badge-text="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" @tap="onTap(row.left!)" />
             </view>
             <view v-if="row.right !== null" :style="waterfallCardShellRight">
-              <V2ProductCard :image="row.right!.coverUrl" :brand-name="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :original-price-text="rowRightOldPrice(row)" :badge="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" :compatibility-score="compatibilityScore(row.right!)" @click="onTap(row.right!)" />
+              <ProductCard :image="row.right!.coverUrl" :brand="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :badge-text="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" @tap="onTap(row.right!)" />
             </view>
           </view>
-          <view v-else-if="row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" :style="eventCard" @tap="onTap(row.single!)">
-            <view :style="imgWrap169">
-              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-              <view :style="eventOverlay">
-                <view :style="eventTagRow">
-                  <view :style="eventTagBg">
-                    <text :style="eventTagTxt">{{ row.single!.badgeText }}</text>
-                  </view>
-                  <text :style="eventTimeTxt">{{ rowSingleRelTime(row) }}</text>
-                </view>
-                <text :style="eventTitle">{{ row.single!.title }}</text>
-                <text :style="eventBrand">{{ row.single!.brandName }}</text>
-              </view>
-            </view>
+          <view v-else-if="row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(row.single!)">
+            <ReleaseCard :title="row.single!.title" :brand="row.single!.brandName" :image="row.single!.coverUrl" :overlay-text="rowSingleRelTime(row)" @tap="onTap(row.single!)" @remind="onTap(row.single!)" @view="onTap(row.single!)" />
           </view>
           <view v-else-if="row.single !== null && row.single!.feedType === 'outfit'" class="feed-single-card" :style="outfitCard" @tap="onTap(row.single!)">
             <view :style="imgWrap45">
@@ -99,20 +80,8 @@
               </view>
             </view>
           </view>
-          <view v-else-if="row.single !== null" class="feed-single-card" :style="postCard" @tap="onTap(row.single!)">
-            <view :style="imgWrap169">
-              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-            </view>
-            <view :style="postInfo">
-              <view :style="postTopRow">
-                <view :style="postTagBg">
-                  <text :style="postTagTxt">{{ row.single!.badgeText !== '' ? row.single!.badgeText : feedLabel(row.single!.feedType) }}</text>
-                </view>
-                <text :style="postSource">{{ row.single!.sourceLabel }}</text>
-              </view>
-              <text :style="postTitle">{{ row.single!.title }}</text>
-              <text :style="postBrand">{{ row.single!.brandName }}</text>
-            </view>
+          <view v-else-if="row.single !== null" class="feed-single-card" @tap="onTap(row.single!)">
+            <EditorialCard :title="row.single!.title" :image="row.single!.coverUrl" :source-label="row.single!.sourceLabel !== '' ? row.single!.sourceLabel : feedLabel(row.single!.feedType)" :updated-text="rowSingleRelTime(row)" />
           </view>
         </list-item>
         <!-- #endif -->
@@ -122,26 +91,14 @@
         <view v-for="row in store.feedRows" :key="row.id">
           <view v-if="row.rowType === 'pair'" class="feed-pair-row" :style="waterfallRow">
             <view v-if="row.left !== null" :style="waterfallCardShellLeft">
-              <V2ProductCard :image="row.left!.coverUrl" :brand-name="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :original-price-text="rowLeftOldPrice(row)" :badge="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" :compatibility-score="compatibilityScore(row.left!)" @click="onTap(row.left!)" />
+              <ProductCard :image="row.left!.coverUrl" :brand="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :badge-text="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" @tap="onTap(row.left!)" />
             </view>
             <view v-if="row.right !== null" :style="waterfallCardShellRight">
-              <V2ProductCard :image="row.right!.coverUrl" :brand-name="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :original-price-text="rowRightOldPrice(row)" :badge="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" :compatibility-score="compatibilityScore(row.right!)" @click="onTap(row.right!)" />
+              <ProductCard :image="row.right!.coverUrl" :brand="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :badge-text="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" @tap="onTap(row.right!)" />
             </view>
           </view>
-          <view v-else-if="row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" :style="eventCard" @tap="onTap(row.single!)">
-            <view :style="imgWrap169">
-              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-              <view :style="eventOverlay">
-                <view :style="eventTagRow">
-                  <view :style="eventTagBg">
-                    <text :style="eventTagTxt">{{ row.single!.badgeText }}</text>
-                  </view>
-                  <text :style="eventTimeTxt">{{ rowSingleRelTime(row) }}</text>
-                </view>
-                <text :style="eventTitle">{{ row.single!.title }}</text>
-                <text :style="eventBrand">{{ row.single!.brandName }}</text>
-              </view>
-            </view>
+          <view v-else-if="row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(row.single!)">
+            <ReleaseCard :title="row.single!.title" :brand="row.single!.brandName" :image="row.single!.coverUrl" :overlay-text="rowSingleRelTime(row)" @tap="onTap(row.single!)" @remind="onTap(row.single!)" @view="onTap(row.single!)" />
           </view>
           <view v-else-if="row.single !== null && row.single!.feedType === 'outfit'" class="feed-single-card" :style="outfitCard" @tap="onTap(row.single!)">
             <view :style="imgWrap45">
@@ -152,20 +109,8 @@
               </view>
             </view>
           </view>
-          <view v-else-if="row.single !== null" class="feed-single-card" :style="postCard" @tap="onTap(row.single!)">
-            <view :style="imgWrap169">
-              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-            </view>
-            <view :style="postInfo">
-              <view :style="postTopRow">
-                <view :style="postTagBg">
-                  <text :style="postTagTxt">{{ row.single!.badgeText !== '' ? row.single!.badgeText : feedLabel(row.single!.feedType) }}</text>
-                </view>
-                <text :style="postSource">{{ row.single!.sourceLabel }}</text>
-              </view>
-              <text :style="postTitle">{{ row.single!.title }}</text>
-              <text :style="postBrand">{{ row.single!.brandName }}</text>
-            </view>
+          <view v-else-if="row.single !== null" class="feed-single-card" @tap="onTap(row.single!)">
+            <EditorialCard :title="row.single!.title" :image="row.single!.coverUrl" :source-label="row.single!.sourceLabel !== '' ? row.single!.sourceLabel : feedLabel(row.single!.feedType)" :updated-text="rowSingleRelTime(row)" />
           </view>
         </view>
         <!-- #endif -->
@@ -200,36 +145,33 @@
 <script setup lang="uts">
 import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
-import { useWardrobeStore } from '@/stores/wardrobe-store'
-import { calculateWardrobeCompatibility } from '@/services/ai/wardrobe-compatibility-service'
 import { FeedItem, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
 import { brand, baseColors } from '@/theme/tokens/colors'
-import { spacing } from '@/theme/tokens/spacing'
-import { radius } from '@/theme/tokens/radius'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexCenter, flexFill } from '@/theme/layout/flex'
+import { fontSize, fontWeight, v3TextStyle } from '@/theme/tokens/typography'
+import { flexRow, flexCenter } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
-import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight, upx2px } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
-import { CARD_PADDING, CARD_RADIUS, BADGE_PADDING_X, BADGE_PADDING_Y, BADGE_FONT_SIZE, SEARCH_HEIGHT, SEARCH_RADIUS, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3, COLUMN_GAP_V3, CARD_VERTICAL_GAP_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
-import AppLoading from '@/components/base/AppLoading.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import V2HorizontalTabs from '@/components/v2/V2HorizontalTabs.uvue'
-import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
+import ChannelTabs from '@/components/v3/ChannelTabs.uvue'
+import ProductCard from '@/components/v3/ProductCard.uvue'
+import ReleaseCard from '@/components/v3/ReleaseCard.uvue'
+import EditorialCard from '@/components/v3/EditorialCard.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 
 const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
 const notices = useNotificationCenterStore()
-const wardrobe = useWardrobeStore()
 const channels = CHANNELS
 
 const statusBarH = getStatusBarHeight()
-const homeNavbarPx = upx2px(288)
+const homeNavbarPx = upx2px(252)
 const homeViewportPx = ref(Math.max(getWindowHeight() - statusBarH - homeNavbarPx, 240))
 function refreshViewport() { homeViewportPx.value = Math.max(getWindowHeight() - statusBarH - homeNavbarPx, 240) }
 
@@ -249,10 +191,6 @@ function rowLeftPrice(row: FeedRow): string {
   if (row.left == null) return ''
   return formatPrice(row.left!.price)
 }
-function rowLeftOldPrice(row: FeedRow): string {
-  if (row.left == null) return ''
-  return row.left!.originalPrice > row.left!.price ? formatPrice(row.left!.originalPrice) : ''
-}
 function rowLeftDeadline(row: FeedRow): string {
   if (row.left == null) return ''
   return formatDeadline(row.left!.eventEndAt)
@@ -260,10 +198,6 @@ function rowLeftDeadline(row: FeedRow): string {
 function rowRightPrice(row: FeedRow): string {
   if (row.right == null) return ''
   return formatPrice(row.right!.price)
-}
-function rowRightOldPrice(row: FeedRow): string {
-  if (row.right == null) return ''
-  return row.right!.originalPrice > row.right!.price ? formatPrice(row.right!.originalPrice) : ''
 }
 function rowRightDeadline(row: FeedRow): string {
   if (row.right == null) return ''
@@ -273,7 +207,6 @@ function rowSingleRelTime(row: FeedRow): string {
   if (row.single == null) return ''
   return formatRelativeTime(row.single!.eventStartAt)
 }
-function compatibilityScore(item: FeedItem): number { return calculateWardrobeCompatibility(item, wardrobe.items).score }
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openNotifications() { uni.navigateTo({ url: '/pages/notification/index' }) }
 function onChannelTap(ch: string) { store.setChannel(ch) }
@@ -305,14 +238,14 @@ const footerText = computed((): string => {
 })
 // 筛选后内容不足一屏时不展示 footer，避免制造虚假操作预期。
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.reachedLimit || store.displayItems.length >= 8)
-onMounted(() => { store.loadFirstPage(); wardrobe.fetchItems() })
+onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
 onLoad(() => { initPageTheme(); refreshViewport() })
-onPageShow(() => { initPageTheme(); store.refreshIfPreferencesChanged(); notices.reload(); wardrobe.fetchItems() })
+onPageShow(() => { initPageTheme(); store.refreshIfPreferencesChanged(); notices.reload() })
 
-// --- Spacing tokens (no gap) ---
-const CARD_PAIR_GAP = '20rpx'  // between two product cards
-const CARD_V_GAP = '24rpx'     // vertical gap between card rows
+// --- Spacing tokens (V3 §3.3) ---
+const CARD_PAIR_GAP = COLUMN_GAP_V3       // 双列间距 12rpx
+const CARD_V_GAP = CARD_VERTICAL_GAP_V3   // 卡片纵向间距 28rpx
 
 // --- Navbar ---
 const navbarStyle = computed((): any => ({
@@ -324,11 +257,11 @@ const statusBarPad = computed((): any => ({ height: `${statusBarH}px` }))
 const layer1 = {
   height: '96rpx', ...flexRow, alignItems: 'center',
   justifyContent: 'space-between',
-  paddingLeft: PAGE_GUTTER_REGULAR,
-  paddingRight: PAGE_GUTTER_REGULAR,
+  paddingLeft: PAGE_GUTTER_V3,
+  paddingRight: PAGE_GUTTER_V3,
 }
 const brandText = computed((): any => ({
-  fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[500],
+  fontSize: v3TextStyle.pageTitle.fontSize, fontWeight: v3TextStyle.pageTitle.fontWeight, color: brand.primary,
 }))
 const capsuleSpacer = { width: `${capsuleW}px` }
 const navActions = { ...flexRow, alignItems: 'center' }
@@ -338,8 +271,8 @@ const noticeDot = { position: 'absolute', top: '8rpx', right: '8rpx', width: '12
 const wordmarkSearchSpacer = { height: '16rpx' }
 const layer2Wrap = {}
 const searchBox = computed((): any => ({
-  height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS,
-  backgroundColor: n.value.bgTertiary,
+  height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3,
+  backgroundColor: n.value.inputFill,
   ...flexRow, alignItems: 'center',
   paddingLeft: '28rpx', paddingRight: '24rpx',
 }))
@@ -350,51 +283,20 @@ const searchTabsSpacer = { height: '12rpx' }
 // 真机 list-view 必须拿到明确高度；height:0 + flex 在微信 VDOM 下会失效。
 const listViewStyle = computed((): any => ({ width: '750rpx', flex: 1, minHeight: `${homeViewportPx.value}px` }))
 
-// Error
-const errorWrap = { ...flexFill, alignItems: 'center', justifyContent: 'center', padding: spacing[8] }
-const errorTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
-const errorMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center', marginTop: spacing[3] }))
-const retryBtn = { paddingHorizontal: spacing[5], paddingVertical: spacing[2], borderRadius: radius.full, backgroundColor: brand[500], marginTop: spacing[2] }
-const retryBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+// Error / Empty 使用 V3 PageState（无本地样式）
+const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: '48rpx' }
 
-// Empty
-const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: spacing[8] }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textSecondary }))
-const emptyMsg = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: spacing[2] }))
-
-// Waterfall two-column layout — pair row
+// Waterfall two-column layout — pair row（V3 §3.3：16+353+12+353+16=750）
 const waterfallRow = { ...flexRow, alignItems: 'flex-start' as string }
-const waterfallCardShellLeft = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
-const waterfallCardShellRight = { width: PRODUCT_CARD_WIDTH, flexShrink: 0, marginTop: CARD_V_GAP }
+const waterfallCardShellLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
+const waterfallCardShellRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, marginTop: CARD_V_GAP }
 
-const imgWrap169 = { width: '670rpx', height: '360rpx', position: 'relative' as string, overflow: 'hidden' }
-const imgWrap45 = { width: '670rpx', height: '760rpx', position: 'relative' as string, overflow: 'hidden' }
-
-// Event card
-const eventCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
-const eventOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: CARD_PADDING, paddingTop: '60rpx', backgroundColor: 'rgba(0,0,0,0.4)' }
-const eventTagRow = { ...flexRow, alignItems: 'center', marginBottom: spacing[1] }
-const eventTagBg = { paddingRight: spacing[2], minHeight: '36rpx', alignItems: 'center', justifyContent: 'center', marginRight: spacing[2] }
-const eventTagTxt = { fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.semibold, color: baseColors.white }
-const eventTimeTxt = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)' }
-const eventTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white, lines: 2, textOverflow: 'ellipsis' }
-const eventBrand = { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)', marginTop: '4rpx' }
-
-// Outfit card
-const outfitCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
-const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: CARD_PADDING, paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
+// Outfit card — 单列穿搭卡（V3 token 化）
+const outfitCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
+const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: '24rpx', paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
 const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }
-
-// Post card
-const postCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden' }
-const postInfo = { padding: CARD_PADDING }
-const postTopRow = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '4rpx' }
-const postTagBg = computed((): any => ({ paddingHorizontal: BADGE_PADDING_X, paddingVertical: BADGE_PADDING_Y, borderRadius: radius.full, backgroundColor: n.value.bgSecondary }))
-const postTagTxt = { fontSize: BADGE_FONT_SIZE, fontWeight: fontWeight.medium, color: brand[500] }
-const postSource = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
-const postTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 2, textOverflow: 'ellipsis', marginTop: spacing[1] }))
-const postBrand = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: spacing[1] }))
+const imgWrap45 = { width: '718rpx', height: '760rpx', position: 'relative' as string, overflow: 'hidden' }
 
 // Footer
 const footerWrap = { ...flexCenter, paddingTop: '32rpx', paddingBottom: PAGE_BOTTOM_SAFE_SPACER }
@@ -402,14 +304,18 @@ const footerTxt = computed((): any => ({ fontSize: fontSize.sm, color: n.value.t
 </script>
 
 <style>
-.nav-canvas,
+.nav-canvas {
+  padding-left: 32rpx;
+  padding-right: 32rpx;
+}
+
 .feed-pair-row {
-  padding-left: 40rpx;
-  padding-right: 40rpx;
+  padding-left: 16rpx;
+  padding-right: 16rpx;
 }
 
 .feed-single-card {
-  margin-left: 40rpx;
-  margin-right: 40rpx;
+  margin-left: 16rpx;
+  margin-right: 16rpx;
 }
 </style>
