@@ -10,13 +10,17 @@
         <view v-if="activeTab === '商品' && library.favoritesLoading" :style="emptyContainer">
           <AppLoading />
         </view>
-        <view v-else-if="activeTab === '商品' && library.favoritesError !== ''" :style="emptyContainer">
+        <view v-else-if="activeTab === '商品' && library.favoritesError !== '' && library.favoriteProducts.length === 0" :style="emptyContainer">
           <view :style="errorWrap">
             <text :style="errorText">收藏加载失败：{{ library.favoritesError }}</text>
             <view :style="retryButton" @tap="reloadFavorites"><text :style="retryText">重新加载</text></view>
           </view>
         </view>
         <view v-else-if="activeTab === '商品' && library.favoriteProducts.length > 0" :style="contentTop">
+          <view v-if="library.favoritesError !== ''" :style="partialErrorWrap">
+            <text :style="partialErrorText">{{ library.favoritesError }}</text>
+            <text :style="partialErrorAction" @tap="reloadFavorites">重新加载</text>
+          </view>
           <view :style="productGrid">
             <view v-for="(item, idx) in library.favoriteProducts" :key="item.id" :style="productShell(idx)">
               <V2ProductCard
@@ -29,6 +33,22 @@
                 :deadline-text="productDeadlineText(item.eventEndAt)"
                 @click="openProduct(item)"
               />
+            </view>
+          </view>
+        </view>
+
+        <view v-else-if="activeTab === '穿搭' && library.outfitPosts.length > 0" :style="contentTop">
+          <view v-for="look in library.outfitPosts" :key="look.id" :style="outfitCard" @tap="openLook(look)">
+            <view :style="outfitImageWrap">
+              <AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+              <view v-if="!look.isRemote" :style="outfitDraftTag"><text :style="outfitDraftText">本地草稿</text></view>
+            </view>
+            <view :style="outfitBody">
+              <text :style="outfitCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
+              <view :style="outfitMeta">
+                <text :style="outfitTopic">#{{ look.topic }}</text>
+                <text :style="outfitCategory">{{ look.category }}</text>
+              </view>
             </view>
           </view>
         </view>
@@ -53,9 +73,10 @@
 <script setup lang="uts">
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { FeedItem } from '@/domain/content/feed-item'
+import { SavedOutfitPost } from '@/stores/content-library-store'
 import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
-import { brand } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -63,6 +84,7 @@ import { GROUP_GAP, PAGE_HEADER_CONTENT_GAP, CARD_RADIUS, PAGE_GUTTER_REGULAR } 
 import { n, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
 import AppLoading from '@/components/base/AppLoading.uvue'
 import AppEmptyState from '@/components/base/AppEmptyState.uvue'
 import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
@@ -75,13 +97,13 @@ const library = useContentLibraryStore()
 
 const emptyTitleText = computed((): string => {
   if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
-  if (activeTab.value === '穿搭') return '还没有收藏穿搭灵感'
+  if (activeTab.value === '穿搭') return '还没有发布穿搭动态'
   if (activeTab.value === '合集') return '还没有创建收藏合集'
   return '还没有收藏心动小裙子'
 })
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
-  if (activeTab.value === '穿搭') return '从圈子里收集想尝试的搭配'
+  if (activeTab.value === '穿搭') return '在圈子发布后，会集中显示在这里'
   if (activeTab.value === '合集') return '以后可以按场景整理心动内容'
   return '从新品、预约和降价中慢慢挑选'
 })
@@ -91,6 +113,7 @@ function productPriceText(cents: number): string { return formatPrice(cents) }
 function productDeadlineText(iso: string): string { return formatDeadline(iso) }
 function goDiscover() { openPrimaryTab('/pages/discover/index') }
 function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
+function openLook(look: SavedOutfitPost) { uni.navigateTo({ url: '/pages/community/mine' }) }
 function openBrand(brandName: string) {
   uni.setStorageSync('pending_search_keyword', brandName)
   uni.navigateTo({ url: '/pages/search/index' })
@@ -111,6 +134,16 @@ const emptyIcon = computed((): string => {
 })
 const productGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
+// 穿搭 tab：真实本地/远程发布（不填充假数据）
+const outfitCard = computed((): any => ({ marginBottom: GROUP_GAP, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
+const outfitImageWrap = { width: '686rpx', height: '420rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }
+const outfitDraftTag = { position: 'absolute' as string, left: '20rpx', top: '20rpx', height: '40rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '20rpx', backgroundColor: baseColors.white, alignItems: 'center', justifyContent: 'center' }
+const outfitDraftText = { fontSize: '20rpx', fontWeight: fontWeight.semibold, color: brand[700] }
+const outfitBody = { padding: '20rpx' }
+const outfitCaption = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
+const outfitMeta = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '10rpx' }
+const outfitTopic = { fontSize: fontSize.xs, color: brand[500] as string }
+const outfitCategory = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
 function brandRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < library.followedBrands.length - 1 ? '12rpx' : '0' } }
 const brandAvatar = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
@@ -121,6 +154,10 @@ const errorWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: 
 const errorText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
 const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }
 const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
+// 部分详情加载失败：商品仍展示，顶部提示可恢复
+const partialErrorWrap = { ...flexRow, alignItems: 'center', justifyContent: 'center', paddingTop: '16rpx', paddingBottom: '16rpx' }
+const partialErrorText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
+const partialErrorAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600], marginLeft: '16rpx' }))
 </script>
 
 

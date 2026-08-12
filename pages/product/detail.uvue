@@ -82,8 +82,8 @@ import { FeedItem } from '@/domain/content/feed-item'
 import { WishItem } from '@/domain/wish-item'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice } from '@/stores/home-feed-store'
-import { getCachedAccessToken } from '@/config/runtime'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useSessionStore } from '@/stores/session-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -110,6 +110,7 @@ const description = ref('')
 const shopUrl = ref('')
 // 收藏态：与收藏页共用 content-library-store 统一数据源（后端 /api/v1/wishlist）
 const library = useContentLibraryStore()
+const session = useSessionStore()
 const wardrobe = useWardrobeStore()
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
 const compatibility = computed(() => item.value !== null ? calculateWardrobeCompatibility(item.value!, wardrobe.items) : calculateWardrobeCompatibility(new FeedItem(), wardrobe.items))
@@ -128,7 +129,8 @@ function formatMoney(cents: number): string { return formatPrice(cents) }
 function onBack() { uni.navigateBack() }
 
 function isLoggedIn(): boolean {
-  return getCachedAccessToken() !== ''
+  // Mock 内测会话也算已登录：收藏写入本地（不请求受保护接口），正式会话走远程 wishlist
+  return session.isLoggedIn
 }
 
 function toggleSaved() {

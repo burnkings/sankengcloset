@@ -395,25 +395,33 @@ async function refreshRemoteFavorites(): Promise<void> {
   }
 }
 
-/** 收藏页：刷新收藏列表并拉取商品详情（公开 /api/v1/products/:id，未登录也可展示本地收藏） */
+/** 收藏页：刷新收藏列表并拉取商品详情（公开 /api/v1/products/:id，未登录也可展示本地收藏）
+ * 详情加载失败只影响单条：本地收藏条目始终保留，已加载商品继续展示，失败条数转为可恢复错误提示。 */
 async function refreshFavorites(): Promise<void> {
   await refreshRemoteFavorites()
   _state.favoritesLoading = true
   _state.favoritesError = ''
   const products: FeedItem[] = []
   const entries = _state.favoriteEntries
-  try {
-    for (let i = 0; i < entries.length; i++) {
+  let failedCount = 0
+  for (let i = 0; i < entries.length; i++) {
+    try {
       const detail = await fetchProductDetail(entries[i].productId)
       if (detail != null) products.push(detail.item)
+      else failedCount++
+    } catch (e) {
+      // 单条失败不中断整列表：保留本地收藏条目，稍后可整体重试
+      failedCount++
     }
-    _state.favoriteProducts = products
-  } catch (e) {
-    _state.favoritesError = e instanceof Error ? e.message : '加载失败'
-  } finally {
-    _state.favoritesLoading = false
-    notifyChanged()
   }
+  _state.favoriteProducts = products
+  if (failedCount > 0 && entries.length > 0) {
+    _state.favoritesError = `有 ${failedCount} 个收藏的商品详情加载失败，可稍后重试`
+  } else {
+    _state.favoritesError = ''
+  }
+  _state.favoritesLoading = false
+  notifyChanged()
 }
 
 function isWished(entityId: string): boolean {
