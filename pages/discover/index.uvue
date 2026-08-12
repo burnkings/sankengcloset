@@ -1,12 +1,12 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
-      <template #navbar><V2PageHeader title="发现" /></template>
+      <template #navbar><PageHeader title="发现" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
 
-        <V2SectionHeader title="精选专题" action-text="查看更多" />
+        <SectionHeader title="精选专题" action-text="查看更多" />
         <scroll-view direction="horizontal" :style="featureScroll">
           <view :style="featureRow">
             <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="openEditorial(item)">
@@ -17,7 +17,7 @@
           </view>
         </scroll-view>
 
-        <V2SectionHeader title="品牌目录" action-text="全部品牌" />
+        <SectionHeader title="品牌目录" action-text="全部品牌" />
         <view :style="brandGrid">
           <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="search(item.name)">
             <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
@@ -26,15 +26,15 @@
           </view>
         </view>
 
-        <V2SectionHeader title="发售日历" action-text="完整日历" />
-        <V2ListGroup>
+        <SectionHeader title="发售日历" action-text="完整日历" />
+        <ListGroup>
           <view v-for="(evt, idx) in calendar" :key="evt.id" :style="calendarRow" @tap="search(evt.brand)">
             <view :style="calendarDate"><text :style="calendarDay">{{ evt.day }}</text><text :style="calendarMonth">7月</text></view>
             <view :style="calendarMain(idx)"><view :style="calendarCopy"><text :style="calendarTitle">{{ evt.title }}</text><text :style="calendarBrand">{{ evt.brand }}</text></view><text :style="calendarTag">{{ evt.tag }}</text></view>
           </view>
-        </V2ListGroup>
+        </ListGroup>
 
-        <V2SectionHeader title="趋势话题" />
+        <SectionHeader title="趋势话题" />
         <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic.name)">
           <text :style="topicName"># {{ topic.name }}</text><text :style="topicMeta">{{ topic.meta }}</text><AppIcon name="chevron-right" :size="30" />
         </view>
@@ -48,8 +48,8 @@
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT, SEARCH_RADIUS, LIST_ROW_HEIGHT, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
+import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, LIST_ROW_HEIGHT, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
@@ -59,9 +59,9 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
+import PageHeader from '@/components/v3/PageHeader.uvue'
+import SectionHeader from '@/components/v3/SectionHeader.uvue'
+import ListGroup from '@/components/v3/ListGroup.uvue'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
 // #endif
@@ -157,19 +157,19 @@ const topics = computed((): TopicItem[] => {
   })
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const searchBox = computed((): any => ({ width: '670rpx', height: SEARCH_HEIGHT, borderRadius: SEARCH_RADIUS, backgroundColor: n.value.bgTertiary, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
+const searchBox = computed((): any => ({ width: '686rpx', height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3, backgroundColor: n.value.inputFill, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
 const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
-const featureScroll = { width: '710rpx', marginRight: '-40rpx' }
+const featureScroll = { width: '718rpx', marginRight: '-32rpx' }
 const featureRow = { ...flexRow, width: '1060rpx' }
-function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.value.length - 1 ? '20rpx' : '0' } }
+function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS_V3, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.value.length - 1 ? '20rpx' : '0' } }
 const featureImage = { width: '500rpx', height: '280rpx' }
 const featureCopy = { padding: '20rpx' }
 const featureTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const featureDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
-const endPad = { width: '40rpx', flexShrink: 0 }
+const endPad = { width: '32rpx', flexShrink: 0 }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
-function brandCard(idx: number) { return { width: '325rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '20rpx' : '0', marginBottom: '20rpx' } }
+function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
 const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
 const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const brandCopy = { ...flexFill }
@@ -177,16 +177,16 @@ const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: font
 const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 function followAction(brandName: string) { return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName) ? brand[600] : n.value.bgSecondary, marginLeft: '8rpx' } }
 function followText(brandName: string) { return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName) ? baseColors.white : brand[600] } }
-const calendarRow = { ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center' }
+const calendarRow = { ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingLeft: '28rpx' }
 const calendarDate = { width: '96rpx', alignItems: 'center', flexShrink: 0 }
 const calendarDay = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
 const calendarMonth = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary }))
-function calendarMain(idx: number) { return { ...flexFill, ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '20rpx', borderBottomWidth: idx < calendar.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
+function calendarMain(idx: number) { return { ...flexFill, ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '28rpx', borderBottomWidth: idx < calendar.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
 const calendarCopy = { ...flexFill }
 const calendarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const calendarBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[600], marginLeft: '12rpx' }))
-function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, marginBottom: idx < topics.value.length - 1 ? '12rpx' : '0' } }
+function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginBottom: idx < topics.value.length - 1 ? '12rpx' : '0' } }
 const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
 onLoad(() => { initPageTheme() })
