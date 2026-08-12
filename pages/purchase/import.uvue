@@ -46,10 +46,10 @@ import { analyzePurchaseScreenshot } from '@/services/ai/purchase-import-service
 import { parseCommerceLink } from '@/services/ai/ai-import-service'
 import { PurchaseImportTask } from '@/domain/ai/purchase-import-task'
 import { useSessionStore } from '@/stores/session-store'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -142,25 +142,25 @@ function continueManually() { navigateToConfirmation(null, true) }
 
 const safeBottom = getSafeBottomInset()
 const scrollStyle = { flex: 1 }
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
-const heroCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surfacePink, marginBottom: '36rpx' }))
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const heroCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginBottom: '36rpx' }))
 const heroTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, lineHeight: '48rpx' }))
 const heroDescription = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '38rpx', marginTop: '10rpx' }))
 const sectionTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '16rpx', marginTop: '24rpx' }))
-const imagePicker = computed((): any => ({ height: '340rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.bgSecondary, borderWidth: '2rpx', borderStyle: 'dashed', borderColor: n.value.cardBorder }))
+const imagePicker = computed((): any => ({ height: '340rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, borderWidth: '2rpx', borderStyle: 'dashed', borderColor: n.value.border }))
 const imagePlaceholder = { height: '100%', alignItems: 'center', justifyContent: 'center' }
 const imagePlaceholderTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '16rpx' }))
 const imagePlaceholderDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
 const fieldHint = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '32rpx', marginTop: '10rpx' }))
-const errorCard = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: '#FFF1F0', marginTop: '24rpx' }))
-const errorText = { fontSize: fontSize.sm, color: '#CF1322', lineHeight: '36rpx' }
-const privacyCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, marginTop: '28rpx' }))
+const errorCard = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginTop: '24rpx' }))
+const errorText = { fontSize: fontSize.sm, color: semantic.error as string, lineHeight: '36rpx' }
+const privacyCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border, marginTop: '28rpx' }))
 const privacyTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const privacyText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginTop: '8rpx' }))
 const bottomSpacer = { height: '160rpx' }
-const bottomBar = computed((): any => ({ ...flexRow, position: 'fixed', left: '0', right: '0', bottom: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingTop: '16rpx', paddingBottom: `${safeBottom + 20}px`, backgroundColor: n.value.surface }))
-const secondaryButton = computed((): any => ({ height: '88rpx', width: '190rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const bottomBar = computed((): any => ({ ...flexRow, position: 'fixed', left: '0', right: '0', bottom: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingTop: '16rpx', paddingBottom: `${safeBottom + 20}px`, backgroundColor: n.value.surface }))
+const secondaryButton = computed((): any => ({ height: '88rpx', width: '190rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const secondaryButtonText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-function primaryButton(disabled: boolean): any { return { ...flexFill, height: '88rpx', borderRadius: '24rpx', backgroundColor: disabled ? brand[300] as string : brand[500] as string, alignItems: 'center', justifyContent: 'center' } }
+function primaryButton(disabled: boolean): any { return { ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: disabled ? brand[300] as string : brand[500] as string, alignItems: 'center', justifyContent: 'center' } }
 const primaryButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

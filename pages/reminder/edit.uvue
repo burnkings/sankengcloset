@@ -3,7 +3,7 @@
     <scroll-view :style="scrollWrap">
       <view :style="contentWrap">
 
-          <V2FormSection title="基础信息">
+          <FormSection title="基础信息">
             <view :style="typeRow">
               <view v-for="t in typeOptions.slice(0, 4)" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
             </view>
@@ -11,40 +11,40 @@
               <view v-for="t in typeOptions.slice(4)" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
             </view>
             <AppInput v-model="form.title" :placeholder="typePlaceholder" :clearable="true" />
-          </V2FormSection>
+          </FormSection>
 
-          <V2FormSection title="提醒时间">
+          <FormSection title="提醒时间">
             <view :style="timeFieldRow" @tap="initDateTimePicker">
               <text :style="timeFieldLabel">时间</text>
               <view :style="timeRight">
                 <text :style="timeValue">{{ dateTimeDisplay }}</text>
-                <text :style="timeArrow">›</text>
+                <AppIcon name="chevron-right" :size="28" />
               </view>
             </view>
-          </V2FormSection>
+          </FormSection>
 
-          <V2FormSection title="关联衣橱单品">
+          <FormSection title="关联衣橱单品">
             <view :style="wardrobeBtnRow" @tap="openWardrobePicker">
               <text :style="wardrobeBtnText">{{ form.wardrobeBindings.length > 0 ? '已选 ' + form.wardrobeBindings.length + ' 件' : '选择衣橱单品' }}</text>
-              <text :style="wardrobeBtnArrow">›</text>
+              <AppIcon name="chevron-right" :size="28" />
             </view>
             <view v-if="form.wardrobeBindings.length > 0" :style="wardrobeTagsWrap">
               <view v-for="wdId in form.wardrobeBindings" :key="wdId" :style="wardrobeTag">
                 <text :style="wardrobeTagText">{{ getWardrobeName(wdId) }}</text>
-                <text :style="wardrobeTagRemove" @tap.stop="removeWardrobe(wdId)">✕</text>
+                <view :style="wardrobeTagRemoveWrap" @tap.stop="removeWardrobe(wdId)"><AppIcon name="close" :size="24" /></view>
               </view>
             </view>
-          </V2FormSection>
+          </FormSection>
 
-          <V2FormSection title="补充">
+          <FormSection title="补充">
             <view :style="noteShell">
               <textarea :value="form.note" placeholder="店铺、尺码、尾款金额等备忘" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
             </view>
-          </V2FormSection>
+          </FormSection>
 
-          <V2FormSection v-if="isEdit" title="当前状态">
-            <V2Segmented :items="statusLabels" :active="activeStatusLabel" variant="solid" @change="onStatusChange" />
-          </V2FormSection>
+          <FormSection v-if="isEdit" title="当前状态">
+            <SegmentedControl :items="statusLabels" :active="activeStatusLabel" @change="onStatusChange" />
+          </FormSection>
 
           <view v-if="isEdit" :style="deleteBtn" @tap="onDeleteTap"><text :style="deleteBtnText">删除提醒</text></view>
           <view :style="saveBtnWrap" @tap="onSaveTap">
@@ -69,11 +69,11 @@
         <view :style="wardrobeGrid">
           <view v-for="wd in wardrobeStore.sortedItems" :key="wd.id" :style="wardrobeGridCard(wd.id)" @tap="toggleWardrobePicker(wd.id)">
             <image v-if="wd.coverImage !== ''" :src="wd.coverImage" :style="wardrobeGridImg" mode="aspectFill" />
-            <view v-else :style="wardrobeGridPlaceholder"><text :style="wardrobeGridPhText">👗</text></view>
+            <view v-else :style="wardrobeGridPlaceholder"><AppIcon name="shirt" :size="40" :active="true" /></view>
             <text :style="wardrobeGridName">{{ wd.name }}</text>
             <text :style="wardrobePickerCat">{{ getWardrobeCat(wd.category) }}</text>
             <view v-if="tempSelected.indexOf(wd.id) >= 0" :style="wardrobeGridCheck">
-              <text :style="wardrobeCheckIcon">✓</text>
+              <AppIcon name="check" :size="22" />
             </view>
           </view>
         </view>
@@ -118,15 +118,15 @@ import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { Reminder, ReminderUpdateData, TYPE_COLORS } from '@/domain/reminder'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
 import { getStatusBarHeight } from '@/utils/window-info'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
-import V2FormSection from '@/components/v2/V2FormSection.uvue'
+import FormSection from '@/components/v3/FormSection.uvue'
+import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 
 function getTypePlaceholder(type: string): string {
   if (type === 'ARRIVAL') return '例：包裹预计送达'
@@ -245,7 +245,7 @@ function typeChip(t: { label: string; value: string; color: string }): any {
   return {
     flex: 1 as const, height: '76rpx', alignItems: 'center' as const, justifyContent: 'center' as const,
     borderRadius: '24rpx', backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary,
-    marginRight: '12rpx', borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as const, borderColor: n.value.cardBorder,
+    marginRight: '12rpx', borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as const, borderColor: n.value.border,
   }
 }
 function typeChipText(t: { label: string; value: string; color: string }): any {
@@ -385,14 +385,13 @@ const safeBottom = getSafeBottomInset()
 const statusBarH = getStatusBarHeight()
 const pageStyle = computed((): any => ({ flex: 1, backgroundColor: n.value.bg, paddingTop: `${statusBarH}px` }))
 const scrollWrap = { flex: 1 }
-const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const bottomSpacer = { height: '20rpx' }
 
 const typeRow = { flexDirection: 'row', marginBottom: '12rpx' }
 
-const timeFieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
+const timeFieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
 const timeValue = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '8rpx' }))
-const timeArrow = computed((): any => ({ fontSize: '36rpx', color: n.value.textTertiary }))
 const timePickWrap = { flexDirection: 'row', alignItems: 'center' }
 const pickerOverlay = computed((): any => ({
   position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
@@ -410,7 +409,7 @@ const pickerHeader = computed((): any => ({
 }))
 const pickerCancel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
 const pickerTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
-const pickerConfirm = computed((): any => ({ fontSize: fontSize.sm, color: '#007AFF', fontWeight: fontWeight.medium }))
+const pickerConfirm = computed((): any => ({ fontSize: fontSize.sm, color: brand[500], fontWeight: fontWeight.medium }))
 const pickerViewStyle = { width: '100%', height: '440rpx' }
 const pickerItem = computed((): any => ({ height: '70rpx', alignItems: 'center', justifyContent: 'center' }))
 const pickerItemText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text }))
@@ -420,25 +419,24 @@ const timeSwitchRow = { flexDirection: 'row', alignItems: 'center', marginRight:
 const timeSwitchLabel = { fontSize: fontSize.sm, color: n.value.text, marginRight: '10rpx' }
 const timeDisabledText = { fontSize: fontSize.sm, color: n.value.textDisabled }
 
-const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
+const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: fontSize.base, color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 
 const wardrobeBtnRow = computed((): any => ({
   flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx',
-  borderRadius: '24rpx', backgroundColor: n.value.inputFill,
+  borderRadius: '16rpx', backgroundColor: n.value.inputFill,
 }))
 const wardrobeBtnText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
-const wardrobeBtnArrow = computed((): any => ({ fontSize: '36rpx', color: n.value.textTertiary }))
 const wardrobeTagsWrap = computed((): any => ({ flexDirection: 'row', flexWrap: 'wrap', marginTop: '16rpx' }))
 const wardrobeTag = computed((): any => ({
   flexDirection: 'row', alignItems: 'center', height: '52rpx',
-  paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '26rpx',
+  paddingLeft: '20rpx', paddingRight: '8rpx', borderRadius: '26rpx',
   backgroundColor: n.value.surfacePink, marginRight: '12rpx', marginBottom: '8rpx',
 }))
 const wardrobeTagText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, marginRight: '12rpx' }))
-const wardrobeTagRemove = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+const wardrobeTagRemoveWrap = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center' }
 
 const wardrobeEmptyWrap = { alignItems: 'center', paddingTop: '40rpx', paddingBottom: '40rpx' }
 const wardrobeEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
@@ -451,18 +449,17 @@ function wardrobeGridCard(id: string): any {
     width: '48%', borderRadius: '24rpx', overflow: 'hidden',
     backgroundColor: n.value.surface, marginBottom: '24rpx',
     borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid',
-    borderColor: selected ? '#007AFF' : n.value.cardBorder,
+    borderColor: selected ? (brand[500] as string) : n.value.border,
     position: 'relative',
   }
 }
 const wardrobeGridImg = { width: '100%', height: '240rpx', borderRadius: '0' }
 const wardrobeGridPlaceholder = computed((): any => ({ width: '100%', height: '240rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
-const wardrobeGridPhText = { fontSize: '64rpx' }
 const wardrobeGridName = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', lines: 1, textOverflow: 'ellipsis' }))
 const wardrobeGridCheck = computed((): any => ({
   position: 'absolute', top: '12rpx', right: '12rpx',
   width: '44rpx', height: '44rpx', borderRadius: '22rpx',
-  backgroundColor: '#007AFF', alignItems: 'center', justifyContent: 'center',
+  backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center',
 }))
 const wardrobePickerItem = computed((): any => ({
   flexDirection: 'row', alignItems: 'center', height: '80rpx',
@@ -474,28 +471,28 @@ function wardrobeCheckbox(checked: boolean): any {
   return {
     width: '36rpx', height: '36rpx', borderRadius: '18rpx',
     borderWidth: '2rpx', borderStyle: 'solid',
-    borderColor: checked ? (brand[500] as string) : n.value.cardBorder,
+    borderColor: checked ? (brand[500] as string) : n.value.border,
     backgroundColor: checked ? (brand[500] as string) : 'transparent',
     alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0,
   }
 }
-const wardrobeCheckIcon = { fontSize: '20rpx', color: '#FFFFFF', fontWeight: 'bold' }
 const wardrobeName = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flex: 1, lines: 1, textOverflow: 'ellipsis' }))
 const wardrobeCatStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '12rpx' }))
 
-const tipsBanner = computed((): any => ({ padding: '20rpx', borderRadius: '24rpx', backgroundColor: n.value.surfacePink, marginTop: '24rpx' }))
+const tipsBanner = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginTop: '24rpx' }))
 const tipsText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx' }))
 
 const deleteBtn = { height: '88rpx', alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
-const deleteBtnText = { fontSize: fontSize.sm, color: '#FF4D4F' }
+const deleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }
 
-const saveBtnWrap = computed((): any => ({ height: '88rpx', borderRadius: '24rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '12rpx' }))
+// V3 §5.9 主按钮：88rpx 高、16rpx 圆角；saving 锁防重复
+const saveBtnWrap = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '12rpx' }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 const savingBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }
-const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', gap: '24rpx', paddingTop: '8rpx' }))
-const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
 const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
-const dialogWardrobeBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: '#007AFF', alignItems: 'center', justifyContent: 'center' }))
+const dialogWardrobeBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }))
 const dialogWardrobeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const customBackStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
 </script>

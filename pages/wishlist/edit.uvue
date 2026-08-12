@@ -54,7 +54,7 @@ import { useWishListStore } from '@/stores/wishlist-store'
 import { WishItem, WishUpdateData, WISH_WISH, WISH_WATCHING, WISH_DECIDED, WISH_PURCHASED, WISH_PAUSED, WISH_CANCELED, PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW, WISH_STATUS_COLORS, PRIORITY_COLORS } from '@/domain/wish-item'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR, getCardRadius } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, getCardRadius } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
@@ -163,9 +163,9 @@ onLoad((options) => {
 })
 
 const cr = getCardRadius()
-const formStyle = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const formStyle = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 
-const coverWrap = { height: '200rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: '24rpx' }
+const coverWrap = { height: '200rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginBottom: '24rpx' }
 const coverIcon = { fontSize: '48rpx', color: n.value.textTertiary }
 const coverText = { fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }
 
@@ -177,16 +177,16 @@ const chipRowStyle = { flexDirection: 'row' }
 function gridChip(active: boolean, color: string): any {
   return {
     width: '210rpx', height: '64rpx', alignItems: 'center' as string, justifyContent: 'center' as string,
-    borderRadius: '20rpx', marginRight: '16rpx', marginBottom: '12rpx',
+    borderRadius: '16rpx', marginRight: '16rpx', marginBottom: '12rpx',
     backgroundColor: active ? color : n.value.bgSecondary,
-    borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder,
+    borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border,
   }
 }
 function gridChipText(active: boolean, _color: string): any {
   return { fontSize: '26rpx', fontWeight: fontWeight.medium, color: active ? '#FFFFFF' : n.value.textSecondary }
 }
 
-const noteShell = computed((): any => ({ minHeight: '120rpx', padding: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill }))
+const noteShell = computed((): any => ({ minHeight: '120rpx', padding: '24rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '80rpx', fontSize: '28rpx', color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 const noteCount = { fontSize: '22rpx', color: n.value.textTertiary, textAlign: 'right' as string, marginTop: '6rpx' }
