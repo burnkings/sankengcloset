@@ -3,20 +3,22 @@
     <template #navbar><AppNavbar title="通知" :show-back="true"><template #right><text v-if="notices.unreadCount > 0" :style="readAllText" @tap="readAll">全部已读</text></template></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <V2CapsuleFilter :items="filterLabels" :active="activeLabel" @change="onFilter" />
+        <FilterChips :items="filterLabels" :active="activeLabel" @change="onFilter" />
         <template v-if="notices.visibleItems.length === 0">
-          <AppEmptyState icon="notification" title="当前没有这类通知" />
+          <PageState icon="notification" title="当前没有这类通知" />
         </template>
-        <view v-for="notice in visibleNotices" :key="notice.id" :style="noticeCard(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
-          <view :style="noticeIcon(notice.type)"><text :style="noticeChar(notice.type)">{{ noticeVisual(notice.type).char }}</text></view>
+        <ListGroup>
+        <view v-for="notice in visibleNotices" :key="notice.id" :style="noticeRow(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
+          <view :style="noticeIcon(notice.type)"><AppIcon :name="noticeVisual(notice.type).icon" :size="40" :active="noticeVisual(notice.type).active" /></view>
           <view :style="noticeCopy">
             <view :style="noticeTop"><text :style="noticeTitle(notice.read)">{{ notice.title }}</text><view v-if="!notice.read" :style="unreadDot" /></view>
             <text :style="noticeBody">{{ notice.body }}</text>
             <text :style="noticeTime">{{ formatTime(notice.createdAt) }}</text>
           </view>
           <AppIcon name="chevron-right" :size="30" />
-          <view :style="noticeClose" @tap.stop="dismissNotice(notice.id)"><text :style="noticeCloseText">×</text></view>
+          <view :style="noticeClose" @tap.stop="dismissNotice(notice.id)"><AppIcon name="close" :size="28" /></view>
         </view>
+        </ListGroup>
         <view :style="sourceNote"><text :style="sourceText">当前通知由本地 Mock 生成，用于验证分类、已读和跳转；系统推送将在服务端接入后启用。</text></view>
       </view>
     </template>
@@ -27,18 +29,19 @@
 import { computed } from 'vue'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM, AppNotification } from '@/domain/notification/app-notification'
-import { brand, semantic, accent } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark } from '@/theme/use-theme'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
-import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
+import FilterChips from '@/components/v3/FilterChips.uvue'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 
 const notices = useNotificationCenterStore()
 const activeLabel = ref('全部')
@@ -48,9 +51,8 @@ const visibleNotices = computed((): AppNotification[] => notices.visibleItems.fi
 function dismissNotice(id: string) { dismissedIds.value = [...dismissedIds.value, id] }
 
 class NoticeVisual {
-  char: string = ''
-  bg: string = ''
-  fg: string = ''
+  icon: string = ''
+  active: boolean = false
 }
 
 function typeForLabel(label: string): string {
@@ -68,16 +70,14 @@ function openNotice(id: string, target: string) {
   if (target === '/pages/community/index') { openPrimaryTab(target); return }
   uni.navigateTo({ url: target })
 }
+// V3 §3.5：通知类型用线性图标，不使用文字符号
 function noticeVisual(type: string): NoticeVisual {
   const v = new NoticeVisual()
-  if (type === NOTICE_PRICE) { v.char = '降'; v.bg = '#FCE4D6'; v.fg = semantic.warning as string; return v }
-  if (type === NOTICE_SOCIAL) { v.char = '赞'; v.bg = '#EFE4F2'; v.fg = accent[500] as string; return v }
-  if (type === NOTICE_SYSTEM) { v.char = '橱'; v.bg = '#FDE2EA'; v.fg = brand[600] as string; return v }
-  v.char = '售'; v.bg = '#FDE7EC'; v.fg = brand[500] as string
+  if (type === NOTICE_PRICE) { v.icon = 'budget'; v.active = true; return v }
+  if (type === NOTICE_SOCIAL) { v.icon = 'heart'; v.active = true; return v }
+  if (type === NOTICE_SYSTEM) { v.icon = 'info'; v.active = true; return v }
+  v.icon = 'notification'; v.active = true
   return v
-}
-function noticeChar(type: string): any {
-  return { fontSize: '38rpx', fontWeight: '600', color: noticeVisual(type).fg }
 }
 function formatTime(value: string): string {
   const time = parseInt(value)
@@ -88,14 +88,16 @@ function formatTime(value: string): string {
   if (hour < 24) return `${hour} 小时前`
   return `${Math.floor(hour / 24)} 天前`
 }
-onPageShow(() => notices.reload())
+onLoad(() => { initPageTheme() })
+onPageShow(() => { initPageTheme(); notices.reload() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
-function noticeCard(read: boolean) { return { ...flexRow, flexDirection: 'row', alignItems: 'center', minHeight: '154rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), marginTop: '16rpx', position: 'relative' as string } }
+// V3 §6.7 行结构：类型图标、标题、摘要、时间、未读点；分割线分组
+function noticeRow(read: boolean) { return { ...flexRow, flexDirection: 'row', alignItems: 'center', minHeight: '140rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border, position: 'relative' as string } }
 function noticeIcon(type: string) {
   const v = noticeVisual(type)
-  return { width: '88rpx', height: '88rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : v.bg, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
+  return { width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
 }
 const noticeCopy = { ...flexFill }
 const noticeTop = { ...flexRow, flexDirection: 'row', alignItems: 'center' }
@@ -103,8 +105,7 @@ function noticeTitle(read: boolean) { return { ...flexFill, fontSize: fontSize.s
 const unreadDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[600], marginLeft: '10rpx' }
 const noticeBody = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginTop: '8rpx' }))
 const noticeTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '9rpx' }))
-const sourceNote = computed((): any => ({ padding: '20rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
+const sourceNote = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, marginTop: '24rpx' }))
 const sourceText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
-const noticeClose = { position: 'absolute' as string, top: '10rpx', right: '12rpx', width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', zIndex: 3 }
-const noticeCloseText = computed((): any => ({ fontSize: '34rpx', fontWeight: '300', color: n.value.textTertiary, lineHeight: '34rpx' }))
+const noticeClose = { position: 'absolute' as string, top: '12rpx', right: '16rpx', width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', zIndex: 3 }
 </script>

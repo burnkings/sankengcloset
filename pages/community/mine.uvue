@@ -3,13 +3,15 @@
     <template #navbar><AppNavbar title="我的动态" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <template v-if="library.outfitPosts.length === 0">
-          <AppEmptyState icon="camera" title="还没有发布动态" description="发布后的内容会集中显示在这里" />
+        <SegmentedControl :items="segItems" :active="activeSeg" @change="onSeg" />
+        <template v-if="filteredPosts.length === 0">
+          <PageState icon="camera" title="还没有发布动态" message="发布后的内容会集中显示在这里" action-text="去发布" @action="goCreate" />
         </template>
-        <view v-for="post in library.outfitPosts" :key="post.id" :style="postCard">
-          <view :style="imageWrap" @tap="previewPostImage(post.image)"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
+        <ListGroup>
+        <view v-for="post in filteredPosts" :key="post.id" :style="postRow">
+          <view :style="thumbWrap" @tap="previewPostImage(post.image)"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
           <view :style="bodyStyle">
-            <view :style="postHeader"><text v-if="!post.isRemote" :style="draftTag">本地草稿</text><text :style="postTimeStyle">{{ postTime(post.createdAt) }}</text><text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text></view>
+            <view :style="postHeader"><text v-if="!post.isRemote" :style="draftTag">仅本机</text><text :style="postTimeStyle">{{ postTime(post.createdAt) }}</text><text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text></view>
             <text :style="captionStyle">{{ post.caption !== '' ? post.caption : '今天也认真搭配了' }}</text>
             <view :style="metaRow">
               <view :style="tagRow"><text :style="topicStyle">#{{ post.topic }}</text><text :style="categoryStyle">{{ post.category }}</text></view>
@@ -17,31 +19,45 @@
             </view>
           </view>
         </view>
+        </ListGroup>
       </view>
     </template>
   </MainLayout>
 </template>
 
 <script setup lang="uts">
-import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
+import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 const library = useContentLibraryStore()
 const pendingDeleteId = ref('')
 const nowTs = ref(Date.now())
 let clockTimer: number | null = null
+
+// V3 §6.5 顶部「已发布 / 本地草稿」分段控制
+const segItems = ['已发布', '本地草稿']
+const activeSeg = ref('已发布')
+function onSeg(v: string) { activeSeg.value = v }
+const filteredPosts = computed((): SavedOutfitPost[] => {
+  const remote = activeSeg.value === '已发布'
+  return library.outfitPosts.filter((item: SavedOutfitPost): boolean => item.isRemote === remote)
+})
+
 function toggleLike(id: string) { library.togglePostLike(id) }
 function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
+function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function deletePost(id: string) {
   if (pendingDeleteId.value != id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
   library.removeOutfit(id)
@@ -75,23 +91,21 @@ onShow(() => { initPageTheme(); library.reload(); library.refreshMyPosts(); star
 onHide(() => { stopClock() })
 onUnload(() => { stopClock() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
-const postCard = computed((): any => ({ marginBottom: '24rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
-const imageWrap = { width: '670rpx', height: '470rpx', backgroundColor: n.value.bgTertiary }
-const bodyStyle = { padding: CARD_PADDING }
-const postHeader = { ...flexRow, alignItems: 'center', justifyContent: 'flex-end', marginBottom: '10rpx' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+// V3 §6.5 紧凑列表行：缩略图 + 标题/草稿标识/时间 + 删除；分割线分组
+const postRow = { ...flexRow, alignItems: 'center', minHeight: '150rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }
+const thumbWrap = { width: '96rpx', height: '96rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary, marginRight: '20rpx', flexShrink: 0 }
+const bodyStyle = { ...flexFill }
+const postHeader = { ...flexRow, alignItems: 'center', marginBottom: '8rpx' }
 const postTimeStyle = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary }))
-// 本地草稿标识：未同步到服务端的发布
-const draftTag = { height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', marginRight: '12rpx', borderRadius: '18rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[700] }
+// 本地草稿标识：明确标「仅本机」（V3 §6.5）
+const draftTag = { height: '34rpx', paddingLeft: '12rpx', paddingRight: '12rpx', marginRight: '12rpx', borderRadius: '17rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[700] }
 function deleteText(id: string) { return { fontSize: fontSize.xs, color: pendingDeleteId.value == id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 const captionStyle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
-const metaRow = { ...flexRow, alignItems: 'center', marginTop: '16rpx' }
+const metaRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
 const tagRow = { ...flexFill, ...flexRow, alignItems: 'center' }
 const topicStyle = { fontSize: fontSize.xs, color: brand[600] }
 const categoryStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '16rpx' }))
 const likeAction = { ...flexRow, alignItems: 'center', minWidth: '80rpx', height: '56rpx', justifyContent: 'flex-end' }
 function likeText(id: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: library.isPostLiked(id) ? brand[600] : n.value.textTertiary, marginLeft: '6rpx' } }
-const emptyWrap = { alignItems: 'center', paddingTop: '180rpx' }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
-const emptyDesc = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '8rpx' }))
 </script>
