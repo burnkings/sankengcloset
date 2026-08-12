@@ -501,11 +501,14 @@ function saveOutfit(image: string, caption: string, category: string, topic: str
 }
 
 function removeOutfit(id: string) {
-  const ids = readList(OUTFIT_IDS_KEY)
-  const idx = ids.indexOf(id)
-  if (idx >= 0) ids.splice(idx, 1)
-  writeList(OUTFIT_IDS_KEY, ids)
-  removeOutfitStorage(id)
+  // 本地草稿：删除本地存储；远程帖子 id 不在本地列表，跳过
+  if (id.startsWith('outfit_')) {
+    const ids = readList(OUTFIT_IDS_KEY)
+    const idx = ids.indexOf(id)
+    if (idx >= 0) ids.splice(idx, 1)
+    writeList(OUTFIT_IDS_KEY, ids)
+    removeOutfitStorage(id)
+  }
   const liked = [..._state.likedPostIds]
   const likedIdx = liked.indexOf(id)
   if (likedIdx >= 0) {
@@ -522,7 +525,9 @@ function removeOutfit(id: string) {
   } else {
     enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
   }
-  reload()
+  // 直接过滤内存列表（不再全量 reload，避免删除远程帖子后其余远程帖子从视图消失）
+  _state.outfitPosts = _state.outfitPosts.filter((post) => post.id != id)
+  notifyChanged()
 }
 function isPostLiked(postId: string): boolean {
   return _state.likedPostIds.indexOf(postId) >= 0
