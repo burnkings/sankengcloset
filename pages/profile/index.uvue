@@ -1,7 +1,7 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
-      <template #navbar><V2PageHeader title="我的" /></template>
+      <template #navbar><PageHeader title="我的" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
 
@@ -10,7 +10,7 @@
             <text v-if="session.isLoggedIn" :style="avatarText">SK</text>
             <AppIcon v-else name="profile" :size="44" />
             <view v-if="session.isLoggedIn" :style="cameraBadge" @tap.stop="onEdit">
-              <text :style="cameraBadgeText">+</text>
+              <AppIcon name="add" :size="14" :active="true" />
             </view>
           </view>
           <view :style="profileCopy">
@@ -21,7 +21,7 @@
           <view v-if="!session.isLoggedIn" :style="loginButton"><text :style="loginText">模拟登录</text></view>
         </view>
 
-        <V2SectionHeader title="我的工具" />
+        <SectionHeader title="我的工具" />
         <view :style="gridRow">
           <view v-for="(item, idx) in gridItems" :key="item.id" :style="gridCard(idx)" @tap="onManageTap(item.id)">
             <view :style="iconWrap"><AppIcon :name="item.icon" :size="34" :active="true" /></view>
@@ -30,24 +30,24 @@
           </view>
         </view>
 
-        <V2SectionHeader title="内容互动" />
+        <SectionHeader title="内容互动" />
         <view :style="contentCard" @tap="openMyPosts">
           <view :style="iconWrap"><AppIcon name="camera" :size="34" :active="true" /></view>
           <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的动态</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条发布 · {{ library.likedPostCount }} 条点赞</text></view>
           <AppIcon name="chevron-right" :size="28" />
         </view>
 
-        <V2SectionHeader title="系统设置" />
-        <V2ListGroup>
-          <view :style="settingShell(0, 8)" @tap="goPage('/pages/preferences/appearance')"><V2ListRow icon="moon" label="深色模式" :value="themeLabel" /></view>
-          <view :style="settingShell(1, 8)" @tap="goPage('/pages/preferences/index')"><V2ListRow icon="heart" label="推荐偏好" :value="preferenceSummary" /></view>
-          <view :style="settingShell(2, 8)" @tap="goPage('/pages/preferences/notification')"><V2ListRow icon="notification" label="通知设置" /></view>
-          <view :style="settingShell(3, 8)" @tap="onHelpTap"><V2ListRow icon="help" label="帮助与反馈" /></view>
-          <view :style="settingShell(4, 8)" @tap="onClearCacheTap"><V2ListRow icon="clear" label="清理缓存" /></view>
-          <view :style="settingShell(5, 8)" @tap="goPage('/pages/about/index')"><V2ListRow icon="info" label="关于三坑绮橱" value="V2.5" /></view>
-          <view v-if="session.isLoggedIn" :style="settingShell(6, 8)" @tap="logout"><V2ListRow icon="profile" label="退出登录" /></view>
+        <SectionHeader title="系统设置" />
+        <ListGroup>
+          <view :style="settingShell(0, 8)" @tap="goPage('/pages/preferences/appearance')"><ListRow title="深色模式" :value="themeLabel" /></view>
+          <view :style="settingShell(1, 8)" @tap="goPage('/pages/preferences/index')"><ListRow title="推荐偏好" :value="preferenceSummary" /></view>
+          <view :style="settingShell(2, 8)" @tap="goPage('/pages/preferences/notification')"><ListRow title="通知设置" /></view>
+          <view :style="settingShell(3, 8)" @tap="onHelpTap"><ListRow title="帮助与反馈" /></view>
+          <view :style="settingShell(4, 8)" @tap="onClearCacheTap"><ListRow title="清理缓存" /></view>
+          <view :style="settingShell(5, 8)" @tap="goPage('/pages/about/index')"><ListRow title="关于三坑绮橱" value="V2.5" /></view>
+          <view v-if="session.isLoggedIn" :style="settingShell(6, 8)" @tap="logout"><ListRow title="退出登录" /></view>
           <view :style="settingShell(7, 8)" />
-        </V2ListGroup>
+        </ListGroup>
 
         <view :style="bottomSpacer" />
       </view>
@@ -62,14 +62,14 @@ import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, themeMode, initPageTheme, setThemeMode, getThemeLabel } from '@/theme/use-theme'
+import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, isDark, initPageTheme, getThemeLabel } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
-import V2ListRow from '@/components/v2/V2ListRow.uvue'
+import PageHeader from '@/components/v3/PageHeader.uvue'
+import SectionHeader from '@/components/v3/SectionHeader.uvue'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import ListRow from '@/components/v3/ListRow.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
@@ -152,13 +152,13 @@ function reloadProfileData() {
 onShow(() => { initPageTheme(); reloadProfileData() })
 
 const bottomSpacer = { height: '48rpx' }
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 
-const profileCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, marginBottom: '32rpx' }))
+// V3 §6.6 无外层卡片的紧凑个人头部：头像、昵称、Mock/同步状态、编辑入口
+const profileCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', paddingTop: '8rpx', paddingBottom: '24rpx', marginBottom: '8rpx' }))
 const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100] as string, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0, position: 'relative', borderWidth: '2rpx', borderStyle: 'solid', borderColor: baseColors.white }))
 const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] as string }
 const cameraBadge = { position: 'absolute', bottom: '-2rpx', right: '-2rpx', width: '24rpx', height: '24rpx', borderRadius: '12rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
-const cameraBadgeText = { fontSize: '16rpx', color: baseColors.white, fontWeight: fontWeight.bold }
 const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 const loginButton = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: radius.full, backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
 const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
@@ -178,11 +178,11 @@ function mkItem(id: string, icon: string, label: string, value: string): GridIte
   return g
 }
 const gridItems = computed(() => [
-  mkItem('wardrobe', 'wardrobe', '衣橱', `${wardrobe.itemCount} 件`),
-  mkItem('favorites', 'heart', '愿望单', `${wishlist.itemCount} 件`),
-  mkItem('orders', 'order', '购买记录', `${purchases.itemCount} 笔`),
-  mkItem('reminders', 'reminder', '提醒', `${reminders.pendingCount} 条待办`),
-  mkItem('budget', 'budget', '预算', budget.isConfigured ? `¥${budget.monthlyLimit}` : '去设置'),
+  mkItem('wardrobe', 'wardrobe', '衣橱', ''),
+  mkItem('favorites', 'heart', '愿望单', ''),
+  mkItem('orders', 'order', '购买记录', ''),
+  mkItem('reminders', 'reminder', '提醒', ''),
+  mkItem('budget', 'budget', '预算', ''),
 ])
 
 const GRID_GAP = '16rpx'
@@ -199,13 +199,13 @@ function gridCard(idx: number) {
     flexShrink: 0,
     paddingLeft: '14rpx',
     paddingRight: '10rpx',
-    borderRadius: CARD_RADIUS,
+    borderRadius: CARD_RADIUS_V3,
     backgroundColor: n.value.surface,
     borderWidth: '1rpx',
     borderStyle: 'solid' as string,
-    borderColor: n.value.cardBorder,
+    borderColor: n.value.border,
     marginRight: lastInRow ? '0' : GRID_GAP,
-    marginBottom: GROUP_GAP,
+    marginBottom: GRID_GAP,
   }
 }
 const iconWrap = computed((): any => ({ width: '52rpx', height: '52rpx', borderRadius: '16rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50] as string, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', flexShrink: 0 }))
@@ -213,7 +213,7 @@ const manageCopy = { ...flexFill }
 const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const manageValue = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 
-const contentCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '100rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginBottom: '32rpx' }))
+const contentCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '100rpx', paddingLeft: '20rpx', paddingRight: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '32rpx' }))
 const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const outfitAssetValue = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
