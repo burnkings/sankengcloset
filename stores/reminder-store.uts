@@ -274,7 +274,8 @@ function syncPurchaseReminders(purchase: PurchaseRecord): void {
   const active = purchase.paymentStatus != 'CANCELLED'
   const needsBalance = active && purchase.remainingAmount > 0 && purchase.deadline != ''
   if (needsBalance) {
-    const note = `待付 ¥${purchase.remainingAmount.toFixed(2)}${purchase.brand != '' ? ' · ' + purchase.brand : ''}`
+    // 金额一律分：展示时转元
+    const note = `待付 ¥${(purchase.remainingAmount / 100).toFixed(2)}${purchase.brand != '' ? ' · ' + purchase.brand : ''}`
     if (balance != null) updateLinkedReminder(balance, `${purchase.name} 尾款截止`, purchase.deadline, 'BALANCE', note, purchase)
     else {
       const item = new Reminder(); item.title = `${purchase.name} 尾款截止`; item.type = 'BALANCE'; item.remindDate = purchase.deadline

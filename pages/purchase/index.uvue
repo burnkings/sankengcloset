@@ -82,6 +82,7 @@
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { PurchaseDisplayModel } from '@/domain/purchase-presenter'
+import { formatPrice } from '@/stores/home-feed-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -104,8 +105,9 @@ const selectedIds = ref<string[]>([])
 const showDeleteDialog = ref(false)
 const activeFilter = ref('全部')
 const filters = ['全部', '预售中', '已付定金', '待付款', '已完成', '已取消']
-const formattedTotal = computed((): string => String(store.totalSpent))
-const formattedRemaining = computed((): string => String(store.remainingTotal))
+// 金额一律分（与 FeedItem.price 一致），展示用 formatPrice 转元
+const formattedTotal = computed((): string => formatPrice(store.totalSpent))
+const formattedRemaining = computed((): string => formatPrice(store.remainingTotal))
 
 function onFilter(label: string) {
   activeFilter.value = label

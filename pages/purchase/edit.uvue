@@ -58,8 +58,8 @@
       </scroll-view>
 
       <view :style="bottomBar">
-        <view :style="saveBtn" @tap="save">
-          <text :style="saveBtnText">{{ isEdit ? '保存修改' : '保存记录' }}</text>
+        <view :style="saveButtonStyle" @tap="save">
+          <text :style="saveBtnText">{{ saving ? '保存中…' : (isEdit ? '保存修改' : '保存记录') }}</text>
         </view>
       </view>
     </template>
@@ -87,6 +87,8 @@ import V2DatePicker from '@/components/v2/V2DatePicker.uvue'
 const store = usePurchaseStore()
 const isEdit = ref(false)
 const editId = ref('')
+// 保存防重复：确认/入库期间锁住按钮，防止连点产生重复订单
+const saving = ref(false)
 type FormState = {
   name: string
   brand: string
@@ -137,10 +139,13 @@ function onDeadlinePick(value: string) { form.value.deadline = value }
 function onArrivalDatePick(value: string) { form.value.arrivalDate = value }
 
 function save() {
+  if (saving.value) return
   if (form.value.name.trim() === '') { showFeedback('请填写商品名称'); return }
+  // 金额输入一律按「元」解析，入库统一转为「分」；展示层再转回元
   const total = parseFloat(form.value.totalAmountStr)
   const deposit = parseFloat(form.value.depositAmountStr)
   const paid = parseFloat(form.value.paidAmountStr)
+  saving.value = true
   if (isEdit.value) {
     const data = new PurchaseUpdateData()
     data.name = form.value.name.trim()
@@ -148,14 +153,14 @@ function save() {
     data.shopName = form.value.shopName.trim()
     data.category = form.value.category
     data.paymentStatus = form.value.paymentStatus
-    data.totalAmount = total > 0 ? total : 0
-    data.depositAmount = deposit > 0 ? deposit : 0
-    data.paidAmount = paid > 0 ? paid : 0
+    data.totalAmount = total > 0 ? Math.round(total * 100) : 0
+    data.depositAmount = deposit > 0 ? Math.round(deposit * 100) : 0
+    data.paidAmount = paid > 0 ? Math.round(paid * 100) : 0
     data.purchaseDate = form.value.purchaseDate.trim()
     data.deadline = form.value.deadline.trim()
     data.arrivalDate = form.value.arrivalDate.trim()
     data.note = form.value.note.trim()
-    if (!store.updatePurchase(editId.value, data)) { showFeedback('保存失败，请重试'); return }
+    if (!store.updatePurchase(editId.value, data)) { saving.value = false; showFeedback('保存失败，请重试'); return }
   } else {
     const record = new PurchaseRecord()
     record.name = form.value.name.trim()
@@ -163,16 +168,16 @@ function save() {
     record.shopName = form.value.shopName.trim()
     record.category = form.value.category
     record.paymentStatus = form.value.paymentStatus
-    record.totalAmount = total > 0 ? total : 0
-    record.depositAmount = deposit > 0 ? deposit : 0
-    record.paidAmount = paid > 0 ? paid : 0
+    record.totalAmount = total > 0 ? Math.round(total * 100) : 0
+    record.depositAmount = deposit > 0 ? Math.round(deposit * 100) : 0
+    record.paidAmount = paid > 0 ? Math.round(paid * 100) : 0
     record.purchaseDate = form.value.purchaseDate.trim()
     record.deadline = form.value.deadline.trim()
     record.arrivalDate = form.value.arrivalDate.trim()
     record.wishId = sourceWishId.value
     record.note = form.value.note.trim()
     const added = store.addPurchase(record)
-    if (added === null) { showFeedback('保存失败，请重试'); return }
+    if (added === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
     if (sourceImportTaskId.value !== '') {
       confirmPurchaseImport(sourceImportTaskId.value, added.id, added as UTSJSONObject).catch(() => {
         // 订单本身已保存；确认回执会由服务端任务保留待下次重试，不影响用户记录。
@@ -196,9 +201,9 @@ onLoad((options) => {
         form.value.shopName = record.shopName
         form.value.category = record.category
         form.value.paymentStatus = record.paymentStatus
-        form.value.totalAmountStr = record.totalAmount > 0 ? record.totalAmount.toString() : ''
-        form.value.depositAmountStr = record.depositAmount > 0 ? record.depositAmount.toString() : ''
-        form.value.paidAmountStr = record.paidAmount > 0 ? record.paidAmount.toString() : ''
+        form.value.totalAmountStr = yuanText(record.totalAmount)
+        form.value.depositAmountStr = yuanText(record.depositAmount)
+        form.value.paidAmountStr = yuanText(record.paidAmount)
         form.value.purchaseDate = record.purchaseDate
         form.value.deadline = record.deadline
         form.value.arrivalDate = record.arrivalDate
@@ -227,6 +232,13 @@ onLoad((options) => {
   }
 })
 function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
+
+/** 分 → 元展示（编辑表单回填用；输入仍按元解析，保存时 ×100 转分） */
+function yuanText(cents: number): string {
+  if (cents <= 0) return ''
+  const yuan = cents / 100
+  return yuan == Math.floor(yuan) ? yuan.toString() : yuan.toFixed(2)
+}
 
 const safeBottom = getSafeBottomInset()
 const scrollStyle = { flex: 1 }
@@ -260,6 +272,6 @@ const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fon
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 
 const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', flexDirection: 'row', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: `${safeBottom + 20}px`, paddingTop: '16rpx', backgroundColor: n.value.surface }))
-const saveBtn = computed((): any => ({ flex: 1 as const, height: '88rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
+const saveButtonStyle = computed((): any => ({ flex: 1 as const, height: '88rpx', borderRadius: '24rpx', backgroundColor: saving.value ? brand[300] as string : brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 </script>

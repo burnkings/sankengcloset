@@ -46,6 +46,13 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
+/** 金额读取：优先后端规格字段（totalCents 等，一律分），回退旧兼容字段（同为分） */
+function readCents(raw: UTSJSONObject, centsKey: string, legacyKey: string): number {
+  const cents = raw[centsKey] != null ? raw[centsKey] as number : 0
+  if (cents > 0) return cents
+  return raw[legacyKey] != null ? raw[legacyKey] as number : 0
+}
+
 function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
   const item = new PurchaseRecord()
   item.id = raw['id'] != null ? raw['id'] as string : ''
@@ -53,10 +60,10 @@ function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
   item.brand = raw['brand'] != null ? raw['brand'] as string : ''
   item.shopName = raw['shopName'] != null ? raw['shopName'] as string : ''
   item.category = raw['category'] != null ? raw['category'] as string : 'OTHER'
-  item.totalAmount = raw['totalAmount'] != null ? raw['totalAmount'] as number : 0
-  item.depositAmount = raw['depositAmount'] != null ? raw['depositAmount'] as number : 0
-  item.paidAmount = raw['paidAmount'] != null ? raw['paidAmount'] as number : 0
-  item.remainingAmount = raw['remainingAmount'] != null ? raw['remainingAmount'] as number : 0
+  item.totalAmount = readCents(raw, 'totalCents', 'totalAmount')
+  item.depositAmount = readCents(raw, 'depositCents', 'depositAmount')
+  item.paidAmount = readCents(raw, 'paidCents', 'paidAmount')
+  item.remainingAmount = readCents(raw, 'remainingCents', 'remainingAmount')
   item.paymentStatus = raw['paymentStatus'] != null ? raw['paymentStatus'] as string : 'PRE_ORDER'
   item.purchaseDate = raw['purchaseDate'] != null ? raw['purchaseDate'] as string : ''
   item.deadline = raw['deadline'] != null ? raw['deadline'] as string : ''
@@ -68,6 +75,35 @@ function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
   item.updatedAt = raw['updatedAt'] != null ? raw['updatedAt'] as string : ''
   return item
+}
+
+/** 远程 payload：规格字段（分）+ 旧兼容字段（分）双写，与后端「金额一律整数分」契约对齐 */
+function toRemotePayload(record: PurchaseRecord): UTSJSONObject {
+  return {
+    id: record.id,
+    name: record.name,
+    brand: record.brand,
+    shopName: record.shopName,
+    category: record.category,
+    paymentStatus: record.paymentStatus,
+    totalCents: record.totalAmount,
+    depositCents: record.depositAmount,
+    paidCents: record.paidAmount,
+    remainingCents: record.remainingAmount,
+    totalAmount: record.totalAmount,
+    depositAmount: record.depositAmount,
+    paidAmount: record.paidAmount,
+    remainingAmount: record.remainingAmount,
+    purchaseDate: record.purchaseDate,
+    deadline: record.deadline,
+    arrivalDate: record.arrivalDate,
+    wishId: record.wishId,
+    wardrobeId: record.wardrobeId,
+    note: record.note,
+    isFavorite: record.isFavorite,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  } as UTSJSONObject
 }
 
 async function fetchPurchases() {
@@ -99,11 +135,11 @@ function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
     useReminderStore().syncPurchaseReminders(added)
     // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
     if (getCachedAccessToken() != '') {
-      createAssetRemote('purchases', added as UTSJSONObject).catch(() => {
-        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
+      createAssetRemote('purchases', toRemotePayload(added)).catch(() => {
+        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(toRemotePayload(added)))
       })
     } else {
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(added))
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(toRemotePayload(added)))
     }
     notifyChanged()
     return added
@@ -119,15 +155,16 @@ function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
     _state.items = repo.getAll()
     const refreshed = _state.items.find((item) => item.id == id)
     if (refreshed != null) useReminderStore().syncPurchaseReminders(refreshed)
-    if (getCachedAccessToken() != '') {
-      const current = _state.items.find((item) => item.id == id)
-      if (current != null) {
-        patchAssetRemote('purchases', id, current as UTSJSONObject).catch(() => {
-          enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(current))
+    const current = _state.items.find((item) => item.id == id)
+    if (current != null) {
+      // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
+      if (getCachedAccessToken() != '') {
+        patchAssetRemote('purchases', id, toRemotePayload(current)).catch(() => {
+          enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(toRemotePayload(current)))
         })
+      } else {
+        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(toRemotePayload(current)))
       }
-    } else {
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(data))
     }
     notifyChanged()
   }
@@ -165,8 +202,8 @@ function linkWardrobe(id: string, wardrobeId: string): boolean {
     record.wardrobeId = wardrobeId
     record.updatedAt = new Date().toISOString()
     useReminderStore().syncPurchaseReminders(record)
-    if (getCachedAccessToken() != '') patchAssetRemote('purchases', id, record as UTSJSONObject).catch(() => {
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(record))
+    if (getCachedAccessToken() != '') patchAssetRemote('purchases', id, toRemotePayload(record)).catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(toRemotePayload(record)))
     })
   }
   notifyChanged()

@@ -57,10 +57,11 @@ const alertLabels = ['70%', '80%', '90%']
 const activeAlert = computed((): string => `${alertValue.value}%`)
 const now = new Date(); const monthNumber = now.getMonth() + 1; const currentMonth = `${now.getFullYear()}年${monthNumber}月`; const monthCode = `${now.getFullYear()}-${monthNumber < 10 ? '0' + monthNumber.toString() : monthNumber.toString()}`
 const decisionReserve = computed((): number => wishes.decisionReserveTotal)
-const purchaseCommitted = computed((): number => purchases.monthlyCommitted(monthCode))
+// 订单金额单位为分（PurchaseRecord）；预算上限为元，这里 ÷100 统一到元再参与预算计算
+const purchaseCommitted = computed((): number => purchases.monthlyCommitted(monthCode) / 100)
 const monthCommitted = computed((): number => purchaseCommitted.value + decisionReserve.value)
-const monthPaid = computed((): number => purchases.monthlyPaid(monthCode))
-const monthOutstanding = computed((): number => purchases.monthlyOutstanding(monthCode))
+const monthPaid = computed((): number => purchases.monthlyPaid(monthCode) / 100)
+const monthOutstanding = computed((): number => purchases.monthlyOutstanding(monthCode) / 100)
 const limitValue = computed((): number => { const value = limitText.value.trim() === '' ? 0 : parseFloat(limitText.value); return isNaN(value) ? 0 : value })
 const remaining = computed((): number => Math.max(0, limitValue.value - monthCommitted.value))
 const usagePercent = computed((): number => limitValue.value <= 0 ? 0 : Math.round(monthCommitted.value / limitValue.value * 100))

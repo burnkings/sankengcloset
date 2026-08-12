@@ -296,10 +296,11 @@ function convertToPurchase(id: string): PurchaseRecord | null {
   const record = new PurchaseRecord()
   record.name = item.name
   record.brand = item.brand
-  record.totalAmount = item.estimatedPrice
+  // 心愿单价位为元，订单金额单位为分（×100）
+  record.totalAmount = Math.round(item.estimatedPrice * 100)
   record.depositAmount = 0
   record.paidAmount = 0
-  record.remainingAmount = item.estimatedPrice
+  record.remainingAmount = Math.round(item.estimatedPrice * 100)
   record.paymentStatus = 'PRE_ORDER'
   record.purchaseDate = new Date().toISOString().split('T')[0]
   record.wishId = item.id

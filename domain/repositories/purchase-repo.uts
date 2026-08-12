@@ -116,9 +116,9 @@ export function initMockData() {
     r.remainingAmount = Math.max(0, total - paid); r.paymentStatus = status; r.deadline = deadline; r.createdAt = now; r.updatedAt = now
     return r
   }
-  records.push(sample('p1', '深蓝格裙 45cm', '兔缝缝', 128, 128, 'COMPLETED', ''))
-  records.push(sample('p2', '甜系草莓柄 SK', 'Alice兔', 680, 200, 'DEPOSIT_PAID', '2026-08-15'))
-  records.push(sample('p3', '哥特十字架 JSK', 'BABY', 1580, 0, 'PRE_ORDER', '2026-10-01'))
-  records.push(sample('p4', '宋制旋裙套装', '重回汉唐', 320, 100, 'BALANCE_PENDING', '2026-07-20'))
+  records.push(sample('p1', '深蓝格裙 45cm', '兔缝缝', 12800, 12800, 'COMPLETED', ''))
+  records.push(sample('p2', '甜系草莓柄 SK', 'Alice兔', 68000, 20000, 'DEPOSIT_PAID', '2026-08-15'))
+  records.push(sample('p3', '哥特十字架 JSK', 'BABY', 158000, 0, 'PRE_ORDER', '2026-10-01'))
+  records.push(sample('p4', '宋制旋裙套装', '重回汉唐', 32000, 10000, 'BALANCE_PENDING', '2026-07-20'))
   saveAll(records)
 }

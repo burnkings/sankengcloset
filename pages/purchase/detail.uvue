@@ -169,7 +169,9 @@ function onAddToWardrobe() {
   if (item.value == null || record.value == null) return
   const name = encodeURIComponent(item.value!.name)
   const source = record.value
-  uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}&category=${source.category}&price=${source.totalAmount}&purchaseDate=${source.purchaseDate}&purchaseId=${source.id}&wishId=${source.wishId}` })
+  // 订单金额单位为分，衣橱编辑页按元接收
+  const priceYuan = source.totalAmount > 0 ? (source.totalAmount / 100).toString() : ''
+  uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}&category=${source.category}&price=${priceYuan}&purchaseDate=${source.purchaseDate}&purchaseId=${source.id}&wishId=${source.wishId}` })
 }
 
 function onConfirmDelete() {

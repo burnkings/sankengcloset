@@ -63,6 +63,11 @@ function checkOverdue(deadline: string, status: string): boolean {
   }
 }
 
+/** 金额一律以「分」为单位（与后端契约、FeedItem.price 一致），展示时才转元 */
+function formatCents(cents: number): string {
+  return `¥${(cents / 100).toFixed(2)}`
+}
+
 /** 单条转换 */
 export function toDisplayModel(record: PurchaseRecord): PurchaseDisplayModel {
   const dm = new PurchaseDisplayModel()
@@ -73,11 +78,11 @@ export function toDisplayModel(record: PurchaseRecord): PurchaseDisplayModel {
   dm.category = record.category
   dm.statusText = PAYMENT_STATUS_LABELS[record.paymentStatus] != null ? PAYMENT_STATUS_LABELS[record.paymentStatus] as string : '未知'
   dm.statusColor = PAYMENT_STATUS_COLORS[record.paymentStatus] != null ? PAYMENT_STATUS_COLORS[record.paymentStatus] as string : '#9CA3AF'
-  dm.totalText = `¥${record.totalAmount.toFixed(2)}`
-  dm.depositText = record.depositAmount > 0 ? `定金 ¥${record.depositAmount.toFixed(2)}` : ''
-  dm.paidText = `已付 ¥${record.paidAmount.toFixed(2)}`
+  dm.totalText = formatCents(record.totalAmount)
+  dm.depositText = record.depositAmount > 0 ? `定金 ${formatCents(record.depositAmount)}` : ''
+  dm.paidText = `已付 ${formatCents(record.paidAmount)}`
   dm.remainingText = record.remainingAmount > 0
-    ? `待付 ¥${record.remainingAmount.toFixed(2)}`
+    ? `待付 ${formatCents(record.remainingAmount)}`
     : '已结清'
   dm.progressPercent = record.totalAmount > 0
     ? Math.min(100, Math.round((record.paidAmount / record.totalAmount) * 100))

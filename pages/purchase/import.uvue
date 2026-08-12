@@ -45,6 +45,7 @@
 import { analyzePurchaseScreenshot } from '@/services/ai/purchase-import-service'
 import { parseCommerceLink } from '@/services/ai/ai-import-service'
 import { PurchaseImportTask } from '@/domain/ai/purchase-import-task'
+import { useSessionStore } from '@/stores/session-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -61,6 +62,7 @@ const sourceImage = ref('')
 const sourceLink = ref('')
 const working = ref(false)
 const errorMessage = ref('')
+const session = useSessionStore()
 
 function chooseScreenshot() {
   uni.chooseImage({
@@ -117,6 +119,13 @@ function navigateToConfirmation(task: PurchaseImportTask | null, manual: boolean
 async function startRecognition() {
   if (working.value) return
   if (sourceImage.value === '') { errorMessage.value = '请先选择订单截图；若暂时没有截图，可直接手动补全。'; return }
+  // Mock 内测 / 游客：没有真实账号与模型配置，绝不伪造 OCR 成功，明确引导手动补全
+  if (!session.isLoggedIn || session.isMock) {
+    errorMessage.value = session.isMock
+      ? 'Mock 内测未接入订单识别服务：请直接点击「手动补全」录入订单。'
+      : '请先登录真实账号再识别订单，或直接点击「手动补全」录入。'
+    return
+  }
   working.value = true
   errorMessage.value = ''
   try {
