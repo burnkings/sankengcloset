@@ -13,7 +13,7 @@
 <script setup lang="uts">
 import { ref, computed } from 'vue'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
-import { PAGE_GUTTER_REGULAR, CARD_RADIUS } from '@/theme/tokens/responsive'
+import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { n } from '@/theme/use-theme'
 import { AGREEMENT_SECTIONS, PRIVACY_SECTIONS } from './legal-content'
@@ -39,13 +39,13 @@ onLoad((query) => {
 
 const contentWrap = computed((): any => ({
   paddingTop: '24rpx',
-  paddingLeft: PAGE_GUTTER_REGULAR,
-  paddingRight: PAGE_GUTTER_REGULAR,
+  paddingLeft: PAGE_GUTTER_V3,
+  paddingRight: PAGE_GUTTER_V3,
   paddingBottom: '24rpx',
 }))
 const sectionBlock = computed((): any => ({
   backgroundColor: n.value.surface,
-  borderRadius: CARD_RADIUS,
+  borderRadius: '20rpx',
   paddingTop: '28rpx',
   paddingBottom: '28rpx',
   paddingLeft: '24rpx',

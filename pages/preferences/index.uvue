@@ -1,9 +1,9 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="坑向偏好" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="内容偏好" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <text :style="hintText">选择你感兴趣的坑向，默认展示全部</text>
+        <text :style="hintText">用于首页推荐与发现排序，可多选</text>
         <view :style="pitRow">
           <view v-for="(item, idx) in pitItems" :key="item" :style="pitChip(idx, item)" @tap="togglePit(item)">
             <text :style="pitText(item)">{{ item }}</text>
@@ -16,12 +16,11 @@
 </template>
 
 <script setup lang="uts">
-import { brand, baseColors } from '@/theme/tokens/colors'
-import { radius } from '@/theme/tokens/radius'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, GROUP_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import { showFeedback } from '@/utils/feedback'
@@ -38,14 +37,17 @@ function isPitSelected(name: string): boolean {
 function togglePit(name: string) { prefs.togglePitType(name) }
 function onReset() { prefs.resetPreferences(); showFeedback('已重置') }
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+onLoad(() => { initPageTheme() })
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const hintText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginBottom: '24rpx', lineHeight: '38rpx' }))
 const pitRow = { ...flexRow, marginBottom: '32rpx' }
+// V3 §5.7 多选胶囊：选中品牌浅底+深色文字
 function pitChip(idx: number, item: string) {
   const selected = isPitSelected(item)
-  return { ...flexRow, alignItems: 'center', justifyContent: 'center', width: '200rpx', height: '88rpx', borderRadius: CARD_RADIUS, backgroundColor: selected ? brand[50] : n.value.surface, borderWidth: selected ? '2rpx' : '1rpx', borderStyle: 'solid' as string, borderColor: selected ? (brand[500] as string) : n.value.cardBorder, marginRight: idx < 2 ? GROUP_GAP : '0' }
+  return { ...flexRow, alignItems: 'center', justifyContent: 'center', height: '56rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '9999rpx', backgroundColor: selected ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: selected ? 'transparent' : n.value.border, marginRight: idx < 2 ? '12rpx' : '0' }
 }
-function pitText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? (brand[700] as string) : n.value.textSecondary } }
+function pitText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand.primary : n.value.textSecondary } }
 const resetRow = { alignItems: 'center', paddingTop: '20rpx' }
 const resetText = { fontSize: fontSize.sm, color: brand[600] }
 </script>

@@ -11,14 +11,14 @@
 
       <!-- 服务条款 -->
       <text :style="groupTitle">服务条款</text>
-      <V2ListGroup>
+      <ListGroup>
         <view :style="shell(0, 2)" @tap="openLegal('agreement')">
-          <V2ListRow label="用户协议" />
+          <ListRow title="用户协议" />
         </view>
         <view :style="shell(1, 2)" @tap="openLegal('privacy')">
-          <V2ListRow label="隐私政策" />
+          <ListRow title="隐私政策" />
         </view>
-      </V2ListGroup>
+      </ListGroup>
 
       <text :style="copyright">© 2026 三坑绮橱 · 昆山三坑绮橱工作室</text>
     </view>
@@ -27,11 +27,11 @@
 
 <script setup lang="uts">
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
-import V2ListGroup from '@/components/v2/V2ListGroup.uvue'
-import V2ListRow from '@/components/v2/V2ListRow.uvue'
-import { PAGE_GUTTER_REGULAR, CARD_RADIUS } from '@/theme/tokens/responsive'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import ListRow from '@/components/v3/ListRow.uvue'
+import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { n, isDark } from '@/theme/use-theme'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { brand } from '@/theme/tokens/colors'
 import { showFeedback } from '@/utils/feedback'
 
@@ -61,8 +61,8 @@ function onClearCacheTap() {
 
 const contentWrap = {
   paddingTop: '24rpx',
-  paddingLeft: PAGE_GUTTER_REGULAR,
-  paddingRight: PAGE_GUTTER_REGULAR,
+  paddingLeft: PAGE_GUTTER_V3,
+  paddingRight: PAGE_GUTTER_V3,
   paddingBottom: '24rpx',
 }
 const brandCard = computed((): any => ({
@@ -71,7 +71,7 @@ const brandCard = computed((): any => ({
   paddingTop: '56rpx',
   paddingBottom: '56rpx',
   backgroundColor: n.value.surface,
-  borderRadius: CARD_RADIUS,
+  borderRadius: '20rpx',
   marginBottom: '28rpx',
 }))
 const logoWrap = computed((): any => ({
