@@ -15,25 +15,15 @@
       <scroll-view :style="scrollWrap">
         <view class="page-canvas" :style="pageWrap">
 
-          <V2StatsCard
-            primary-label="待办提醒"
-            :primary-value="(store.todayCount + store.upcomingCount + store.missedCount) + ' 条'"
-            secondary-label="今日到期"
-            :secondary-value="store.todayCount + ' 条'"
-            :secondary-highlight="store.todayCount > 0"
-            tertiary-label="已过期"
-            :tertiary-value="store.missedCount + ' 条'"
-          />
+          <!-- V3 §6.22 顶部紧凑摘要：待办/今日/过期 -->
+          <SummaryStrip :items="summaryItems" :surface="true" />
 
-          <V2CapsuleFilter :items="filters" :active="activeFilter" @change="onFilter" />
+          <FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
-          <AppLoading v-if="store.loading" />
+          <FeedSkeleton v-if="store.loading" />
 
           <template v-else-if="store.groupedItems.length === 0">
-            <view :style="emptyWrap">
-              <AppIcon name="reminder" :size="64" />
-              <text :style="emptyTitle">暂无提醒</text>
-            </view>
+            <PageState icon="reminder" title="暂无提醒" message="添加提醒，不再错过补款与到货" action-text="新建提醒" @action="goAdd" />
           </template>
 
           <view v-else>
@@ -44,12 +34,12 @@
                <view v-for="item in group.items" :key="item.id" :style="itemCard(item)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelectMode(item.id)">
                  <view v-if="selectMode" :style="selectCheckWrap" @tap.stop="toggleItem(item.id)">
                    <view :style="selectCheckStyle(selectedIds.indexOf(item.id) >= 0)">
-                     <text v-if="selectedIds.indexOf(item.id) >= 0" :style="selectCheckIcon">✓</text>
+                     <AppIcon v-if="selectedIds.indexOf(item.id) >= 0" name="check" :size="24" />
                    </view>
                  </view>
                  <view v-if="!selectMode" :style="checkboxWrap" @tap.stop="onQuickToggle(item)">
                    <view :style="checkboxMarkNormal(item)">
-                     <text v-if="item.statusText !== '待提醒'" :style="checkIcon">✓</text>
+                     <AppIcon v-if="item.statusText !== '待提醒'" name="check" :size="20" />
                    </view>
                  </view>
                  <view :style="cardCenter">
@@ -93,19 +83,21 @@
 import { useReminderStore } from '@/stores/reminder-store'
 import { ReminderDisplayModel } from '@/domain/reminder-presenter'
 import { TYPE_COLORS, TYPE_COLORS_DARK } from '@/domain/reminder'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark } from '@/theme/use-theme'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppLoading from '@/components/base/AppLoading.uvue'
-import AppDialog from '@/components/base/AppDialog.uvue'
-import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
-import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
+import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
+import FilterChips from '@/components/v3/FilterChips.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = useReminderStore()
 const activeFilter = ref('全部')
@@ -166,27 +158,35 @@ function batchDelete() {
 onMounted(() => { store.fetchItems() })
 
 const scrollWrap = { flex: 1 }
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const bottomSpacer = { height: '200rpx' }
+
+// V3 §6.22 顶部紧凑摘要：待办/今日/过期
+const summaryItems = computed(() => [
+  { label: '待办', value: `${store.todayCount + store.upcomingCount + store.missedCount} 条` },
+  { label: '今日到期', value: `${store.todayCount} 条`, highlight: store.todayCount > 0 },
+  { label: '已过期', value: `${store.missedCount} 条` },
+])
 
 const groupHeader = { paddingTop: '24rpx', paddingBottom: '12rpx' }
 const groupHeaderText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
 
 const typeColors = computed((): any => isDark.value ? TYPE_COLORS_DARK : TYPE_COLORS)
 
+// V3 §6.22 列表按日期分组，左侧时间/状态点轻时间轴；完成提供撤销
 function itemCard(item: ReminderDisplayModel): any {
-  const bgColor = item.statusText === '已完成' ? '#EEEEEE' : (typeColors.value[item.type] != null ? typeColors.value[item.type] as string : n.value.surface)
+  const bgColor = item.statusText === '已完成' ? n.value.bgTertiary : (typeColors.value[item.type] != null ? typeColors.value[item.type] as string : n.value.surface)
   return {
     flexDirection: 'row',
     alignItems: 'center',
-    height: '136rpx',
+    minHeight: '136rpx',
     paddingLeft: '20rpx',
     paddingRight: '24rpx',
-    borderRadius: '24rpx',
+    borderRadius: '12rpx',
     backgroundColor: bgColor,
     borderWidth: '1rpx',
     borderStyle: 'solid' as string,
-    borderColor: n.value.cardBorder,
+    borderColor: n.value.border,
     marginBottom: '12rpx',
     overflow: 'hidden',
   }
@@ -197,9 +197,9 @@ const cardMeta = { flexDirection: 'row', alignItems: 'center' }
 const cardTime = { fontSize: '22rpx', color: n.value.textSecondary }
 
 function cardStatus(item: ReminderDisplayModel): any {
-  if (item.statusText === '已完成') return { fontSize: '22rpx', color: '#52C41A' }
-  if (item.statusText === '已过期') return { fontSize: '22rpx', color: '#9CA3AF' }
-  return { fontSize: '22rpx', color: '#3B82F6' }
+  if (item.statusText === '已完成') return { fontSize: '22rpx', color: semantic.success as string }
+  if (item.statusText === '已过期') return { fontSize: '22rpx', color: n.value.textTertiary }
+  return { fontSize: '22rpx', color: brand.primary }
 }
 const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
 const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
@@ -209,29 +209,28 @@ function selectCheckStyle(checked: boolean): any {
   return {
     width: '40rpx', height: '40rpx', borderRadius: '8rpx',
     borderWidth: '3rpx', borderStyle: 'solid' as string,
-    borderColor: checked ? (brand[500] as string) : n.value.cardBorder,
+    borderColor: checked ? (brand[500] as string) : n.value.border,
     backgroundColor: checked ? (brand[500] as string) : 'transparent',
     alignItems: 'center', justifyContent: 'center',
   }
 }
-const selectCheckIcon = { fontSize: '24rpx', color: '#FFFFFF', fontWeight: 'bold' }
 function checkboxMarkNormal(item: ReminderDisplayModel): any {
   const isSelectChecked = selectMode.value && selectedIds.value.indexOf(item.id) >= 0
   const isStatusChecked = !selectMode.value && item.statusText !== '待提醒'
   const checked = selectMode.value ? isSelectChecked : isStatusChecked
   let fillColor = 'transparent'
-  let strokeColor = n.value.cardBorder
+  let strokeColor = n.value.border
   if (checked) {
     if (selectMode.value) {
       fillColor = brand[500] as string
       strokeColor = brand[500] as string
     } else {
       if (item.statusText === '已完成') {
-        fillColor = '#52C41A'
-        strokeColor = '#52C41A'
+        fillColor = semantic.success as string
+        strokeColor = semantic.success as string
       } else {
-        fillColor = '#9CA3AF'
-        strokeColor = '#9CA3AF'
+        fillColor = n.value.textTertiary
+        strokeColor = n.value.textTertiary
       }
     }
   }
@@ -243,19 +242,15 @@ function checkboxMarkNormal(item: ReminderDisplayModel): any {
     alignItems: 'center', justifyContent: 'center',
   }
 }
-const checkIcon = { fontSize: '24rpx', color: '#FFFFFF', fontWeight: 'bold' }
-const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
-const deleteButton = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
+const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
 const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
-const deleteDisabled = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
+const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }
 const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
-const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', gap: '24rpx', paddingTop: '8rpx' }))
-const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx' }))
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx', marginRight: '12rpx' }))
 const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
-const dialogDelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx' }))
+const dialogDelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx' }))
 const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
-
-const emptyWrap = { alignItems: 'center', paddingTop: '120rpx' }
-const emptyTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '20rpx' }))
 </script>
