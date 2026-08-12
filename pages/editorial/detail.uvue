@@ -14,20 +14,19 @@
         </view>
 
         <!-- Collection products -->
-        <V2SectionHeader :title="`专题商品 (${filteredItems.length})`" />
+        <SectionHeader :title="`专题商品 (${filteredItems.length})`" />
         <view v-if="filteredItems.length === 0" :style="emptyWrap">
-          <text :style="emptyText">暂无相关商品</text>
+          <PageState icon="grid" title="暂无相关商品" />
         </view>
         <view :style="productGrid">
           <view v-for="(item, idx) in filteredItems" :key="item.id" :style="productShell(idx)">
-              <V2ProductCard
+              <ProductCard
                 :image="item.coverUrl"
-                :brand-name="item.brandName"
+                :brand="item.brandName"
                 :title="item.title"
                 :price-text="formatPrice(item.price)"
-                :original-price-text="item.originalPrice > item.price ? formatPrice(item.originalPrice) : ''"
-                :badge="item.badgeText"
-                @click="onProductTap(item.entityId)"
+                :badge-text="item.badgeText"
+                @tap="onProductTap(item.entityId)"
               />
           </view>
         </view>
@@ -39,16 +38,17 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { fontSize } from '@/theme/tokens/typography'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { flexRow } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-import V2ProductCard from '@/components/v2/V2ProductCard.uvue'
+import SectionHeader from '@/components/v3/SectionHeader.uvue'
+import ProductCard from '@/components/v3/ProductCard.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 
 const pageTitle = ref('')
 const pageDesc = ref('')
@@ -95,16 +95,17 @@ onLoad((query) => {
 
 // ====== Styles ======
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
-const heroWrap = { width: '670rpx', height: '380rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', position: 'relative' }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
+// V3 §6.11 16:9 头图 + 独立文字区；大图圆角 16rpx
+const heroWrap = { width: '686rpx', height: '386rpx', borderRadius: '16rpx', overflow: 'hidden', position: 'relative' }
 const heroOverlay = { position: 'absolute', left: '0', right: '0', bottom: '0', height: '200rpx', backgroundColor: 'rgba(0,0,0,0.4)' }
 const heroCopy = { position: 'absolute', left: '0', right: '0', bottom: '0', paddingLeft: '24rpx', paddingRight: '24rpx', paddingBottom: '28rpx' }
-const heroTitle = { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: baseColors.white }
+const heroTitle = { fontSize: fontSize.xl, fontWeight: 700, color: baseColors.white }
 const heroDesc = { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.8)', marginTop: '8rpx' }
-const productGrid = { ...flexRow, flexWrap: 'wrap' as string }
-function productShell(idx: number) { return { width: '325rpx', marginRight: idx % 2 === 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
-const emptyWrap = { paddingTop: '120rpx', alignItems: 'center' }
-const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+// V3 §6.11 相关商品双列 ProductCard
+const productGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
+function productShell(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, marginRight: idx % 2 === 0 ? COLUMN_GAP_V3 : '0' } }
+const emptyWrap = { paddingTop: '48rpx', alignItems: 'center' }
 </script>
 
 
