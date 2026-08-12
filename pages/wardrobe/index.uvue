@@ -6,35 +6,38 @@
         <view class="page-canvas" :style="pageWrap">
           <AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
 
-          <V2StatsCard primary-label="衣橱共" :primary-value="store.itemCount + ' 件'" />
+          <!-- V3 §6.12 SummaryStrip：只显示总件数和当前筛选数 -->
+          <view :style="summaryWrap">
+            <SummaryStrip :items="summaryItems" />
+          </view>
 
           <view :style="actionRow">
-            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">{{ store.sortLabel }}</text><text :style="sortArrow">&#9662;</text></view>
+            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">{{ store.sortLabel }}</text></view>
             <view :style="quickFilters">
               <view :style="quickChip(unwornOnly)" @tap="toggleUnwornOnly"><text :style="quickChipText(unwornOnly)">仅看未穿</text></view>
             </view>
           </view>
 
-          <V2CapsuleFilter :items="filters" :active="activeFilter" @change="onFilter" />
+          <FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
-          <AppLoading v-if="store.loading" />
+          <FeedSkeleton v-if="store.loading" />
 
           <template v-else-if="visibleItems.length === 0">
-            <AppEmptyState icon="wardrobe" :title="hasAnyItems ? '没有匹配的单品' : '衣橱还没有单品'" :description="hasAnyItems ? '试试换个关键词或筛选条件吧' : '记录你的三坑穿搭，打造专属衣橱图鉴'" :action-text="hasAnyItems ? '' : '添加第一件单品'" @action="goAdd" />
+            <PageState icon="wardrobe" :title="hasAnyItems ? '没有匹配的单品' : '衣橱还没有单品'" :message="hasAnyItems ? '试试换个关键词或筛选条件吧' : '记录你的三坑穿搭，打造专属衣橱图鉴'" :action-text="hasAnyItems ? '' : '添加第一件单品'" @action="goAdd" />
           </template>
 
           <view v-else :style="grid">
             <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
               <view :style="imageWrap">
                 <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                <view :style="catBadge(catColor(item.category))"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
-                <view v-if="item.isFavorite" :style="favBadge"><text :style="favBadgeText">*</text></view>
+                <view :style="catBadge"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
+                <view v-if="item.isFavorite" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
               </view>
               <view :style="cardBody">
                 <text :style="cardName">{{ item.name }}</text>
                 <view :style="cardBottomRow">
                   <text :style="cardBrand">{{ item.brand !== '' ? item.brand : catLabel(item.category) }}</text>
-                  <V2StatusChip :label="wearLabel(item.wearStatus)" :status="wearStatusClass(item.wearStatus)" size="sm" />
+                  <StatusChip :label="wearLabel(item.wearStatus)" :status="wearStatusClass(item.wearStatus)" size="sm" />
                   <text v-if="item.purchasePrice > 0" :style="cardPrice">¥{{ item.purchasePrice }}</text>
                 </view>
               </view>
@@ -52,21 +55,21 @@
 <script setup lang="uts">
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { WardrobeItem } from '@/domain/wardrobe-item'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_RADIUS, GROUP_GAP, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import AppLoading from '@/components/base/AppLoading.uvue'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
-import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
-import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
-import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
+import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
+import FilterChips from '@/components/v3/FilterChips.uvue'
+import StatusChip from '@/components/v3/StatusChip.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 import { showFeedback } from '@/utils/feedback'
 
@@ -96,12 +99,6 @@ function showSortSheet() {
   uni.showActionSheet({ itemList: sortLabels, success: (res) => { store.setSort(sortOptions[res.tapIndex]) } })
 }
 function catLabel(c: string): string { return c === 'LOLITA' ? 'Lolita' : (c === 'HANFU' ? '汉服' : (c === 'JK' ? 'JK' : '其他')) }
-function catColor(c: string): string {
-  if (c === 'JK') return brand[500] as string
-  if (c === 'LOLITA') return '#9B6FAE'
-  if (c === 'HANFU') return '#C4924A'
-  return '#8C8C8C'
-}
 function wearLabel(s: string): string { return s === 'UNWORN' ? '未穿' : (s === 'WORN' ? '已穿' : '常穿') }
 function wearStatusClass(s: string): string {
   if (s === 'WORN') return 'positive'
@@ -110,34 +107,43 @@ function wearStatusClass(s: string): string {
 }
 function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
-onShow(() => { store.fetchItems() })
+onLoad(() => { initPageTheme() })
+onShow(() => { initPageTheme(); store.fetchItems() })
 watch(searchValue, (value: string) => { store.setSearch(value) })
 
 const scrollStyle = { flex: 1 }
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+
+// V3 §6.12 SummaryStrip：总件数 + 当前筛选数（不展示 Dashboard 式统计卡）
+const summaryWrap = { marginTop: '16rpx' }
+const summaryItems = computed(() => [
+  { label: '衣橱共', value: `${store.itemCount} 件` },
+  { label: '当前筛选', value: `${visibleItems.value.length} 件` },
+])
 
 const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '16rpx', marginBottom: '16rpx' }
-const sortBtn = { ...flexRow, flexDirection: 'row', alignItems: 'center', paddingLeft: '16rpx', paddingRight: '12rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }
-const sortBtnText = { fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '4rpx' }
-const sortArrow = { fontSize: fontSize.xs, color: n.value.textTertiary }
+const sortBtn = { ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }
+const sortBtnText = { fontSize: fontSize.xs, color: n.value.textSecondary }
 const quickFilters = { ...flexRow, flexDirection: 'row' }
+// V3 §5.7 选中品牌浅底+深字
 function quickChip(active: boolean): any {
-  return { paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '6rpx', paddingBottom: '6rpx', borderRadius: '16rpx', backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary, marginLeft: '8rpx' }
+  return { height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginLeft: '8rpx', alignItems: 'center', justifyContent: 'center' }
 }
 function quickChipText(active: boolean): any {
-  return { fontSize: fontSize.xs, color: active ? baseColors.white : n.value.textSecondary }
+  return { fontSize: fontSize.xs, fontWeight: active ? 600 : 400, color: active ? brand.primary : n.value.textSecondary }
 }
 
 const bottomSpacer = { height: '80rpx' }
-const grid = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '16rpx' }
-function card(idx: number) { return { width: '325rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder, marginRight: idx % 2 == 0 ? GROUP_GAP : '0', marginBottom: GROUP_GAP } }
-const imageWrap = { width: '325rpx', height: '360rpx', position: 'relative', backgroundColor: n.value.bgSecondary }
-function catBadge(color: string): any {
-  return { position: 'absolute', top: '12rpx', left: '12rpx', paddingLeft: '8rpx', paddingRight: '8rpx', height: '28rpx', borderRadius: '14rpx', backgroundColor: color + 'CC', alignItems: 'center', justifyContent: 'center' }
+// V3 §6.12 双列图库：图片比例与公共商品卡统一（353×470）
+const grid = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '16rpx', paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
+function card(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border, marginRight: idx % 2 == 0 ? COLUMN_GAP_V3 : '0', marginBottom: '28rpx' } }
+const imageWrap = { width: PRODUCT_CARD_WIDTH_V3, height: '470rpx', position: 'relative', backgroundColor: n.value.bgSecondary }
+// 类别小标签：低饱和色底（V3 §3.1），不用 hex+alpha 拼接
+function catBadge(): any {
+  return { position: 'absolute', top: '12rpx', left: '12rpx', paddingLeft: '12rpx', paddingRight: '12rpx', height: '36rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }
 }
-const catBadgeText = { fontSize: '20rpx', color: '#FFFFFF' }
-const favBadge = { position: 'absolute', top: '12rpx', right: '12rpx', width: '28rpx', height: '28rpx', borderRadius: '14rpx', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }
-const favBadgeText = { fontSize: '18rpx', color: brand[500] as string }
+const catBadgeText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, color: brand.primary }))
+const favBadge = { position: 'absolute', top: '12rpx', right: '12rpx', width: '40rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }
 const cardBody = { padding: '12rpx 16rpx' }
 const cardName = { fontSize: '28rpx', fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }
 const cardBottomRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', marginTop: '6rpx' }
