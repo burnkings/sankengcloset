@@ -1,4 +1,4 @@
-/** V2.5 会话 Store：正式微信登录，无 Mock/Preview 回退。 */
+/** V2.6 会话 Store：内测阶段默认使用本机 Mock 会话，保留正式微信登录实现。 */
 import { reactive, computed } from 'vue'
 import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
 import { apiPost, apiGet, apiGetAuthorized } from '@/services/platform/api-client'
@@ -8,6 +8,9 @@ const STATE_KEY = 'v21_session_state'
 const USER_ID_KEY = 'v21_session_user_id'
 const NICKNAME_KEY = 'v21_session_nickname'
 const AVATAR_KEY = 'v25_session_avatar'
+const MODE_KEY = 'v26_session_mode'
+const SESSION_MODE_MOCK = 'mock'
+const SESSION_MODE_WECHAT = 'wechat'
 
 export class SessionProfile {
   userId: string = ''
@@ -24,6 +27,7 @@ function readString(key: string): string {
 
 type SessionState = {
   state: string
+  mode: string
   profile: SessionProfile
   loggingIn: boolean
   errorMessage: string
@@ -31,6 +35,7 @@ type SessionState = {
 
 const _state = reactive<SessionState>({
   state: readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest',
+  mode: readString(MODE_KEY),
   profile: new SessionProfile(),
   loggingIn: false,
   errorMessage: '',
@@ -38,6 +43,7 @@ const _state = reactive<SessionState>({
 
 const _isLoggedIn = computed((): boolean => _state.state === 'logged_in')
 const _userId = computed((): string => _isLoggedIn.value ? _state.profile.userId : '')
+const _isMock = computed((): boolean => _isLoggedIn.value && _state.mode === SESSION_MODE_MOCK)
 
 const CHANGE_EVENT = 'store:session-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -46,6 +52,7 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 function reload() {
   _state.state = readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest'
+  _state.mode = readString(MODE_KEY)
   const next = new SessionProfile()
   next.userId = readString(USER_ID_KEY)
   next.nickname = readString(NICKNAME_KEY)
@@ -57,12 +64,33 @@ function reload() {
   notifyChanged()
 }
 
-function persistLogin(userIdValue: string, nickname: string, avatarUrl: string) {
+function persistLogin(userIdValue: string, nickname: string, avatarUrl: string, mode: string) {
   uni.setStorageSync(STATE_KEY, 'logged_in')
+  uni.setStorageSync(MODE_KEY, mode)
   uni.setStorageSync(USER_ID_KEY, userIdValue)
   uni.setStorageSync(NICKNAME_KEY, nickname)
   uni.setStorageSync(AVATAR_KEY, avatarUrl)
   reload()
+}
+
+/**
+ * 本机 Mock 登录：只建立可识别的内测会话，不生成或伪造后端 Token。
+ * 所有个人数据继续使用现有本地仓库；需要真实账号的远程写入会保留在同步队列中。
+ */
+async function loginMock(): Promise<boolean> {
+  if (_state.loggingIn) return false
+  _state.loggingIn = true
+  _state.errorMessage = ''
+  try {
+    clearSessionTokens()
+    persistLogin('mock_user_local', '内测体验账号', '', SESSION_MODE_MOCK)
+    return true
+  } catch (e) {
+    _state.errorMessage = e instanceof Error ? e.message : '模拟登录失败，请重试'
+    return false
+  } finally {
+    _state.loggingIn = false
+  }
 }
 
 /**
@@ -117,7 +145,7 @@ async function loginWithWechat(): Promise<boolean> {
     const avatar: string = userInfo != null && userInfo['avatarUrl'] != null ? userInfo['avatarUrl'] as string : ''
     const id: string = userInfo != null && userInfo['id'] != null ? userInfo['id'] as string : data['userId'] != null ? data['userId'] as string : ''
     if (id === '') throw new Error('无法获取用户标识')
-    persistLogin(id, displayName, avatar)
+    persistLogin(id, displayName, avatar, SESSION_MODE_WECHAT)
     // 登录成功后冲刷本地待同步队列（离线期间的写操作补上送）
     flushLocalOperations().catch(() => { /* 队列保留，网络恢复后再同步 */ })
     return true
@@ -137,6 +165,7 @@ function logout() {
   uni.removeStorageSync(USER_ID_KEY)
   uni.removeStorageSync(NICKNAME_KEY)
   uni.removeStorageSync(AVATAR_KEY)
+  uni.removeStorageSync(MODE_KEY)
   _state.state = 'guest'
   _state.profile = new SessionProfile()
   _state.errorMessage = ''
@@ -157,10 +186,12 @@ class SessionStoreHandle {
   get profile(): SessionProfile { return _state.profile }
   get isLoggedIn(): boolean { return _isLoggedIn.value }
   get userId(): string { return _userId.value }
+  get isMock(): boolean { return _isMock.value }
   get loggingIn(): boolean { return _state.loggingIn }
   get errorMessage(): string { return _state.errorMessage }
   reload(): void { reload() }
   loginWithWechat(): Promise<boolean> { return loginWithWechat() }
+  loginMock(): Promise<boolean> { return loginMock() }
   logout(): void { logout() }
   clearError(): void { clearError() }
 }

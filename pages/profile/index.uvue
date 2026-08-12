@@ -15,10 +15,10 @@
           </view>
           <view :style="profileCopy">
             <text :style="userName">{{ session.isLoggedIn ? session.profile.nickname : '登录三坑绮橱' }}</text>
-            <text v-if="session.isLoggedIn" :style="userIdText">ID: {{ session.profile.userId }}</text>
+            <text v-if="session.isLoggedIn" :style="userIdText">{{ session.isMock ? 'Mock 内测 · 数据保存在本机' : 'ID: ' + session.profile.userId }}</text>
             <text v-else :style="guestDesc">同步收藏、圈子、衣橱与提醒</text>
           </view>
-          <view v-if="!session.isLoggedIn" :style="loginButton"><text :style="loginText">登录</text></view>
+          <view v-if="!session.isLoggedIn" :style="loginButton"><text :style="loginText">模拟登录</text></view>
         </view>
 
         <V2SectionHeader title="我的工具" />
@@ -99,8 +99,8 @@ const themeLabel = computed((): string => getThemeLabel())
 
 function onEdit() { showFeedback('功能开发中') }
 function goLogin() {
-  session.loginWithWechat().then((ok) => {
-    if (ok) { session.reload(); showFeedback('登录成功') }
+  session.loginMock().then((ok) => {
+    if (ok) { session.reload(); showFeedback('已进入 Mock 内测账号') }
     else if (session.errorMessage !== '') showFeedback(session.errorMessage)
   })
 }
