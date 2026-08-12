@@ -20,8 +20,8 @@
           <text :style="nameTextStyle">{{ item!.name }}</text>
         </view>
         <view :style="tagRowStyle">
-          <V2StatusChip :label="item!.statusText" :status="wishStatusClass(item!.status)" size="sm" />
-          <V2StatusChip :label="item!.priorityLabel" :status="'brand'" size="sm" />
+          <StatusChip :label="item!.statusText" :status="wishStatusClass(item!.status)" size="sm" />
+          <StatusChip :label="item!.priorityLabel" :status="'brand'" size="sm" />
         </view>
         <text v-if="item!.brand !== ''" :style="brandTextStyle">{{ item!.brand }}</text>
       </AppCard>
@@ -138,7 +138,7 @@ import { n } from '@/theme/use-theme'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
-import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
+import StatusChip from '@/components/v3/StatusChip.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 

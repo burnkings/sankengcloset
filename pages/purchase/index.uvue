@@ -11,15 +11,8 @@
       <scroll-view :style="scrollStyle">
         <view class="page-canvas" :style="pageWrap">
 
-          <V2StatsCard
-            primary-label="累计消费"
-            :primary-value="formattedTotal"
-            secondary-label="待付尾款"
-            :secondary-value="formattedRemaining"
-            :secondary-highlight="true"
-            tertiary-label="共"
-            :tertiary-value="store.itemCount + ' 笔订单'"
-          />
+          <!-- V3 §6.15 SummaryStrip：只保留本月已支付和待付尾款 -->
+          <SummaryStrip :items="summaryItems" :surface="true" />
 
           <view :style="importCard" @tap="goImport">
             <view :style="importIcon"><AppIcon name="import" :size="36" :active="true" /></view>
@@ -27,12 +20,12 @@
             <AppIcon name="arrow-right" :size="32" :active="true" />
           </view>
 
-          <V2CapsuleFilter :items="filters" :active="activeFilter" @change="onFilter" />
+          <FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
-          <AppLoading v-if="store.loading" />
+          <FeedSkeleton v-if="store.loading" />
 
           <template v-else-if="store.displayItems.length === 0">
-            <AppEmptyState icon="order" title="暂无订单记录" description="录入定金尾款订单，避免逾期" action-text="新增记录" @action="goAdd" />
+            <PageState icon="order" title="暂无订单记录" message="录入定金尾款订单，避免逾期" action-text="新增记录" @action="goAdd" />
           </template>
 
           <view v-else>
@@ -41,13 +34,13 @@
                <view v-for="item in group.items" :key="item.id" :style="cardStyle(item)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelect(item.id)">
                 <view v-if="selectMode" :style="selectCheckWrap" @tap.stop="toggleItem(item.id)">
                   <view :style="selectCheckStyle(selectedIds.indexOf(item.id) >= 0)">
-                    <text v-if="selectedIds.indexOf(item.id) >= 0" :style="selectCheckIcon">✓</text>
+                    <AppIcon v-if="selectedIds.indexOf(item.id) >= 0" name="check" :size="24" />
                   </view>
                 </view>
                 <view v-if="item.isOverdue" :style="overdueTag"><text :style="overdueTagText">已逾期</text></view>
                 <view :style="cardTop">
                   <text :style="cardTitle">{{ item.name }}</text>
-                  <V2StatusChip :label="item.statusText" :status="statusClass(item.statusText)" size="sm" />
+                  <StatusChip :label="item.statusText" :status="statusClass(item.statusText)" size="sm" />
                 </view>
                 <view :style="cardProgress"><view :style="cardProgressFill(item.progressPercent, item.statusColor)" /></view>
               </view>
@@ -83,19 +76,19 @@
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import { formatPrice } from '@/stores/home-feed-store'
-import { brand } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppLoading from '@/components/base/AppLoading.uvue'
-import AppEmptyState from '@/components/base/AppEmptyState.uvue'
-import V2CapsuleFilter from '@/components/v2/V2CapsuleFilter.uvue'
-import V2StatsCard from '@/components/v2/V2StatsCard.uvue'
-import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
+import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
+import FilterChips from '@/components/v3/FilterChips.uvue'
+import StatusChip from '@/components/v3/StatusChip.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 
@@ -173,10 +166,18 @@ const groupedItems = computed(() => {
 })
 
 const scrollStyle = { flex: 1 }
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const bottomSpacer = { height: '60rpx' }
 
-const importCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '22rpx', borderRadius: '24rpx', backgroundColor: n.value.surfacePink, marginTop: '18rpx', marginBottom: '8rpx' }))
+// V3 §6.15 SummaryStrip：本月已支付 + 待付尾款
+const now = new Date()
+const monthCode = `${now.getFullYear()}-${(now.getMonth() + 1) < 10 ? '0' + (now.getMonth() + 1).toString() : (now.getMonth() + 1).toString()}`
+const summaryItems = computed(() => [
+  { label: '本月已支付', value: formatPrice(store.monthlyPaid(monthCode)) },
+  { label: '待付尾款', value: formatPrice(store.remainingTotal), highlight: store.remainingTotal > 0 },
+])
+
+const importCard = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '22rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginTop: '18rpx', marginBottom: '8rpx' }))
 const importIcon = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const importCopy = { ...flexFill }
 const importTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -185,22 +186,23 @@ const importDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.
 const groupHeader = { paddingTop: '24rpx', paddingBottom: '10rpx' }
 const groupHeaderText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
 
+// V3 §6.15 订单卡：小卡级圆角 12rpx；逾期用 danger token
 function cardStyle(item: PurchaseDisplayModel): any {
-  const borderColor = item.isOverdue ? '#FF4D4F' : n.value.cardBorder
-  return { padding: CARD_PADDING, borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: item.isOverdue ? '2rpx' : '1rpx', borderStyle: 'solid' as string, borderColor, marginBottom: '14rpx' }
+  const borderColor = item.isOverdue ? semantic.error : n.value.border
+  return { padding: CARD_PADDING, borderRadius: '12rpx', backgroundColor: n.value.surface, borderWidth: item.isOverdue ? '2rpx' : '1rpx', borderStyle: 'solid' as string, borderColor, marginBottom: '14rpx' }
 }
 const overdueTag = { marginBottom: '8rpx' }
-const overdueTagText = { fontSize: '22rpx', fontWeight: fontWeight.semibold, color: '#FF4D4F' }
+const overdueTagText = { fontSize: '22rpx', fontWeight: fontWeight.semibold, color: semantic.error as string }
 const cardTop = { ...flexRow, flexDirection: 'row', alignItems: 'center' }
 const cardTitle = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const cardBrand = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const cardAmountRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '14rpx' }
 function cardRemaining(item: PurchaseDisplayModel): any {
   const isPending = item.remainingText !== '已结清' && item.statusText !== '已取消'
-  return { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: isPending ? '#FF4D4F' : '#52C41A' }
+  return { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: isPending ? semantic.error as string : semantic.success as string }
 }
 const cardTotal = { fontSize: '24rpx', color: n.value.textTertiary }
-const cardProgress = computed((): any => ({ height: '6rpx', borderRadius: '3rpx', backgroundColor: n.value.cardBorder, overflow: 'hidden', marginTop: '12rpx' }))
+const cardProgress = computed((): any => ({ height: '6rpx', borderRadius: '3rpx', backgroundColor: n.value.border, overflow: 'hidden', marginTop: '12rpx' }))
 function cardProgressFill(percent: number, color: string): any {
   return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color }
 }
@@ -209,19 +211,18 @@ const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: 
 const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const selectCheckWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '4rpx' }
 function selectCheckStyle(checked: boolean): any {
-  return { width: '40rpx', height: '40rpx', borderRadius: '8rpx', borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.cardBorder, backgroundColor: checked ? (brand[500] as string) : 'transparent', alignItems: 'center', justifyContent: 'center' }
+  return { width: '40rpx', height: '40rpx', borderRadius: '8rpx', borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.border, backgroundColor: checked ? (brand[500] as string) : 'transparent', alignItems: 'center', justifyContent: 'center' }
 }
-const selectCheckIcon = { fontSize: '24rpx', color: '#FFFFFF', fontWeight: 'bold' }
 
-const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
-const deleteBtn = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
+const deleteBtn = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
 const deleteBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
-const deleteDisabled = computed((): any => ({ height: '96rpx', borderRadius: '24rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
+const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }
 const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
-const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', gap: '24rpx', paddingTop: '8rpx' }))
-const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
 const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
-const dialogDelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '24rpx', backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center' }))
+const dialogDelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center' }))
 const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 </script>
