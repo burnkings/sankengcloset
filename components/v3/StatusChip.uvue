@@ -1,0 +1,55 @@
+<template>
+  <view :style="chipStyle">
+    <text :style="textStyle">{{ label }}</text>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { statusColors, statusColorsDark } from '@/theme/tokens/colors'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { isDark } from '@/theme/use-theme'
+
+// V3 StatusChip — 状态必须同时有文字或图标，不得只靠颜色（V3 §3.1）
+const props = withDefaults(defineProps<{
+  label: string
+  status?: string
+  size?: string
+}>(), { label: '', status: 'neutral', size: 'sm' })
+
+type StatusKey = keyof typeof statusColors
+type StatusDarkKey = keyof typeof statusColorsDark
+
+const chipStyle = computed((): any => {
+  const colors = isDark.value ? statusColorsDark : statusColors
+  const key = (props.status as string) in colors ? (props.status as StatusKey | StatusDarkKey) : 'neutral'
+  const s = (colors as any)[key] as { text: string; bg: string }
+  const isSm = props.size === 'sm'
+  return {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: isSm ? '12rpx' : '16rpx',
+    paddingRight: isSm ? '12rpx' : '16rpx',
+    paddingTop: isSm ? '4rpx' : '6rpx',
+    paddingBottom: isSm ? '4rpx' : '6rpx',
+    borderRadius: '9999rpx',
+    backgroundColor: s.bg,
+    flexShrink: 0,
+  }
+})
+
+const textStyle = computed((): any => {
+  const colors = isDark.value ? statusColorsDark : statusColors
+  const key = (props.status as string) in colors ? (props.status as StatusKey | StatusDarkKey) : 'neutral'
+  const s = (colors as any)[key] as { text: string; bg: string }
+  return {
+    fontSize: props.size === 'sm' ? v3TextStyle.caption.fontSize : v3TextStyle.meta.fontSize,
+    fontWeight: 500,
+    color: s.text,
+  }
+})
+</script>
+
+<style>
+</style>

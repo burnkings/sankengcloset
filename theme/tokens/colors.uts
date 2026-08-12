@@ -18,10 +18,13 @@ export const brand = {
   300: '#E891A8', // 浅玫（激活药丸 / 激活 Tab 背景 / 柔和按钮）
   400: '#D45F7E', // 主玫粉
   500: '#D45F7E', // 主色 — 主玫粉
-  600: '#C4607F', // 深玫
+  600: '#B94767', // 深玫（V3 brand.strong 按压/价格重点）
   700: '#A83254',
   800: '#8C2745',
   900: '#6E1D36',
+  // V3 语义
+  primary: '#D45F7E', // brand.primary
+  strong: '#B94767',  // brand.strong — 按压、价格重点
 }
 
 /** 辅助色 — 灰紫（低饱和，紫 #9B6FAE） */
@@ -38,15 +41,15 @@ export const accent = {
   900: '#2E1F45',
 }
 
-/** 语义色（低饱和） */
+/** 语义色（低饱和，对齐 V3） */
 export const semantic = {
-  success: '#5BAE7F', // 绿
+  success: '#4F9870', // V3 success
   successLight: '#E8F2EA',
-  warning: '#D4865C', // 橙
+  warning: '#C47A45', // V3 warning
   warningLight: '#FBF2E8',
-  error: '#C4666B',
+  error: '#C5535B', // V3 danger
   errorLight: '#F9ECED',
-  info: '#6B8AAA',
+  info: '#667F9E', // V3 info
   infoLight: '#ECF1F5',
 }
 
@@ -59,7 +62,7 @@ export const baseColors = {
   overlayLight: 'rgba(63,45,51,0.20)',
 }
 
-/** 中性色（V2 柔和灰，页面底 #FBF6F3） */
+/** 中性色（V3 暖白画布，页面底 #FAF8F7） */
 export type NeutralPalette = {
   bg: string
   bgSecondary: string
@@ -87,56 +90,56 @@ export type NeutralPalette = {
 }
 
 export const neutralLight = {
-  bg: '#FBF6F3',
-  bgSecondary: '#F7F1F3',
-  bgTertiary: '#EDE8E9',
-  surface: '#FFFFFF',
+  bg: '#FAF8F7', // V3 canvas 暖白
+  bgSecondary: '#F5F2F3', // V3 surface.subtle
+  bgTertiary: '#EEE9EB', // V3 border
+  surface: '#FFFFFF', // V3 surface
   surfaceRaised: '#FFFFFF',
   surfaceWarm: '#FDFAF9',
-  surfacePink: '#FCEFF2', // 浅粉底（激活态 / Hero / 统计卡）
-  border: '#E0DCDC',
-  borderLight: '#EDE8E9',
+  surfacePink: '#FCEFF2', // 浅粉底（激活态）
+  border: '#EEE9EB', // V3 border
+  borderLight: '#EEE9EB',
   borderFocus: '#D45F7E',
-  cardBorder: '#F0E8E2', // 卡片描边
-  text: '#2E2A28', // 墨字
-  textSecondary: '#8C847E', // 灰字
-  textTertiary: '#A0989B',
+  cardBorder: '#EEE9EB', // V3 border
+  text: '#262223', // V3 text.primary
+  textSecondary: '#686164', // V3 text.secondary
+  textTertiary: '#989094', // V3 text.tertiary
   textDisabled: '#C4BFC1',
   textInverse: '#FFFFFF',
-  placeholder: '#C4BFC1',
-  icon: '#756D70',
-  iconLight: '#A0989B',
+  placeholder: '#989094',
+  icon: '#686164',
+  iconLight: '#989094',
   iconActive: '#D45F7E',
-  divider: 'rgba(63,45,51,0.08)',
-  overlay: 'rgba(63,45,51,0.40)',
-  inputFill: '#E8E0D6', // 输入填充
+  divider: 'rgba(38,34,35,0.08)',
+  overlay: 'rgba(38,34,35,0.40)',
+  inputFill: '#F5F2F3', // V3 surface.subtle（搜索/输入）
 } as NeutralPalette
 
-/** 中性色 (Dark) */
+/** 中性色 (Dark) — V3 暖黑 */
 export const neutralDark = {
-  bg: '#1A1617',
-  bgSecondary: '#241F20',
-  bgTertiary: '#302A2C',
-  surface: '#241F20',
-  surfaceRaised: '#302A2C',
+  bg: '#141112', // V3 canvas 暖黑
+  bgSecondary: '#2B2628', // V3 surface.subtle
+  bgTertiary: '#393335', // V3 border
+  surface: '#211D1E', // V3 surface
+  surfaceRaised: '#2B2628',
   surfaceWarm: '#2A2022',
-  border: '#3D3638',
-  borderLight: '#302A2C',
-  borderFocus: '#D45F7E',
-  cardBorder: '#302A2C',
-  text: '#F5F2F3',
-  textSecondary: '#B8AEB1',
-  textTertiary: '#8A8184',
+  border: '#393335', // V3 border
+  borderLight: '#393335',
+  borderFocus: '#E47A96',
+  cardBorder: '#393335',
+  text: '#F7F3F4', // V3 text.primary
+  textSecondary: '#BDB5B8', // V3 text.secondary
+  textTertiary: '#8E8588', // V3 text.tertiary
   textDisabled: '#60595B',
   textInverse: '#2D2729',
-  placeholder: '#60595B',
-  icon: '#B8AEB1',
-  iconLight: '#8A8184',
-  iconActive: '#D45F7E',
-  divider: 'rgba(255,255,255,0.08)',
+  placeholder: '#8E8588',
+  icon: '#BDB5B8',
+  iconLight: '#8E8588',
+  iconActive: '#E47A96',
+  divider: 'rgba(247,243,244,0.08)',
   overlay: 'rgba(0,0,0,0.60)',
   surfacePink: '#3A2428',
-  inputFill: '#3D3638',
+  inputFill: '#2B2628',
 } as NeutralPalette
 
 /** 三坑类别色（低饱和） */
@@ -169,9 +172,9 @@ export const categoryColors = {
 
 /** 语义状态色映射 — 统一 V2StatusChip 使用 */
 export const statusColors = {
-  positive: { text: '#5BAE7F', bg: '#E8F2EA' },
-  pending:  { text: '#D4865C', bg: '#FBF2E8' },
-  error:    { text: '#C4666B', bg: '#F9ECED' },
+  positive: { text: '#4F9870', bg: '#E8F2EA' },
+  pending:  { text: '#C47A45', bg: '#FBF2E8' },
+  error:    { text: '#C5535B', bg: '#F9ECED' },
   initial:  { text: '#9B6FAE', bg: '#F3EEF6' },
   neutral:  { text: '#8A8184', bg: '#EDE8E9' },
   brand:    { text: '#D45F7E', bg: '#FCEFF2' },
@@ -179,12 +182,12 @@ export const statusColors = {
 
 /** 深色模式语义状态色 — 浅底替换为主色 20% 透明度 */
 export const statusColorsDark = {
-  positive: { text: '#5BAE7F', bg: 'rgba(91,174,127,0.20)' },
-  pending:  { text: '#D4865C', bg: 'rgba(212,134,92,0.20)' },
-  error:    { text: '#C4666B', bg: 'rgba(196,102,107,0.20)' },
+  positive: { text: '#69B98A', bg: 'rgba(105,185,138,0.20)' },
+  pending:  { text: '#D99767', bg: 'rgba(217,151,103,0.20)' },
+  error:    { text: '#E17880', bg: 'rgba(225,120,128,0.20)' },
   initial:  { text: '#9B6FAE', bg: 'rgba(155,111,174,0.20)' },
-  neutral:  { text: '#8A8184', bg: 'rgba(138,129,132,0.20)' },
-  brand:    { text: '#D45F7E', bg: 'rgba(212,95,126,0.20)' },
+  neutral:  { text: '#8E8588', bg: 'rgba(142,133,136,0.20)' },
+  brand:    { text: '#E47A96', bg: 'rgba(228,122,150,0.20)' },
 }
 
 /** 暖色系 — V2 低饱和 */
@@ -205,4 +208,40 @@ export const gradient = {
   soft: ['#FDFAF9', '#FCEFF2'], // 浅粉底过渡
   lavender: ['#F3F0F7', '#E6E1EF'],
   peach: ['#FBF2E8', '#FDFAF9'],
+}
+
+// ====== V3 语义色（Design System V3 §3.1）======
+
+/** V3 浅色语义色 */
+export const v3Light = {
+  brandPrimary: '#D45F7E',
+  brandStrong: '#B94767',
+  canvas: '#FAF8F7',
+  surface: '#FFFFFF',
+  surfaceSubtle: '#F5F2F3',
+  textPrimary: '#262223',
+  textSecondary: '#686164',
+  textTertiary: '#989094',
+  border: '#EEE9EB',
+  success: '#4F9870',
+  warning: '#C47A45',
+  danger: '#C5535B',
+  info: '#667F9E',
+}
+
+/** V3 深色语义色 */
+export const v3Dark = {
+  brandPrimary: '#E47A96',
+  brandStrong: '#F08AA3',
+  canvas: '#141112',
+  surface: '#211D1E',
+  surfaceSubtle: '#2B2628',
+  textPrimary: '#F7F3F4',
+  textSecondary: '#BDB5B8',
+  textTertiary: '#8E8588',
+  border: '#393335',
+  success: '#69B98A',
+  warning: '#D99767',
+  danger: '#E17880',
+  info: '#86A0BF',
 }

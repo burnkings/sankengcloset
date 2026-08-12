@@ -1,0 +1,54 @@
+<template>
+  <view :style="stripStyle">
+    <view v-for="(item, idx) in items" :key="item.label" :style="cellStyle(idx)">
+      <text :style="labelStyle">{{ item.label }}</text>
+      <text :style="valueStyle(item)">{{ item.value }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { SUMMARY_STRIP_HEIGHT_V3 } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+// V3 SummaryStrip — 替代大面积 V2StatsCard：同一行 2–3 个数据，透明或嵌入列表组顶部，高度 ≤112rpx（V3 §5.6）
+// 仅管理页（衣橱/预算/订单/提醒）使用；首页/发现/收藏/圈子禁用。
+export type SummaryItem = {
+  label: string
+  value: string
+  highlight?: boolean
+}
+
+const props = withDefaults(defineProps<{
+  items?: Array<SummaryItem>
+  surface?: boolean
+}>(), { items: () => [], surface: false })
+
+const stripStyle = computed((): any => ({
+  ...flexRow,
+  alignItems: 'center',
+  height: SUMMARY_STRIP_HEIGHT_V3,
+  borderRadius: '20rpx',
+  paddingLeft: '28rpx',
+  paddingRight: '28rpx',
+  backgroundColor: props.surface ? n.value.surface : 'transparent',
+  borderWidth: props.surface ? '1rpx' : '0',
+  borderStyle: 'solid' as string,
+  borderColor: n.value.border,
+}))
+
+function cellStyle(idx: number) {
+  return { flex: 1, justifyContent: 'center', borderLeftWidth: idx > 0 ? '1rpx' : '0', borderLeftStyle: 'solid' as string, borderLeftColor: n.value.border, paddingLeft: idx > 0 ? '24rpx' : '0' }
+}
+
+const labelStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textTertiary }))
+function valueStyle(item: SummaryItem) {
+  const hl = item.highlight === true
+  return { fontSize: v3TextStyle.body.fontSize, lineHeight: v3TextStyle.body.lineHeight, fontWeight: 600, color: hl ? n.value.iconActive : n.value.text, marginTop: '4rpx' }
+}
+</script>
+
+<style>
+</style>

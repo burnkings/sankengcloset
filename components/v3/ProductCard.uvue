@@ -1,0 +1,68 @@
+<template>
+  <view :style="cardStyle" @tap="emit('tap')">
+    <view :style="imageWrap">
+      <image v-if="image !== ''" :src="image" :style="imageStyle" mode="aspectFill" lazy-load />
+      <view v-else :style="imageFallbackStyle">
+        <AppIcon name="camera" :size="56" />
+        <text :style="fallbackTextStyle">图片暂不可用</text>
+      </view>
+      <view v-if="showSave" :style="saveButtonStyle" @tap.stop="emit('toggleSave')">
+        <AppIcon :name="saved ? 'heart' : 'heart'" :size="44" :active="saved" />
+      </view>
+    </view>
+    <view :style="infoStyle">
+      <text v-if="brand !== ''" :style="brandStyle">{{ brand }}</text>
+      <text :style="titleStyle">{{ title }}</text>
+      <view v-if="deadlineText !== ''" :style="deadlineWrap">
+        <text :style="deadlineStyle">{{ deadlineText }}</text>
+      </view>
+      <view v-if="badgeText !== ''" :style="badgeWrap">
+        <StatusChip :label="badgeText" :status="badgeStatus" size="sm" />
+      </view>
+      <text :style="priceStyle">{{ priceText }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import StatusChip from '@/components/v3/StatusChip.uvue'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { PRODUCT_CARD_WIDTH_V3, PRODUCT_CARD_IMAGE_HEIGHT_V3 } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+
+// V3 ProductCard — 双列商品卡（V3 §5.1）：353×470 3:4、无白底盒无阴影、图片→品牌→标题→状态→价格
+const props = withDefaults(defineProps<{
+  title?: string
+  brand?: string
+  priceText?: string
+  image?: string
+  badgeText?: string
+  badgeStatus?: string
+  deadlineText?: string
+  saved?: boolean
+  showSave?: boolean
+}>(), { title: '', brand: '', priceText: '', image: '', badgeText: '', badgeStatus: 'brand', deadlineText: '', saved: false, showSave: true })
+
+const emit = defineEmits<{
+  tap: []
+  toggleSave: []
+}>()
+
+const cardStyle = { width: PRODUCT_CARD_WIDTH_V3, marginBottom: '28rpx' }
+const imageWrap = { position: 'relative', width: PRODUCT_CARD_WIDTH_V3, height: PRODUCT_CARD_IMAGE_HEIGHT_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }
+const imageStyle = { width: PRODUCT_CARD_WIDTH_V3, height: PRODUCT_CARD_IMAGE_HEIGHT_V3 }
+const imageFallbackStyle = { width: PRODUCT_CARD_WIDTH_V3, height: PRODUCT_CARD_IMAGE_HEIGHT_V3, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
+const fallbackTextStyle = { fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }
+const saveButtonStyle = { position: 'absolute', top: '8rpx', right: '8rpx', width: '72rpx', height: '72rpx', borderRadius: '36rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.55)' }
+const infoStyle = { paddingTop: '12rpx' }
+const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textSecondary }))
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text, marginTop: '4rpx' }))
+const deadlineWrap = { marginTop: '6rpx' }
+const deadlineStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary }))
+const badgeWrap = { marginTop: '8rpx', flexDirection: 'row' as string }
+const priceStyle = computed((): any => ({ fontSize: v3TextStyle.price.fontSize, lineHeight: v3TextStyle.price.lineHeight, fontWeight: 600, color: n.value.text, marginTop: '8rpx' }))
+</script>
+
+<style>
+</style>

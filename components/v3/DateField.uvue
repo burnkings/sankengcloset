@@ -1,0 +1,58 @@
+<template>
+  <picker mode="date" :value="value" @change="onDateChange">
+    <view :style="pickerRow">
+      <text :style="valueStyle(filled)">{{ filled ? displayValue : placeholder }}</text>
+      <view :style="iconWrap">
+        <AppIcon name="calendar" :size="32" />
+      </view>
+    </view>
+  </picker>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+// V3 DateField — 日期选择（V3 §4.4）：统一选择器，不把下拉项伪装成普通输入；16rpx 圆角、88rpx 高
+const props = withDefaults(defineProps<{
+  value?: string
+  placeholder?: string
+}>(), { value: '', placeholder: '请选择日期' })
+
+const emit = defineEmits<{ change: [value: string] }>()
+
+const filled = computed((): boolean => props.value !== '')
+const displayValue = computed((): string => props.value !== '' ? props.value : props.placeholder)
+
+function onDateChange(e: any) {
+  const d = (e as UTSJSONObject)['detail'] as UTSJSONObject
+  const val = d != null && d['value'] != null ? d['value'] as string : ''
+  emit('change', val)
+}
+
+const pickerRow = computed((): any => ({
+  ...flexRow,
+  flexDirection: 'row',
+  alignItems: 'center',
+  height: '88rpx',
+  paddingLeft: '28rpx',
+  paddingRight: '28rpx',
+  borderRadius: '16rpx',
+  backgroundColor: n.value.inputFill,
+}))
+
+function valueStyle(filled: boolean) {
+  return {
+    flex: 1,
+    fontSize: v3TextStyle.body.fontSize,
+    color: filled ? n.value.text : n.value.placeholder,
+  }
+}
+
+const iconWrap = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+</script>
+
+<style>
+</style>

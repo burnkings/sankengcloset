@@ -1,0 +1,53 @@
+<template>
+  <view :style="rowStyle" @tap="emit('tap')">
+    <view :style="contentWrap">
+      <text :style="titleStyle">{{ title }}</text>
+      <text v-if="subtitle !== ''" :style="subtitleStyle">{{ subtitle }}</text>
+    </view>
+    <view v-if="value !== ''" :style="valueWrap">
+      <text :style="valueStyle">{{ value }}</text>
+    </view>
+    <view v-if="showArrow" :style="arrowWrap">
+      <AppIcon name="chevron-right" :size="32" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+// V3 ListRow — 列表组行（V3 §4.2/§5.5）：分割线而非每项一张卡
+const props = withDefaults(defineProps<{
+  title?: string
+  subtitle?: string
+  value?: string
+  showArrow?: boolean
+}>(), { title: '', subtitle: '', value: '', showArrow: true })
+
+const emit = defineEmits<{ tap: [] }>()
+
+const rowStyle = computed((): any => ({
+  ...flexRow,
+  alignItems: 'center',
+  minHeight: '104rpx',
+  paddingLeft: LIST_GROUP_HORIZONTAL_V3,
+  paddingRight: LIST_GROUP_HORIZONTAL_V3,
+  backgroundColor: n.value.surface,
+  borderBottomWidth: '1rpx',
+  borderBottomStyle: 'solid',
+  borderBottomColor: n.value.border,
+}))
+const contentWrap = { flex: 1, justifyContent: 'center' }
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: v3TextStyle.body.lineHeight, fontWeight: 400, color: n.value.text }))
+const subtitleStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textTertiary, marginTop: '4rpx' }))
+const valueWrap = { justifyContent: 'center', marginLeft: '16rpx', flexShrink: 0 }
+const valueStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.textSecondary }))
+const arrowWrap = { width: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+</script>
+
+<style>
+</style>

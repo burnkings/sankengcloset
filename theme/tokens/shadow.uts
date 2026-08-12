@@ -46,3 +46,12 @@ export const shadowDark = {
   buttonPressed: '0 1rpx 4rpx 0 rgba(255,77,126,0.1)',
   dialog: '0 12rpx 40rpx -8rpx rgba(0,0,0,0.35)',
 }
+
+// ====== V3 阴影语义（Design System V3 §3.4）======
+
+export const v3Shadow = {
+  feedCard: 'none',        // Feed 卡默认无阴影、无描边
+  listGroup: 'none',       // 列表组默认白底+分割线，无外阴影
+  bottomSheet: '0 4rpx 16rpx -2rpx rgba(0,0,0,0.08)', // 弹窗/底部面板一级轻阴影
+  fab: '0 8rpx 32rpx -4rpx rgba(0,0,0,0.1)',          // 悬浮发布按钮
+}

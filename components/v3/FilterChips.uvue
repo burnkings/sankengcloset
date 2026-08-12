@@ -1,0 +1,69 @@
+<template>
+  <scroll-view direction="horizontal" :show-scrollbar="false" :style="scrollStyle">
+    <view :style="capsuleRow">
+      <view v-for="(item, idx) in items" :key="item" :style="chipWrapStyle(idx)">
+        <view :style="chipStyle(item)" @tap="onTap(item)">
+          <text :style="chipText(item)">{{ item }}</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { FILTER_CHIP_HEIGHT, FILTER_CHIP_PADDING_X, FILTER_CHIP_GAP } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+// V3 FilterChips — 二级筛选：56rpx 胶囊；选中=品牌浅底+深色文字（V3 §5.7，非纯白字大色块）
+const props = withDefaults(defineProps<{
+  items?: Array<string>
+  active?: string
+}>(), { items: () => [], active: '' })
+
+const emit = defineEmits<{ change: [value: string] }>()
+function onTap(item: string) { emit('change', item) }
+
+const scrollStyle = { width: '100%' }
+const capsuleRow = computed((): any => ({
+  ...flexRow,
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingLeft: '32rpx',
+  paddingRight: '32rpx',
+}))
+
+function chipWrapStyle(idx: number) {
+  return { flexShrink: 0, marginRight: idx < props.items.length - 1 ? FILTER_CHIP_GAP : '0' }
+}
+
+function chipStyle(item: string) {
+  const active = item === props.active
+  return {
+    height: FILTER_CHIP_HEIGHT,
+    paddingLeft: FILTER_CHIP_PADDING_X,
+    paddingRight: FILTER_CHIP_PADDING_X,
+    borderRadius: '9999rpx',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary,
+    borderWidth: active ? '0' : '1rpx',
+    borderStyle: 'solid' as string,
+    borderColor: active ? 'transparent' : n.value.border,
+  }
+}
+
+function chipText(item: string) {
+  const active = item === props.active
+  return {
+    fontSize: active ? v3TextStyle.meta.fontSize : v3TextStyle.meta.fontSize,
+    fontWeight: active ? 600 : 400,
+    color: active ? brand.primary : n.value.textSecondary,
+  }
+}
+</script>
+
+<style>
+</style>

@@ -1,0 +1,34 @@
+<template>
+  <view :style="wrapStyle">
+    <view :style="barStyle">
+      <slot />
+    </view>
+    <view :style="safeSpacer" />
+  </view>
+</template>
+
+<script setup lang="uts">
+import { zIndex } from '@/theme/tokens/z-index'
+import { n } from '@/theme/use-theme'
+
+// V3 BottomActionBar — 底部固定操作栏（V3 §4.3/§8）：必须避开安全区，内容不被遮挡
+const wrapStyle = computed((): any => ({
+  position: 'fixed',
+  left: '0',
+  right: '0',
+  bottom: '0',
+  zIndex: zIndex.tabbar,
+  backgroundColor: n.value.surface,
+  borderTopWidth: '1rpx',
+  borderTopStyle: 'solid',
+  borderTopColor: n.value.border,
+  paddingLeft: '32rpx',
+  paddingRight: '32rpx',
+  paddingTop: '16rpx',
+}))
+const barStyle = { flexDirection: 'row' as string, alignItems: 'center' }
+const safeSpacer = { height: '34rpx' }
+</script>
+
+<style>
+</style>

@@ -1,0 +1,60 @@
+<template>
+  <view :style="cardStyle" @tap="emit('tap')">
+    <view :style="imageWrap">
+      <image v-if="image !== ''" :src="image" :style="imageStyle" mode="aspectFill" lazy-load />
+      <view v-else :style="imageFallbackStyle">
+        <AppIcon name="camera" :size="56" />
+      </view>
+    </view>
+    <view :style="infoStyle">
+      <text :style="titleStyle">{{ title }}</text>
+      <view :style="authorRow">
+        <image v-if="avatar !== ''" :src="avatar" :style="avatarStyle" mode="aspectFill" />
+        <text :style="authorStyle">{{ author }}</text>
+        <view :style="likeWrap">
+          <AppIcon :name="liked ? 'heart' : 'heart'" :size="36" :active="liked" />
+          <text :style="likeCountStyle">{{ likeCount }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { PRODUCT_CARD_WIDTH_V3 } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+
+// V3 NoteCard — 圈子双列笔记卡（V3 §5.2）：图 3:4/4:5、标题两行、作者行、喜欢数；不显示评论/长正文
+const props = withDefaults(defineProps<{
+  title?: string
+  author?: string
+  avatar?: string
+  image?: string
+  likeCount?: number
+  liked?: boolean
+  imageRatio?: string // '3:4' | '4:5'
+}>(), { title: '', author: '', avatar: '', image: '', likeCount: 0, liked: false, imageRatio: '3:4' })
+
+const emit = defineEmits<{
+  tap: []
+  toggleLike: []
+}>()
+
+const cardStyle = { width: PRODUCT_CARD_WIDTH_V3, marginBottom: '28rpx' }
+const imageHeight = computed((): string => props.imageRatio === '4:5' ? '441rpx' : '470rpx')
+const imageWrap = { position: 'relative', width: PRODUCT_CARD_WIDTH_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }
+const imageStyle = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: imageHeight.value }))
+const imageFallbackStyle = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: imageHeight.value, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
+const infoStyle = { paddingTop: '12rpx' }
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text }))
+const authorRow = { flexDirection: 'row' as string, alignItems: 'center', marginTop: '10rpx' }
+const avatarStyle = { width: '40rpx', height: '40rpx', borderRadius: '20rpx', marginRight: '10rpx' }
+const authorStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, flex: 1 }))
+const likeWrap = { flexDirection: 'row' as string, alignItems: 'center', minWidth: '64rpx', justifyContent: 'flex-end' }
+const likeCountStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, marginLeft: '4rpx' }))
+</script>
+
+<style>
+</style>

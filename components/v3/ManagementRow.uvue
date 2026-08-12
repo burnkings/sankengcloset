@@ -1,0 +1,60 @@
+<template>
+  <view :style="rowStyle" @tap="emit('tap')">
+    <view v-if="thumb !== ''" :style="thumbWrap">
+      <image :src="thumb" :style="thumbStyle" mode="aspectFill" />
+    </view>
+    <view :style="contentWrap">
+      <text :style="titleStyle">{{ title }}</text>
+      <text v-if="subtitle !== ''" :style="subtitleStyle">{{ subtitle }}</text>
+    </view>
+    <view v-if="value !== ''" :style="valueWrap">
+      <text :style="valueStyle">{{ value }}</text>
+    </view>
+    <view v-if="showArrow" :style="arrowWrap">
+      <AppIcon name="chevron-right" :size="32" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { MANAGEMENT_ROW_MIN_HEIGHT_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+// V3 ManagementRow — 管理列表行：最小高 112rpx；左侧可选 80×96 缩略图；中间标题/状态/一行金额；右侧箭头或一个状态（V3 §5.5）
+const props = withDefaults(defineProps<{
+  title?: string
+  subtitle?: string
+  value?: string
+  thumb?: string
+  showArrow?: boolean
+  highlight?: boolean
+}>(), { title: '', subtitle: '', value: '', thumb: '', showArrow: true, highlight: false })
+
+const emit = defineEmits<{ tap: [] }>()
+
+const rowStyle = computed((): any => ({
+  ...flexRow,
+  alignItems: 'center',
+  minHeight: MANAGEMENT_ROW_MIN_HEIGHT_V3,
+  paddingLeft: LIST_GROUP_HORIZONTAL_V3,
+  paddingRight: LIST_GROUP_HORIZONTAL_V3,
+  backgroundColor: n.value.surface,
+  borderBottomWidth: '1rpx',
+  borderBottomStyle: 'solid',
+  borderBottomColor: n.value.border,
+}))
+const thumbWrap = { width: '80rpx', height: '96rpx', borderRadius: '12rpx', overflow: 'hidden', marginRight: '20rpx', flexShrink: 0 }
+const thumbStyle = { width: '80rpx', height: '96rpx' }
+const contentWrap = { flex: 1, justifyContent: 'center' }
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: v3TextStyle.body.lineHeight, fontWeight: 500, color: n.value.text }))
+const subtitleStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textTertiary, marginTop: '4rpx' }))
+const valueWrap = { justifyContent: 'center', marginLeft: '16rpx', flexShrink: 0 }
+const valueStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: props.highlight ? n.value.iconActive : n.value.text }))
+const arrowWrap = { width: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+</script>
+
+<style>
+</style>

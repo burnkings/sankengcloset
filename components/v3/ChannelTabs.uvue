@@ -1,0 +1,45 @@
+<template>
+  <scroll-view direction="horizontal" :show-scrollbar="false" :style="scrollStyle">
+    <view :style="rowStyle">
+      <view :style="leftPadStyle" />
+      <view v-for="item in items" :key="item" :style="itemShellStyle">
+        <view :style="itemStyle" @tap="onTap(item)">
+          <text :style="textStyle(item)">{{ item }}</text>
+          <view v-if="item === active" :style="indicatorStyle" />
+        </view>
+        <view :style="itemSpacerStyle" />
+      </view>
+      <view :style="rightPadStyle" />
+    </view>
+  </scroll-view>
+</template>
+
+<script setup lang="uts">
+import { brand } from '@/theme/tokens/colors'
+import { radius } from '@/theme/tokens/radius'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { CHANNEL_INDICATOR_HEIGHT, CHANNEL_INDICATOR_WIDTH, MIN_TOUCH_SIZE, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+// V3 ChannelTabs — 一级频道：文字 + 4rpx 底部指示，可横向滚动（V3 §5.7）
+const props = withDefaults(defineProps<{ items?: Array<string>; active?: string }>(), { items: () => [], active: '' })
+const emit = defineEmits<{ change: [value: string] }>()
+function onTap(item: string) { emit('change', item) }
+
+const scrollStyle = { width: '750rpx' }
+const rowStyle = { ...flexRow, height: MIN_TOUCH_SIZE, alignItems: 'center' }
+const leftPadStyle = { width: FEED_GUTTER_V3, height: MIN_TOUCH_SIZE, flexShrink: 0 }
+const rightPadStyle = { width: FEED_GUTTER_V3, height: MIN_TOUCH_SIZE, flexShrink: 0 }
+const itemShellStyle = { ...flexRow, alignItems: 'center', flexShrink: 0 }
+const itemStyle = { minWidth: '96rpx', height: MIN_TOUCH_SIZE, paddingLeft: '12rpx', paddingRight: '12rpx', alignItems: 'center', justifyContent: 'center', position: 'relative' }
+const itemSpacerStyle = { width: '8rpx', height: MIN_TOUCH_SIZE, flexShrink: 0 }
+function textStyle(item: string) {
+  const active = item === props.active
+  return { fontSize: active ? v3TextStyle.body.fontSize : v3TextStyle.meta.fontSize, fontWeight: active ? 600 : 400, color: active ? n.value.text : n.value.textSecondary }
+}
+const indicatorStyle = { position: 'absolute', bottom: '4rpx', width: CHANNEL_INDICATOR_WIDTH, height: CHANNEL_INDICATOR_HEIGHT, borderRadius: radius.full, backgroundColor: brand.primary }
+</script>
+
+<style>
+</style>

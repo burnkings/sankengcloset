@@ -1,0 +1,21 @@
+<template>
+  <view :style="groupStyle"><slot /></view>
+</template>
+
+<script setup lang="uts">
+import { LIST_GROUP_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+
+// V3 ListGroup — 列表组：白底 + 20rpx 圆角 + 1rpx 内部分割线，无外阴影（V3 §3.4）
+const groupStyle = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: LIST_GROUP_RADIUS_V3,
+  borderWidth: '1rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.border,
+  overflow: 'hidden',
+}))
+</script>
+
+<style>
+</style>

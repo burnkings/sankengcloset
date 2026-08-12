@@ -1,6 +1,5 @@
 <template>
   <view :style="tagStyle" @tap="emit('tap')">
-    <text v-if="emoji" :style="emojiStyle">{{ emoji }}</text>
     <text :style="textStyle">{{ label }}</text>
   </view>
 </template>
@@ -32,13 +31,12 @@ const props = withDefaults(defineProps<{
   variant?: string
   color?: string
   active?: boolean
-  emoji?: string
 }>(), {
   label: '',
   variant: TAG_CHIP,
   color: '',
   active: false,
-  emoji: '' })
+})
 
 const emit = defineEmits<{
   tap: []
@@ -65,7 +63,8 @@ const tagStyle = computed((): any => {
     base.paddingHorizontal = spacing[2]
     base.paddingVertical = '4rpx'
     base.borderRadius = radius.full
-    base.backgroundColor = c + '30'
+    base.backgroundColor = n.value.surfacePink
+    base.color = c
     return base
   }
 
@@ -74,7 +73,8 @@ const tagStyle = computed((): any => {
     base.paddingHorizontal = spacing[2]
     base.paddingVertical = '4rpx'
     base.borderRadius = radius.full
-    base.backgroundColor = c + '35'
+    base.backgroundColor = n.value.surfacePink
+    base.color = c
     return base
   }
 
@@ -124,9 +124,4 @@ const textStyle = computed((): any => {
     color: n.value.textSecondary,
   }
 })
-
-const emojiStyle = {
-  fontSize: fontSize.xs,
-  marginRight: spacing[0.5],
-}
 </script>

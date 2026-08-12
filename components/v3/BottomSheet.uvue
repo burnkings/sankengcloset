@@ -1,0 +1,62 @@
+<template>
+  <view v-if="visible" :style="rootStyle">
+    <view :style="maskStyle" @tap="emit('close')" />
+    <view :style="sheetStyle">
+      <view :style="handleStyle" />
+      <view :style="headerStyle">
+        <text :style="titleStyle">{{ title }}</text>
+        <view :style="closeBtn" @tap="emit('close')">
+          <AppIcon name="close" :size="36" />
+        </view>
+      </view>
+      <scroll-view :style="bodyScrollStyle" scroll-y>
+        <view :style="bodyStyle">
+          <slot />
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { zIndex } from '@/theme/tokens/z-index'
+import { n } from '@/theme/use-theme'
+
+// V3 BottomSheet — 底部面板（V3 §5.10）：24rpx 圆角 + 一级轻阴影；选择多项/筛选/日期/外跳说明使用
+const props = withDefaults(defineProps<{
+  visible?: boolean
+  title?: string
+}>(), { visible: false, title: '' })
+
+const emit = defineEmits<{ close: [] }>()
+
+const rootStyle = { position: 'fixed', left: '0', right: '0', top: '0', bottom: '0', zIndex: zIndex.bottomSheet }
+const maskStyle = computed((): any => ({ position: 'absolute', left: '0', right: '0', top: '0', bottom: '0', backgroundColor: 'rgba(20,17,18,0.45)' }))
+const sheetStyle = computed((): any => ({
+  position: 'absolute',
+  left: '0',
+  right: '0',
+  bottom: '0',
+  backgroundColor: n.value.surface,
+  borderTopLeftRadius: '24rpx',
+  borderTopRightRadius: '24rpx',
+  shadowColor: '#000000',
+  shadowOffset: { width: 0, height: -4 },
+  shadowOpacity: 0.08,
+  shadowRadius: 16,
+  paddingLeft: '32rpx',
+  paddingRight: '32rpx',
+  paddingBottom: '34rpx',
+}))
+const handleStyle = computed((): any => ({ width: '72rpx', height: '8rpx', borderRadius: '4rpx', backgroundColor: n.value.bgTertiary, alignSelf: 'center', marginTop: '16rpx' }))
+const headerStyle = { flexDirection: 'row' as string, alignItems: 'center', height: '88rpx' }
+const titleStyle = computed((): any => ({ flex: 1, fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: n.value.text }))
+const closeBtn = { width: '72rpx', height: '72rpx', alignItems: 'center', justifyContent: 'center' }
+const bodyScrollStyle = { maxHeight: '60vh' }
+const bodyStyle = { paddingBottom: '16rpx' }
+</script>
+
+<style>
+</style>

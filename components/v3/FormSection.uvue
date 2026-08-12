@@ -1,0 +1,32 @@
+<template>
+  <view :style="sectionStyle">
+    <view :style="headerStyle">
+      <text :style="titleStyle">{{ title }}</text>
+      <text v-if="required" :style="requiredStyle">*</text>
+    </view>
+    <view :style="bodyStyle">
+      <slot />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { v3Spacing } from '@/theme/tokens/spacing'
+import { n } from '@/theme/use-theme'
+
+// V3 FormSection — 表单分组：标签在输入框上方，必填标识就近显示（V3 §4.4）
+const props = withDefaults(defineProps<{
+  title?: string
+  required?: boolean
+}>(), { title: '', required: false })
+
+const sectionStyle = { marginBottom: v3Spacing.formFieldGap }
+const headerStyle = { flexDirection: 'row' as string, alignItems: 'center', marginBottom: '12rpx' }
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text }))
+const requiredStyle = { fontSize: v3TextStyle.body.fontSize, color: n.value.iconActive, marginLeft: '6rpx' }
+const bodyStyle = { padding: '0' }
+</script>
+
+<style>
+</style>

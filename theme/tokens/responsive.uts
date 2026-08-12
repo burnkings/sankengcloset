@@ -155,3 +155,50 @@ export function contentMaxWidthStyle(): any {
     width: '100%',
   }
 }
+
+// ====== V3 响应式常量（Design System V3 §3.3/§5）======
+
+/** V3 普通页面左右边距 */
+export const PAGE_GUTTER_V3 = '32rpx'
+/** V3 首页/圈子双列 Feed 左右边距 */
+export const FEED_GUTTER_V3 = '16rpx'
+/** V3 双列间距 */
+export const COLUMN_GAP_V3 = '12rpx'
+/** V3 卡片纵向间距 */
+export const CARD_VERTICAL_GAP_V3 = '28rpx'
+/** V3 Section 间距 */
+export const SECTION_GAP_V3 = '40rpx'
+/** V3 标题到内容间距 */
+export const TITLE_TO_CONTENT_GAP_V3 = '20rpx'
+/** V3 列表组内左右边距 */
+export const LIST_GROUP_HORIZONTAL_V3 = '28rpx'
+/** V3 表单字段间距 */
+export const FORM_FIELD_GAP_V3 = '28rpx'
+/** V3 输入框高度 */
+export const INPUT_HEIGHT_V3 = '88rpx'
+/** V3 多行输入最小高度 */
+export const MULTILINE_MIN_HEIGHT_V3 = '176rpx'
+/** V3 管理列表行最小高度 */
+export const MANAGEMENT_ROW_MIN_HEIGHT_V3 = '112rpx'
+/** V3 SummaryStrip 最大高度 */
+export const SUMMARY_STRIP_HEIGHT_V3 = '112rpx'
+/** V3 首页头部最大高度 */
+export const HOME_HEADER_MAX_HEIGHT_V3 = '252rpx'
+/** V3 双列卡宽：16 + 353 + 12 + 353 + 16 = 750 */
+export const PRODUCT_CARD_WIDTH_V3 = '353rpx'
+/** V3 商品卡图片 3:4 → 353×470 */
+export const PRODUCT_CARD_IMAGE_HEIGHT_V3 = '470rpx'
+/** V3 搜索框高度 */
+export const SEARCH_HEIGHT_V3 = '72rpx'
+/** V3 搜索框圆角 */
+export const SEARCH_RADIUS_V3 = '16rpx'
+/** V3 Feed 图片圆角 */
+export const FEED_IMAGE_RADIUS_V3 = '12rpx'
+/** V3 商品小卡圆角 */
+export const CARD_RADIUS_V3 = '12rpx'
+/** V3 列表组/表单组圆角 */
+export const LIST_GROUP_RADIUS_V3 = '20rpx'
+/** V3 主按钮/输入框圆角 */
+export const INPUT_RADIUS_V3 = '16rpx'
+/** V3 弹窗圆角 */
+export const DIALOG_RADIUS_V3 = '24rpx'

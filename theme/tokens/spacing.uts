@@ -65,3 +65,27 @@ export const semanticSpacing = {
   safeBottom: '34rpx',
   statusBarHeight: '44rpx',
 }
+
+// ====== V3 语义间距（Design System V3 §3.3）======
+
+export const v3Spacing = {
+  // 页面
+  pageGutter: '32rpx',          // 普通页面左右边距
+  feedGutter: '16rpx',          // 首页/圈子双列 Feed 左右边距
+  columnGap: '12rpx',           // 双列间距
+  cardVerticalGap: '28rpx',     // 卡片纵向间距
+  sectionGap: '40rpx',          // Section 间距
+  titleToContent: '20rpx',      // 标题到内容
+  listGroupHorizontal: '28rpx', // 列表组内左右边距
+  formFieldGap: '28rpx',        // 表单字段间距
+  pageBottomSafe: '132rpx',     // TabBar/安全区 + 32rpx 底部安全留白
+  // 控件
+  inputHeight: '88rpx',         // 输入框高度
+  multilineMinHeight: '176rpx', // 多行输入最小高度
+  managementRowMinHeight: '112rpx', // 管理列表行最小高度
+  summaryStripHeight: '112rpx', // SummaryStrip 最大高度
+  navTitleHeight: '96rpx',      // 二级页紧凑标题区
+  homeHeaderMaxHeight: '252rpx',// 首页头部最大高度
+  buttonMinHeight: '88rpx',     // 主按钮最小高度
+  touchTarget: '88rpx',         // 最小点击热区
+}

@@ -1,0 +1,39 @@
+<template>
+  <view :style="wrapStyle">
+    <view :style="iconWrap">
+      <AppIcon :name="icon" :size="64" />
+    </view>
+    <text :style="titleStyle">{{ title }}</text>
+    <text v-if="message !== ''" :style="messageStyle">{{ message }}</text>
+    <view v-if="actionText !== ''" :style="actionBtn" @tap="emit('action')">
+      <text :style="actionTextStyle">{{ actionText }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { brand } from '@/theme/tokens/colors'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { n } from '@/theme/use-theme'
+
+// V3 PageState — 空/错/离线状态（V3 §7）：线性图标 + 一句原因 + 一个有效动作；不白屏
+const props = withDefaults(defineProps<{
+  icon?: string
+  title?: string
+  message?: string
+  actionText?: string
+}>(), { icon: 'info', title: '', message: '', actionText: '' })
+
+const emit = defineEmits<{ action: [] }>()
+
+const wrapStyle = { alignItems: 'center', justifyContent: 'center', paddingTop: '96rpx', paddingBottom: '96rpx', paddingLeft: '48rpx', paddingRight: '48rpx' }
+const iconWrap = { width: '96rpx', height: '96rpx', alignItems: 'center', justifyContent: 'center', marginBottom: '24rpx' }
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: v3TextStyle.body.lineHeight, fontWeight: 500, color: n.value.text, textAlign: 'center' }))
+const messageStyle = computed((): any => ({ fontSize: v3TextStyle.meta.fontSize, lineHeight: v3TextStyle.meta.lineHeight, color: n.value.textTertiary, textAlign: 'center', marginTop: '12rpx' }))
+const actionBtn = { marginTop: '32rpx', height: '88rpx', paddingLeft: '48rpx', paddingRight: '48rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: brand.primary }
+const actionTextStyle = { fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: '#FFFFFF' }
+</script>
+
+<style>
+</style>

@@ -36,3 +36,18 @@ export const semanticRadius = {
   progress: radius.full,
   skeleton: radius.md,     // 12rpx
 }
+
+// ====== V3 语义圆角（Design System V3 §3.4）======
+
+export const v3Radius = {
+  feedImage: '12rpx',      // Feed 图片
+  cardSmall: '12rpx',      // 商品/内容小卡容器
+  listGroup: '20rpx',      // 列表组、表单组
+  formGroup: '20rpx',
+  largeImage: '16rpx',     // 大图、专题图
+  input: '16rpx',          // 输入框
+  button: '16rpx',         // 主按钮
+  dialog: '24rpx',         // 弹窗/Bottom Sheet
+  bottomSheet: '24rpx',
+  capsule: '9999rpx',      // 胶囊筛选
+}

@@ -1,0 +1,77 @@
+<template>
+  <view :style="cardStyle" @tap="emit('tap')">
+    <view :style="imageWrap">
+      <image v-if="image !== ''" :src="image" :style="imageStyle" mode="aspectFill" lazy-load />
+      <view v-else :style="imageFallbackStyle">
+        <AppIcon name="camera" :size="56" />
+      </view>
+      <view v-if="ended" :style="endedOverlay">
+        <text :style="endedTextStyle">已结束</text>
+      </view>
+      <view v-else-if="overlayText !== ''" :style="infoOverlay">
+        <text :style="overlayBrandStyle">{{ brand }}</text>
+        <text :style="overlayTimeStyle">{{ overlayText }}</text>
+      </view>
+    </view>
+    <view v-if="!showOverlayInfo" :style="infoStyle">
+      <text :style="brandStyle">{{ brand }}</text>
+      <text :style="titleStyle">{{ title }}</text>
+      <text :style="timeStyle">{{ timeText }}</text>
+    </view>
+    <view :style="actionRow">
+      <view :style="primaryBtn" @tap.stop="emit('remind')">
+        <text :style="primaryBtnText">{{ ended ? '已结束' : '提醒我' }}</text>
+      </view>
+      <view :style="secondaryBtn" @tap.stop="emit('view')">
+        <text :style="secondaryBtnText">查看商品</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { brand } from '@/theme/tokens/colors'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { n } from '@/theme/use-theme'
+
+// V3 ReleaseCard — 单列发售卡（V3 §5.3）：16:9 大图或紧凑横卡；主动作"提醒我"、次动作"查看商品"；过期"已结束"；Overlay 只覆盖底部 35%
+const props = withDefaults(defineProps<{
+  title?: string
+  brand?: string
+  image?: string
+  timeText?: string
+  overlayText?: string
+  ended?: boolean
+  showOverlayInfo?: boolean
+}>(), { title: '', brand: '', image: '', timeText: '', overlayText: '', ended: false, showOverlayInfo: true })
+
+const emit = defineEmits<{
+  tap: []
+  remind: []
+  view: []
+}>()
+
+const cardStyle = { width: '100%', marginBottom: '28rpx' }
+const imageWrap = { position: 'relative', width: '100%', height: '422rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }
+const imageStyle = { width: '100%', height: '422rpx' }
+const imageFallbackStyle = { width: '100%', height: '422rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
+// Overlay 只覆盖底部 35% 左右，不压暗整张图
+const infoOverlay = { position: 'absolute', left: '0', right: '0', bottom: '0', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '56rpx', paddingBottom: '24rpx', backgroundColor: 'rgba(0,0,0,0.35)' }
+const overlayBrandStyle = { fontSize: v3TextStyle.caption.fontSize, color: '#FFFFFF' }
+const overlayTimeStyle = { fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: '#FFFFFF', marginTop: '4rpx' }
+const endedOverlay = { position: 'absolute', left: '0', right: '0', bottom: '0', top: '0', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,17,18,0.45)' }
+const endedTextStyle = { fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: '#FFFFFF' }
+const infoStyle = { paddingTop: '12rpx' }
+const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary }))
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 600, color: n.value.text, marginTop: '4rpx' }))
+const timeStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '6rpx' }))
+const actionRow = { flexDirection: 'row' as string, marginTop: '16rpx' }
+const primaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: brand.primary, marginRight: '16rpx' }
+const primaryBtnText = { fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: '#FFFFFF' }
+const secondaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
+const secondaryBtnText = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text }))
+</script>
+
+<style>
+</style>

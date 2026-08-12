@@ -56,3 +56,47 @@ export const textStyle = {
   tag: { fontSize: fontSize.xs, fontWeight: fontWeight.medium, lineHeight: lineHeight.none },
   navTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, lineHeight: lineHeight.none },
 }
+
+// ====== V3 语义字体（Design System V3 §3.2）======
+
+/** V3 字号（rpx） */
+export const v3FontSize = {
+  display: '44rpx',
+  pageTitle: '40rpx',
+  navTitle: '34rpx',
+  sectionTitle: '32rpx',
+  cardTitle: '28rpx',
+  body: '28rpx',
+  meta: '24rpx',
+  caption: '22rpx',
+  price: '30rpx',
+  priceLarge: '44rpx',
+}
+
+/** V3 行高（rpx） */
+export const v3LineHeight = {
+  display: '56rpx',
+  pageTitle: '52rpx',
+  navTitle: '44rpx',
+  sectionTitle: '44rpx',
+  cardTitle: '40rpx',
+  body: '44rpx',
+  meta: '34rpx',
+  caption: '30rpx',
+  price: '38rpx',
+  priceLarge: '52rpx',
+}
+
+/** V3 语义样式组合 — fontSize + lineHeight + fontWeight */
+export const v3TextStyle = {
+  display:    { fontSize: v3FontSize.display,    lineHeight: v3LineHeight.display,    fontWeight: 700 },
+  pageTitle:  { fontSize: v3FontSize.pageTitle,  lineHeight: v3LineHeight.pageTitle,  fontWeight: 700 },
+  navTitle:   { fontSize: v3FontSize.navTitle,   lineHeight: v3LineHeight.navTitle,   fontWeight: 600 },
+  sectionTitle: { fontSize: v3FontSize.sectionTitle, lineHeight: v3LineHeight.sectionTitle, fontWeight: 600 },
+  cardTitle:  { fontSize: v3FontSize.cardTitle,  lineHeight: v3LineHeight.cardTitle,  fontWeight: 600 },
+  body:       { fontSize: v3FontSize.body,       lineHeight: v3LineHeight.body,       fontWeight: 400 },
+  meta:       { fontSize: v3FontSize.meta,       lineHeight: v3LineHeight.meta,       fontWeight: 400 },
+  caption:    { fontSize: v3FontSize.caption,    lineHeight: v3LineHeight.caption,    fontWeight: 400 },
+  price:      { fontSize: v3FontSize.price,      lineHeight: v3LineHeight.price,      fontWeight: 600 },
+  priceLarge: { fontSize: v3FontSize.priceLarge, lineHeight: v3LineHeight.priceLarge, fontWeight: 700 },
+}

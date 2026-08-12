@@ -1,0 +1,32 @@
+<template>
+  <view :style="skeletonStyle">
+    <view :style="cardStyle">
+      <view :style="imageBlock" />
+      <view :style="lineWide" />
+      <view :style="lineMedium" />
+      <view :style="lineShort" />
+    </view>
+    <view :style="cardStyle">
+      <view :style="imageBlock" />
+      <view :style="lineWide" />
+      <view :style="lineMedium" />
+      <view :style="lineShort" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { PRODUCT_CARD_WIDTH_V3, PRODUCT_CARD_IMAGE_HEIGHT_V3 } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+
+// V3 FeedSkeleton — 与真实布局同形的骨架（V3 §7 首次加载），不使用全屏转圈
+const skeletonStyle = { flexDirection: 'row' as string, justifyContent: 'space-between', paddingLeft: '16rpx', paddingRight: '16rpx' }
+const cardStyle = { width: PRODUCT_CARD_WIDTH_V3 }
+const imageBlock = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: PRODUCT_CARD_IMAGE_HEIGHT_V3, borderRadius: '12rpx', backgroundColor: n.value.bgTertiary }))
+const lineWide = computed((): any => ({ height: '24rpx', borderRadius: '8rpx', backgroundColor: n.value.bgTertiary, marginTop: '16rpx' }))
+const lineMedium = computed((): any => ({ height: '24rpx', borderRadius: '8rpx', backgroundColor: n.value.bgTertiary, marginTop: '10rpx', width: '70%' }))
+const lineShort = computed((): any => ({ height: '28rpx', borderRadius: '8rpx', backgroundColor: n.value.bgTertiary, marginTop: '12rpx', width: '40%' }))
+</script>
+
+<style>
+</style>
