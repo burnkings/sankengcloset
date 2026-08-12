@@ -1,7 +1,7 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout>
-      <template #navbar><V2PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
+      <template #navbar><PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view v-if="viewMode === 'mine'" :style="mineTitleWrap">
@@ -18,56 +18,41 @@
           <text :style="filterLabel">筛选</text>
           <view :style="filterSpacer" />
           <view :style="dropdownWrap">
-            <view :style="dropdownButton" @tap="openTopicPicker"><text :style="dropdownText">主题 · {{ activeTopic }}</text><text :style="dropdownArrow">▾</text></view>
+            <view :style="dropdownButton" @tap="openTopicPicker"><text :style="dropdownText">主题 · {{ activeTopic }}</text></view>
           </view>
           <view :style="dropdownWrapPit">
-            <view :style="dropdownButton" @tap="openPitPicker"><text :style="dropdownText">坑向 · {{ activePitType }}</text><text :style="dropdownArrow">▾</text></view>
+            <view :style="dropdownButton" @tap="openPitPicker"><text :style="dropdownText">坑向 · {{ activePitType }}</text></view>
           </view>
         </view>
         </view>
 
         <!-- 公开 Gallery：loading / empty / error 三态 -->
         <view v-if="viewMode !== 'mine' && library.publicLoading" :style="stateWrap">
-          <AppLoading />
+          <FeedSkeleton />
         </view>
         <view v-else-if="viewMode !== 'mine' && library.publicError !== ''" :style="stateWrap">
-          <text :style="stateText">灵感加载失败：{{ library.publicError }}</text>
-          <view :style="retryButton" @tap="reloadPublic"><text :style="retryText">重新加载</text></view>
+          <PageState icon="info" title="灵感加载失败" :message="library.publicError" action-text="重新加载" @action="reloadPublic" />
         </view>
         <view v-else-if="viewMode !== 'mine' && visibleLooks.length === 0" :style="stateWrap">
-          <text :style="stateTitle">还没有穿搭灵感</text>
-          <text :style="stateSub">发布你的第一套搭配，成为大家的灵感</text>
+          <PageState icon="camera" title="还没有穿搭灵感" message="发布你的第一套搭配，成为大家的灵感" action-text="去发布" @action="goCreate" />
         </view>
 
-        <!-- 公开 Gallery 帖子 -->
-        <view v-if="viewMode !== 'mine'">
-        <view v-for="look in visibleLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage" @tap="previewPostImage(look.imageUrl)"><AppImage :src="look.imageUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-            <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
+        <!-- 公开 Gallery 帖子：双列 NoteCard（V3 §6.4） -->
+        <view v-if="viewMode !== 'mine' && visibleLooks.length > 0" :style="lookGrid">
+          <view v-for="look in visibleLooks" :key="look.id" :style="lookShell">
+            <NoteCard :title="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :image="look.imageUrl" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" @tap="previewPostImage(look.imageUrl)" @toggle-like="togglePublicLike(look.id)" />
           </view>
-          <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">{{ look.initial }}</text></view><text :style="authorName">{{ look.authorNickname }}</text><text :style="timeText">{{ postTime(look.createdAt) }}</text></view>
-            <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
-            <view :style="lookMeta"><text :style="topicText">#{{ look.topic }}</text><view :style="likeAction" @tap="togglePublicLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ publicLikeCount(look) }}</text></view></view>
-          </view>
-        </view>
         </view>
 
         <!-- 我的发布 -->
         <view v-if="viewMode === 'mine'">
         <view v-if="visibleUserLooks.length === 0" :style="stateWrap">
-          <text :style="stateTitle">还没有发布过穿搭</text>
-          <text :style="stateSub">点击右上角「发布」，分享你的第一套搭配</text>
+          <PageState icon="camera" title="还没有发布过穿搭" message="点击右上角「发布」，分享你的第一套搭配" action-text="去发布" @action="goCreate" />
         </view>
-        <view v-for="look in visibleUserLooks" :key="look.id" :style="lookCard">
-          <view :style="heroImage" @tap="previewPostImage(look.image)"><AppImage :src="look.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-            <view :style="badge"><view :style="badgeDot" /><text :style="badgeText">{{ look.topic }}</text></view>
-          </view>
-          <view :style="lookBody">
-            <view :style="authorRow"><view :style="avatar"><text :style="avatarText">我</text></view><text :style="authorName">我的发布</text><text v-if="!look.isRemote" :style="draftTag">本地草稿</text><text :style="timeText">{{ postTime(look.createdAt) }}</text><text :style="deleteOwnText(look.id)" @tap="deleteOwnPost(look.id)">{{ pendingDeleteId == look.id ? '确认删除' : '删除' }}</text></view>
-            <text :style="lookCaption">{{ look.caption !== '' ? look.caption : '今天也认真搭配了' }}</text>
-            <view :style="lookMeta"><view :style="ownMeta"><text :style="topicText">#{{ look.topic }}</text><text :style="categoryText">{{ look.category }}</text></view><view :style="likeAction" @tap="toggleLike(look.id)"><AppIcon name="heart" :size="32" :active="library.isPostLiked(look.id)" /><text :style="likeText(look.id)">{{ ownLikeCount(look.id) }}</text></view></view>
-          </view>
+        <view v-if="visibleUserLooks.length > 0" :style="lookGrid">
+        <view v-for="look in visibleUserLooks" :key="look.id" :style="lookShell">
+          <NoteCard :title="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="'我的发布'" :image="look.image" :like-count="ownLikeCount(look.id)" :liked="library.isPostLiked(look.id)" @tap="previewPostImage(look.image)" @toggle-like="toggleLike(look.id)" />
+        </view>
         </view>
         </view>
 
@@ -81,20 +66,19 @@
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n, isDark, syncTabBarChrome, initPageTheme } from '@/theme/use-theme'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, FEED_GUTTER_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import AppLoading from '@/components/base/AppLoading.uvue'
-import V2PageHeader from '@/components/v2/V2PageHeader.uvue'
+import PageHeader from '@/components/v3/PageHeader.uvue'
+import NoteCard from '@/components/v3/NoteCard.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 import { useContentLibraryStore, SavedOutfitPost, PublicLookPost } from '@/stores/content-library-store'
 import { getWindowHeight } from '@/utils/window-info'
-import { showFeedback } from '@/utils/feedback'
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
-const pendingDeleteId = ref('')
 const viewMode = ref('') // '' | 'mine'
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
@@ -154,12 +138,6 @@ function publicLikeCount(look: PublicLookPost): number {
 // 我的发布点赞
 function toggleLike(id: string) { library.togglePostLike(id) }
 function ownLikeCount(id: string): number { return library.isPostLiked(id) ? 1 : 0 }
-function deleteOwnPost(id: string) {
-  if (pendingDeleteId.value !== id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
-  library.removeOutfit(id)
-  pendingDeleteId.value = ''
-  showFeedback('圈子动态已删除')
-}
 const nowTs = ref(Date.now())
 let clockTimer: number | null = null
 function postTime(createdAt: string): string {
@@ -218,11 +196,11 @@ onShow(() => {
 onHide(() => { stopClock() })
 onUnload(() => { stopClock() })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const mineTitleWrap = { marginBottom: '12rpx' }
 const mineTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const introText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '40rpx', marginBottom: '18rpx' }))
-const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '24rpx', backgroundColor: n.value.inputFill, marginBottom: '8rpx' }))
+const composerCard = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '128rpx', paddingLeft: '20rpx', paddingRight: '16rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill, marginBottom: '8rpx' }))
 const composerIcon = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: baseColors.white, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const composerCopy = { ...flexFill }
 const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -234,35 +212,12 @@ const filterLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value
 const filterSpacer = { ...flexFill }
 const dropdownWrap = { position: 'relative' as string, marginLeft: '12rpx' }
 const dropdownWrapPit = { position: 'relative' as string, marginLeft: '12rpx' }
-const dropdownButton = computed((): any => ({ ...flexRow, alignItems: 'center', height: '60rpx', paddingLeft: '18rpx', paddingRight: '14rpx', borderRadius: '30rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
+const dropdownButton = computed((): any => ({ ...flexRow, alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }))
 const dropdownText = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
-const dropdownArrow = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary, marginLeft: '8rpx' }))
-const lookCard = computed((): any => ({ marginTop: '22rpx', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder }))
-const heroImage = { width: '686rpx', height: '480rpx', position: 'relative' as string, backgroundColor: n.value.bgTertiary }
-const badge = { position: 'absolute' as string, left: '28rpx', top: '28rpx', height: '52rpx', paddingLeft: '16rpx', paddingRight: '20rpx', borderRadius: '26rpx', backgroundColor: baseColors.white, ...flexRow, alignItems: 'center' as string }
-const badgeDot = { width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: brand[500] as string, marginRight: '8rpx' }
-const badgeText = { fontSize: '22rpx', color: n.value.text }
-const lookBody = { padding: CARD_PADDING }
-const authorRow = { ...flexRow, alignItems: 'center' }
-const avatar = computed((): any => ({ width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.bgTertiary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
-const avatarText = { fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text }
-const authorName = computed((): any => ({ ...flexFill, fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
-const timeText = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary }))
-// 本地草稿标识：未同步到服务端的发布
-const draftTag = { height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', marginLeft: '12rpx', borderRadius: '18rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[700] }
-const lookCaption = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary, lineHeight: '40rpx', marginTop: '14rpx' }))
-const lookMeta = { ...flexRow, justifyContent: 'space-between', marginTop: '12rpx', alignItems: 'center' }
-const ownMeta = { ...flexRow, alignItems: 'center' }
-const topicText = { fontSize: '24rpx', color: brand[500] as string, marginTop: '10rpx' }
-const likeAction = { ...flexRow, alignItems: 'center', minWidth: '76rpx', height: '52rpx', justifyContent: 'flex-end' }
-function likeText(id: string) { return { fontSize: '24rpx', color: library.isPostLiked(id) ? brand[500] as string : n.value.textTertiary, marginLeft: '6rpx' } }
-const categoryText = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary, marginTop: '10rpx' }))
-function deleteOwnText(id: string) { return { fontSize: '20rpx', color: pendingDeleteId.value == id ? brand[700] as string : n.value.textTertiary, marginLeft: '16rpx' } }
-// 三态样式
-const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '120rpx', paddingBottom: '120rpx' }
-const stateTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textSecondary }))
-const stateSub = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginTop: '10rpx' }))
-const stateText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, textAlign: 'center' }))
-const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }
-const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
+
+// 帖子：双列 NoteCard（V3 §6.4 双列穿搭笔记，图片优先）
+const lookGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
+const lookShell = { width: PRODUCT_CARD_WIDTH_V3, marginRight: COLUMN_GAP_V3 }
+// 三态使用 V3 PageState / FeedSkeleton（无本地样式）
+const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '96rpx', paddingBottom: '96rpx' }
 </script>
