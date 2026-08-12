@@ -1,7 +1,7 @@
 <template>
   <MainLayout navbar-content-height="0rpx">
     <template #default>
-      <view v-if="loading" :style="emptyWrap"><text :style="emptyText">正在加载商品信息…</text></view>
+      <view v-if="loading" :style="emptyWrap"><FeedSkeleton /></view>
       <view v-else-if="item !== null">
         <view :style="heroWrap">
           <swiper :style="hero" :circular="detailImages.length > 1" :indicator-dots="false" @change="onGalleryChange">
@@ -10,7 +10,7 @@
             </swiper-item>
           </swiper>
           <view :style="heroBack" @tap="onBack">
-            <view :style="heroChevron" />
+            <AppIcon name="arrow-back" :size="40" />
           </view>
           <view v-if="detailImages.length > 1" :style="imageCounter"><text :style="imageCounterText">{{ currentImageIndex + 1 }} / {{ detailImages.length }}</text></view>
         </view>
@@ -31,12 +31,11 @@
               <text v-if="compatibility.matchedItems.length > 0" :style="compatibilityMatches">可优先试搭：{{ compatibilityNames }}</text>
             </view>
             <view :style="decisionRow">
-              <view :style="decisionBtn(false)" @tap="createReminder"><AppIcon name="reminder" :size="32" :active="true" /><text :style="decisionText">设置提醒</text></view>
-              <view :style="decisionBtn(true)" @tap="createPurchase"><image :src="orderWhiteIcon" :style="decisionIcon" mode="aspectFit" /><text :style="decisionTextLight">记入购买</text></view>
+              <view :style="recordBtn" @tap="createPurchase"><AppIcon name="order" :size="32" :active="true" /><text :style="recordText">记入购买</text></view>
             </view>
           </view>
 
-          <V2SectionHeader title="发售进度" />
+          <SectionHeader title="发售进度" />
           <view :style="stepCard">
             <view :style="stepLine" />
             <view :style="stepLineFill" />
@@ -48,14 +47,13 @@
             </view>
           </view>
 
-          <V2SectionHeader title="商品说明" />
+          <SectionHeader title="商品说明" />
           <view :style="detailCard"><text :style="detailText">{{ description !== '' ? description : (item!.subtitle !== '' ? item!.subtitle : '商品说明待品牌补充') }}</text></view>
           <view :style="actionSpacer" />
         </view>
       </view>
       <view v-else :style="emptyWrap">
-        <text :style="emptyText">{{ errorMessage !== '' ? errorMessage : '商品信息不存在' }}</text>
-        <view :style="retryButton" @tap="loadDetail"><text :style="retryText">重新加载</text></view>
+        <PageState icon="info" :title="errorMessage !== '' ? errorMessage : '商品信息不存在'" action-text="重新加载" @action="loadDetail" />
       </view>
     </template>
   </MainLayout>
@@ -64,13 +62,9 @@
       <view :style="botIcon"><AppIcon name="wardrobe" :size="40" :active="isSaved" /></view>
       <text :style="botLabel">{{ isSaved ? '已收藏' : '收藏' }}</text>
     </view>
-    <view :style="botItem" @tap="onAddToWishlist">
-      <view :style="botIcon"><AppIcon name="wardrobe" :size="40" :active="false" /></view>
-      <text :style="botLabel">心愿</text>
-    </view>
-    <view :style="botItem" @tap="askQiling">
-      <view :style="botIcon"><AppIcon name="sparkles" :size="40" :active="false" /></view>
-      <text :style="botLabel">看搭配</text>
+    <view :style="botItem" @tap="createReminder">
+      <view :style="botIcon"><AppIcon name="reminder" :size="40" :active="true" /></view>
+      <text :style="botLabel">设置提醒</text>
     </view>
     <view :style="goBtn" @tap="openOfficial"><text :style="goBtnText">前往官方渠道</text></view>
   </view>
@@ -79,28 +73,26 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
-import { WishItem } from '@/domain/wish-item'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { formatPrice } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSessionStore } from '@/stores/session-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { fontSize, fontWeight, v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
+import { CARD_PADDING, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
-import { useWishListStore } from '@/stores/wishlist-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { calculateWardrobeCompatibility } from '@/services/ai/wardrobe-compatibility-service'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import V2SectionHeader from '@/components/v2/V2SectionHeader.uvue'
-
-const orderWhiteIcon = '/static/icons/order-white.svg'
+import SectionHeader from '@/components/v3/SectionHeader.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 
 const itemId = ref('')
 const item = ref(null) as Ref<FeedItem | null>
@@ -148,28 +140,9 @@ function toggleSaved() {
   showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
 }
 
-function onAddToWishlist() {
-  if (item.value == null) return
-  const wishStore = useWishListStore()
-  const wish = new WishItem()
-  wish.name = item.value!.title
-  wish.brand = item.value!.brandName
-  wish.estimatedPrice = item.value!.price
-  wish.url = item.value!.coverUrl
-  wish.coverImage = item.value!.coverUrl
-  wish.source = 'DISCOVERY'
-  if (wishStore.addItem(wish) != null) showFeedback('已加入心愿单')
-  else showFeedback('加入失败')
-}
-
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录官方购买地址'); return }
   uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('官方地址已复制，可在浏览器打开') } })
-}
-
-function askQiling() {
-  if (wardrobe.items.length === 0) { showFeedback('先添加衣橱单品，才能计算搭配度'); return }
-  showFeedback(compatibility.value.explanation)
 }
 
 function dateOnly(value: string): string {
@@ -227,51 +200,36 @@ onMounted(() => {
 })
 
 const safeBottom = getSafeBottomInset()
-const pageWrap = { paddingTop: '0', paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR }
+const pageWrap = { paddingTop: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const heroWrap = computed((): any => ({ width: '750rpx', height: '720rpx', position: 'relative' as string, backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
 const hero = { width: '750rpx', height: '720rpx' }
-  const heroBack = { position: 'absolute' as string, left: '32rpx', top: '28rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: baseColors.black, alignItems: 'center', justifyContent: 'center', zIndex: (zIndex.navbar as number) + 1 }
-const heroChevron = { width: '26rpx', height: '26rpx', borderRightWidth: '4rpx', borderBottomWidth: '4rpx', borderStyle: 'solid', borderColor: baseColors.white, transform: 'rotate(135deg)' }
+const heroBack = { position: 'absolute' as string, left: '32rpx', top: '28rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: baseColors.black, alignItems: 'center', justifyContent: 'center', zIndex: (zIndex.navbar as number) + 1 }
 const imageCounter = { position: 'absolute' as string, right: '30rpx', bottom: '32rpx', minWidth: '84rpx', height: '48rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: baseColors.black }
 const imageCounterText = { fontSize: '22rpx', fontWeight: fontWeight.medium, color: baseColors.white }
-const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+// V3 §6.10 信息区 32rpx 边距；信息卡圆角 20rpx（列表组级）
+const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
-const priceText = { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: brand[500] }
+const priceText = { fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: brand.primary }
 const oldPrice = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }))
 const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
 const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
-const statusTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: baseColors.white, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }))
+const statusTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink }))
 const statusDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '8rpx' }
 const statusTagText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500] }
 const compatibilityCard = computed((): any => ({ padding: '18rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, marginTop: '18rpx' }))
 const compatibilityHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between' }
 const compatibilityTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const compatibilityScore = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
-const compatibilityTrack = { height: '8rpx', borderRadius: '4rpx', backgroundColor: '#E9C5CD', overflow: 'hidden', marginTop: '12rpx' }
+const compatibilityTrack = { height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[100], overflow: 'hidden', marginTop: '12rpx' }
 const compatibilityFill = computed((): any => ({ height: '8rpx', width: `${Math.max(0, compatibility.value.score)}%`, borderRadius: '4rpx', backgroundColor: brand[500] }))
 const compatibilityReason = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '32rpx', marginTop: '10rpx' }))
 const compatibilityMatches = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '32rpx', marginTop: '4rpx' }))
+// V3 §6.10 「记入购买」为次要入口（外跳确认/更多操作），不制造站内交易感
 const decisionRow = { ...flexRow, marginTop: '22rpx' }
-function decisionBtn(primary: boolean) {
-  return {
-    ...flexFill,
-    height: '88rpx',
-    borderRadius: '22rpx',
-    backgroundColor: primary ? brand[500] : baseColors.white,
-    borderWidth: primary ? '0' : '3rpx',
-    borderStyle: 'solid' as string,
-    borderColor: primary ? baseColors.white : brand[500],
-    ...flexRow,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: primary ? '0' : '28rpx',
-  }
-}
-const decisionIcon = { width: '32rpx', height: '32rpx', marginRight: '8rpx' }
-const decisionText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[500], marginLeft: '8rpx' }
-const decisionTextLight = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: baseColors.white, marginLeft: '8rpx' }
-const stepCard = computed((): any => ({ ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '24rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.cardBorder }))
-const stepLine = computed((): any => ({ position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.cardBorder }))
+const recordBtn = { ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center' }
+const recordText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '8rpx' }
+const stepCard = computed((): any => ({ ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const stepLine = computed((): any => ({ position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.border }))
 const stepLineFill = { position: 'absolute' as string, left: '110rpx', width: '257rpx', top: '71rpx', height: '2rpx', backgroundColor: brand[500] }
 const stepRow = { ...flexFill, ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between' }
 function stepItem(idx: number) { return { flex: 1, alignItems: 'center' } }
@@ -283,7 +241,7 @@ function stepDot(idx: number) {
     width: '24rpx',
     height: '24rpx',
     borderRadius: '12rpx',
-    backgroundColor: filled ? brand[500] : (idle ? n.value.cardBorder : baseColors.white),
+    backgroundColor: filled ? brand[500] : (idle ? n.value.border : baseColors.white),
     borderWidth: outline ? '4rpx' : '0',
     borderStyle: 'solid' as string,
     borderColor: outline ? brand[500] : baseColors.white,
@@ -293,19 +251,18 @@ function stepDot(idx: number) {
 function stepLabel(idx: number) {
   const active = idx < 2
   const next = idx === 2
-  return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: active ? n.value.text : (next ? '#5C5550' : n.value.textSecondary), marginTop: '12rpx' }
+  return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: active ? n.value.text : (next ? n.value.text : n.value.textSecondary), marginTop: '12rpx' }
 }
-const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface }))
+const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 const actionSpacer = { height: `${upx2px(180) + safeBottom}px`, flexShrink: 0 }
+// 加载/失败使用 V3 FeedSkeleton / PageState
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
-const emptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
-const retryButton = { marginTop: '24rpx', height: '68rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '34rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center' }
-const retryText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[700] }
-const botBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, height: '192rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '20rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'flex-start', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider }))
+// V3 §6.10 底部固定：收藏 / 设置提醒 / 前往官方渠道（避开安全区）
+const botBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, height: '160rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '16rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'flex-start', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.border }))
 const botItem = { width: '100rpx', alignItems: 'center' }
 const botIcon = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' }
-const botLabel = { fontSize: '20rpx', color: '#5C5550', marginTop: '8rpx' }
-const goBtn = { ...flexFill, height: '104rpx', borderRadius: '26rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }
+const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
+const goBtn = { ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }
 const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
