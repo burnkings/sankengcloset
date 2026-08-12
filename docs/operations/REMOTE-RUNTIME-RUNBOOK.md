@@ -26,7 +26,7 @@
 ## 验收顺序
 
 1. 在“我的 → 同步与连接”选择远程服务，填写服务器同网段地址或 HTTPS 隧道地址。
-2. “保存并检查连接”显示 `sankengcloset-api`。
+2. “保存并检查连接”显示 `sankengcloset_service`。
 3. 返回首页后 Feed 来自 Fastify Memory/PostgreSQL 驱动。
 4. 在账号页完成远程开发登录。
 5. 产生一条收藏/关注操作并同步；服务端 accepted 后本地队列清空。
