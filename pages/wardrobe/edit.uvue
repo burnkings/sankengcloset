@@ -12,7 +12,7 @@
 
         <view :style="cardGroup">
           <text :style="fieldLabel">单品名称</text><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
-          <text :style="fieldLabel">坑向</text><V2Segmented :items="categories" :active="activeCategory" variant="solid" :active-color="brand[500]" @change="onCategory" />
+          <text :style="fieldLabel">坑向</text><SegmentedControl :items="categories" :active="activeCategory" @change="onCategory" />
         </view>
 
         <view :style="cardGroup">
@@ -27,7 +27,7 @@
         </view>
 
         <view :style="cardGroup">
-        <text :style="fieldLabel">穿着状态</text><V2Segmented :items="wearLabels" :active="activeWearLabel" variant="solid" :active-color="brand[500]" @change="onWear" />
+        <text :style="fieldLabel">穿着状态</text><SegmentedControl :items="wearLabels" :active="activeWearLabel" @change="onWear" />
         </view>
 
         <view :style="cardGroup">
@@ -50,8 +50,8 @@ import { useWishListStore } from '@/stores/wishlist-store'
 import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, CARD_RADIUS, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_REGULAR } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -59,7 +59,7 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import V2Segmented from '@/components/v2/V2Segmented.uvue'
+import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = useWardrobeStore()
@@ -152,13 +152,14 @@ onMounted(() => {
   form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = item.coverImage
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_REGULAR, paddingRight: PAGE_GUTTER_REGULAR}
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const editSafeBottom = getSafeBottomInset()
-const bottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '40rpx', paddingRight: '40rpx', paddingBottom: `${editSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.divider }))
-const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '24rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
+const bottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '32rpx', paddingRight: '32rpx', paddingBottom: `${editSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.border }))
+// V3 §5.9 主按钮：88rpx 高、16rpx 圆角
+const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
-const photoCard = computed((): any => ({ width: '670rpx', height: '460rpx', borderRadius: CARD_RADIUS, overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
+const photoCard = computed((): any => ({ width: '686rpx', height: '460rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
 const photoEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 const photoText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '16rpx' }))
 const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
@@ -166,11 +167,13 @@ const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeig
 const twoColumnRow = { ...flexRow, marginTop: '30rpx' }
 const halfField = { width: '327rpx', marginRight: '16rpx' }
 const halfFieldLast = { ...flexFill }
-const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.bgTertiary }))
+// V3 §4.4 多行输入：16rpx 圆角、surface.subtle 底
+const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '150rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
-const cardGroup = { padding: CARD_PADDING, borderRadius: CARD_RADIUS, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.cardBorder, marginTop: '24rpx' }
-const moreBtn = computed((): any => ({ fontSize: fontSize.sm, color: '#FF4D4F', paddingRight: '8rpx' }))
+// V3 §3.4 列表组/表单组：20rpx 圆角
+const cardGroup = { padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginTop: '24rpx' }
+// V3 §6.13 危险操作：页面末尾、与保存分离、确认后执行
 const contentDeleteBtn = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: `${editSafeBottom + 108}px`, height: '44rpx', alignItems: 'center', justifyContent: 'center', zIndex: 99 }))
-const contentDeleteBtnText = { fontSize: fontSize.sm, color: '#C4666B' }
+const contentDeleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }
 </script>
