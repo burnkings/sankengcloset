@@ -54,7 +54,8 @@ const _upcomingItems = computed((): Reminder[] => {
 })
 
 const _overdueItems = computed((): Reminder[] => {
-  return _activeItems.value.filter((r) => r.status === 'MISSED')
+  const today = new Date().toISOString().split('T')[0]
+  return _activeItems.value.filter((r) => r.remindDate < today || r.status === 'MISSED')
 })
 
 const _missedItems = computed((): Reminder[] => {
@@ -70,7 +71,7 @@ const _filteredItems = computed((): Reminder[] => {
   if (_state.filterStatus) {
     if (_state.filterStatus === 'MISSED') {
       const today = new Date().toISOString().split('T')[0]
-      result = result.filter((r) => r.status === 'MISSED' || (r.status === 'PENDING' && r.remindDate < today))
+      result = result.filter((r) => r.status === 'MISSED' || r.remindDate < today)
     } else {
       result = result.filter((r) => r.status == _state.filterStatus)
     }

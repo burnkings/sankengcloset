@@ -1,59 +1,56 @@
 <template>
-  <DetailLayout title="外观">
+  <DetailLayout title="深色模式">
     <view :style="contentWrap">
-      <!-- V3 §6.25：跟随系统/浅色/深色三态单选，不用单一开关代替三态 -->
-      <SegmentedControl :items="modeItems" :active="activeMode" @change="onModeChange" />
-      <view :style="previewCard">
-        <text :style="previewTitle">预览</text>
-        <view :style="previewRow">
-          <view :style="previewSwatch(canvasColor)" />
-          <view :style="previewSwatch(surfaceColor)" />
-          <view :style="previewTextBlock">
-            <text :style="previewTextPrimary">示例文字</text>
-            <text :style="previewTextSecondary">品牌色 {{ brandColor }}</text>
+      <ListGroup>
+        <view :style="rowShell">
+          <view :style="rowLabelWrap">
+            <text :style="rowLabel">跟随系统</text>
+            <text :style="rowSubtitle">开启后根据系统设置同步切换深/浅模式</text>
           </view>
+          <AppSwitch :model-value="isSystemMode" @update:modelValue="onSystemToggle" />
         </view>
-      </view>
-      <text :style="hintText">切换后立即生效，并保存在本机</text>
+      </ListGroup>
+      <view :style="rowGap" />
+      <ListGroup>
+        <view :style="rowShell">
+          <view :style="rowLabelWrap">
+            <text :style="rowLabel">深色模式</text>
+            <text :style="rowSubtitle">手动开启深色外观</text>
+          </view>
+          <AppSwitch :model-value="isDarkMode" @update:modelValue="onDarkToggle" />
+        </view>
+      </ListGroup>
     </view>
   </DetailLayout>
 </template>
 
 <script setup lang="uts">
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
-import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
-import { v3Light, v3Dark } from '@/theme/tokens/colors'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import AppSwitch from '@/components/v3/AppSwitch.uvue'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
-import { n, themeMode, setThemeMode } from '@/theme/use-theme'
+import { PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
+import { n, themeMode, setThemeMode, initPageTheme } from '@/theme/use-theme'
+
+const isSystemMode = computed((): boolean => themeMode.value == 'system')
+const isDarkMode = computed((): boolean => themeMode.value == 'dark')
+
+function onSystemToggle(on: boolean) {
+  if (on) setThemeMode('system')
+  else setThemeMode('light')
+}
+function onDarkToggle(on: boolean) {
+  if (on) setThemeMode('dark')
+  else setThemeMode('light')
+}
+
+onLoad(() => { initPageTheme() })
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
-const modeItems = ['跟随系统', '浅色', '深色']
-const activeMode = computed((): string => {
-  if (themeMode.value === 'dark') return '深色'
-  if (themeMode.value === 'light') return '浅色'
-  return '跟随系统'
-})
-function onModeChange(label: string) {
-  if (label === '深色') setThemeMode('dark')
-  else if (label === '浅色') setThemeMode('light')
-  else setThemeMode('system')
-}
-
-const isDarkNow = computed((): boolean => n.value.bg === v3Dark.canvas)
-const canvasColor = computed((): string => isDarkNow.value ? v3Dark.canvas : v3Light.canvas)
-const surfaceColor = computed((): string => isDarkNow.value ? v3Dark.surface : v3Light.surface)
-const brandColor = computed((): string => isDarkNow.value ? v3Dark.brandPrimary : v3Light.brandPrimary)
-
-const previewCard = { marginTop: '32rpx', padding: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }
-const previewTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '16rpx' }))
-const previewRow = { ...flexRow, alignItems: 'center' }
-function previewSwatch(color: string): any {
-  return { width: '48rpx', height: '48rpx', borderRadius: '12rpx', backgroundColor: color, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginRight: '12rpx' }
-}
-const previewTextBlock = { flex: 1 }
-const previewTextPrimary = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
-const previewTextSecondary = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx' }))
-const hintText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '20rpx' }))
+const rowGap = { height: '12rpx' }
+const rowShell = { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3 }
+const rowLabelWrap = { flex: 1 }
+const rowLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const rowSubtitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 </script>

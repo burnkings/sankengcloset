@@ -116,7 +116,7 @@
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { Reminder, ReminderUpdateData, TYPE_COLORS } from '@/domain/reminder'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'

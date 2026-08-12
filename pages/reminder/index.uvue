@@ -164,8 +164,8 @@ const bottomSpacer = { height: '200rpx' }
 // V3 §6.22 顶部紧凑摘要：待办/今日/过期
 const summaryItems = computed(() => [
   { label: '待办', value: `${store.todayCount + store.upcomingCount + store.missedCount} 条` },
-  { label: '今日到期', value: `${store.todayCount} 条`, highlight: store.todayCount > 0 },
-  { label: '已过期', value: `${store.missedCount} 条` },
+  { label: '今日到期', value: `${store.todayCount} 条` },
+  { label: '已过期', value: `${store.overdueCount} 条` },
 ])
 
 const groupHeader = { paddingTop: '24rpx', paddingBottom: '12rpx' }

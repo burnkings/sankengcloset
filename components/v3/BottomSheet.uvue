@@ -9,7 +9,7 @@
           <AppIcon name="close" :size="36" />
         </view>
       </view>
-      <scroll-view :style="bodyScrollStyle" scroll-y>
+      <scroll-view :style="bodyScrollStyle" direction="vertical">
         <view :style="bodyStyle">
           <slot />
         </view>

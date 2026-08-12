@@ -26,13 +26,14 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view v-if="keyword === ''">
-          <SectionHeader title="最近搜索" action-text="清空" @action="clearRecent" />
-          <view v-if="recent.length > 0" :style="recentWrap">
-            <view v-for="(kw, idx) in recent" :key="kw" :style="recentChip(idx)" @tap="selectKeyword(kw)">
-              <text :style="recentChipText">{{ kw }}</text>
+          <template v-if="recent.length > 0">
+            <SectionHeader title="最近搜索" action-text="清空" @action="clearRecent" />
+            <view :style="recentWrap">
+              <view v-for="(kw, idx) in recent" :key="kw" :style="recentChip(idx)" @tap="selectKeyword(kw)">
+                <text :style="recentChipText">{{ kw }}</text>
+              </view>
             </view>
-          </view>
-          <text v-else :style="recentEmptyText">暂无最近搜索</text>
+          </template>
 
           <SectionHeader title="编辑推荐" />
           <view :style="hotList">
