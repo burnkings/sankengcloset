@@ -1,4 +1,5 @@
 # Product V2 Engineering Baseline Report
+> ⚠️ **历史报告，不具备当前视觉规范权** — 当前唯一视觉规范：[docs/design/DESIGN-SYSTEM-V3.md](docs/design/DESIGN-SYSTEM-V3.md)（2026-08-12 生效）
 
 > 日期: 2026-07-14
 > 项目: 三坑绮橱 AppX (`/home/admin/projects/sankengcloset`)

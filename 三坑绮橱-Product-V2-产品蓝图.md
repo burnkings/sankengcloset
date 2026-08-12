@@ -1,4 +1,5 @@
 # 《三坑绮橱 Product V2 产品蓝图》
+> ⚠️ **历史报告，不具备当前视觉规范权** — 当前唯一视觉规范：[docs/design/DESIGN-SYSTEM-V3.md](docs/design/DESIGN-SYSTEM-V3.md)（2026-08-12 生效）
 
 > 文档类型：产品战略 + 信息架构 + 用户体验 + 增长路线图  
 > 产品代际：Product V2  

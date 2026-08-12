@@ -1,4 +1,5 @@
 # Product V2 Phase 1C Report
+> ⚠️ **历史报告，不具备当前视觉规范权** — 当前唯一视觉规范：[docs/design/DESIGN-SYSTEM-V3.md](docs/design/DESIGN-SYSTEM-V3.md)（2026-08-12 生效）
 
 > 三坑绮橱 · 首页视觉验收、状态完善与端侧硬化
 

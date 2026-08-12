@@ -1,4 +1,5 @@
 # Pinia Runtime Fix Report
+> ⚠️ **历史报告，不具备当前视觉规范权** — 当前唯一视觉规范：[docs/design/DESIGN-SYSTEM-V3.md](docs/design/DESIGN-SYSTEM-V3.md)（2026-08-12 生效）
 
 > fix(mp-weixin): bind Pinia defineStore for all store modules
 
