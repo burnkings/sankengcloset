@@ -17,7 +17,7 @@
       <AppCard border-type="border">
         <view :style="nameRowStyle">
           <text :style="nameTextStyle">{{ item!.name }}</text>
-          <V2StatusChip :label="item!.statusText" :status="statusClass(item!.statusText)" size="sm" />
+          <StatusChip :label="item!.statusText" :status="statusClass(item!.statusText)" size="sm" />
         </view>
         <text v-if="item!.brand !== '' || item!.shopName !== ''" :style="shopTextStyle">
           {{ item!.brand !== '' && item!.shopName !== '' ? item!.brand + ' · ' + item!.shopName : (item!.brand !== '' ? item!.brand : item!.shopName) }}
@@ -129,7 +129,7 @@ import { n } from '@/theme/use-theme'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
-import V2StatusChip from '@/components/v2/V2StatusChip.uvue'
+import StatusChip from '@/components/v3/StatusChip.uvue'
 
 
 const store = usePurchaseStore()
@@ -212,7 +212,6 @@ const notFoundText = computed((): any => ({
   color: n.value.textTertiary }))
 
 const contentStyle = {
-  gap: spacing[2],
   padding: `${spacing[3] as string} ${spacing[4] as string}` }
 
 const nameRowStyle = {
@@ -230,7 +229,7 @@ const statusTagStyle = computed((): any => ({
   paddingHorizontal: spacing[3],
   paddingVertical: spacing[1],
   borderRadius: radius.full,
-  backgroundColor: item.value ? item.value.statusColor + '15' : '',
+  backgroundColor: n.value.surfacePink,
   flexShrink: 0 }))
 
 const statusTagText = computed((): any => ({
@@ -250,12 +249,12 @@ const sectionTitleStyle = computed((): any => ({
 
 const amountGridStyle = {
   ...flexRow,
-  flexWrap: 'wrap' as string,
-  gap: spacing[3] }
+  flexWrap: 'wrap' as string }
 
 const amountItemStyle = {
   width: '45%',
-  gap: spacing[1] }
+  marginRight: spacing[2],
+  marginBottom: spacing[2] }
 
 const amountLabelStyle = computed((): any => ({
   fontSize: fontSize.xs,
@@ -282,8 +281,7 @@ const amountValueRemainingStyle = computed((): any => ({
   color: item.value && item.value.remainingText !== '已结清' ? semantic.error : semantic.success }))
 
 const progressSectionStyle = {
-  marginTop: spacing[3],
-  gap: spacing[1] }
+  marginTop: spacing[3] }
 
 const progressTrackStyle = computed((): any => ({
   height: '10rpx',
@@ -303,7 +301,7 @@ const progressLabelStyle = computed((): any => ({
   textAlign: 'right' as string }))
 
  const infoListStyle = {
-   gap: spacing[2] }
+   marginTop: spacing[1] }
 
 const infoRowStyle = {
   ...flexRowBetween,
