@@ -26,6 +26,11 @@ if (-not (Get-Process HBuilderX -ErrorAction SilentlyContinue)) {
   Start-Sleep -Seconds 10
 }
 
+# V3：编译前清空旧产物，禁止用旧 unpackage 制造假绿
+if (Test-Path -LiteralPath $distRoot) {
+  Remove-Item -Recurse -Force $distRoot
+}
+
 & $cli launch mp-weixin --project $projectRoot --compile true --continue-on-error false
 if ($LASTEXITCODE -ne 0) {
   throw "HBuilderX compilation failed with exit code $LASTEXITCODE."
@@ -43,18 +48,11 @@ if (Test-Path -LiteralPath $outputProjectConfig) {
   )
 }
 
+# V3：patch-vendor.py 已改为产物结构校验（不再注入 Pinia/defineStore 补丁）。
+# 校验失败（含 v2 残留 / defineStore 残留 / createSSRApp 缺失）即整体失败。
 python $patchScript $distRoot
 if ($LASTEXITCODE -ne 0) {
-  throw "Pinia compatibility patch failed with exit code $LASTEXITCODE."
-}
-
-$homeStore = Join-Path $distRoot 'stores\home-feed-store.js'
-$vendor = Join-Path $distRoot 'common\vendor.js'
-if (-not (Select-String -LiteralPath $homeStore -Pattern 'patch-vendor: defineStore bound' -Quiet)) {
-  throw 'Compiled home store is missing the defineStore binding.'
-}
-if (-not (Select-String -LiteralPath $vendor -Pattern 'exports.defineStore = defineStore' -Quiet)) {
-  throw 'Compiled vendor.js is missing the defineStore export.'
+  throw "mp-weixin 产物结构校验失败（patch-vendor.py）——请先解决产物问题，勿跳过后编译门禁。"
 }
 
 node $checkScript $distRoot
@@ -62,4 +60,4 @@ if ($LASTEXITCODE -ne 0) {
   throw "Compiled output verification failed with exit code $LASTEXITCODE."
 }
 
-Write-Host "[OK] mp-weixin compiled and patched: $distRoot"
+Write-Host "[OK] mp-weixin compiled and verified: $distRoot"
