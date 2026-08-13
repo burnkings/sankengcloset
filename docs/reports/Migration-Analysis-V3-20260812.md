@@ -60,7 +60,7 @@
 ### V3 全量审计修复（本分支 `agent/v3-audit-fixes-20260813`）的修正
 
 1. **P0 构建门禁**：删除已失效的 Pinia Store 注入与断言（patch-vendor.py 改为产物结构校验，不再注入 createSSRApp/createPinia/defineStore；build-mp-weixin.ps1 不再断言 defineStore binding/export）；check-uts-compile.js 改为检查当前 V3 的 29 页面 + 21 个 v3 组件产物，禁止 components/v2 残留；编译前强制清空旧 unpackage 产物。
-2. **首页混合 Feed**：App 端由固定两列 waterflow 改为 list-view + FeedRow（与微信端同构）——商品/穿搭双列行、发售事件/编辑专题单列全宽、服务端混合顺序原位保留；删除零引用的 waterfall getters。
+2. **首页混合 Feed**：App 端由固定两列 waterflow 改为 list-view + FeedRow（与微信端同构）——商品/穿搭双列行、发售事件/编辑专题单列全宽、服务端混合顺序原位保留；删除零引用的 waterfall getters。审计进一步修正配对逻辑：仅相邻商品/穿搭配对为双列行（不跨行拉取运营内容），严格保持服务端原始顺序；删除零引用 singleRows getter（YAGNI）。
 3. **深色模式**：48 处 const 对象字面量直接写 `n.value.xxx` 主题色全部改为 computed（ProductCard/ReleaseCard/EditorialCard/NoteCard/FormSection/愿望单/衣橱/订单/提醒/预算/BottomSheet 等），切换主题无需退出页面。
 4. **外观页**：恢复 V3 §6.25「跟随系统/浅色/深色」SegmentedControl 三态单选 + 可见预览（撤销 0338928 的双开关回退），代码与规范一致。
 5. **补充门禁**：新增 scripts/check-source-gates.js（components/v2 引用禁令、主题 n.value 非响应式常量检查、pages.json 路由与 TabBar 图标存在性），接入 check.js 与 CI（.github/workflows/v3-source-gates.yml，pages/components/theme/scripts 变更必跑 v24+v25+source gates）。
@@ -126,11 +126,12 @@
 - `python3 scripts/patch-vendor.py <dist>` — PASS（V3 产物结构校验，无需补丁）
 - `node scripts/check-uts-compile.js <dist>` — PASS（29 页面 + v3 组件 + require 路径全部可解析）
 - `node scripts/check.js` — PASS（runtime + android + source gates + compiled require 四段全过）
+- `/opt/hbuilderx/HBuilderX/cli launch app-android --compile true` — PASS（29 页面 UTS 编译成功，产物 unpackage/dist/dev/app-android，无 UTS 错误）
 
 ## 六、未验证事项（如实，静态门禁不能冒充编译/真机）
 
 1. 微信小程序真机预览与交互（开发者工具未安装，需用户本地微信开发者工具打开产物目录验证）
-2. Android release 编译与真机启动：需 launch app-android（服务器无 Android SDK/模拟器）
+2. Android release 编译与真机启动：`launch app-android --compile true` 已通过（编译无错），但 release APK 打包（需云打包登录或离线 SDK）与真机启动仍待用户本地/云打包环境验证
 3. 首页 推荐/新品/预约/降价/穿搭 频道真机切换与信息层级：需真机
 4. 320/360/375/390/414/430px 等效宽度浅/深色截图：需真机/模拟器
 5. 首页 30/100 条内容滚动与加载更多：需真机
