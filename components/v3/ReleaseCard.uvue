@@ -53,9 +53,9 @@ const emit = defineEmits<{
 }>()
 
 const cardStyle = { width: '100%', marginBottom: '28rpx' }
-const imageWrap = { position: 'relative', width: '100%', height: '422rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }
+const imageWrap = computed((): any => ({ position: 'relative', width: '100%', height: '422rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
 const imageStyle = { width: '100%', height: '422rpx' }
-const imageFallbackStyle = { width: '100%', height: '422rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
+const imageFallbackStyle = computed((): any => ({ width: '100%', height: '422rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 // Overlay 只覆盖底部 35% 左右，不压暗整张图
 const infoOverlay = { position: 'absolute', left: '0', right: '0', bottom: '0', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '56rpx', paddingBottom: '24rpx', backgroundColor: 'rgba(0,0,0,0.35)' }
 const overlayBrandStyle = { fontSize: v3TextStyle.caption.fontSize, color: '#FFFFFF' }
@@ -69,7 +69,7 @@ const timeStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize,
 const actionRow = { flexDirection: 'row' as string, marginTop: '16rpx' }
 const primaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: brand.primary, marginRight: '16rpx' }
 const primaryBtnText = { fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: '#FFFFFF' }
-const secondaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
+const secondaryBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const secondaryBtnText = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text }))
 </script>
 

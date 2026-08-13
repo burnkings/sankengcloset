@@ -93,8 +93,8 @@ onUnload(() => { stopClock() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 // V3 §6.5 紧凑列表行：缩略图 + 标题/草稿标识/时间 + 删除；分割线分组
-const postRow = { ...flexRow, alignItems: 'center', minHeight: '150rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }
-const thumbWrap = { width: '96rpx', height: '96rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary, marginRight: '20rpx', flexShrink: 0 }
+const postRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '150rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }))
+const thumbWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary, marginRight: '20rpx', flexShrink: 0 }))
 const bodyStyle = { ...flexFill }
 const postHeader = { ...flexRow, alignItems: 'center', marginBottom: '8rpx' }
 const postTimeStyle = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary }))

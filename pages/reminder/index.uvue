@@ -194,7 +194,7 @@ function itemCard(item: ReminderDisplayModel): any {
 const cardCenter = { flex: 1, justifyContent: 'center' }
 const cardTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis', marginBottom: '6rpx' }))
 const cardMeta = { flexDirection: 'row', alignItems: 'center' }
-const cardTime = { fontSize: '22rpx', color: n.value.textSecondary }
+const cardTime = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
 
 function cardStatus(item: ReminderDisplayModel): any {
   if (item.statusText === '已完成') return { fontSize: '22rpx', color: semantic.success as string }
@@ -246,7 +246,7 @@ const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '
 const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
 const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
-const deleteDisabledText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }
+const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
 const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
 const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
 const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx', marginRight: '12rpx' }))

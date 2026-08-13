@@ -87,7 +87,7 @@ const progressCard = computed((): any => ({ padding: '28rpx', borderRadius: '20r
 const progressHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '16rpx' }
 const progressMonth = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const progressUsage = computed((): any => ({ fontSize: '24rpx', fontWeight: 600, color: usagePercent.value >= alertValue.value ? brand.strong : n.value.textSecondary }))
-const progressTrack = { height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.bgTertiary, overflow: 'hidden', marginBottom: '20rpx' }
+const progressTrack = computed((): any => ({ height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.bgTertiary, overflow: 'hidden', marginBottom: '20rpx' }))
 const progressFill = computed((): any => ({ height: '12rpx', width: `${Math.min(100, usagePercent.value)}%`, borderRadius: '6rpx', backgroundColor: usagePercent.value >= alertValue.value ? brand.strong : brand.primary }))
 const summaryItems = computed(() => [
   { label: '已支付', value: `¥${formatAmount(monthPaid.value)}` },

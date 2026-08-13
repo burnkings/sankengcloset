@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<{
 const sectionStyle = { marginBottom: v3Spacing.formFieldGap }
 const headerStyle = { flexDirection: 'row' as string, alignItems: 'center', marginBottom: '12rpx' }
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text }))
-const requiredStyle = { fontSize: v3TextStyle.body.fontSize, color: n.value.iconActive, marginLeft: '6rpx' }
+const requiredStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, color: n.value.iconActive, marginLeft: '6rpx' }))
 const bodyStyle = { padding: '0' }
 </script>
 

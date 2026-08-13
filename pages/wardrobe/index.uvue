@@ -122,8 +122,8 @@ const summaryItems = computed(() => [
 ])
 
 const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '16rpx', marginBottom: '16rpx' }
-const sortBtn = { ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }
-const sortBtnText = { fontSize: fontSize.xs, color: n.value.textSecondary }
+const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))
+const sortBtnText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const quickFilters = { ...flexRow, flexDirection: 'row' }
 // V3 §5.7 选中品牌浅底+深字
 function quickChip(active: boolean): any {
@@ -137,16 +137,16 @@ const bottomSpacer = { height: '80rpx' }
 // V3 §6.12 双列图库：图片比例与公共商品卡统一（353×470）
 const grid = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '16rpx', paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
 function card(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border, marginRight: idx % 2 == 0 ? COLUMN_GAP_V3 : '0', marginBottom: '28rpx' } }
-const imageWrap = { width: PRODUCT_CARD_WIDTH_V3, height: '470rpx', position: 'relative', backgroundColor: n.value.bgSecondary }
+const imageWrap = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: '470rpx', position: 'relative', backgroundColor: n.value.bgSecondary }))
 // 类别小标签：低饱和色底（V3 §3.1），不用 hex+alpha 拼接
 function catBadge(): any {
   return { position: 'absolute', top: '12rpx', left: '12rpx', paddingLeft: '12rpx', paddingRight: '12rpx', height: '36rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }
 }
 const catBadgeText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, color: brand.primary }))
-const favBadge = { position: 'absolute', top: '12rpx', right: '12rpx', width: '40rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }
+const favBadge = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '40rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
 const cardBody = { padding: '12rpx 16rpx' }
-const cardName = { fontSize: '28rpx', fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }
+const cardName = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const cardBottomRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', marginTop: '6rpx' }
-const cardBrand = { fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }
+const cardBrand = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }))
 const cardPrice = { fontSize: '24rpx', fontWeight: fontWeight.medium, color: brand[500] as string, marginLeft: '6rpx', flexShrink: 0 }
 </script>

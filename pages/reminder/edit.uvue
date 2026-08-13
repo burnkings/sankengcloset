@@ -390,7 +390,7 @@ const bottomSpacer = { height: '20rpx' }
 
 const typeRow = { flexDirection: 'row', marginBottom: '12rpx' }
 
-const timeFieldRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }
+const timeFieldRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }))
 const timeValue = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '8rpx' }))
 const timePickWrap = { flexDirection: 'row', alignItems: 'center' }
 const pickerOverlay = computed((): any => ({
@@ -416,8 +416,8 @@ const pickerItemText = computed((): any => ({ fontSize: fontSize.base, color: n.
 const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
 const timeSwitchRow = { flexDirection: 'row', alignItems: 'center', marginRight: '16rpx' }
-const timeSwitchLabel = { fontSize: fontSize.sm, color: n.value.text, marginRight: '10rpx' }
-const timeDisabledText = { fontSize: fontSize.sm, color: n.value.textDisabled }
+const timeSwitchLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '10rpx' }))
+const timeDisabledText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textDisabled }))
 
 const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: fontSize.base, color: n.value.text, lineHeight: '40rpx' }))
@@ -488,7 +488,7 @@ const deleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角；saving 锁防重复
 const saveBtnWrap = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '12rpx' }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
-const savingBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }
+const savingBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }))
 const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
 const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
 const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))

@@ -226,8 +226,8 @@ const compatibilityReason = computed((): any => ({ fontSize: fontSize.xs, color:
 const compatibilityMatches = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '32rpx', marginTop: '4rpx' }))
 // V3 §6.10 「记入购买」为次要入口（外跳确认/更多操作），不制造站内交易感
 const decisionRow = { ...flexRow, marginTop: '22rpx' }
-const recordBtn = { ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center' }
-const recordText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '8rpx' }
+const recordBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
+const recordText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '8rpx' }))
 const stepCard = computed((): any => ({ ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const stepLine = computed((): any => ({ position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.border }))
 const stepLineFill = { position: 'absolute' as string, left: '110rpx', width: '257rpx', top: '71rpx', height: '2rpx', backgroundColor: brand[500] }

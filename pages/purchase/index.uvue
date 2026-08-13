@@ -201,7 +201,7 @@ function cardRemaining(item: PurchaseDisplayModel): any {
   const isPending = item.remainingText !== '已结清' && item.statusText !== '已取消'
   return { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: isPending ? semantic.error as string : semantic.success as string }
 }
-const cardTotal = { fontSize: '24rpx', color: n.value.textTertiary }
+const cardTotal = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary }))
 const cardProgress = computed((): any => ({ height: '6rpx', borderRadius: '3rpx', backgroundColor: n.value.border, overflow: 'hidden', marginTop: '12rpx' }))
 function cardProgressFill(percent: number, color: string): any {
   return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color }
@@ -218,7 +218,7 @@ const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '
 const deleteBtn = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
 const deleteBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
-const deleteDisabledText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }
+const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
 const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
 const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
 const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))

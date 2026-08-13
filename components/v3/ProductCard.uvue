@@ -50,10 +50,10 @@ const emit = defineEmits<{
 }>()
 
 const cardStyle = { width: '100%', marginBottom: '28rpx' }
-const imageWrap = { position: 'relative', width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }
+const imageWrap = computed((): any => ({ position: 'relative', width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
 const imageStyle = { width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3 }
-const imageFallbackStyle = { width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
-const fallbackTextStyle = { fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }
+const imageFallbackStyle = computed((): any => ({ width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
+const fallbackTextStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }))
 const saveButtonStyle = { position: 'absolute', top: '8rpx', right: '8rpx', width: '72rpx', height: '72rpx', borderRadius: '36rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.55)' }
 const infoStyle = { paddingTop: '12rpx' }
 const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textSecondary }))

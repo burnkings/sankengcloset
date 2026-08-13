@@ -172,7 +172,7 @@ const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADD
 const noteInput = computed((): any => ({ width: '100%', minHeight: '150rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 // V3 §3.4 列表组/表单组：20rpx 圆角
-const cardGroup = { padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginTop: '24rpx' }
+const cardGroup = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginTop: '24rpx' }))
 // V3 §6.13 危险操作：页面末尾、与保存分离、确认后执行
 const contentDeleteBtn = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: `${editSafeBottom + 108}px`, height: '44rpx', alignItems: 'center', justifyContent: 'center', zIndex: 99 }))
 const contentDeleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }

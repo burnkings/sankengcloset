@@ -333,10 +333,10 @@ const overdueTextStyle = {
   fontWeight: fontWeight.medium }
 
 const actionSection = { paddingTop: '16rpx', paddingBottom: '8rpx' }
-const actionBtn = { height: '80rpx', borderRadius: '40rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginBottom: '12rpx' }
+const actionBtn = computed((): any => ({ height: '80rpx', borderRadius: '40rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginBottom: '12rpx' }))
 const actionBtnText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] as string }
-const actionBtnSecondary = { height: '80rpx', borderRadius: '40rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }
-const actionBtnSecondaryText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.textSecondary }
+const actionBtnSecondary = computed((): any => ({ height: '80rpx', borderRadius: '40rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const actionBtnSecondaryText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.textSecondary }))
 
 const noteTextStyle = computed((): any => ({
   fontSize: fontSize.sm,

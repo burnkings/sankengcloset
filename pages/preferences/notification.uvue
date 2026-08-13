@@ -62,7 +62,7 @@ onLoad(() => { initPageTheme() })
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const rowGap = { height: '12rpx' }
-const rowShell = { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface }
+const rowShell = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface }))
 const rowLabelWrap = { flex: 1 }
 const rowLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const rowSubtitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))

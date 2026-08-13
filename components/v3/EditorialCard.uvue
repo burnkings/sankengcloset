@@ -29,9 +29,9 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ tap: [] }>()
 
 const cardStyle = { width: '100%', marginBottom: '28rpx' }
-const imageWrap = { width: '100%', height: '422rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }
+const imageWrap = computed((): any => ({ width: '100%', height: '422rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
 const imageStyle = { width: '100%', height: '422rpx' }
-const imageFallbackStyle = { width: '100%', height: '422rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
+const imageFallbackStyle = computed((): any => ({ width: '100%', height: '422rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const infoStyle = { paddingTop: '16rpx', paddingBottom: '8rpx' }
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 600, color: n.value.text }))
 const metaStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }))

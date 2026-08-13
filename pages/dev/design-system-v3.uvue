@@ -155,7 +155,7 @@ const inputText = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, co
 const actionRow = { flexDirection: 'row' as string, marginTop: '16rpx' }
 const primaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: brand.primary, marginRight: '16rpx' }
 const primaryBtnText = { fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: '#FFFFFF' }
-const secondaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }
+const secondaryBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const secondaryBtnText = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text }))
 const bottomSpacer = { height: '64rpx' }
 

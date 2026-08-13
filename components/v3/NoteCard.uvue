@@ -44,7 +44,7 @@ const emit = defineEmits<{
 
 const cardStyle = { width: PRODUCT_CARD_WIDTH_V3, marginBottom: '28rpx' }
 const imageHeight = computed((): string => props.imageRatio === '4:5' ? '441rpx' : '470rpx')
-const imageWrap = { position: 'relative', width: PRODUCT_CARD_WIDTH_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }
+const imageWrap = computed((): any => ({ position: 'relative', width: PRODUCT_CARD_WIDTH_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
 const imageStyle = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: imageHeight.value }))
 const imageFallbackStyle = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: imageHeight.value, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const infoStyle = { paddingTop: '12rpx' }

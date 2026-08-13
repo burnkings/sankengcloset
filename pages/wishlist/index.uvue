@@ -86,7 +86,7 @@ function onItemTap(id: string) { uni.navigateTo({ url: `/pages/wishlist/detail?i
 function onAddTap() { uni.navigateTo({ url: '/pages/wishlist/edit' }) }
 onMounted(() => { store.fetchItems() })
 
-const scrollStyle = { flex: 1, backgroundColor: n.value.bg }
+const scrollStyle = computed((): any => ({ flex: 1, backgroundColor: n.value.bg }))
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 
 // V3 §6.19 顶部紧凑摘要：心愿总数 / 待买
@@ -99,8 +99,8 @@ const gridWrap = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string,
 function cardWrap(idx: number) {
   return { width: PRODUCT_CARD_WIDTH_V3, marginRight: idx % 2 == 0 ? COLUMN_GAP_V3 : '0', marginBottom: '28rpx', borderRadius: '12rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, overflow: 'hidden' as string }
 }
-const cardImage = { width: PRODUCT_CARD_WIDTH_V3, height: '470rpx', position: 'relative', backgroundColor: n.value.bgTertiary }
-const cardPlaceholder = { width: '100%', height: '100%', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }
+const cardImage = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: '470rpx', position: 'relative', backgroundColor: n.value.bgTertiary }))
+const cardPlaceholder = computed((): any => ({ width: '100%', height: '100%', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }))
 function prioBadge(order: number): any {
   const bg = order === 1 ? semantic.error : semantic.warning
   return { position: 'absolute', top: '10rpx', left: '10rpx', paddingLeft: '10rpx', paddingRight: '10rpx', paddingTop: '3rpx', paddingBottom: '3rpx', borderRadius: '8rpx', backgroundColor: bg }
@@ -108,9 +108,9 @@ function prioBadge(order: number): any {
 const prioBadgeText = { fontSize: '20rpx', color: '#FFFFFF', fontWeight: fontWeight.semibold }
 function statusDot(color: string) { return { position: 'absolute', top: '10rpx', right: '10rpx', width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: color } }
 const cardBody = { padding: '20rpx' }
-const cardName = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }
+const cardName = computed((): any => ({ fontSize: '26rpx', fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
 const cardBottom = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx' }
-const cardBrand = { fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }
+const cardBrand = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }))
 const cardPrice = { fontSize: '28rpx', fontWeight: fontWeight.semibold, color: brand[600] as string, flexShrink: 0, marginLeft: '8rpx' }
 
 const bottomSpacer = { height: '60rpx' }
