@@ -169,31 +169,21 @@ const _feedRows = computed((): FeedRow[] => {
   let i = 0
   while (i < channelItems.length) {
     const item = channelItems[i]
-    if (isPairEligible(item)) {
-      // 向后寻找下一个可配对内容（商品/穿搭）
-      let j = i + 1
-      while (j < channelItems.length && !isPairEligible(channelItems[j])) j++
-      if (j < channelItems.length) {
-        rows.push(createPairRow(item, channelItems[j]))
-        // 中间夹着的运营内容原位插入
-        for (let k = i + 1; k < j; k++) rows.push(createSingleRow(channelItems[k]))
-        i = j + 1
-      } else {
-        rows.push(createPairRow(item, null))
-        for (let k = i + 1; k < channelItems.length; k++) rows.push(createSingleRow(channelItems[k]))
-        i = channelItems.length
-      }
+    if (isPairEligible(item) && i + 1 < channelItems.length && isPairEligible(channelItems[i + 1])) {
+      // 相邻两个商品/穿搭 → 双列行（严格保持服务端原始顺序，不跨行拉取）
+      rows.push(createPairRow(item, channelItems[i + 1]))
+      i += 2
+    } else if (isPairEligible(item)) {
+      // 商品/穿搭但无相邻配对 → 半宽单列（右侧留空），不跨越运营内容去配对
+      rows.push(createPairRow(item, null))
+      i += 1
     } else {
+      // 发售事件/编辑专题 → 单列全宽行
       rows.push(createSingleRow(item))
-      i++
+      i += 1
     }
   }
   return rows
-})
-
-// 仅 single 行（非产品卡片）—— 预留：运营内容筛选/置顶等后续能力
-const _singleRows = computed((): FeedRow[] => {
-  return _feedRows.value.filter((r) => r.rowType == 'single')
 })
 
 const CHANGE_EVENT = 'store:home-feed-changed'
@@ -334,7 +324,6 @@ class HomeFeedStoreHandle {
   get allItems(): FeedItem[] { return _state.allItems }
   get displayItems(): FeedItem[] { return _displayItems.value }
   get feedRows(): FeedRow[] { return _feedRows.value }
-  get singleRows(): FeedRow[] { return _singleRows.value }
   get isLoadingMore(): boolean { return _state.isLoadingMore }
   get hasMore(): boolean { return _state.hasMore }
   get reachedLimit(): boolean { return _state.reachedLimit }
