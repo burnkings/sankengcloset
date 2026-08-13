@@ -156,19 +156,23 @@ const _isEmpty = computed((): boolean => {
 
 /**
  * Feed 行：保留服务端原始顺序。
- * 相邻商品配对成双列行；运营内容（release_event/outfit/editorial 等）原位插入为单行，
- * 不再出现「全部商品先渲染、运营内容全部放后面」的割裂。
+ * 商品与穿搭（双列内容）相邻时配对成双列行；运营内容（release_event/editorial 等）
+ * 原位插入为单行全宽，不再出现「全部商品先渲染、运营内容全部放后面」的割裂。
  */
+function isPairEligible(item: FeedItem): boolean {
+  return item.feedType == FEED_PRODUCT || item.feedType == FEED_OUTFIT
+}
+
 const _feedRows = computed((): FeedRow[] => {
   const rows: FeedRow[] = []
   const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel)
   let i = 0
   while (i < channelItems.length) {
     const item = channelItems[i]
-    if (item.feedType == FEED_PRODUCT) {
-      // 向后寻找下一个商品配对
+    if (isPairEligible(item)) {
+      // 向后寻找下一个可配对内容（商品/穿搭）
       let j = i + 1
-      while (j < channelItems.length && channelItems[j].feedType != FEED_PRODUCT) j++
+      while (j < channelItems.length && !isPairEligible(channelItems[j])) j++
       if (j < channelItems.length) {
         rows.push(createPairRow(item, channelItems[j]))
         // 中间夹着的运营内容原位插入
@@ -187,31 +191,9 @@ const _feedRows = computed((): FeedRow[] => {
   return rows
 })
 
-// 瀑布流：将 pair 行拆为独立的产品 FeedItem 列表（保持频道原始顺序）
-const _waterfallItems = computed((): FeedItem[] => {
-  const items: FeedItem[] = []
-  const rows = _feedRows.value
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    if (row.rowType == 'pair') {
-      if (row.left != null) items.push(row.left)
-      if (row.right != null) items.push(row.right)
-    }
-  }
-  return items
-})
-
-// 仅 single 行（非产品卡片）
+// 仅 single 行（非产品卡片）—— 预留：运营内容筛选/置顶等后续能力
 const _singleRows = computed((): FeedRow[] => {
   return _feedRows.value.filter((r) => r.rowType == 'single')
-})
-
-// 瀑布流双列：按索引交替分配（左列=偶数，右列=奇数）
-const _waterfallLeft = computed((): FeedItem[] => {
-  return _waterfallItems.value.filter((_, idx) => idx % 2 == 0)
-})
-const _waterfallRight = computed((): FeedItem[] => {
-  return _waterfallItems.value.filter((_, idx) => idx % 2 == 1)
 })
 
 const CHANGE_EVENT = 'store:home-feed-changed'
@@ -352,9 +334,6 @@ class HomeFeedStoreHandle {
   get allItems(): FeedItem[] { return _state.allItems }
   get displayItems(): FeedItem[] { return _displayItems.value }
   get feedRows(): FeedRow[] { return _feedRows.value }
-  get waterfallItems(): FeedItem[] { return _waterfallItems.value }
-  get waterfallLeft(): FeedItem[] { return _waterfallLeft.value }
-  get waterfallRight(): FeedItem[] { return _waterfallRight.value }
   get singleRows(): FeedRow[] { return _singleRows.value }
   get isLoadingMore(): boolean { return _state.isLoadingMore }
   get hasMore(): boolean { return _state.hasMore }
