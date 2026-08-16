@@ -30,57 +30,61 @@
     </template>
 
     <template #default>
-      <FeedSkeleton v-if="store.loading" />
+      <FeedSkeleton v-if="store.loading || store.state === 'idle'" />
 
       <PageState v-else-if="store.state === 'error'" icon="info" title="加载失败" :message="store.errorMessage" action-text="点击重试" @action="onRetry" />
 
       <!-- #ifdef MP-WEIXIN -->
-      <scroll-view v-else scroll-y refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :style="listViewStyle" @scrolltolower="onLoadMore">
+      <scroll-view v-else scroll-y refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :style="listViewStyle" :scroll-top="scrollTop" @scroll="onPageScroll" @scrolltolower="onLoadMore">
         <view v-if="store.isEmpty" :style="emptyWrap">
           <PageState icon="info" title="暂无内容" message="切换其他频道看看" />
         </view>
 
-        <view v-for="row in store.feedRows" :key="row.id">
-          <view v-if="row.rowType === 'pair'" class="feed-pair-row" :style="waterfallRow">
-            <view v-if="row.left !== null" :style="waterfallCardShellLeft">
-              <view v-if="row.left!.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(row.left!)">
-                <view :style="outfitFlowImgWrap">
-                  <AppImage :src="row.left!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                  <view :style="outfitInfoOverlay">
-                    <text :style="outfitTitle">{{ row.left!.title }}</text>
-                    <text :style="outfitSub">{{ row.left!.subtitle }}</text>
+        <view v-for="block in store.masonryBlocks" :key="blockKey(block)">
+          <view v-if="block.type === 'columns'" class="feed-pair-row" :style="waterfallRow">
+            <view :style="masonryColLeft">
+              <view v-for="item in block.left" :key="item.id">
+                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
+                  <view :style="outfitFlowImgWrap(item)">
+                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                    <view :style="outfitInfoOverlay">
+                      <text :style="outfitTitle">{{ item.title }}</text>
+                      <text :style="outfitSub">{{ item.subtitle }}</text>
+                    </view>
                   </view>
                 </view>
+                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
               </view>
-              <ProductCard v-else :image="row.left!.coverUrl" :brand="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :badge-text="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" @tap="onTap(row.left!)" />
             </view>
-            <view v-if="row.right !== null" :style="waterfallCardShellRight">
-              <view v-if="row.right!.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(row.right!)">
-                <view :style="outfitFlowImgWrap">
-                  <AppImage :src="row.right!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                  <view :style="outfitInfoOverlay">
-                    <text :style="outfitTitle">{{ row.right!.title }}</text>
-                    <text :style="outfitSub">{{ row.right!.subtitle }}</text>
+            <view :style="masonryColRight">
+              <view v-for="item in block.right" :key="item.id">
+                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
+                  <view :style="outfitFlowImgWrap(item)">
+                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                    <view :style="outfitInfoOverlay">
+                      <text :style="outfitTitle">{{ item.title }}</text>
+                      <text :style="outfitSub">{{ item.subtitle }}</text>
+                    </view>
                   </view>
                 </view>
+                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
               </view>
-              <ProductCard v-else :image="row.right!.coverUrl" :brand="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :badge-text="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" @tap="onTap(row.right!)" />
             </view>
           </view>
-          <view v-else-if="row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(row.single!)">
-            <ReleaseCard :title="row.single!.title" :brand="row.single!.brandName" :image="row.single!.coverUrl" :overlay-text="rowSingleRelTime(row)" @tap="onTap(row.single!)" @remind="onTap(row.single!)" @view="onTap(row.single!)" />
+          <view v-else-if="block.full !== null && block.full!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(block.full!)">
+            <ReleaseCard :title="block.full!.title" :brand="block.full!.brandName" :image="block.full!.coverUrl" :overlay-text="formatRelativeTime(block.full!.eventStartAt)" @tap="onTap(block.full!)" @remind="onTap(block.full!)" @view="onTap(block.full!)" />
           </view>
-          <view v-else-if="row.single !== null && row.single!.feedType === 'outfit'" class="feed-single-card" :style="outfitCard" @tap="onTap(row.single!)">
+          <view v-else-if="block.full !== null && block.full!.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="onTap(block.full!)">
             <view :style="imgWrap45">
-              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+              <AppImage :src="block.full!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
               <view :style="outfitInfoOverlay">
-                <text :style="outfitTitle">{{ row.single!.title }}</text>
-                <text :style="outfitSub">{{ row.single!.subtitle }}</text>
+                <text :style="outfitTitle">{{ block.full!.title }}</text>
+                <text :style="outfitSub">{{ block.full!.subtitle }}</text>
               </view>
             </view>
           </view>
-          <view v-else-if="row.single !== null" class="feed-single-card" @tap="onTap(row.single!)">
-            <EditorialCard :title="row.single!.title" :image="row.single!.coverUrl" :source-label="row.single!.sourceLabel !== '' ? row.single!.sourceLabel : feedLabel(row.single!.feedType)" :updated-text="rowSingleRelTime(row)" />
+          <view v-else-if="block.full !== null" class="feed-single-card" @tap="onTap(block.full!)">
+            <EditorialCard :title="block.full!.title" :image="block.full!.coverUrl" :source-label="block.full!.sourceLabel !== '' ? block.full!.sourceLabel : feedLabel(block.full!.feedType)" :updated-text="formatRelativeTime(block.full!.eventStartAt)" />
           </view>
         </view>
 
@@ -95,51 +99,53 @@
         <PageState icon="info" title="暂无内容" message="切换其他频道看看" />
       </view>
 
-      <!-- V3 混合 Feed：list-view + FeedRow（与微信端同构）。
-           商品/穿搭按双列行（pair），发售事件/编辑专题按单列全宽行（single）；
-           服务端混合顺序由 store.feedRows 原样保留，不拆散、不沉底。 -->
-      <list-view v-else :style="listViewStyle" refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" @scrolltolower="onLoadMore">
-        <list-item v-for="row in store.feedRows" :key="row.id">
-          <view v-if="row.rowType === 'pair'" class="feed-pair-row" :style="waterfallRow">
-            <view v-if="row.left !== null" :style="waterfallCardShellLeft">
-              <view v-if="row.left!.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(row.left!)">
-                <view :style="outfitFlowImgWrap">
-                  <AppImage :src="row.left!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                  <view :style="outfitInfoOverlay">
-                    <text :style="outfitTitle">{{ row.left!.title }}</text>
-                    <text :style="outfitSub">{{ row.left!.subtitle }}</text>
+      <!-- 双列错落瀑布流：商品/穿搭归入左右两列（可变图片高度），发售/编辑专题全宽 -->
+      <list-view v-else :style="listViewStyle" refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :scroll-top="scrollTop" @scroll="onPageScroll" @scrolltolower="onLoadMore">
+        <list-item v-for="block in store.masonryBlocks" :key="blockKey(block)">
+          <view v-if="block.type === 'columns'" class="feed-pair-row" :style="waterfallRow">
+            <view :style="masonryColLeft">
+              <view v-for="item in block.left" :key="item.id">
+                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
+                  <view :style="outfitFlowImgWrap(item)">
+                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                    <view :style="outfitInfoOverlay">
+                      <text :style="outfitTitle">{{ item.title }}</text>
+                      <text :style="outfitSub">{{ item.subtitle }}</text>
+                    </view>
                   </view>
                 </view>
+                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
               </view>
-              <ProductCard v-else :image="row.left!.coverUrl" :brand="row.left!.brandName" :title="row.left!.title" :price-text="rowLeftPrice(row)" :badge-text="row.left!.badgeText" :deadline-text="rowLeftDeadline(row)" @tap="onTap(row.left!)" />
             </view>
-            <view v-if="row.right !== null" :style="waterfallCardShellRight">
-              <view v-if="row.right!.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(row.right!)">
-                <view :style="outfitFlowImgWrap">
-                  <AppImage :src="row.right!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                  <view :style="outfitInfoOverlay">
-                    <text :style="outfitTitle">{{ row.right!.title }}</text>
-                    <text :style="outfitSub">{{ row.right!.subtitle }}</text>
+            <view :style="masonryColRight">
+              <view v-for="item in block.right" :key="item.id">
+                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
+                  <view :style="outfitFlowImgWrap(item)">
+                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                    <view :style="outfitInfoOverlay">
+                      <text :style="outfitTitle">{{ item.title }}</text>
+                      <text :style="outfitSub">{{ item.subtitle }}</text>
+                    </view>
                   </view>
                 </view>
+                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
               </view>
-              <ProductCard v-else :image="row.right!.coverUrl" :brand="row.right!.brandName" :title="row.right!.title" :price-text="rowRightPrice(row)" :badge-text="row.right!.badgeText" :deadline-text="rowRightDeadline(row)" @tap="onTap(row.right!)" />
             </view>
           </view>
-          <view v-else-if="row.single !== null && row.single!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(row.single!)">
-            <ReleaseCard :title="row.single!.title" :brand="row.single!.brandName" :image="row.single!.coverUrl" :overlay-text="rowSingleRelTime(row)" @tap="onTap(row.single!)" @remind="onTap(row.single!)" @view="onTap(row.single!)" />
+          <view v-else-if="block.full !== null && block.full!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(block.full!)">
+            <ReleaseCard :title="block.full!.title" :brand="block.full!.brandName" :image="block.full!.coverUrl" :overlay-text="formatRelativeTime(block.full!.eventStartAt)" @tap="onTap(block.full!)" @remind="onTap(block.full!)" @view="onTap(block.full!)" />
           </view>
-          <view v-else-if="row.single !== null && row.single!.feedType === 'outfit'" class="feed-single-card" :style="outfitCard" @tap="onTap(row.single!)">
+          <view v-else-if="block.full !== null && block.full!.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="onTap(block.full!)">
             <view :style="imgWrap45">
-              <AppImage :src="row.single!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+              <AppImage :src="block.full!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
               <view :style="outfitInfoOverlay">
-                <text :style="outfitTitle">{{ row.single!.title }}</text>
-                <text :style="outfitSub">{{ row.single!.subtitle }}</text>
+                <text :style="outfitTitle">{{ block.full!.title }}</text>
+                <text :style="outfitSub">{{ block.full!.subtitle }}</text>
               </view>
             </view>
           </view>
-          <view v-else-if="row.single !== null" class="feed-single-card" @tap="onTap(row.single!)">
-            <EditorialCard :title="row.single!.title" :image="row.single!.coverUrl" :source-label="row.single!.sourceLabel !== '' ? row.single!.sourceLabel : feedLabel(row.single!.feedType)" :updated-text="rowSingleRelTime(row)" />
+          <view v-else-if="block.full !== null" class="feed-single-card" @tap="onTap(block.full!)">
+            <EditorialCard :title="block.full!.title" :image="block.full!.coverUrl" :source-label="block.full!.sourceLabel !== '' ? block.full!.sourceLabel : feedLabel(block.full!.feedType)" :updated-text="formatRelativeTime(block.full!.eventStartAt)" />
           </view>
         </list-item>
 
@@ -150,13 +156,16 @@
       <!-- #endif -->
     </template>
   </MainLayout>
+  <BackToTop :visible="showBackTop" @tap="backToTop" />
 </view>
 </template>
 
 <script setup lang="uts">
-import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime, formatDeadline, FeedRow } from '@/stores/home-feed-store'
+import { nextTick } from 'vue'
+import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime, formatDeadline, MasonryBlock, feedImageHeight } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
-import { FeedItem, FEED_OUTFIT, FEED_EDITORIAL } from '@/domain/content/feed-item'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight, v3TextStyle } from '@/theme/tokens/typography'
@@ -165,10 +174,11 @@ import { zIndex } from '@/theme/tokens/z-index'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight, upx2px } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
-import { SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH_V3, PRODUCT_CARD_IMAGE_HEIGHT_V3, PAGE_GUTTER_V3, COLUMN_GAP_V3, CARD_VERTICAL_GAP_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3, COLUMN_GAP_V3, CARD_VERTICAL_GAP_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import BackToTop from '@/components/base/BackToTop.uvue'
 import ChannelTabs from '@/components/v3/ChannelTabs.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import ReleaseCard from '@/components/v3/ReleaseCard.uvue'
@@ -179,7 +189,23 @@ import PageState from '@/components/v3/PageState.uvue'
 const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
 const notices = useNotificationCenterStore()
+const library = useContentLibraryStore()
 const channels = CHANNELS
+
+// 返回顶部
+const scrollTop = ref(0)
+const lastScrollTop = ref(0)
+const showBackTop = ref(false)
+function onPageScroll(e: UniScrollEvent) {
+  const top = e.detail.scrollTop
+  lastScrollTop.value = top
+  showBackTop.value = top > 300
+}
+function backToTop() {
+  showBackTop.value = false
+  scrollTop.value = lastScrollTop.value
+  nextTick(() => { scrollTop.value = 0 })
+}
 
 const statusBarH = getStatusBarHeight()
 const homeNavbarPx = upx2px(252)
@@ -198,25 +224,14 @@ try {
 // #endif
 
 function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
-function rowLeftPrice(row: FeedRow): string {
-  if (row.left == null) return ''
-  return formatPrice(row.left!.price)
-}
-function rowLeftDeadline(row: FeedRow): string {
-  if (row.left == null) return ''
-  return formatDeadline(row.left!.eventEndAt)
-}
-function rowRightPrice(row: FeedRow): string {
-  if (row.right == null) return ''
-  return formatPrice(row.right!.price)
-}
-function rowRightDeadline(row: FeedRow): string {
-  if (row.right == null) return ''
-  return formatDeadline(row.right!.eventEndAt)
-}
-function rowSingleRelTime(row: FeedRow): string {
-  if (row.single == null) return ''
-  return formatRelativeTime(row.single!.eventStartAt)
+function blockKey(block: MasonryBlock): string {
+  if (block.type == 'full') {
+    const f = block.full
+    return f != null ? `full-${f.id}` : 'full-empty'
+  }
+  if (block.left.length > 0) return `cols-${block.left[0].id}`
+  if (block.right.length > 0) return `cols-${block.right[0].id}`
+  return 'cols-empty'
 }
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openNotifications() { uni.navigateTo({ url: '/pages/notification/index' }) }
@@ -226,12 +241,15 @@ function onTap(item: FeedItem) {
     openPrimaryTab('/pages/community/index')
     return
   }
-  if (item.feedType === FEED_EDITORIAL) {
+  if (item.feedType === 'editorial') {
     uni.navigateTo({ url: `/pages/editorial/detail?title=${encodeURIComponent(item.title)}&category=${item.category}&image=${encodeURIComponent(item.coverUrl)}` })
     return
   }
   if (item.entityId == '') return
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+}
+function onToggleSave(item: FeedItem) {
+  library.toggleFavorite(item.entityId, item.title)
 }
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }
@@ -241,18 +259,17 @@ async function onRefresh() {
   try { await store.loadFirstPage(true) }
   finally { isRefreshing.value = false }
 }
-// Footer 文案：达到本次浏览上限时明确提示
+// Footer 文案：加载中 / 上拉加载更多 / 已显示全部
 const footerText = computed((): string => {
   if (store.isLoadingMore) return '加载中...'
-  if (store.reachedLimit) return '已到本次浏览上限'
   return store.hasMore ? '上拉加载更多' : '已显示全部'
 })
 // 筛选后内容不足一屏时不展示 footer，避免制造虚假操作预期。
-const showFeedFooter = computed((): boolean => store.isLoadingMore || store.reachedLimit || store.displayItems.length >= 8)
+const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
 onMounted(() => { store.loadFirstPage() })
 onReady(() => { refreshViewport() })
-onLoad(() => { initPageTheme(); refreshViewport() })
-onPageShow(() => { initPageTheme(); store.refreshIfPreferencesChanged(); notices.reload() })
+onLoad(() => { nextTick(() => initPageTheme()); refreshViewport() })
+onPageShow(() => { initPageTheme(); store.refreshIfPreferencesChanged(); notices.reload(); library.reload() })
 
 // --- Spacing tokens (V3 §3.3) ---
 const CARD_PAIR_GAP = COLUMN_GAP_V3       // 双列间距 12rpx
@@ -297,16 +314,18 @@ const listViewStyle = computed((): any => ({ width: '750rpx', flex: 1, minHeight
 // Error / Empty 使用 V3 PageState（无本地样式）
 const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: '48rpx' }
 
-// Waterfall two-column layout — pair row（V3 §3.3：16+353+12+353+16=750）
+// 双列错落瀑布流：左右两列独立纵向堆叠（V3 §3.3：16+353+12+353+16=750）
 const waterfallRow = { ...flexRow, alignItems: 'flex-start' as string }
-const waterfallCardShellLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
-const waterfallCardShellRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, marginTop: CARD_V_GAP }
+const masonryColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
+const masonryColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginTop: CARD_V_GAP }
 
 // Outfit card — 单列全宽穿搭卡（与微信端同构，V3 token 化）
 const outfitCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
-// Outfit card — 双列半宽版本（pair 行内，与 ProductCard 同尺寸 353×470）
+// Outfit card — 双列半宽版本（列内，与 ProductCard 同尺寸，图片高度随 feedImageHeight 错落）
 const outfitFlowCard = { width: '100%', borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
-const outfitFlowImgWrap = { width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3, position: 'relative' as string, overflow: 'hidden' }
+function outfitFlowImgWrap(item: FeedItem): any {
+  return { width: '100%', height: feedImageHeight(item), position: 'relative' as string, overflow: 'hidden' }
+}
 const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: '24rpx', paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
 const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }
@@ -324,12 +343,12 @@ const footerTxt = computed((): any => ({ fontSize: fontSize.sm, color: n.value.t
 }
 
 .feed-pair-row {
-  padding-left: 16rpx;
-  padding-right: 16rpx;
+  padding-left: 32rpx;
+  padding-right: 32rpx;
 }
 
 .feed-single-card {
-  margin-left: 16rpx;
-  margin-right: 16rpx;
+  margin-left: 32rpx;
+  margin-right: 32rpx;
 }
 </style>

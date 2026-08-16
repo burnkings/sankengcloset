@@ -1,5 +1,5 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" :scroll-top="scrollTop" @scrolltolower="loadMore" @scroll="onPageScroll">
     <template #navbar>
       <view :style="searchNavStyle">
         <view :style="statusBarPadStyle" />
@@ -25,7 +25,7 @@
     </template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view v-if="keyword === ''">
+        <view v-if="keyword === ''" :style="plainSections">
           <template v-if="recent.length > 0">
             <SectionHeader title="最近搜索" action-text="清空" @action="clearRecent" />
             <view :style="recentWrap">
@@ -52,17 +52,44 @@
           <view v-else-if="searchError !== '' && results.length === 0" :style="emptyWrap">
             <PageState icon="search" title="搜索失败" :message="searchError" action-text="点击重试" @action="retrySearch" />
           </view>
-          <view v-else-if="results.length > 0" :style="resultGrid">
-            <view v-for="(item, idx) in results" :key="item.id" :style="productShell(idx)">
-              <ProductCard
-                :image="item.coverUrl"
-                :brand="item.brandName"
-                :title="item.title"
-                :price-text="priceText(item.price)"
-                :badge-text="item.badgeText"
-                :deadline-text="deadlineText(item.eventEndAt)"
-                @tap="onResultTap(item)"
-              />
+          <view v-else-if="results.length > 0">
+            <view :style="resultColumns">
+              <view :style="resultColLeft">
+                <view v-for="item in resultLeft" :key="item.id">
+                  <ProductCard
+                    :image="item.coverUrl"
+                    :brand="item.brandName"
+                    :title="item.title"
+                    :price-text="priceText(item.price)"
+                    :badge-text="item.badgeText"
+                    :deadline-text="deadlineText(item.eventEndAt)"
+                    :image-height="feedImageHeight(item)"
+                    :saved="library.isFavorite(item.entityId)"
+                    @tap="onResultTap(item)"
+                    @toggle-save="onToggleSave(item)"
+                  />
+                </view>
+              </view>
+              <view :style="resultColRight">
+                <view v-for="item in resultRight" :key="item.id">
+                  <ProductCard
+                    :image="item.coverUrl"
+                    :brand="item.brandName"
+                    :title="item.title"
+                    :price-text="priceText(item.price)"
+                    :badge-text="item.badgeText"
+                    :deadline-text="deadlineText(item.eventEndAt)"
+                    :image-height="feedImageHeight(item)"
+                    :saved="library.isFavorite(item.entityId)"
+                    @tap="onResultTap(item)"
+                    @toggle-save="onToggleSave(item)"
+                  />
+                </view>
+              </view>
+            </view>
+            <view :style="loadMoreWrap">
+              <text v-if="isLoadingMore" :style="loadMoreText">加载中...</text>
+              <text v-else-if="!hasMore" :style="loadMoreText">没有更多了</text>
             </view>
           </view>
           <view v-else :style="emptyWrap">
@@ -72,11 +99,14 @@
       </view>
     </template>
   </MainLayout>
+  <BackToTop :visible="showBackTop" @tap="backToTop" />
 </template>
 
 <script setup lang="uts">
 import { FeedItem } from '@/domain/content/feed-item'
-import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
+import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useBlacklistStore } from '@/stores/blacklist-store'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -87,6 +117,7 @@ import { n } from '@/theme/use-theme'
 import { getStatusBarHeight } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import BackToTop from '@/components/base/BackToTop.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
@@ -96,6 +127,23 @@ import { searchProducts, SearchResult } from '@/services/content/search-service'
 function priceText(cents: number): string { return formatPrice(cents) }
 function deadlineText(iso: string): string { return formatDeadline(iso) }
 
+const library = useContentLibraryStore()
+const blacklist = useBlacklistStore()
+
+// 返回顶部：scrollTop 用于 scroll-view 滚动定位，lastScrollTop 记录实际滚动位置
+const scrollTop = ref(0)
+const lastScrollTop = ref(0)
+const showBackTop = ref(false)
+function onPageScroll(top: number) {
+  lastScrollTop.value = top
+  showBackTop.value = top > 300
+}
+function backToTop() {
+  showBackTop.value = false
+  scrollTop.value = lastScrollTop.value
+  nextTick(() => { scrollTop.value = 0 })
+}
+
 const keyword = ref('')
 // 页面进入时始终保持静默，不因回填搜索词自动唤起手机键盘。
 const inputFocused = ref(false)
@@ -104,6 +152,9 @@ const inputFocused = ref(false)
 const results = ref<FeedItem[]>([])
 const searching = ref(false)
 const searchError = ref('')
+const nextCursor = ref('')
+const hasMore = ref(true)
+const isLoadingMore = ref(false)
 let searchTimer: number | null = null
 let searchSequence = 0
 
@@ -134,6 +185,8 @@ function runSearch(q: string) {
     results.value = []
     searching.value = false
     searchError.value = ''
+    nextCursor.value = ''
+    hasMore.value = true
     return
   }
 
@@ -141,11 +194,15 @@ function runSearch(q: string) {
   const requestSequence = searchSequence
   searching.value = true
   searchError.value = ''
+  nextCursor.value = ''
+  hasMore.value = true
   searchProducts(normalized)
     .then((res: SearchResult) => {
       // 用户继续输入后，旧请求不得覆盖新关键词的状态。
       if (requestSequence != searchSequence) return
-      results.value = res.items
+      results.value = res.items.filter((item) => !blacklist.isBlacklisted(item.brandName))
+      nextCursor.value = res.nextCursor
+      hasMore.value = res.hasMore
       searching.value = false
       addRecent(normalized)
     })
@@ -154,6 +211,25 @@ function runSearch(q: string) {
       results.value = []
       searching.value = false
       searchError.value = err instanceof Error ? err.message : '搜索失败，请检查网络后重试'
+    })
+}
+
+function loadMore() {
+  const normalized = keyword.value.trim()
+  if (normalized === '' || isLoadingMore.value || !hasMore.value || searching.value) return
+  isLoadingMore.value = true
+  const requestSequence = searchSequence
+  searchProducts(normalized, nextCursor.value)
+    .then((res: SearchResult) => {
+      if (requestSequence != searchSequence) return
+      results.value = [...results.value, ...res.items.filter((item) => !blacklist.isBlacklisted(item.brandName))]
+      nextCursor.value = res.nextCursor
+      hasMore.value = res.hasMore
+      isLoadingMore.value = false
+    })
+    .catch(() => {
+      if (requestSequence != searchSequence) return
+      isLoadingMore.value = false
     })
 }
 
@@ -218,6 +294,23 @@ function onBackTap() { uni.navigateBack() }
 function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
+function onToggleSave(item: FeedItem) {
+  library.toggleFavorite(item.entityId, item.title)
+}
+const resultLeft = computed((): FeedItem[] => {
+  const left: FeedItem[] = []
+  for (let i = 0; i < results.value.length; i++) {
+    if (i % 2 == 0) left.push(results.value[i])
+  }
+  return left
+})
+const resultRight = computed((): FeedItem[] => {
+  const right: FeedItem[] = []
+  for (let i = 0; i < results.value.length; i++) {
+    if (i % 2 == 1) right.push(results.value[i])
+  }
+  return right
+})
 
 onUnload(() => {
   const timer = searchTimer
@@ -236,7 +329,8 @@ onMounted(() => {
   } catch (e) {}
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
+const plainSections = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 // 自定义搜索导航栏：返回 64rpx + 输入框 flex:1 + 取消（不再用 AppNavbar 左右各 180rpx 三栏）
 const statusBarH = getStatusBarHeight()
 const searchNavStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg, boxShadow: shadow.navbar }))
@@ -267,9 +361,12 @@ function rankText(idx: number) {
 const hotKeywordText = computed((): any => ({ ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text }))
 const heatText = { fontSize: '21rpx', fontWeight: '400', color: semantic.warning, marginLeft: '16rpx', flexShrink: 0 } as UTSJSONObject
 
-// V3 §6.8 结果：商品双列 353×470
-const resultGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
-function productShell(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, marginRight: idx % 2 == 0 ? COLUMN_GAP_V3 : '0' } }
+// V3 §6.8 结果：商品双列错落瀑布流（左右两列独立堆叠，图片高度错落，与首页一致）
+const resultColumns = { ...flexRow, alignItems: 'flex-start' as string, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const resultColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
+const resultColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
 // 加载/空/失败使用 V3 FeedSkeleton / PageState
 const emptyWrap = { alignItems: 'center', paddingTop: '48rpx', paddingBottom: '48rpx' }
+const loadMoreWrap = { alignItems: 'center', paddingTop: '24rpx', paddingBottom: '24rpx' }
+const loadMoreText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
 </script>

@@ -50,7 +50,7 @@ const sectionBlock = computed((): any => ({
   paddingBottom: '28rpx',
   paddingLeft: '24rpx',
   paddingRight: '24rpx',
-  marginBottom: '20rpx',
+  marginBottom: '0',
 }))
 const sectionTitle = computed((): any => ({
   fontSize: fontSize.base,
@@ -60,7 +60,7 @@ const sectionTitle = computed((): any => ({
 }))
 const paraStyle = computed((): any => ({
   fontSize: fontSize.sm,
-  lineHeight: '1.7',
+  lineHeight: 1.7,
   color: n.value.textSecondary,
   marginBottom: '12rpx',
 }))

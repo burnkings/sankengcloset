@@ -12,6 +12,7 @@
         :maxlength="maxlength"
         :focus="focus"
         :confirm-type="confirmType"
+        :adjust-position="adjustPosition"
         @input="onInput"
         @focus="emit('focus')"
         @blur="emit('blur')"
@@ -44,9 +45,10 @@ const props = withDefaults(defineProps<{
   maxlength?: number
   focus?: boolean
   confirmType?: string
+  adjustPosition?: boolean
 }>(), {
   modelValue: '', placeholder: '', type: 'text', disabled: false, error: '',
-  clearable: false, maxlength: 140, focus: false, confirmType: 'done'
+  clearable: false, maxlength: 140, focus: false, confirmType: 'done', adjustPosition: true
 })
 
 const emit = defineEmits<{
@@ -65,7 +67,7 @@ const wrapperStyle = computed((): any => ({
   height: '88rpx',
   paddingLeft: '28rpx',
   paddingRight: '24rpx',
-  borderRadius: '24rpx',
+  borderRadius: '16rpx',
   backgroundColor: n.value.inputFill,
   borderWidth: '0',
   borderColor: 'transparent',

@@ -127,7 +127,7 @@ function diffDays(dateStr: string): number {
 }
 
 function getGroupInfo(days: number, status: string): { group: ReminderGroup, groupLabel: string } {
-  if (status === 'MISSED' || (days < 0 && status === 'PENDING')) {
+  if (days < 0) {
     return { group: 'overdue', groupLabel: '已过期' }
   }
   if (days === 0) return { group: 'today', groupLabel: '今天' }

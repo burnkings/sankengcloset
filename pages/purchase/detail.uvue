@@ -91,7 +91,10 @@
         <view :style="actionBtn" @tap="onSetReminder">
           <text :style="actionBtnText">设置尾款提醒</text>
         </view>
-        <view v-if="item!.statusText === '已完成'" :style="actionBtnSecondary" @tap="onAddToWardrobe">
+        <view v-if="record.value != null && record.value.wardrobeId !== ''" :style="actionBtnSecondary" @tap="onViewWardrobeItem">
+          <text :style="actionBtnSecondaryText">查看入橱单品</text>
+        </view>
+        <view v-else-if="item!.statusText === '已完成'" :style="actionBtnSecondary" @tap="onAddToWardrobe">
           <text :style="actionBtnSecondaryText">收纳至衣橱</text>
         </view>
       </view>
@@ -162,7 +165,7 @@ function onEditTap() {
 function onSetReminder() {
   if (item.value == null || record.value == null) return
   const name = encodeURIComponent(item.value!.name)
-  const date = encodeURIComponent(item.value!.deadlineText !== '—' ? item.value!.deadlineText : '')
+  const date = encodeURIComponent(record.value!.deadline)
   uni.navigateTo({ url: `/pages/reminder/edit?title=${name}&date=${date}&type=BALANCE&purchaseId=${record.value.id}&wishId=${record.value.wishId}` })
 }
 function onAddToWardrobe() {
@@ -172,6 +175,10 @@ function onAddToWardrobe() {
   // 订单金额单位为分，衣橱编辑页按元接收
   const priceYuan = source.totalAmount > 0 ? (source.totalAmount / 100).toString() : ''
   uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}&category=${source.category}&price=${priceYuan}&purchaseDate=${source.purchaseDate}&purchaseId=${source.id}&wishId=${source.wishId}` })
+}
+function onViewWardrobeItem() {
+  const id = record.value != null ? record.value.wardrobeId : ''
+  if (id !== '') uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` })
 }
 
 function onConfirmDelete() {

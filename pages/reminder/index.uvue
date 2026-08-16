@@ -18,6 +18,8 @@
           <!-- V3 §6.22 顶部紧凑摘要：待办/今日/过期 -->
           <SummaryStrip :items="summaryItems" :surface="true" />
 
+          <view :style="chipsGap" />
+
           <FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
           <FeedSkeleton v-if="store.loading" />
@@ -158,6 +160,7 @@ function batchDelete() {
 onMounted(() => { store.fetchItems() })
 
 const scrollWrap = { flex: 1 }
+const chipsGap = { height: '24rpx' }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const bottomSpacer = { height: '200rpx' }
 
@@ -248,9 +251,9 @@ const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semib
 const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
 const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
-const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
-const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx', marginRight: '12rpx' }))
-const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
-const dialogDelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: semantic.error, alignItems: 'center', justifyContent: 'center', paddingLeft: '32rpx', paddingRight: '32rpx' }))
-const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
+const dialogDelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center' }))
+const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: semantic.error as string }
 </script>

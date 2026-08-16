@@ -1,7 +1,6 @@
-import { reactive, computed } from 'vue'
-import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
+import { reactive } from 'vue'
+import { WardrobeItem, WardrobeUpdateData, wardrobeCoverImage } from '@/domain/wardrobe-item'
 import * as repo from '@/domain/repositories/wardrobe-repo'
-import { CATEGORY_LABELS } from '@/domain/clothing-category'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listWardrobeRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
@@ -30,37 +29,78 @@ const _state = reactive<WardrobeState>({
   currentStatus: '',
 })
 
-const _filteredItems = computed((): WardrobeItem[] => _state.items.filter((item) => {
-  if (_state.currentCategory != '' && item.category != _state.currentCategory) return false
-  if (_state.currentStatus == 'favorite' && !item.isFavorite) return false
-  if (_state.currentStatus != '' && _state.currentStatus != 'favorite' && item.wearStatus != _state.currentStatus) return false
-  if (_state.searchKeyword == '') return true
-  const keyword = _state.searchKeyword.toLowerCase()
-  const categoryRaw = CATEGORY_LABELS[item.category]
-  const category = categoryRaw != null ? categoryRaw as string : ''
-  return item.name.toLowerCase().includes(keyword)
-    || item.brand.toLowerCase().includes(keyword)
-    || item.note.toLowerCase().includes(keyword)
-    || category.toLowerCase().includes(keyword)
-}))
+function categoryLabel(c: string): string {
+  if (c == 'JK') return 'JK制服'
+  if (c == 'LOLITA') return 'Lolita'
+  if (c == 'HANFU') return '汉服'
+  return '其他'
+}
+
+function filteredItems(): WardrobeItem[] {
+  return _state.items.filter((item) => {
+    if (_state.currentCategory != '' && item.category != _state.currentCategory) return false
+    if (_state.currentStatus == 'favorite' && !item.isFavorite) return false
+    if (_state.currentStatus != '' && _state.currentStatus != 'favorite' && item.wearStatus != _state.currentStatus) return false
+    if (_state.searchKeyword == '') return true
+    const keyword = _state.searchKeyword.toLowerCase()
+    const category = categoryLabel(item.category)
+    return item.name.toLowerCase().includes(keyword)
+      || item.brand.toLowerCase().includes(keyword)
+      || item.note.toLowerCase().includes(keyword)
+      || category.toLowerCase().includes(keyword)
+  })
+}
 
 function createdAtTime(item: WardrobeItem): number {
   if (item.createdAt == '') return 0
   return new Date(item.createdAt).getTime()
 }
 
-const _sortedItems = computed((): WardrobeItem[] => {
-  const result = [..._filteredItems.value]
+function sortedItems(): WardrobeItem[] {
+  const result = [...filteredItems()]
   if (_state.currentSort == 'earliest') result.sort((a, b) => createdAtTime(a) - createdAtTime(b))
   else if (_state.currentSort == 'priceHigh') result.sort((a, b) => b.purchasePrice - a.purchasePrice)
   else if (_state.currentSort == 'priceLow') result.sort((a, b) => a.purchasePrice - b.purchasePrice)
   else if (_state.currentSort == 'name') result.sort((a, b) => (a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)))
   else result.sort((a, b) => createdAtTime(b) - createdAtTime(a))
   return result
-})
+}
 
-const _itemCount = computed((): number => _state.items.length)
-const _categoryCounts = computed(() => {
+// 渲染层纯 DTO（普通字段，无 getter）：避免 vapor 模式下 reactive proxy 包裹带 getter 的
+// WardrobeItem 实例时，访问 getter 触发响应式追踪异常导致白屏。
+export class WardrobeDisplayModel {
+  id: string = ''
+  coverImage: string = ''
+  category: string = ''
+  name: string = ''
+  brand: string = ''
+  wearStatus: string = ''
+  purchasePrice: number = 0
+  isFavorite: boolean = false
+}
+
+function toDisplayModel(item: WardrobeItem): WardrobeDisplayModel {
+  const m = new WardrobeDisplayModel()
+  m.id = item.id
+  m.coverImage = wardrobeCoverImage(item)
+  m.category = item.category
+  m.name = item.name
+  m.brand = item.brand
+  m.wearStatus = item.wearStatus
+  m.purchasePrice = item.purchasePrice
+  m.isFavorite = item.isFavorite
+  return m
+}
+
+function displaySortedItems(): WardrobeDisplayModel[] {
+  const items = sortedItems()
+  const result: WardrobeDisplayModel[] = []
+  for (let i = 0; i < items.length; i++) result.push(toDisplayModel(items[i]))
+  return result
+}
+
+function itemCount(): number { return _state.items.length }
+function categoryCounts(): UTSJSONObject {
   const counts = {} as UTSJSONObject
   for (let i = 0; i < _state.items.length; i++) {
     const category = _state.items[i].category
@@ -68,17 +108,17 @@ const _categoryCounts = computed(() => {
     counts[category] = current + 1
   }
   return counts
-})
+}
 
-const _activeFilterCount = computed((): number => { let count = 0; if (_state.currentCategory != '') count++; if (_state.currentStatus != '') count++; return count })
-const _sortLabel = computed((): string => {
+function activeFilterCount(): number { let count = 0; if (_state.currentCategory != '') count++; if (_state.currentStatus != '') count++; return count }
+function sortLabel(): string {
   if (_state.currentSort == 'newest') return '最近加入'
   if (_state.currentSort == 'earliest') return '最早加入'
   if (_state.currentSort == 'priceHigh') return '价格高→低'
   if (_state.currentSort == 'priceLow') return '价格低→高'
   if (_state.currentSort == 'name') return '名称'
   return '最近加入'
-})
+}
 
 const CHANGE_EVENT = 'store:wardrobe-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -246,13 +286,13 @@ class WardrobeStoreHandle {
   get currentSort(): string { return _state.currentSort }
   get currentStatus(): string { return _state.currentStatus }
   get viewMode(): string { return _state.viewMode }
-  get sortedItems(): WardrobeItem[] { return _sortedItems.value }
+  get sortedItems(): WardrobeDisplayModel[] { return displaySortedItems() }
   /** 供 Feed 搭配度计算使用；页面仍应使用 sortedItems 渲染。 */
   get items(): WardrobeItem[] { return _state.items }
-  get itemCount(): number { return _itemCount.value }
-  get categoryCounts(): UTSJSONObject { return _categoryCounts.value }
-  get activeFilterCount(): number { return _activeFilterCount.value }
-  get sortLabel(): string { return _sortLabel.value }
+  get itemCount(): number { return itemCount() }
+  get categoryCounts(): UTSJSONObject { return categoryCounts() }
+  get activeFilterCount(): number { return activeFilterCount() }
+  get sortLabel(): string { return sortLabel() }
   fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: WardrobeItem): WardrobeItem | null { return addItem(item) }
   updateItem(id: string, data: WardrobeUpdateData): boolean { return updateItem(id, data) }

@@ -1,0 +1,145 @@
+<template>
+  <DetailLayout :title="brandName">
+    <view :style="contentWrap">
+      <view v-if="loading" :style="emptyWrap"><FeedSkeleton /></view>
+
+      <template v-else>
+        <view :style="brandHeader">
+          <view :style="brandAvatar"><text :style="brandAvatarText">{{ initialOf(brandName) }}</text></view>
+          <view :style="brandHeaderCopy">
+            <text :style="brandTitle">{{ brandName }}</text>
+            <text :style="brandDescStyle">{{ brandDescText }}</text>
+          </view>
+          <view :style="followBtn" @tap="toggleBrand(brandName)"><text :style="followBtnText">{{ library.isFollowingBrand(brandName) ? '已关注' : '关注' }}</text></view>
+          <view :style="blacklistBtn" @tap="toggleBlacklistBrand(brandName)"><text :style="blacklistBtnText">{{ blacklist.isBlacklisted(brandName) ? '已屏蔽' : '屏蔽' }}</text></view>
+        </view>
+
+        <view v-if="products.length === 0" :style="emptyWrap">
+          <PageState icon="grid" title="暂无商品" message="品牌商品接入中，敬请期待" />
+        </view>
+
+        <view v-else :style="productColumns">
+          <view :style="productColLeft">
+            <view v-for="item in productLeft" :key="item.id">
+              <ProductCard
+                :image="item.coverUrl"
+                :brand="item.brandName"
+                :title="item.title"
+                :price-text="formatPrice(item.price)"
+                :badge-text="item.badgeText"
+                :deadline-text="formatDeadline(item.eventEndAt)"
+                :image-height="feedImageHeight(item)"
+                :saved="library.isFavorite(item.entityId)"
+                @tap="openProduct(item)"
+                @toggle-save="onToggleSave(item)"
+              />
+            </view>
+          </view>
+          <view :style="productColRight">
+            <view v-for="item in productRight" :key="item.id">
+              <ProductCard
+                :image="item.coverUrl"
+                :brand="item.brandName"
+                :title="item.title"
+                :price-text="formatPrice(item.price)"
+                :badge-text="item.badgeText"
+                :deadline-text="formatDeadline(item.eventEndAt)"
+                :image-height="feedImageHeight(item)"
+                :saved="library.isFavorite(item.entityId)"
+                @tap="openProduct(item)"
+                @toggle-save="onToggleSave(item)"
+              />
+            </view>
+          </view>
+        </view>
+      </template>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import { Brand } from '@/domain/content/brand'
+import { FeedItem } from '@/domain/content/feed-item'
+import { fetchBrandDetail, listBrandProducts } from '@/services/content/brand-service'
+import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useBlacklistStore } from '@/stores/blacklist-store'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_RADIUS_V3, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import ProductCard from '@/components/v3/ProductCard.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
+
+const library = useContentLibraryStore()
+const blacklist = useBlacklistStore()
+const brandId = ref('')
+const brandName = ref('')
+const brandDetail = ref<Brand | null>(null)
+const products = ref<FeedItem[]>([])
+const loading = ref(true)
+
+const brandDescText = computed((): string => {
+  const d = brandDetail.value
+  if (d != null && d.description !== '') return d.description
+  if (d != null && d.category !== '') return d.category
+  return '三坑品牌'
+})
+function initialOf(name: string): string { return name == '' ? '#' : name.substring(0, 1) }
+function toggleBrand(name: string) {
+  const followed = library.toggleBrandFollow(name)
+  showFeedback(followed ? `已关注 ${name}` : `已取消关注 ${name}`)
+}
+function toggleBlacklistBrand(name: string) {
+  const blocked = blacklist.toggleBlacklist(name)
+  showFeedback(blocked ? `已屏蔽品牌：${name}` : `已恢复品牌：${name}`)
+}
+function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
+function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
+const productLeft = computed((): FeedItem[] => {
+  const left: FeedItem[] = []
+  for (let i = 0; i < products.value.length; i++) if (i % 2 == 0) left.push(products.value[i])
+  return left
+})
+const productRight = computed((): FeedItem[] => {
+  const right: FeedItem[] = []
+  for (let i = 0; i < products.value.length; i++) if (i % 2 == 1) right.push(products.value[i])
+  return right
+})
+
+onLoad((query) => {
+  initPageTheme()
+  if (query != null) {
+    brandId.value = query['id'] != null ? query['id'] as string : ''
+    brandName.value = query['name'] != null ? decodeURIComponent(query['name'] as string) : ''
+  }
+})
+onMounted(async () => {
+  const detail = await fetchBrandDetail(brandId.value)
+  brandDetail.value = detail
+  if (detail != null && brandName.value === '') brandName.value = detail.name
+  const list = await listBrandProducts(brandId.value)
+  products.value = list
+  loading.value = false
+})
+
+const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
+const emptyWrap = { paddingTop: '48rpx' }
+const brandHeader = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '24rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginBottom: '24rpx' }))
+const brandAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '48rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
+const brandAvatarText = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[600] }
+const brandHeaderCopy = { ...flexFill }
+const brandTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const brandDescStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
+const followBtn = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: '30rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName.value) ? brand[600] : brand[500], marginLeft: '16rpx', flexShrink: 0 }))
+const followBtnText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
+const blacklistBtn = computed((): any => ({ minWidth: '112rpx', height: '60rpx', borderRadius: '30rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary, marginLeft: '12rpx', flexShrink: 0, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const blacklistBtnText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: blacklist.isBlacklisted(brandName.value) ? (brand[600] as string) : n.value.textSecondary }))
+const productColumns = { ...flexRow, alignItems: 'flex-start' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
+const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
+const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
+</script>

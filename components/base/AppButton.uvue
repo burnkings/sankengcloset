@@ -58,6 +58,8 @@ const variantColors = computed((): VariantColor => {
   if (v === 'outline') return { bg: 'transparent', text: brand[500] as string, border: brand[500] as string }
   if (v === 'ghost') return { bg: 'transparent', text: brand[500] as string, border: 'transparent' }
   if (v === 'danger') return { bg: semantic.error as string, text: baseColors.white as string, border: semantic.error as string }
+  if (v === 'danger-ghost') return { bg: 'transparent', text: semantic.error as string, border: 'transparent' }
+  if (v === 'neutral-ghost') return { bg: 'transparent', text: n.value.textSecondary as string, border: 'transparent' }
   return { bg: brand[500] as string, text: baseColors.white as string, border: brand[500] as string }
 })
 

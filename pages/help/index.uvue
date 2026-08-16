@@ -1,0 +1,47 @@
+<template>
+  <DetailLayout title="帮助与反馈">
+    <view :style="contentWrap">
+      <text :style="groupTitle">常见问题</text>
+      <ListGroup>
+        <view :style="shell(0, 4)" @tap="onFaqTap"><ListRow title="如何修改坑向偏好？" /></view>
+        <view :style="shell(1, 4)" @tap="onFaqTap"><ListRow title="收藏的商品在哪里查看？" /></view>
+        <view :style="shell(2, 4)" @tap="onFaqTap"><ListRow title="如何清理本地缓存？" /></view>
+        <view :style="shell(3, 4)" @tap="onFaqTap"><ListRow title="如何发布穿搭动态？" /></view>
+      </ListGroup>
+
+      <text :style="groupTitle">联系我们</text>
+      <ListGroup>
+        <view :style="shell(0, 2)"><ListRow title="客服邮箱" value="建设中" :show-arrow="false" /></view>
+        <view :style="shell(1, 2)" @tap="onFeedbackTap"><ListRow title="意见反馈" value="建设中" /></view>
+      </ListGroup>
+
+      <text :style="copyright">三坑绮橱 · 帮助与反馈</text>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import ListRow from '@/components/v3/ListRow.uvue'
+import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { n, initPageTheme } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+
+onLoad(() => { initPageTheme() })
+
+function shell(idx: number, total: number) {
+  return {
+    borderBottomWidth: idx < total - 1 ? '1rpx' : '0',
+    borderBottomStyle: 'solid' as string,
+    borderBottomColor: n.value.divider,
+  }
+}
+function onFaqTap() { showFeedback('功能开发中，敬请期待') }
+function onFeedbackTap() { showFeedback('反馈渠道建设中，敬请期待') }
+
+const contentWrap = { paddingTop: '8rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
+const groupTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '8rpx', marginTop: '24rpx', marginBottom: '12rpx' }))
+const copyright = computed((): any => ({ textAlign: 'center', fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '28rpx' }))
+</script>

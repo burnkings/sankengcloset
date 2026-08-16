@@ -7,10 +7,10 @@
           <view v-if="isAiDraft" :style="aiDraftBanner"><text :style="aiDraftText">这是订单识别草稿：请核对每个金额、日期和商品信息后再保存。</text></view>
 
           <FormSection title="基本信息">
-            <text :style="fieldLabel">商品名称</text>
+            <FieldLabel label="商品名称" />
             <AppInput v-model="form.name" placeholder="商品名称" :clearable="true" />
 
-            <text :style="fieldLabel">品牌</text>
+            <FieldLabel label="品牌" />
             <AppInput v-model="form.brand" placeholder="输入品牌名" :clearable="true" @input="onBrandInput" />
             <view v-if="brandSuggestions.length > 0" :style="brandDropdown">
               <view v-for="b in brandSuggestions" :key="b" :style="brandItem" @tap="selectBrand(b)">
@@ -18,13 +18,13 @@
               </view>
             </view>
 
-            <text :style="fieldLabel">店铺 / 团长</text>
+            <FieldLabel label="店铺 / 团长" />
             <AppInput v-model="form.shopName" placeholder="可选，便于回看订单来源" :clearable="true" />
 
-            <text :style="fieldLabel">坑向</text>
+            <FieldLabel label="坑向" />
             <SegmentedControl :items="categoryLabels" :active="activeCategoryLabel" @change="onCategoryChange" />
 
-            <text :style="fieldLabel">付款状态</text>
+            <FieldLabel label="付款状态" />
             <scroll-view direction="horizontal" :show-scrollbar="false" :style="statusScroll">
               <SegmentedControl :items="statusLabels" :active="activeStatusLabel" @change="onStatusChange" />
             </scroll-view>
@@ -57,11 +57,11 @@
         </view>
       </scroll-view>
 
-      <view :style="bottomBar">
+      <BottomActionBar>
         <view :style="saveButtonStyle" @tap="save">
           <text :style="saveBtnText">{{ saving ? '保存中…' : (isEdit ? '保存修改' : '保存记录') }}</text>
         </view>
-      </view>
+      </BottomActionBar>
     </template>
   </MainLayout>
 </template>
@@ -83,6 +83,8 @@ import AppInput from '@/components/base/AppInput.uvue'
 import FormSection from '@/components/v3/FormSection.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import DateField from '@/components/v3/DateField.uvue'
+import FieldLabel from '@/components/v3/FieldLabel.uvue'
+import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 
 const store = usePurchaseStore()
 const isEdit = ref(false)
@@ -244,7 +246,6 @@ const safeBottom = getSafeBottomInset()
 const scrollStyle = { flex: 1 }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '160rpx' }
 const bottomSpacer = { height: '40rpx' }
-const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx', marginBottom: '14rpx' }))
 const aiDraftBanner = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginBottom: '20rpx' }))
 const aiDraftText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '36rpx' }))
 const statusScroll = { marginBottom: '0' }
@@ -273,7 +274,6 @@ const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fon
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角；saving 锁防重复提交
-const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', flexDirection: 'row', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: `${safeBottom + 20}px`, paddingTop: '16rpx', backgroundColor: n.value.surface }))
 const saveButtonStyle = computed((): any => ({ flex: 1 as const, height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? brand[300] as string : brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 </script>

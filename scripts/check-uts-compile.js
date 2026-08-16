@@ -17,7 +17,7 @@ const path = require('path')
 
 const root = path.resolve(process.argv[2] || 'unpackage/dist/dev/mp-weixin')
 
-// V3 当前页面路由（pages.json 29 个页面）
+// V3 当前页面路由（pages.json 26 个页面）
 const pages = [
   'pages/home/index',
   'pages/discover/index',
@@ -36,9 +36,6 @@ const pages = [
   'pages/purchase/detail',
   'pages/purchase/edit',
   'pages/purchase/import',
-  'pages/wishlist/index',
-  'pages/wishlist/detail',
-  'pages/wishlist/edit',
   'pages/reminder/index',
   'pages/reminder/edit',
   'pages/editorial/detail',

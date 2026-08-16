@@ -39,25 +39,27 @@
 
         <SectionHeader title="系统设置" />
         <ListGroup>
-          <view :style="settingShell(0, 8)" @tap="goPage('/pages/preferences/appearance')"><ListRow title="深色模式" :value="themeLabel" /></view>
-          <view :style="settingShell(1, 8)" @tap="goPage('/pages/preferences/index')"><ListRow title="推荐偏好" :value="preferenceSummary" /></view>
-          <view :style="settingShell(2, 8)" @tap="goPage('/pages/preferences/notification')"><ListRow title="通知设置" /></view>
-          <view :style="settingShell(3, 8)" @tap="onHelpTap"><ListRow title="帮助与反馈" /></view>
-          <view :style="settingShell(4, 8)" @tap="onClearCacheTap"><ListRow title="清理缓存" /></view>
-          <view :style="settingShell(5, 8)" @tap="goPage('/pages/about/index')"><ListRow title="关于三坑绮橱" value="V2.5" /></view>
-          <view v-if="session.isLoggedIn" :style="settingShell(6, 8)" @tap="logout"><ListRow title="退出登录" /></view>
-          <view :style="settingShell(7, 8)" />
+          <view :style="settingShell(0, 9)" @tap="goPage('/pages/preferences/appearance')"><ListRow icon="moon" title="深色模式" :value="themeLabel" /></view>
+          <view :style="settingShell(1, 9)" @tap="goPage('/pages/preferences/index')"><ListRow icon="sparkles" title="推荐偏好" :value="preferenceSummary" /></view>
+          <view :style="settingShell(2, 9)" @tap="goPage('/pages/preferences/notification')"><ListRow icon="notification" title="通知设置" /></view>
+          <view :style="settingShell(3, 9)" @tap="goPage('/pages/preferences/blacklist')"><ListRow icon="close" title="屏蔽品牌" :value="blacklistCountText" /></view>
+          <view :style="settingShell(4, 9)" @tap="onHelpTap"><ListRow icon="help-circle" title="帮助与反馈" /></view>
+          <view :style="settingShell(5, 9)" @tap="onClearCacheTap"><ListRow icon="database" title="清理缓存" :value="cacheSizeText" /></view>
+          <view :style="settingShell(6, 9)" @tap="goPage('/pages/about/index')"><ListRow icon="info" title="关于三坑绮橱" value="V2.5" /></view>
+          <view v-if="session.isLoggedIn" :style="settingShell(7, 9)" @tap="logout"><ListRow icon="logout" title="退出登录" /></view>
+          <view :style="settingShell(8, 9)" />
         </ListGroup>
 
         <view :style="bottomSpacer" />
       </view>
     </template>
   </MainLayout>
+  <AppDialog :visible="showClearCacheDialog" title="清理缓存" message="确认清理本地缓存吗？" @confirm="doClearCache" @cancel="showClearCacheDialog = false" />
 </view>
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -70,15 +72,17 @@ import PageHeader from '@/components/v3/PageHeader.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import ListRow from '@/components/v3/ListRow.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
-import { useWishListStore } from '@/stores/wishlist-store'
 import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
+import { useBlacklistStore } from '@/stores/blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
 
 const pageHeight = getWindowHeight()
@@ -86,10 +90,11 @@ const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
 const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
-const wishlist = useWishListStore()
 const budget = useBudgetStore()
 const session = useSessionStore()
 const preferences = usePreferencesStore()
+const blacklist = useBlacklistStore()
+const blacklistCountText = computed((): string => blacklist.count > 0 ? `${blacklist.count} 个` : '')
 
 const preferenceSummary = computed((): string => {
   const values = preferences.preferences.pitTypes
@@ -109,26 +114,42 @@ function goPage(url: string) { uni.navigateTo({ url }) }
 function openMyPosts() { uni.navigateTo({ url: '/pages/community/mine' }) }
 function onManageTap(id: string) {
   if (id === 'wardrobe') goPage('/pages/wardrobe/index')
-  if (id === 'favorites') goPage('/pages/wishlist/index')
+  if (id === 'favorites') openPrimaryTab('/pages/favorites/index')
   if (id === 'orders') goPage('/pages/purchase/index')
   if (id === 'reminders') goPage('/pages/reminder/index')
   if (id === 'budget') goPage('/pages/budget/index')
 }
-function onHelpTap() { showFeedback('反馈入口将在账号服务接入后开放') }
-function onClearCacheTap() {
-  // 清理范围 = 搜索历史 + 浏览临时状态；文案与真实删除范围一致（不含用户数据/同步队列）
+function onHelpTap() { goPage('/pages/help/index') }
+const CACHE_KEYS = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic', 'local_outfit_image', 'local_outfit_caption', 'local_outfit_category', 'local_outfit_topic']
+const showClearCacheDialog = ref(false)
+const cacheSizeText = ref('')
+function formatCacheSize(bytes: number): string {
+  if (bytes <= 0) return '0 B'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+function refreshCacheSize() {
+  let bytes = 0
   try {
-    uni.removeStorageSync('search_recent')
-    uni.removeStorageSync('pending_search_keyword')
-    uni.removeStorageSync('community_view')
-    uni.removeStorageSync('community_topic')
-    // 旧版本地穿搭草稿迁移遗留 key
-    uni.removeStorageSync('local_outfit_image')
-    uni.removeStorageSync('local_outfit_caption')
-    uni.removeStorageSync('local_outfit_category')
-    uni.removeStorageSync('local_outfit_topic')
+    for (let i = 0; i < CACHE_KEYS.length; i++) {
+      const v = uni.getStorageSync(CACHE_KEYS[i]) as string
+      if (v != null && v !== '') bytes += v.length
+    }
   } catch (e) {}
-  showFeedback('已清理搜索与浏览缓存')
+  cacheSizeText.value = formatCacheSize(bytes)
+}
+function onClearCacheTap() {
+  refreshCacheSize()
+  showClearCacheDialog.value = true
+}
+function doClearCache() {
+  try {
+    for (let i = 0; i < CACHE_KEYS.length; i++) uni.removeStorageSync(CACHE_KEYS[i])
+  } catch (e) {}
+  showClearCacheDialog.value = false
+  refreshCacheSize()
+  showFeedback('缓存已清理')
 }
 
 onLoad(() => { initPageTheme() })
@@ -147,9 +168,8 @@ function reloadProfileData() {
   purchases.fetchPurchases()
   reminders.fetchItems()
   wardrobe.fetchItems()
-  wishlist.fetchItems()
 }
-onShow(() => { initPageTheme(); reloadProfileData() })
+onShow(() => { initPageTheme(); reloadProfileData(); refreshCacheSize() })
 
 const bottomSpacer = { height: '48rpx' }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
@@ -179,7 +199,7 @@ function mkItem(id: string, icon: string, label: string, value: string): GridIte
 }
 const gridItems = computed(() => [
   mkItem('wardrobe', 'wardrobe', '衣橱', ''),
-  mkItem('favorites', 'heart', '愿望单', ''),
+  mkItem('favorites', 'heart', '收藏', ''),
   mkItem('orders', 'order', '购买记录', ''),
   mkItem('reminders', 'reminder', '提醒', ''),
   mkItem('budget', 'budget', '预算', ''),

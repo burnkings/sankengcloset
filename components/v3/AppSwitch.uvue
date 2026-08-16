@@ -1,5 +1,5 @@
 <template>
-  <view :style="rowWrap" @tap="onToggle">
+  <view :style="rowWrap" @tap.stop="onToggle">
     <view :style="trackStyle">
       <view :style="thumbStyle" />
     </view>

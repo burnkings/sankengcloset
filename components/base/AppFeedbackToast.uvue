@@ -1,8 +1,8 @@
 <template>
-  <view v-if="feedbackVisible" :style="rootStyle">
+  <view v-if="feedbackState.visible" :style="rootStyle">
     <view :style="panelStyle">
       <view :style="brandMark" />
-      <text :style="messageStyle">{{ feedbackMessage }}</text>
+      <text :style="messageStyle">{{ feedbackState.message }}</text>
     </view>
   </view>
 </template>
@@ -12,7 +12,7 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
-import { feedbackVisible, feedbackMessage } from '@/utils/feedback'
+import { feedbackState } from '@/utils/feedback'
 
 const rootStyle = {
   position: 'fixed', left: '40rpx', right: '40rpx', top: '38%',

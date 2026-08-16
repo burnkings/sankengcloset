@@ -1,31 +1,23 @@
 <template>
-  <DetailLayout title="外观">
+  <DetailLayout title="深色模式">
     <view :style="contentWrap">
       <ListGroup>
-        <view :style="segGroupShell">
+        <view :style="rowShell" @tap="onSystemToggle(!isSystemMode)">
           <view :style="rowLabelWrap">
-            <text :style="rowLabel">主题模式</text>
-            <text :style="rowSubtitle">跟随系统、浅色或深色外观</text>
+            <text :style="rowLabel">跟随系统</text>
+            <text :style="rowSubtitle">开启后根据系统设置同步切换深/浅模式</text>
           </view>
-          <SegmentedControl :items="themeOptions" :active="activeMode" variant="solid" @change="onModeChange" />
+          <AppSwitch :model-value="isSystemMode" @update:modelValue="onSystemToggle" />
         </view>
       </ListGroup>
-
       <view :style="rowGap" />
-
-      <!-- 可见预览：随当前模式实时切换，图片保持原色 -->
       <ListGroup>
-        <view :style="previewShell">
-          <text :style="previewTitle">预览</text>
-          <view :style="previewCard">
-            <view :style="previewImage" />
-            <view :style="previewInfo">
-              <text :style="previewBrand">示例品牌</text>
-              <text :style="previewName">示例商品名称</text>
-              <text :style="previewPrice">¥129.00</text>
-            </view>
+        <view :style="rowShell" @tap="onDarkToggle(!isDarkMode)">
+          <view :style="rowLabelWrap">
+            <text :style="rowLabel">深色模式</text>
+            <text :style="rowSubtitle">手动开启深色外观</text>
           </view>
-          <text :style="previewHint">切换主题后立即生效，无需退出页面</text>
+          <AppSwitch :model-value="isDarkMode" @update:modelValue="onDarkToggle" />
         </view>
       </ListGroup>
     </view>
@@ -35,23 +27,21 @@
 <script setup lang="uts">
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
-import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
-import { v3TextStyle } from '@/theme/tokens/typography'
-import { CARD_RADIUS_V3, LIST_GROUP_HORIZONTAL_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import AppSwitch from '@/components/v3/AppSwitch.uvue'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
 import { n, themeMode, setThemeMode, initPageTheme } from '@/theme/use-theme'
 
-const themeOptions = ['跟随系统', '浅色', '深色']
+const isSystemMode = computed((): boolean => themeMode.value == 'system')
+const isDarkMode = computed((): boolean => themeMode.value == 'dark')
 
-const activeMode = computed((): string => {
-  const mode = themeMode.value
-  if (mode === 'system') return '跟随系统'
-  if (mode === 'dark') return '深色'
-  return '浅色'
-})
-
-function onModeChange(value: string) {
-  if (value === '跟随系统') setThemeMode('system')
-  else if (value === '深色') setThemeMode('dark')
+function onSystemToggle(on: boolean) {
+  if (on) setThemeMode('system')
+  else setThemeMode('light')
+}
+function onDarkToggle(on: boolean) {
+  if (on) setThemeMode('dark')
   else setThemeMode('light')
 }
 
@@ -59,30 +49,8 @@ onLoad(() => { initPageTheme() })
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const rowGap = { height: '12rpx' }
-const segGroupShell = { paddingTop: '16rpx', paddingBottom: '24rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3 }
-const rowLabelWrap = { marginBottom: '16rpx' }
-const rowLabel = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text }))
-const rowSubtitle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '4rpx' }))
-
-// 预览区：主题 token 实时响应
-const previewShell = { paddingTop: '16rpx', paddingBottom: '24rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3 }
-const previewTitle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginBottom: '12rpx' }))
-const previewCard = computed((): any => ({
-  borderRadius: CARD_RADIUS_V3,
-  overflow: 'hidden',
-  backgroundColor: n.value.surface,
-  borderWidth: '1rpx',
-  borderStyle: 'solid' as string,
-  borderColor: n.value.border,
-}))
-const previewImage = computed((): any => ({
-  width: '100%',
-  height: '220rpx',
-  backgroundColor: n.value.bgSecondary,
-}))
-const previewInfo = { padding: '20rpx' }
-const previewBrand = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary }))
-const previewName = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, fontWeight: 500, color: n.value.text, marginTop: '6rpx' }))
-const previewPrice = computed((): any => ({ fontSize: v3TextStyle.price.fontSize, fontWeight: 600, color: n.value.text, marginTop: '8rpx' }))
-const previewHint = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '12rpx' }))
+const rowShell = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface }))
+const rowLabelWrap = { flex: 1 }
+const rowLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const rowSubtitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 </script>

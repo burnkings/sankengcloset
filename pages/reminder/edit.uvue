@@ -1,7 +1,12 @@
 <template>
-  <view :style="pageStyle">
-    <scroll-view :style="scrollWrap">
-      <view :style="contentWrap">
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar>
+      <AppNavbar :title="isEdit ? '编辑提醒' : '新建提醒'" :show-back="false">
+        <template #left><view :style="backBtnStyle" @tap="handleBack"><AppIcon name="arrow-back" :size="40" /></view></template>
+      </AppNavbar>
+    </template>
+    <template #default>
+      <view class="page-canvas" :style="contentWrap">
 
           <FormSection title="基础信息">
             <view :style="typeRow">
@@ -47,15 +52,18 @@
           </FormSection>
 
           <view v-if="isEdit" :style="deleteBtn" @tap="onDeleteTap"><text :style="deleteBtnText">删除提醒</text></view>
-          <view :style="saveBtnWrap" @tap="onSaveTap">
-            <text v-if="!saving" :style="saveBtnText">{{ isEdit ? '保存修改' : '创建提醒' }}</text>
-            <text v-else :style="savingBtnText">保存中...</text>
-          </view>
 
           <view :style="bottomSpacer" />
         </view>
-      </scroll-view>
-  </view>
+    </template>
+  </MainLayout>
+
+  <BottomActionBar>
+    <view :style="saveBtnWrap" @tap="onSaveTap">
+      <text v-if="!saving" :style="saveBtnText">{{ isEdit ? '保存修改' : '创建提醒' }}</text>
+      <text v-else :style="savingBtnText">保存中...</text>
+    </view>
+  </BottomActionBar>
 
   <AppDialog :visible="showDeleteDialog" title="确认删除" message="删除后无法恢复，请谨慎操作" confirm-text="删除" :show-cancel="true" cancel-text="取消" @confirm="deleteItem" @cancel="showDeleteDialog = false" />
   <AppDialog :visible="showLeaveDialog" title="确认离开" message="内容尚未保存，确定离开吗？" confirm-text="离开" :show-cancel="true" cancel-text="取消" @confirm="handleLeave" @cancel="showLeaveDialog = false" />
@@ -94,7 +102,7 @@
         <text :style="pickerTitle">选择日期时间</text>
         <text :style="pickerConfirm" @tap="confirmDateTime">确定</text>
       </view>
-      <picker-view :value="dateTimePickerVal" :style="pickerViewStyle" @change="onDateTimeChange">
+      <picker-view :value="dateTimePickerVal" :style="pickerViewStyle" :indicator-style="indicatorStyleStr" @change="onDateTimeChange">
         <picker-view-column>
           <view v-for="m in 12" :key="m" :style="pickerItem"><text :style="pickerItemText">{{ m }}月</text></view>
         </picker-view-column>
@@ -122,11 +130,14 @@ import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/t
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { getSafeBottomInset } from '@/utils/window-info'
-import { getStatusBarHeight } from '@/utils/window-info'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
 import FormSection from '@/components/v3/FormSection.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
+import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 
 function getTypePlaceholder(type: string): string {
   if (type === 'ARRIVAL') return '例：包裹预计送达'
@@ -382,9 +393,7 @@ onLoad((options) => {
 })
 
 const safeBottom = getSafeBottomInset()
-const statusBarH = getStatusBarHeight()
-const pageStyle = computed((): any => ({ flex: 1, backgroundColor: n.value.bg, paddingTop: `${statusBarH}px` }))
-const scrollWrap = { flex: 1 }
+const backBtnStyle = { width: '64rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const bottomSpacer = { height: '20rpx' }
 
@@ -410,9 +419,10 @@ const pickerHeader = computed((): any => ({
 const pickerCancel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
 const pickerTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
 const pickerConfirm = computed((): any => ({ fontSize: fontSize.sm, color: brand[500], fontWeight: fontWeight.medium }))
-const pickerViewStyle = { width: '100%', height: '440rpx' }
-const pickerItem = computed((): any => ({ height: '70rpx', alignItems: 'center', justifyContent: 'center' }))
-const pickerItemText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text }))
+const pickerViewStyle = { width: '100%', height: '350px' }
+const pickerItem = computed((): any => ({ height: '70px', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }))
+const pickerItemText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text, lineHeight: '70px', textAlign: 'center' }))
+const indicatorStyleStr = computed((): string => `height: 70px; border-top: 1rpx solid ${n.value.border}; border-bottom: 1rpx solid ${n.value.border};`)
 const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
 const timeSwitchRow = { flexDirection: 'row', alignItems: 'center', marginRight: '16rpx' }
@@ -486,13 +496,13 @@ const deleteBtn = { height: '88rpx', alignItems: 'center', justifyContent: 'cent
 const deleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }
 
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角；saving 锁防重复
-const saveBtnWrap = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '12rpx' }))
+const saveBtnWrap = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 const savingBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }))
-const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'space-between', paddingTop: '8rpx' }))
-const dialogCancelBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
-const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
-const dialogWardrobeBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }))
-const dialogWardrobeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
+const dialogWardrobeBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center' }))
+const dialogWardrobeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: semantic.error as string }
 const customBackStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
 </script>

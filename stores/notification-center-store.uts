@@ -1,4 +1,4 @@
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
@@ -68,8 +68,8 @@ const _state = reactive<NotificationCenterState>({
   activeType: 'all',
 })
 
-const _unreadCount = computed((): number => _state.items.filter((item) => !item.read).length)
-const _visibleItems = computed((): AppNotification[] => _state.activeType === 'all' ? _state.items : _state.items.filter((item) => item.type === _state.activeType))
+function unreadCount(): number { return _state.items.filter((item) => !item.read).length }
+function visibleItems(): AppNotification[] { return _state.activeType === 'all' ? _state.items : _state.items.filter((item) => item.type === _state.activeType) }
 
 const CHANGE_EVENT = 'store:notification-center-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -102,7 +102,7 @@ function markRead(id: string) {
 }
 
 function markAllRead() {
-  const hadUnread = _unreadCount.value > 0
+  const hadUnread = unreadCount() > 0
   for (let i = 0; i < _state.items.length; i++) _state.items[i].read = true
   persistReadState()
   if (hadUnread) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', 'all', 'upsert', '{"readAll":true}')
@@ -121,8 +121,8 @@ reload()
 class NotificationCenterStoreHandle {
   get items(): AppNotification[] { return _state.items }
   get activeType(): string { return _state.activeType }
-  get visibleItems(): AppNotification[] { return _visibleItems.value }
-  get unreadCount(): number { return _unreadCount.value }
+  get visibleItems(): AppNotification[] { return visibleItems() }
+  get unreadCount(): number { return unreadCount() }
   reload(): void { reload() }
   markRead(id: string): void { markRead(id) }
   markAllRead(): void { markAllRead() }

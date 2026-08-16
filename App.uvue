@@ -1,4 +1,5 @@
 <script setup lang="uts">
+import { nextTick } from 'vue'
 import { initializeTheme, syncSystemChrome, syncTabBarChrome } from '@/theme/use-theme'
 import { warmRuntimeCache } from '@/config/runtime'
 import { useSyncStore } from '@/stores/sync-store'
@@ -15,8 +16,12 @@ function bindNetworkListener() {
 
 onLaunch(() => {
   warmRuntimeCache()
-  initializeTheme()
-  syncTabBarChrome()
+  // 主题初始化延迟到下一微任务：避开 vapor 首帧渲染 effect 的建立窗口，
+  // 消除模块级 reactive 同步写导致的 "Active effect was not restored correctly"
+  nextTick(() => {
+    initializeTheme()
+    syncTabBarChrome()
+  })
   // 启动时冲刷队列（离线期间的写操作补上送）
   useSyncStore().syncNow()
   bindNetworkListener()

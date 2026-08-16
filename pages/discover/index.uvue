@@ -17,22 +17,45 @@
           </view>
         </scroll-view>
 
-        <SectionHeader title="品牌目录" action-text="全部品牌" />
+        <SectionHeader title="品牌目录" action-text="全部品牌" @action="openBrandDirectory" />
         <view :style="brandGrid">
-          <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="search(item.name)">
+          <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="openBrand(item)">
             <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
             <view :style="brandCopy"><text :style="brandName">{{ item.name }}</text><text :style="brandMeta">{{ item.meta }}</text></view>
             <view :style="followAction(item.name)" @tap.stop="toggleBrand(item.name)"><text :style="followText(item.name)">{{ library.isFollowingBrand(item.name) ? '已关注' : '关注' }}</text></view>
           </view>
         </view>
 
-        <SectionHeader title="发售日历" action-text="完整日历" />
-        <ListGroup>
-          <view v-for="(evt, idx) in calendar" :key="evt.id" :style="calendarRow" @tap="search(evt.brand)">
-            <view :style="calendarDate"><text :style="calendarDay">{{ evt.day }}</text><text :style="calendarMonth">7月</text></view>
-            <view :style="calendarMain(idx)"><view :style="calendarCopy"><text :style="calendarTitle">{{ evt.title }}</text><text :style="calendarBrand">{{ evt.brand }}</text></view><text :style="calendarTag">{{ evt.tag }}</text></view>
+        <SectionHeader title="发售日历" />
+        <view :style="calHeader">
+          <view :style="calArrow" @tap="prevMonth"><text :style="calArrowText">‹</text></view>
+          <text :style="calTitle">{{ calYear }}年{{ calMonth }}月</text>
+          <view :style="calArrow" @tap="nextMonth"><text :style="calArrowText">›</text></view>
+        </view>
+        <view :style="calWeekRow">
+          <text v-for="w in weekLabels" :key="w" :style="calWeekLabel">{{ w }}</text>
+        </view>
+        <view :style="calGrid">
+          <view v-for="(cell, idx) in calendarGrid" :key="idx" :style="calCell" @tap="onCellTap(cell)">
+            <text v-if="cell.day > 0" :style="calDay(cell)">{{ cell.day }}</text>
+            <view v-if="cell.day > 0 && cell.events.length > 0" :style="calEventRow">
+              <view v-for="evt in cell.events" :key="evt.id" :style="calEventDot" />
+            </view>
           </view>
-        </ListGroup>
+        </view>
+
+        <AppDialog :visible="showDayRelease" :title="selectedDayTitle" @cancel="showDayRelease = false">
+          <view v-if="selectedDayEvents.length === 0" :style="dayEmptyWrap">
+            <text :style="dayEmptyText">当日暂无发售</text>
+          </view>
+          <view v-for="evt in selectedDayEvents" :key="evt.id" :style="dayEventRow" @tap="onAddReleaseReminder(evt)">
+            <view :style="dayEventCopy">
+              <text :style="dayEventTitle">{{ evt.title }}</text>
+              <text :style="dayEventMeta">{{ evt.brand !== '' ? evt.brand : evt.tag }}</text>
+            </view>
+            <view :style="dayEventAction"><AppIcon name="reminder" :size="28" :active="true" /><text :style="dayEventActionText">提醒</text></view>
+          </view>
+        </AppDialog>
 
         <SectionHeader title="趋势话题" />
         <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic.name)">
@@ -52,6 +75,7 @@ import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT_V3, SEARCH_RADIU
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useBlacklistStore } from '@/stores/blacklist-store'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { FEED_EDITORIAL, FEED_BRAND_POST, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
 import { showFeedback } from '@/utils/feedback'
@@ -62,6 +86,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
 // #endif
@@ -74,6 +99,7 @@ class FeatureItem {
   category: string = ''
 }
 class BrandItem {
+  id: string = ''
   name: string = ''
   initial: string = ''
   meta: string = ''
@@ -84,6 +110,12 @@ class CalendarEvent {
   title: string = ''
   brand: string = ''
   tag: string = ''
+  dateKey: string = ''
+}
+class CalendarCell {
+  day: number = 0
+  dateKey: string = ''
+  events: CalendarEvent[] = []
 }
 class TopicItem {
   id: string = ''
@@ -95,6 +127,7 @@ function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
 function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); openPrimaryTab('/pages/community/index') }
 const library = useContentLibraryStore()
+const blacklist = useBlacklistStore()
 function toggleBrand(brandName: string) {
   const followed = library.toggleBrandFollow(brandName)
   showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
@@ -102,6 +135,8 @@ function toggleBrand(brandName: string) {
 function openEditorial(item: FeatureItem) {
   uni.navigateTo({ url: `/pages/editorial/detail?id=${item.id}&title=${encodeURIComponent(item.title)}&category=${item.category}` })
 }
+function openBrandDirectory() { uni.navigateTo({ url: '/pages/brand/index' }) }
+function openBrand(item: BrandItem) { uni.navigateTo({ url: `/pages/brand/detail?id=${item.id}&name=${encodeURIComponent(item.name)}` }) }
 
 const pageHeight = getWindowHeight()
 const feedStore = useHomeFeedStore()
@@ -109,6 +144,10 @@ const feedStore = useHomeFeedStore()
 function extractDay(iso: string): string {
   if (iso.length < 10) return '--'
   return iso.substring(8, 10)
+}
+function extractDateKey(iso: string): string {
+  if (iso.length < 10) return ''
+  return iso.substring(0, 10)
 }
 function brandInitialOf(name: string): string {
   if (name == '') return '#'
@@ -127,9 +166,10 @@ const features = computed((): FeatureItem[] => {
   })
 })
 const brands = computed((): BrandItem[] => {
-  return feedStore.allItems.filter((item) => item.feedType === FEED_BRAND_POST).map((item) => {
+  return feedStore.allItems.filter((item) => item.feedType === FEED_BRAND_POST && !blacklist.isBlacklisted(item.brandName !== '' ? item.brandName : item.title)).map((item) => {
     const b = new BrandItem()
     const name = item.brandName !== '' ? item.brandName : item.title
+    b.id = item.brandId !== '' ? item.brandId : name
     b.name = name
     b.initial = brandInitialOf(name)
     b.meta = item.sourceLabel
@@ -137,16 +177,74 @@ const brands = computed((): BrandItem[] => {
   })
 })
 const calendar = computed((): CalendarEvent[] => {
-  return feedStore.allItems.filter((item) => item.feedType === FEED_RELEASE_EVENT).map((item) => {
+  return feedStore.allItems.filter((item) => item.feedType === FEED_RELEASE_EVENT && !blacklist.isBlacklisted(item.brandName)).map((item) => {
     const c = new CalendarEvent()
     c.id = item.id
     c.day = extractDay(item.eventStartAt)
     c.title = item.title
     c.brand = item.brandName
     c.tag = item.badgeText !== '' ? item.badgeText : item.subtitle
+    c.dateKey = extractDateKey(item.eventStartAt)
     return c
   })
 })
+
+const now = new Date()
+const calYear = ref(now.getFullYear())
+const calMonth = ref(now.getMonth() + 1)
+const weekLabels = ['一', '二', '三', '四', '五', '六', '日']
+const calendarGrid = computed((): CalendarCell[] => {
+  const cells: CalendarCell[] = []
+  const year = calYear.value
+  const month = calMonth.value
+  const firstWeekday = new Date(year, month - 1, 1).getDay()
+  const offset = (firstWeekday + 6) % 7
+  const daysInMonth = new Date(year, month, 0).getDate()
+  for (let i = 0; i < offset; i++) {
+    const cell = new CalendarCell()
+    cells.push(cell)
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const cell = new CalendarCell()
+    cell.day = d
+    cell.dateKey = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    cell.events = calendar.value.filter((evt) => evt.dateKey === cell.dateKey)
+    cells.push(cell)
+  }
+  return cells
+})
+function prevMonth() {
+  if (calMonth.value === 1) { calMonth.value = 12; calYear.value -= 1 }
+  else calMonth.value -= 1
+}
+function nextMonth() {
+  if (calMonth.value === 12) { calMonth.value = 1; calYear.value += 1 }
+  else calMonth.value += 1
+}
+
+// 发售日历日程化：点日期看当日发售，可一键加提醒
+const showDayRelease = ref(false)
+const selectedDayKey = ref('')
+const selectedDayTitle = computed((): string => {
+  const key = selectedDayKey.value
+  if (key === '') return '当日发售'
+  const parts = key.split('-')
+  return parts.length === 3 ? `${parts[1]}月${parts[2]}日发售` : '当日发售'
+})
+const selectedDayEvents = computed((): CalendarEvent[] => {
+  return calendar.value.filter((evt) => evt.dateKey === selectedDayKey.value)
+})
+function onCellTap(cell: CalendarCell) {
+  if (cell.day <= 0) return
+  selectedDayKey.value = cell.dateKey
+  showDayRelease.value = true
+}
+function onAddReleaseReminder(evt: CalendarEvent) {
+  const title = encodeURIComponent(evt.title)
+  const date = evt.dateKey
+  showDayRelease.value = false
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${title}&date=${date}&type=RELEASE` })
+}
 const topics = computed((): TopicItem[] => {
   return feedStore.allItems.filter((item) => item.feedType === FEED_AI_RECOMMENDATION || item.feedType === FEED_OUTFIT).map((item) => {
     const t = new TopicItem()
@@ -177,15 +275,28 @@ const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: font
 const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 function followAction(brandName: string) { return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName) ? brand[600] : n.value.bgSecondary, marginLeft: '8rpx' } }
 function followText(brandName: string) { return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName) ? baseColors.white : brand[600] } }
-const calendarRow = { ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingLeft: '28rpx' }
-const calendarDate = { width: '96rpx', alignItems: 'center', flexShrink: 0 }
-const calendarDay = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text }))
-const calendarMonth = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary }))
-function calendarMain(idx: number) { return { ...flexFill, ...flexRow, minHeight: LIST_ROW_HEIGHT, alignItems: 'center', paddingRight: '28rpx', borderBottomWidth: idx < calendar.value.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid', borderBottomColor: n.value.divider } }
-const calendarCopy = { ...flexFill }
-const calendarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
-const calendarBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
-const calendarTag = computed((): any => ({ fontSize: fontSize.xs, color: brand[600], marginLeft: '12rpx' }))
+const calHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', height: '80rpx' }
+const calArrow = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center' }
+const calArrowText = computed((): any => ({ fontSize: '40rpx', color: n.value.textSecondary }))
+const calTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
+const calWeekRow = { ...flexRow }
+const calWeekLabel = computed((): any => ({ width: '98rpx', textAlign: 'center', fontSize: fontSize.xs, color: n.value.textTertiary, paddingTop: '8rpx', paddingBottom: '8rpx' }))
+const calGrid = { ...flexRow, flexWrap: 'wrap' as string }
+const calCell = { width: '98rpx', height: '88rpx', flexDirection: 'column', alignItems: 'center', paddingTop: '8rpx' }
+function calDay(cell: CalendarCell): any {
+  const hasEvent = cell.events.length > 0
+  return { fontSize: fontSize.sm, fontWeight: hasEvent ? fontWeight.semibold : fontWeight.regular, color: hasEvent ? (brand[600] as string) : n.value.text }
+}
+const calEventRow = { ...flexRow, marginTop: '6rpx' }
+const calEventDot = { width: '10rpx', height: '10rpx', borderRadius: '5rpx', backgroundColor: brand[500] as string, marginLeft: '2rpx', marginRight: '2rpx' }
+const dayEmptyWrap = { alignItems: 'center', paddingTop: '40rpx', paddingBottom: '40rpx' }
+const dayEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+const dayEventRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', minHeight: '88rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }))
+const dayEventCopy = { flex: 1, justifyContent: 'center' }
+const dayEventTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
+const dayEventMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', lines: 1 as const, textOverflow: 'ellipsis' as string }))
+const dayEventAction = { flexDirection: 'row' as string, alignItems: 'center', flexShrink: 0, marginLeft: '12rpx' }
+const dayEventActionText = computed((): any => ({ fontSize: fontSize.xs, color: brand[600] as string, marginLeft: '6rpx' }))
 function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginBottom: idx < topics.value.length - 1 ? '12rpx' : '0' } }
 const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))

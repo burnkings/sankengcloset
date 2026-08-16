@@ -10,42 +10,53 @@
           <view v-else :style="photoEmpty"><AppIcon name="camera" :size="52" :active="true" /><text :style="photoText">添加单品照片</text></view>
         </view>
 
-        <view :style="cardGroup">
-          <text :style="fieldLabel">单品名称</text><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
-          <text :style="fieldLabel">坑向</text><SegmentedControl :items="categories" :active="activeCategory" @change="onCategory" />
-        </view>
+        <FormSection title="基本信息">
+          <FieldLabel label="单品名称" /><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
+          <FieldLabel label="坑向" /><SegmentedControl :items="categories" :active="activeCategory" @change="onCategory" />
+          <view :style="twoColumnRow">
+            <view :style="halfField"><FieldLabel label="品牌" /><AppInput v-model="form.brand" placeholder="品牌" /></view>
+            <view :style="halfFieldLast"><FieldLabel label="购买价格" /><AppInput v-model="form.price" placeholder="0" type="digit" /></view>
+          </view>
+          <view :style="twoColumnRow">
+            <view :style="halfField"><FieldLabel label="颜色" /><AppInput v-model="form.color" placeholder="主色" /></view>
+            <view :style="halfFieldLast"><FieldLabel label="尺码" /><AppInput v-model="form.size" placeholder="尺码" /></view>
+          </view>
+        </FormSection>
 
-        <view :style="cardGroup">
-        <view :style="twoColumnRow">
-          <view :style="halfField"><text :style="fieldLabelCompact">品牌</text><AppInput v-model="form.brand" placeholder="品牌" /></view>
-          <view :style="halfFieldLast"><text :style="fieldLabelCompact">购买价格</text><AppInput v-model="form.price" placeholder="0" type="digit" /></view>
-        </view>
-        <view :style="twoColumnRow">
-          <view :style="halfField"><text :style="fieldLabelCompact">颜色</text><AppInput v-model="form.color" placeholder="主色" /></view>
-          <view :style="halfFieldLast"><text :style="fieldLabelCompact">尺码</text><AppInput v-model="form.size" placeholder="尺码" /></view>
-        </view>
-        </view>
+        <FormSection title="穿着状态">
+          <SegmentedControl :items="wearLabels" :active="activeWearLabel" @change="onWear" />
+        </FormSection>
 
-        <view :style="cardGroup">
-        <text :style="fieldLabel">穿着状态</text><SegmentedControl :items="wearLabels" :active="activeWearLabel" @change="onWear" />
-        </view>
+        <FormSection v-if="isEdit && sourcePurchase != null" title="来源订单">
+          <view :style="sourceOrderCard" @tap="openSourcePurchase">
+            <view :style="sourceOrderCopy">
+              <text :style="sourceOrderTitle">{{ sourcePurchase.name }}</text>
+              <text :style="sourceOrderMeta">{{ sourcePurchase.shopName !== '' ? sourcePurchase.shopName : '购买记录' }}</text>
+            </view>
+            <view :style="sourceOrderRight">
+              <text :style="sourceOrderPrice">¥{{ (sourcePurchase.totalAmount / 100).toFixed(2) }}</text>
+              <AppIcon name="chevron-right" :size="28" />
+            </view>
+          </view>
+        </FormSection>
 
-        <view :style="cardGroup">
-        <text :style="fieldLabel">备注</text><view :style="noteShell"><textarea :value="form.note" placeholder="搭配想法、版型或养护信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
-        </view>
+        <FormSection title="备注">
+          <view :style="noteShell"><textarea :value="form.note" placeholder="搭配想法、版型或养护信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
+        </FormSection>
 
       </view>
     </template>
   </MainLayout>
   <view v-if="isEdit" :style="contentDeleteBtn" @tap="deleteItem"><text :style="contentDeleteBtnText">删除单品</text></view>
-  <view :style="bottomBar"><view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣橱' }}</text></view></view>
+  <BottomActionBar><view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣橱' }}</text></view></BottomActionBar>
   <AppDialog v-model:visible="showDeleteDialog" title="确认删除" message="删除后无法恢复，确定要删除这件单品吗？" confirm-text="删除" @confirm="deleteItem" />
 </template>
 
 <script setup lang="uts">
-import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
+import { WardrobeItem, WardrobeUpdateData, wardrobeCoverImage } from '@/domain/wardrobe-item'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
+import { PurchaseRecord } from '@/domain/purchase-record'
 import { useWishListStore } from '@/stores/wishlist-store'
 import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -60,6 +71,9 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
+import FormSection from '@/components/v3/FormSection.uvue'
+import FieldLabel from '@/components/v3/FieldLabel.uvue'
+import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = useWardrobeStore()
@@ -149,21 +163,34 @@ onMounted(() => {
   const item = store.getById(id)
   if (item == null) return
   form.value.name = item.name; form.value.category = item.category; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? item.purchasePrice.toString() : ''
-  form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = item.coverImage
+  form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = wardrobeCoverImage(item)
+  sourcePurchaseId.value = item.purchaseId
+  sourceWishId.value = item.wishId
 })
 
+// 编辑态「来源订单」卡片：从衣橱反查下单店铺/金额/尾款状态
+const sourcePurchase = computed((): PurchaseRecord | null => {
+  if (sourcePurchaseId.value === '') return null
+  return purchaseStore.getPurchaseById(sourcePurchaseId.value)
+})
+function openSourcePurchase() {
+  if (sourcePurchaseId.value !== '') uni.navigateTo({ url: `/pages/purchase/detail?id=${sourcePurchaseId.value}` })
+}
+
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
-const saveText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const editSafeBottom = getSafeBottomInset()
-const bottomBar = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: '0', zIndex: 100, paddingTop: '20rpx', paddingLeft: '32rpx', paddingRight: '32rpx', paddingBottom: `${editSafeBottom + 12}px`, backgroundColor: n.value.bg, borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.border }))
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角
 const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
+const sourceOrderCard = computed((): any => ({ flexDirection: 'row', alignItems: 'center', padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
+const sourceOrderCopy = { flex: 1 }
+const sourceOrderTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
+const sourceOrderMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx' }))
+const sourceOrderRight = { flexDirection: 'row' as string, alignItems: 'center', flexShrink: 0, marginLeft: '12rpx' }
+const sourceOrderPrice = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold as number, color: brand[500] as string, marginRight: '4rpx' }))
 const photoCard = computed((): any => ({ width: '686rpx', height: '460rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
 const photoEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 const photoText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '16rpx' }))
-const fieldLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '30rpx', marginBottom: '14rpx' }))
-const fieldLabelCompact = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '14rpx' }))
 const twoColumnRow = { ...flexRow, marginTop: '30rpx' }
 const halfField = { width: '327rpx', marginRight: '16rpx' }
 const halfFieldLast = { ...flexFill }
@@ -171,8 +198,6 @@ const halfFieldLast = { ...flexFill }
 const noteShell = computed((): any => ({ minHeight: '190rpx', padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '150rpx', fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
 const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
-// V3 §3.4 列表组/表单组：20rpx 圆角
-const cardGroup = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginTop: '24rpx' }))
 // V3 §6.13 危险操作：页面末尾、与保存分离、确认后执行
 const contentDeleteBtn = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: `${editSafeBottom + 108}px`, height: '44rpx', alignItems: 'center', justifyContent: 'center', zIndex: 99 }))
 const contentDeleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }

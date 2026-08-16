@@ -1,0 +1,82 @@
+import { Brand } from '@/domain/content/brand'
+import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { apiGet, encodeQuery } from '@/services/platform/api-client'
+
+/**
+ * BrandService — 品牌目录
+ * 后端接口契约（需后端实现，未就绪时返回空/空态不崩）：
+ *   GET /api/v1/brands          品牌列表
+ *   GET /api/v1/brands/:id      品牌详情
+ *   GET /api/v1/brands/:id/products  品牌商品列表
+ */
+
+export function mapBrand(raw: UTSJSONObject): Brand {
+  const b = new Brand()
+  b.id = raw['id'] != null ? raw['id'] as string : ''
+  b.name = raw['name'] != null ? raw['name'] as string : ''
+  b.nameEn = raw['nameEn'] != null ? raw['nameEn'] as string : ''
+  b.logo = raw['logo'] != null ? raw['logo'] as string : ''
+  b.description = raw['description'] != null ? raw['description'] as string : ''
+  b.category = raw['category'] != null ? raw['category'] as string : ''
+  b.officialUrl = raw['officialUrl'] != null ? raw['officialUrl'] as string : ''
+  b.followerCount = raw['followerCount'] != null ? raw['followerCount'] as number : 0
+  b.isFollowed = raw['isFollowed'] == true
+  b.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  b.updatedAt = raw['updatedAt'] != null ? raw['updatedAt'] as string : ''
+  return b
+}
+
+export function mapBrandProduct(raw: UTSJSONObject): FeedItem {
+  const item = new FeedItem()
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.entityId = item.id
+  item.feedType = FEED_PRODUCT
+  item.title = raw['title'] != null ? raw['title'] as string : ''
+  item.subtitle = raw['description'] != null ? raw['description'] as string : ''
+  item.brandId = raw['brandId'] != null ? raw['brandId'] as string : ''
+  item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
+  item.category = raw['category'] != null ? raw['category'] as string : ''
+  item.price = raw['priceCents'] != null ? raw['priceCents'] as number : 0
+  item.originalPrice = raw['originalPriceCents'] != null ? raw['originalPriceCents'] as number : item.price
+  item.badgeText = raw['badgeText'] != null ? raw['badgeText'] as string : ''
+  item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
+  item.sourceLabel = '服务端'
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  return item
+}
+
+export async function listBrands(): Promise<Brand[]> {
+  try {
+    const response = await apiGet('/api/v1/brands')
+    const raw = response.data as any[]
+    const result: Brand[] = []
+    if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapBrand(raw[i] as UTSJSONObject))
+    return result
+  } catch (e) {
+    return []
+  }
+}
+
+export async function fetchBrandDetail(id: string): Promise<Brand | null> {
+  if (id === '') return null
+  try {
+    const response = await apiGet('/api/v1/brands/' + encodeQuery(id))
+    if (response.data == null) return null
+    return mapBrand(response.data as UTSJSONObject)
+  } catch (e) {
+    return null
+  }
+}
+
+export async function listBrandProducts(brandId: string): Promise<FeedItem[]> {
+  if (brandId === '') return []
+  try {
+    const response = await apiGet('/api/v1/brands/' + encodeQuery(brandId) + '/products')
+    const raw = response.data as any[]
+    const result: FeedItem[] = []
+    if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapBrandProduct(raw[i] as UTSJSONObject))
+    return result
+  } catch (e) {
+    return []
+  }
+}

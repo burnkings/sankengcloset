@@ -1,4 +1,5 @@
 import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
+import { getRuntimeConfig } from '@/config/runtime'
 
 const STORAGE_KEY = 'wardrobe_items'
 
@@ -23,7 +24,39 @@ function loadAll(): WardrobeItem[] {
     return result
   } catch (e) { return [] }
 }
-function saveAll(items: WardrobeItem[]) { uni.setStorageSync(STORAGE_KEY, JSON.stringify(items)) }
+// vapor 模式下直接 JSON.stringify(class 实例数组) 会因原型/数组字段触发
+// "Cannot convert undefined or null to object"，这里手动转纯对象再序列化。
+function toPlainObject(item: WardrobeItem): UTSJSONObject {
+  return {
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    style: item.style,
+    brand: item.brand,
+    color: item.color,
+    size: item.size,
+    wearStatus: item.wearStatus,
+    seasons: item.seasons,
+    images: item.images,
+    tags: item.tags,
+    purchaseDate: item.purchaseDate,
+    purchasePrice: item.purchasePrice,
+    purchaseSource: item.purchaseSource,
+    note: item.note,
+    isFavorite: item.isFavorite,
+    isDeleted: item.isDeleted,
+    purchaseId: item.purchaseId,
+    wishId: item.wishId,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  } as UTSJSONObject
+}
+
+function saveAll(items: WardrobeItem[]) {
+  const plain: UTSJSONObject[] = []
+  for (let i = 0; i < items.length; i++) plain.push(toPlainObject(items[i]))
+  uni.setStorageSync(STORAGE_KEY, JSON.stringify(plain))
+}
 function generateId(): string { return `${Date.now()}-${Math.floor(Math.random() * 10000)}` }
 export function getAll(): WardrobeItem[] { return loadAll().filter((item) => !item.isDeleted) }
 export function getById(id: string): WardrobeItem | null { return loadAll().find((item) => item.id == id && !item.isDeleted) }
@@ -50,6 +83,7 @@ export function toggleFavorite(id: string): boolean {
   item.isFavorite = !item.isFavorite; item.updatedAt = new Date().toISOString(); saveAll(items); return true
 }
 export function initMockData() {
+  if (!getRuntimeConfig().mockOnline) return
   if (loadAll().length > 0) return
   const now = new Date().toISOString(); const items: WardrobeItem[] = []
   function sample(id: string, name: string, category: string, brand: string, price: number): WardrobeItem {

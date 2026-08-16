@@ -1,0 +1,59 @@
+/**
+ * notify — 本地通知栏消息（uni-push 本地能力）
+ * 不依赖服务器推送；仅用于「到点提醒」类本地通知。
+ * 注意：完整可靠的通知需要打包 push 模块（自定义基座）；标准基座可体验本地通知。
+ */
+
+export function notificationAuthorized(): boolean {
+  try {
+    // #ifdef APP
+    const auth = uni.getAppAuthorizeSetting().notificationAuthorized
+    return auth == 'authorized'
+    // #endif
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+export function openNotificationSetting() {
+  // #ifdef APP
+  uni.openAppAuthorizeSetting()
+  // #endif
+}
+
+function targetTimestamp(dateStr: string, timeStr: string): number {
+  try {
+    const date = new Date(dateStr + (timeStr !== '' ? 'T' + timeStr + ':00' : 'T09:00:00'))
+    const t = date.getTime()
+    return isNaN(t) ? 0 : t
+  } catch (e) {
+    return 0
+  }
+}
+
+/**
+ * 调度一条本地通知：在 remindDate + remindTime 时刻弹出。
+ * 未授权通知权限或目标时刻已过则跳过。应用被杀后依赖厂商推送通道，标准基座可能不可靠。
+ */
+export function scheduleReminderNotification(title: string, content: string, remindDate: string, remindTime: string): void {
+  if (title === '' || remindDate === '') return
+  if (!notificationAuthorized()) return
+  const when = targetTimestamp(remindDate, remindTime)
+  if (when <= 0) return
+  const now = Date.now()
+  if (when <= now) return
+  const delay = Math.floor((when - now) / 1000)
+  if (delay <= 0 || delay > 14 * 86400) return
+  try {
+    uni.createPushMessage({
+      title: title,
+      content: content,
+      delay: delay,
+      sound: 'system',
+      payload: { title: title } as UTSJSONObject,
+      success: () => {},
+      fail: () => {},
+    })
+  } catch (e) {}
+}

@@ -1,4 +1,4 @@
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { AiImportTask, AI_IMPORT_IDLE, AI_IMPORT_PROCESSING, AI_IMPORT_READY, AI_IMPORT_FAILED, AI_IMPORT_CONFIRMED } from '@/domain/ai/ai-import-task'
 import { analyzeImportImage } from '@/services/ai/ai-import-service'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
@@ -17,8 +17,8 @@ const _state = reactive<AiImportState>({
   errorMessage: '',
 })
 
-const _processing = computed((): boolean => _state.state === AI_IMPORT_PROCESSING)
-const _ready = computed((): boolean => _state.state === AI_IMPORT_READY)
+function processing(): boolean { return _state.state === AI_IMPORT_PROCESSING }
+function ready(): boolean { return _state.state === AI_IMPORT_READY }
 
 const CHANGE_EVENT = 'store:ai-import-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -72,8 +72,8 @@ class AiImportStoreHandle {
   get state(): string { return _state.state }
   get task(): AiImportTask | null { return _state.task }
   get errorMessage(): string { return _state.errorMessage }
-  get processing(): boolean { return _processing.value }
-  get ready(): boolean { return _ready.value }
+  get processing(): boolean { return processing() }
+  get ready(): boolean { return ready() }
   reset(): void { reset() }
   analyze(sourceImage: string, useDemo: boolean): Promise<AiImportTask | null> { return analyze(sourceImage, useDemo) }
   confirm(targetType: string, targetId: string, confirmedPayload: string): void { confirm(targetType, targetId, confirmedPayload) }

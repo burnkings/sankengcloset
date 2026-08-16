@@ -15,30 +15,69 @@
           </view>
         </view>
 
-        <SectionHeader title="穿搭说明" />
-        <AppInput v-model="caption" placeholder="例如：第一次尝试茶会风 Lolita" :maxlength="60" :clearable="true" />
+        <FormSection title="穿搭说明">
+          <AppInput v-model="caption" placeholder="例如：第一次尝试茶会风 Lolita" :maxlength="60" :clearable="true" />
+        </FormSection>
 
-        <SectionHeader title="选择坑向" />
-        <view :style="categoryRow">
-          <view v-for="(item, idx) in categories" :key="item" :style="categoryChip(idx, item)" @tap="category = item">
-            <text :style="categoryText(item)">{{ item }}</text>
+        <FormSection title="选择坑向">
+          <view :style="categoryRow">
+            <view v-for="(item, idx) in categories" :key="item" :style="categoryChip(idx, item)" @tap="category = item">
+              <text :style="categoryText(item)">{{ item }}</text>
+            </view>
           </view>
-        </view>
+        </FormSection>
 
-        <SectionHeader title="选择话题" />
-        <view :style="topicWrap">
-          <view v-for="(item, idx) in topics" :key="item" :style="topicChip(idx, item)" @tap="topic = item">
-            <text :style="topicText(item)">#{{ item }}</text>
+        <FormSection title="选择话题">
+          <view :style="topicWrap">
+            <view v-for="(item, idx) in topics" :key="item" :style="topicChip(idx, item)" @tap="topic = item">
+              <text :style="topicText(item)">#{{ item }}</text>
+            </view>
           </view>
-        </view>
+        </FormSection>
 
-        <view :style="publishButton" @tap="publishLook">
-          <text :style="publishText">发布到圈子</text>
-        </view>
+        <FormSection title="关联衣橱单品（可选）">
+          <view :style="wardrobeBtnRow" @tap="openWardrobePicker">
+            <text :style="wardrobeBtnText">{{ selectedWardrobeIds.length > 0 ? '已选 ' + selectedWardrobeIds.length + ' 件' : '选择衣橱单品' }}</text>
+            <AppIcon name="chevron-right" :size="28" />
+          </view>
+          <view v-if="selectedWardrobeIds.length > 0" :style="wardrobeTagsWrap">
+            <view v-for="wdId in selectedWardrobeIds" :key="wdId" :style="wardrobeTag">
+              <text :style="wardrobeTagText">{{ getWardrobeName(wdId) }}</text>
+              <view :style="wardrobeTagRemoveWrap" @tap.stop="removeWardrobe(wdId)"><AppIcon name="close" :size="24" /></view>
+            </view>
+          </view>
+        </FormSection>
+
         <text :style="privacyNote">{{ privacyNoteText }}</text>
       </view>
     </template>
   </MainLayout>
+  <BottomActionBar>
+    <view :style="publishButton" @tap="publishLook">
+      <text :style="publishText">发布到圈子</text>
+    </view>
+  </BottomActionBar>
+
+  <AppDialog :visible="showWardrobePicker" title="选择衣橱单品" @confirm="confirmWardrobe" @cancel="showWardrobePicker = false">
+    <view :style="wardrobePickerWrap">
+      <view v-if="wardrobeStore.sortedItems.length === 0" :style="wardrobeEmptyWrap">
+        <text :style="wardrobeEmptyText">暂无衣橱单品，可先去添加</text>
+      </view>
+      <scroll-view v-else :style="wardrobePickerScroll">
+        <view :style="wardrobeGrid">
+          <view v-for="wd in wardrobeStore.sortedItems" :key="wd.id" :style="wardrobeGridCard(wd.id)" @tap="toggleWardrobePicker(wd.id)">
+            <image v-if="wd.coverImage !== ''" :src="wd.coverImage" :style="wardrobeGridImg" mode="aspectFill" />
+            <view v-else :style="wardrobeGridPlaceholder"><AppIcon name="shirt" :size="40" :active="true" /></view>
+            <text :style="wardrobeGridName">{{ wd.name }}</text>
+            <text :style="wardrobePickerCat">{{ getWardrobeCat(wd.category) }}</text>
+            <view v-if="tempSelected.indexOf(wd.id) >= 0" :style="wardrobeGridCheck">
+              <AppIcon name="check" :size="22" />
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </AppDialog>
 </template>
 
 <script setup lang="uts">
@@ -54,9 +93,12 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import SectionHeader from '@/components/v3/SectionHeader.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
+import FormSection from '@/components/v3/FormSection.uvue'
+import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { getCachedAccessToken } from '@/config/runtime'
 import { uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
 
@@ -67,7 +109,41 @@ const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服', '混搭']
 const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const library = useContentLibraryStore()
+const wardrobeStore = useWardrobeStore()
 const publishing = ref(false)
+
+// 关联衣橱单品（复用提醒页的选择器）
+const showWardrobePicker = ref(false)
+const tempSelected = ref<string[]>([])
+const selectedWardrobeIds = ref<string[]>([])
+function openWardrobePicker() {
+  tempSelected.value = [...selectedWardrobeIds.value]
+  wardrobeStore.fetchItems()
+  showWardrobePicker.value = true
+}
+function toggleWardrobePicker(id: string) {
+  const idx = tempSelected.value.indexOf(id)
+  if (idx >= 0) { const next = [...tempSelected.value]; next.splice(idx, 1); tempSelected.value = next }
+  else { tempSelected.value = [...tempSelected.value, id] }
+}
+function confirmWardrobe() {
+  selectedWardrobeIds.value = [...tempSelected.value]
+  showWardrobePicker.value = false
+}
+function removeWardrobe(id: string) {
+  const idx = selectedWardrobeIds.value.indexOf(id)
+  if (idx >= 0) { const next = [...selectedWardrobeIds.value]; next.splice(idx, 1); selectedWardrobeIds.value = next }
+}
+function getWardrobeName(id: string): string {
+  const item = wardrobeStore.getById(id)
+  return item != null ? item.name : '未知单品'
+}
+function getWardrobeCat(cat: string): string {
+  if (cat === 'JK') return 'JK制服'
+  if (cat === 'LOLITA') return 'Lolita'
+  if (cat === 'HANFU') return '汉服'
+  return '其他'
+}
 
 function choosePhoto() {
   uni.chooseImage({
@@ -89,7 +165,7 @@ function publishLook() {
   publishing.value = true
   const completePublish = (imagePath: string) => {
     // 未登录：保存为本地草稿（outfit_ 前缀，登录后由同步队列重放）
-    library.saveOutfit(imagePath, caption.value, category.value, topic.value)
+    library.saveOutfit(imagePath, caption.value, category.value, topic.value, selectedWardrobeIds.value)
     publishing.value = false
     showFeedback('已保存为本地草稿')
     setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
@@ -102,6 +178,7 @@ function publishLook() {
         caption: caption.value,
         category: toBackendCategory(category.value),
         topic: topic.value,
+        wardrobeIds: selectedWardrobeIds.value,
       } as UTSJSONObject
       await createCommunityPostRemote(payload)
       publishing.value = false
@@ -153,7 +230,29 @@ const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
 function topicChip(idx: number, item: string) { return { height: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value == item ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid', borderColor: topic.value == item ? 'transparent' : n.value.border, marginRight: '12rpx', marginBottom: '12rpx' } }
 function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: topic.value == item ? brand.primary : n.value.textSecondary } }
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角
-const publishButton = { width: '686rpx', height: '88rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', marginTop: '56rpx' }
+const publishButton = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center' }))
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
+
+// 衣橱单品选择器
+const wardrobeBtnRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
+const wardrobeBtnText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
+const wardrobeTagsWrap = computed((): any => ({ flexDirection: 'row', flexWrap: 'wrap', marginTop: '16rpx' }))
+const wardrobeTag = computed((): any => ({ flexDirection: 'row', alignItems: 'center', height: '52rpx', paddingLeft: '20rpx', paddingRight: '8rpx', borderRadius: '26rpx', backgroundColor: n.value.surfacePink, marginRight: '12rpx', marginBottom: '8rpx' }))
+const wardrobeTagText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, marginRight: '12rpx' }))
+const wardrobeTagRemoveWrap = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center' }
+const wardrobePickerWrap = { paddingTop: '8rpx' }
+const wardrobePickerScroll = { maxHeight: '600rpx' }
+const wardrobeGrid = computed((): any => ({ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }))
+function wardrobeGridCard(id: string): any {
+  const selected = tempSelected.value.indexOf(id) >= 0
+  return { width: '48%', borderRadius: '24rpx', overflow: 'hidden', backgroundColor: n.value.surface, marginBottom: '24rpx', borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid' as string, borderColor: selected ? (brand[500] as string) : n.value.border, position: 'relative' as string }
+}
+const wardrobeGridImg = { width: '100%', height: '240rpx', borderRadius: '0' }
+const wardrobeGridPlaceholder = computed((): any => ({ width: '100%', height: '240rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const wardrobeGridName = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', lines: 1 as const, textOverflow: 'ellipsis' as string }))
+const wardrobeGridCheck = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const wardrobePickerCat = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, paddingLeft: '16rpx', paddingBottom: '12rpx' }))
+const wardrobeEmptyWrap = { alignItems: 'center', paddingTop: '40rpx', paddingBottom: '40rpx' }
+const wardrobeEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 </script>

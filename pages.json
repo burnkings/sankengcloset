@@ -103,24 +103,6 @@
       }
     },
     {
-      "path": "pages/wishlist/index",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/wishlist/detail",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/wishlist/edit",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/reminder/index",
       "style": {
         "navigationStyle": "custom"
@@ -157,6 +139,12 @@
       }
     },
     {
+      "path": "pages/preferences/blacklist",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/about/index",
       "style": {
         "navigationStyle": "custom"
@@ -164,6 +152,24 @@
     },
     {
       "path": "pages/about/legal",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/help/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/brand/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/brand/detail",
       "style": {
         "navigationStyle": "custom"
       }

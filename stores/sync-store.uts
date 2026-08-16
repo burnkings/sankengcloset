@@ -1,4 +1,4 @@
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { SyncOperation } from '@/domain/sync/sync-operation'
 import { readPendingOperations, flushLocalOperations, getLastSyncAt } from '@/services/sync/local-sync-queue'
 import { getRuntimeConfig } from '@/config/runtime'
@@ -21,8 +21,8 @@ const _state = reactive<SyncState>({
   errorMessage: '',
 })
 
-const _pendingCount = computed((): number => _state.operations.length)
-const _hasPending = computed((): boolean => _pendingCount.value > 0)
+function pendingCount(): number { return _state.operations.length }
+function hasPending(): boolean { return pendingCount() > 0 }
 
 const CHANGE_EVENT = 'store:sync-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -63,8 +63,8 @@ class SyncStoreHandle {
   get lastSyncAt(): string { return _state.lastSyncAt }
   get online(): boolean { return _state.online }
   get errorMessage(): string { return _state.errorMessage }
-  get pendingCount(): number { return _pendingCount.value }
-  get hasPending(): boolean { return _hasPending.value }
+  get pendingCount(): number { return pendingCount() }
+  get hasPending(): boolean { return hasPending() }
   reload(): void { reload() }
   syncNow(): Promise<number> { return syncNow() }
 }

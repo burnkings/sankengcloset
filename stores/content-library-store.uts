@@ -1,4 +1,4 @@
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
@@ -160,6 +160,8 @@ type ContentLibraryState = {
   favoriteProducts: FeedItem[]
   favoritesLoading: boolean
   favoritesError: string
+  favoritesLoadedOnce: boolean
+  invalidFavoriteIds: string[]
   wishIds: string[]
   followedBrands: string[]
   outfitPosts: SavedOutfitPost[]
@@ -167,6 +169,7 @@ type ContentLibraryState = {
   publicPosts: PublicLookPost[]
   publicLoading: boolean
   publicError: string
+  publicLoadedOnce: boolean
 }
 
 const _state = reactive<ContentLibraryState>({
@@ -175,6 +178,8 @@ const _state = reactive<ContentLibraryState>({
   favoriteProducts: [] as FeedItem[],
   favoritesLoading: false,
   favoritesError: '',
+  favoritesLoadedOnce: false,
+  invalidFavoriteIds: [] as string[],
   wishIds: [] as string[],
   followedBrands: [] as string[],
   outfitPosts: [] as SavedOutfitPost[],
@@ -182,13 +187,14 @@ const _state = reactive<ContentLibraryState>({
   publicPosts: [] as PublicLookPost[],
   publicLoading: false,
   publicError: '',
+  publicLoadedOnce: false,
 })
 
-const _favoriteCount = computed((): number => _state.favoriteIds.length)
-const _wishCount = computed((): number => _state.wishIds.length)
-const _followedBrandCount = computed((): number => _state.followedBrands.length)
-const _outfitCount = computed((): number => _state.outfitPosts.length)
-const _likedPostCount = computed((): number => _state.likedPostIds.length)
+function favoriteCount(): number { return _state.favoriteIds.length }
+function wishCount(): number { return _state.wishIds.length }
+function followedBrandCount(): number { return _state.followedBrands.length }
+function outfitCount(): number { return _state.outfitPosts.length }
+function likedPostCount(): number { return _state.likedPostIds.length }
 
 const CHANGE_EVENT = 'store:content-library-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -233,7 +239,8 @@ function reload() {
 
 /** 公开穿搭灵感 Gallery：listCommunityPostsRemote(..., false) */
 async function refreshPublicPosts(): Promise<void> {
-  _state.publicLoading = true
+  // 首次加载才显示骨架屏；之后进入静默刷新，避免空数据/重复进入闪 0.5s 骨架屏。
+  if (!_state.publicLoadedOnce) _state.publicLoading = true
   _state.publicError = ''
   try {
     const remote = await listCommunityPostsRemote('', '', '', false)
@@ -260,6 +267,7 @@ async function refreshPublicPosts(): Promise<void> {
     _state.publicError = e instanceof Error ? e.message : '加载失败'
   } finally {
     _state.publicLoading = false
+    _state.publicLoadedOnce = true
   }
   notifyChanged()
 }
@@ -399,28 +407,47 @@ async function refreshRemoteFavorites(): Promise<void> {
  * 详情加载失败只影响单条：本地收藏条目始终保留，已加载商品继续展示，失败条数转为可恢复错误提示。 */
 async function refreshFavorites(): Promise<void> {
   await refreshRemoteFavorites()
-  _state.favoritesLoading = true
+  // 首次加载才显示骨架屏；之后进入静默刷新。
+  if (!_state.favoritesLoadedOnce) _state.favoritesLoading = true
   _state.favoritesError = ''
   const products: FeedItem[] = []
   const entries = _state.favoriteEntries
-  let failedCount = 0
+  const invalid: string[] = []
   for (let i = 0; i < entries.length; i++) {
     try {
       const detail = await fetchProductDetail(entries[i].productId)
       if (detail != null) products.push(detail.item)
-      else failedCount++
+      else invalid.push(entries[i].productId)
     } catch (e) {
       // 单条失败不中断整列表：保留本地收藏条目，稍后可整体重试
-      failedCount++
+      invalid.push(entries[i].productId)
     }
   }
   _state.favoriteProducts = products
-  if (failedCount > 0 && entries.length > 0) {
-    _state.favoritesError = `有 ${failedCount} 个收藏的商品详情加载失败，可稍后重试`
+  _state.invalidFavoriteIds = invalid
+  if (invalid.length > 0) {
+    _state.favoritesError = `有 ${invalid.length} 个收藏的商品详情加载失败，可清除失效收藏`
   } else {
     _state.favoritesError = ''
   }
   _state.favoritesLoading = false
+  _state.favoritesLoadedOnce = true
+  notifyChanged()
+}
+
+/** 清除失效收藏：本地移除 + 入队幂等删除（后端无该商品则视为已删除，避免 404） */
+function removeInvalidFavorites(): void {
+  const invalid = _state.invalidFavoriteIds
+  if (invalid.length === 0) return
+  const validEntries = _state.favoriteEntries.filter((entry) => invalid.indexOf(entry.productId) < 0)
+  _state.favoriteEntries = validEntries
+  writeEntries(validEntries)
+  syncFavoriteIds()
+  for (let i = 0; i < invalid.length; i++) {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', invalid[i], 'delete', JSON.stringify({ productId: invalid[i] }))
+  }
+  _state.invalidFavoriteIds = []
+  _state.favoritesError = ''
   notifyChanged()
 }
 
@@ -480,12 +507,13 @@ async function refreshRemoteBrands(): Promise<void> {
   }
 }
 
-function saveOutfit(image: string, caption: string, category: string, topic: string): string {
+function saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): string {
   const id = `outfit_${Date.now()}`
   uni.setStorageSync(outfitKey(id, 'image'), image)
   uni.setStorageSync(outfitKey(id, 'caption'), caption)
   uni.setStorageSync(outfitKey(id, 'category'), category)
   uni.setStorageSync(outfitKey(id, 'topic'), topic)
+  if (wardrobeIds.length > 0) uni.setStorageSync(outfitKey(id, 'wardrobe_ids'), JSON.stringify(wardrobeIds))
   uni.setStorageSync(outfitKey(id, 'created_at'), Date.now().toString())
 
   const ids = readList(OUTFIT_IDS_KEY)
@@ -563,30 +591,34 @@ class ContentLibraryStoreHandle {
   get favoriteProducts(): FeedItem[] { return _state.favoriteProducts }
   get favoritesLoading(): boolean { return _state.favoritesLoading }
   get favoritesError(): string { return _state.favoritesError }
+  get favoritesLoadedOnce(): boolean { return _state.favoritesLoadedOnce }
+  get invalidFavoriteIds(): string[] { return _state.invalidFavoriteIds }
   get followedBrands(): string[] { return _state.followedBrands }
   get outfitPosts(): SavedOutfitPost[] { return _state.outfitPosts }
   get likedPostIds(): string[] { return _state.likedPostIds }
   get publicPosts(): PublicLookPost[] { return _state.publicPosts }
   get publicLoading(): boolean { return _state.publicLoading }
   get publicError(): string { return _state.publicError }
-  get favoriteCount(): number { return _favoriteCount.value }
-  get followedBrandCount(): number { return _followedBrandCount.value }
-  get outfitCount(): number { return _outfitCount.value }
-  get likedPostCount(): number { return _likedPostCount.value }
-  get wishCount(): number { return _wishCount.value }
+  get publicLoadedOnce(): boolean { return _state.publicLoadedOnce }
+  get favoriteCount(): number { return favoriteCount() }
+  get followedBrandCount(): number { return followedBrandCount() }
+  get outfitCount(): number { return outfitCount() }
+  get likedPostCount(): number { return likedPostCount() }
+  get wishCount(): number { return wishCount() }
   reload(): void { reload() }
   refreshPublicPosts(): Promise<void> { return refreshPublicPosts() }
   refreshMyPosts(): Promise<void> { return refreshMyPosts() }
   refreshRemoteBrands(): Promise<void> { return refreshRemoteBrands() }
   refreshRemoteFavorites(): Promise<void> { return refreshRemoteFavorites() }
   refreshFavorites(): Promise<void> { return refreshFavorites() }
+  removeInvalidFavorites(): void { removeInvalidFavorites() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
   toggleFavorite(entityId: string, title: string = ''): boolean { return toggleFavorite(entityId, title) }
   isWished(entityId: string): boolean { return isWished(entityId) }
   toggleWish(entityId: string): boolean { return toggleWish(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
   toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
-  saveOutfit(image: string, caption: string, category: string, topic: string): string { return saveOutfit(image, caption, category, topic) }
+  saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): string { return saveOutfit(image, caption, category, topic, wardrobeIds) }
   removeOutfit(id: string): void { removeOutfit(id) }
   isPostLiked(postId: string): boolean { return isPostLiked(postId) }
   togglePostLike(postId: string): boolean { return togglePostLike(postId) }

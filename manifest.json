@@ -51,7 +51,9 @@
                 "packageName" : "com.sankeng.closet"
             },
             "screenOrientation" : "portrait",
-            "modules" : {},
+            "modules" : {
+                "Push" : {}
+            },
             "icons" : {
                 "hdpi" : "static/app-icon.png",
                 "xhdpi" : "static/app-icon.png",
@@ -65,7 +67,9 @@
     },
     "app-ios" : {
         "distribute" : {
-            "modules" : {},
+            "modules" : {
+                "Push" : {}
+            },
             "icons" : {},
             "splashScreens" : {}
         }

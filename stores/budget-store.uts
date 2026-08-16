@@ -1,5 +1,5 @@
 /** 本地月预算设置。服务端账号接入后可替换存储实现。 */
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { loadBudgetRemote, saveBudgetRemote } from '@/services/user-data/user-data-service'
@@ -30,7 +30,7 @@ const _state = reactive<BudgetState>({
   alertPercent: readNumber(ALERT_KEY, 80),
 })
 
-const _isConfigured = computed((): boolean => _state.monthlyLimit > 0)
+function isConfigured(): boolean { return _state.monthlyLimit > 0 }
 
 const CHANGE_EVENT = 'store:budget-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -86,7 +86,7 @@ async function refreshRemoteBudget(): Promise<void> {
 class BudgetStoreHandle {
   get monthlyLimit(): number { return _state.monthlyLimit }
   get alertPercent(): number { return _state.alertPercent }
-  get isConfigured(): boolean { return _isConfigured.value }
+  get isConfigured(): boolean { return isConfigured() }
   save(limit: number, percent: number): void { save(limit, percent) }
   refreshRemoteBudget(): Promise<void> { return refreshRemoteBudget() }
 }

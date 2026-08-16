@@ -10,7 +10,7 @@
  * reactive 对象在 vapor 模式下可被 Vue 追踪变化。
  */
 
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { neutralLight, neutralDark, brand, NeutralPalette } from './tokens/colors'
 
 const THEME_MODE_KEY = 'v2_theme_mode'
@@ -92,12 +92,19 @@ function setGlobalDark(value: boolean) {
 type ThemeState = {
   themeMode: ThemeMode
   isDark: boolean
+  value: NeutralPalette
 }
 
 const _state = reactive<ThemeState>({
   themeMode: 'system',
   isDark: false,
+  value: neutralLight,
 })
+
+// ====== Vapor 兼容：单一 reactive（合并主题状态，减少模块级响应式对象数量以降低 Active effect） ======
+function applyPalette() {
+  _state.value = (_state.isDark as boolean) ? neutralDark : neutralLight
+}
 let lastTabBarMode = ''
 // #ifdef APP
 let osThemeChangeId: number | null = null
@@ -111,6 +118,7 @@ function syncFromGlobal(): boolean {
     _state.themeMode = mode
     _state.isDark = computedDark
     setGlobalDark(computedDark)
+    applyPalette()
   }
   return changed
 }
@@ -165,6 +173,7 @@ function enableSystemThemeListener() {
       _state.isDark = newDark
       setGlobalDark(newDark)
       lastTabBarMode = ''
+      applyPalette()
       applySystemChrome()
       syncTabBarChrome()
     }
@@ -211,6 +220,7 @@ export function setThemeMode(mode: ThemeMode) {
   setGlobalDark(_state.isDark as boolean)
   uni.setStorageSync(THEME_MODE_KEY, mode)
   lastTabBarMode = ''
+  applyPalette()
   applySystemChrome()
   syncTabBarChrome()
 
@@ -250,16 +260,7 @@ export function getThemeLabel(): string {
   return '浅色'
 }
 
-/** Computed — Vue 可追踪 _state.isDark 的变化 */
-export const isDark = computed((): boolean => {
-  return _state.isDark as boolean
-})
-
-/** Computed — Vue 可追踪 _state.themeMode 的变化 */
-export const themeMode = computed((): ThemeMode => {
-  return _state.themeMode as ThemeMode
-})
-
-export const n = computed((): NeutralPalette => {
-  return (_state.isDark as boolean) ? neutralDark : neutralLight
-})
+/** Vapor 兼容：n 直接指向单一 reactive（n.value = _state.value 响应）；isDark/themeMode 用 getter 读 _state 字段 */
+export const n = _state
+export const isDark = { get value(): boolean { return _state.isDark as boolean } }
+export const themeMode = { get value(): ThemeMode { return _state.themeMode as ThemeMode } }

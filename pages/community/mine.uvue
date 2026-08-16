@@ -7,7 +7,6 @@
         <template v-if="filteredPosts.length === 0">
           <PageState icon="camera" title="还没有发布动态" message="发布后的内容会集中显示在这里" action-text="去发布" @action="goCreate" />
         </template>
-        <ListGroup>
         <view v-for="post in filteredPosts" :key="post.id" :style="postRow">
           <view :style="thumbWrap" @tap="previewPostImage(post.image)"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
           <view :style="bodyStyle">
@@ -19,7 +18,6 @@
             </view>
           </view>
         </view>
-        </ListGroup>
       </view>
     </template>
   </MainLayout>
@@ -30,14 +28,13 @@ import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-librar
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
-import ListGroup from '@/components/v3/ListGroup.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { showFeedback } from '@/utils/feedback'
 
@@ -93,7 +90,7 @@ onUnload(() => { stopClock() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 // V3 §6.5 紧凑列表行：缩略图 + 标题/草稿标识/时间 + 删除；分割线分组
-const postRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '150rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }))
+const postRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '150rpx', paddingTop: '16rpx', paddingBottom: '16rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderRadius: CARD_RADIUS_V3, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '12rpx' }))
 const thumbWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary, marginRight: '20rpx', flexShrink: 0 }))
 const bodyStyle = { ...flexFill }
 const postHeader = { ...flexRow, alignItems: 'center', marginBottom: '8rpx' }

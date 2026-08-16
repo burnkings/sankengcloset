@@ -1,23 +1,21 @@
-import { ref } from 'vue'
+import { reactive } from 'vue'
 
-const _feedbackVisible = ref(false)
-const _feedbackMessage = ref('')
+const _feedback = reactive<{ visible: boolean; message: string }>({ visible: false, message: '' })
 let feedbackSequence = 0
 
 export function showFeedback(message: string) {
   feedbackSequence += 1
   const currentSequence = feedbackSequence
-  _feedbackMessage.value = message
-  _feedbackVisible.value = true
+  _feedback.message = message
+  _feedback.visible = true
   setTimeout(() => {
-    if (currentSequence === feedbackSequence) _feedbackVisible.value = false
+    if (currentSequence === feedbackSequence) _feedback.visible = false
   }, 1800)
 }
 
 export function hideFeedback() {
   feedbackSequence += 1
-  _feedbackVisible.value = false
+  _feedback.visible = false
 }
 
-export const feedbackVisible = _feedbackVisible
-export const feedbackMessage = _feedbackMessage
+export const feedbackState = _feedback

@@ -17,10 +17,9 @@
 import { semanticSpacing } from '@/theme/tokens/spacing'
 
 import { flexFill } from '@/theme/layout/flex'
-import { useTheme } from '@/theme/use-theme'
+import { n } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight } from '@/utils/window-info'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
-const theme = useTheme()
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -34,7 +33,7 @@ const statusBarHeight = getStatusBarHeight()
 
 const layoutStyle = computed((): any => ({
   height: `${getWindowHeight()}px`,
-  backgroundColor: theme.neutral.bg }))
+  backgroundColor: n.value.bg }))
 
 const bodyStyle = computed((): any => ({
   ...flexFill }))
@@ -44,5 +43,5 @@ const navbarSpacerStyle = computed((): any => ({
 
 const safeBottomStyle = computed((): any => ({
   height: semanticSpacing.safeBottom,
-  backgroundColor: theme.neutral.bg }))
+  backgroundColor: n.value.bg }))
 </script>

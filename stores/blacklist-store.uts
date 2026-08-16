@@ -1,0 +1,70 @@
+import { reactive } from 'vue'
+
+// 品牌黑名单：屏蔽后全链路（首页/搜索/收藏/发现/详情）不再展示该品牌
+const STORAGE_KEY = 'v2_blacklist_brands'
+
+type BlacklistState = {
+  brands: string[]
+}
+
+const _state = reactive<BlacklistState>({
+  brands: [] as string[],
+})
+
+function readList(): string[] {
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY)
+    if (raw == null || raw as string === '') return []
+    const arr = JSON.parse(raw) as string[]
+    return arr != null ? arr : ([] as string[])
+  } catch (e) {
+    return []
+  }
+}
+
+function writeList(values: string[]) {
+  try { uni.setStorageSync(STORAGE_KEY, JSON.stringify(values)) } catch (e) {}
+}
+
+function reload() {
+  _state.brands = readList()
+}
+
+function isBlacklisted(brandName: string): boolean {
+  if (brandName === '') return false
+  return _state.brands.indexOf(brandName) >= 0
+}
+
+const CHANGE_EVENT = 'store:blacklist-changed'
+function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+function toggleBlacklist(brandName: string): boolean {
+  if (brandName === '') return false
+  const values = [..._state.brands]
+  const idx = values.indexOf(brandName)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(brandName)
+  _state.brands = values
+  writeList(values)
+  notifyChanged()
+  return idx < 0
+}
+
+function blacklistedBrands(): string[] { return [..._state.brands] }
+
+class BlacklistStoreHandle {
+  get brands(): string[] { return blacklistedBrands() }
+  get count(): number { return _state.brands.length }
+  isBlacklisted(brandName: string): boolean { return isBlacklisted(brandName) }
+  toggleBlacklist(brandName: string): boolean { return toggleBlacklist(brandName) }
+  reload(): void { reload() }
+}
+
+let _handle: BlacklistStoreHandle | null = null
+export function useBlacklistStore(): BlacklistStoreHandle {
+  if (_handle == null) {
+    _handle = new BlacklistStoreHandle()
+    reload()
+  }
+  return _handle!
+}

@@ -5,20 +5,17 @@
  * - 频道切换重置 cursor/items/hasMore 并请求该频道第 1 页
  * - request generation 防旧请求覆盖新频道数据
  * - 保留服务端混合 Feed 原始顺序（运营内容原位插入，不全部沉底）
- * - 最大累计展示 100 条
  */
 
-import { reactive, computed } from 'vue'
-import { FeedItem, FEED_PRODUCT, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_BRAND_POST, FEED_EDITORIAL, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
+import { reactive, nextTick } from 'vue'
+import { FeedItem, FEED_PRODUCT, FEED_OUTFIT } from '@/domain/content/feed-item'
 import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
 import { usePreferencesStore } from '@/stores/preferences-store'
+import { useBlacklistStore } from '@/stores/blacklist-store'
 
 // ====== 频道定义 ======
 
 export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭']
-
-/** 最大累计展示条数（防无限创建节点） */
-export const MAX_FEED_ITEMS = 100
 
 // ====== 格式化工具 ======
 
@@ -68,31 +65,27 @@ export function formatDeadline(isoStr: string): string {
   return `距结束 ${Math.max(totalMin, 1)}分钟`
 }
 
-// ====== Feed 行类型 ======
+// ====== 瀑布流块类型 ======
 
-export class FeedRow {
-  id: string = ''
-  rowType: string = 'single' // 'single' | 'pair'
-  single: FeedItem | null = null
-  left: FeedItem | null = null
-  right: FeedItem | null = null
+export class MasonryBlock {
+  type: string = 'columns' // 'columns' | 'full'
+  full: FeedItem | null = null
+  left: FeedItem[] = []
+  right: FeedItem[] = []
 }
 
-function createSingleRow(item: FeedItem): FeedRow {
-  const row = new FeedRow()
-  row.id = `row-${item.id}`
-  row.rowType = 'single'
-  row.single = item
-  return row
-}
-
-function createPairRow(left: FeedItem, right: FeedItem | null): FeedRow {
-  const row = new FeedRow()
-  row.id = right != null ? `row-${left.id}-${right.id}` : `row-${left.id}`
-  row.rowType = 'pair'
-  row.left = left
-  row.right = right
-  return row
+/** 双列错落图片高度：按 item.id 确定性哈希，制造参差瀑布流 */
+export function feedImageHeight(item: FeedItem): string {
+  let h = 0
+  const id = item.id
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) % 1000003
+  }
+  const m = h % 4
+  if (m == 0) return '470rpx'
+  if (m == 1) return '520rpx'
+  if (m == 2) return '440rpx'
+  return '580rpx'
 }
 
 // ====== 模块级 reactive 状态（单例）======
@@ -104,7 +97,6 @@ type HomeFeedState = {
   nextCursor: string
   isLoadingMore: boolean
   hasMore: boolean
-  reachedLimit: boolean
   errorMessage: string
 }
 
@@ -116,12 +108,17 @@ const _state = reactive<HomeFeedState>({
   nextCursor: '',
   isLoadingMore: false,
   hasMore: true,
-  reachedLimit: false,
   errorMessage: '',
 })
 
 // 在 computed 外部初始化偏好 Store，避免在 computed 内反复调用
 const prefs = usePreferencesStore()
+// 品牌黑名单：屏蔽后不进入 Feed 展示
+const blacklist = useBlacklistStore()
+
+function isBrandBlocked(brandName: string): boolean {
+  return blacklist.isBlacklisted(brandName)
+}
 
 /**
  * 偏好坑向 → 后端 categories 参数（逗号分隔，如 "LOLITA,HANFU"）
@@ -140,51 +137,57 @@ function pitTypesToCategories(): string {
   return codes.join(',')
 }
 
-const _loading = computed((): boolean => _state.state == 'loading')
+function isLoading(): boolean { return _state.state == 'loading' }
 
 /**
  * 筛选后的展示列表（按频道；顺序 = 服务端返回顺序）
  * 频道切换时 Store 已按频道重新请求，这里仅做轻量过滤兜底。
  */
-const _displayItems = computed((): FeedItem[] => {
-  return filterFeedByChannel(_state.allItems, _state.currentChannel)
-})
+function displayItems(): FeedItem[] {
+  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName))
+}
 
-const _isEmpty = computed((): boolean => {
-  return _state.state == 'loaded' && _displayItems.value.length == 0
-})
+function isEmpty(): boolean {
+  return _state.state == 'loaded' && displayItems().length == 0
+}
 
-/**
- * Feed 行：保留服务端原始顺序。
- * 商品与穿搭（双列内容）相邻时配对成双列行；运营内容（release_event/editorial 等）
- * 原位插入为单行全宽，不再出现「全部商品先渲染、运营内容全部放后面」的割裂。
- */
-function isPairEligible(item: FeedItem): boolean {
+/** 双列错落卡片：商品/穿搭归入两列，运营内容全宽 */
+function isCardEligible(item: FeedItem): boolean {
   return item.feedType == FEED_PRODUCT || item.feedType == FEED_OUTFIT
 }
 
-const _feedRows = computed((): FeedRow[] => {
-  const rows: FeedRow[] = []
-  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel)
+/**
+ * 瀑布流块：保留服务端原始顺序。
+ * 连续商品/穿搭按「交替」分入左右两列（配合可变图片高度实现双列错落）；
+ * 运营内容（release_event/editorial 等）原位插入为全宽块，不跨块拉取。
+ */
+function masonryBlocks(): MasonryBlock[] {
+  const blocks: MasonryBlock[] = []
+  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName))
   let i = 0
   while (i < channelItems.length) {
     const item = channelItems[i]
-    if (isPairEligible(item) && i + 1 < channelItems.length && isPairEligible(channelItems[i + 1])) {
-      // 相邻两个商品/穿搭 → 双列行（严格保持服务端原始顺序，不跨行拉取）
-      rows.push(createPairRow(item, channelItems[i + 1]))
-      i += 2
-    } else if (isPairEligible(item)) {
-      // 商品/穿搭但无相邻配对 → 半宽单列（右侧留空），不跨越运营内容去配对
-      rows.push(createPairRow(item, null))
+    if (!isCardEligible(item)) {
+      const b = new MasonryBlock()
+      b.type = 'full'
+      b.full = item
+      blocks.push(b)
       i += 1
-    } else {
-      // 发售事件/编辑专题 → 单列全宽行
-      rows.push(createSingleRow(item))
+      continue
+    }
+    const block = new MasonryBlock()
+    block.type = 'columns'
+    let col = 0
+    while (i < channelItems.length && isCardEligible(channelItems[i])) {
+      if (col % 2 == 0) block.left.push(channelItems[i])
+      else block.right.push(channelItems[i])
+      col += 1
       i += 1
     }
+    blocks.push(block)
   }
-  return rows
-})
+  return blocks
+}
 
 const CHANGE_EVENT = 'store:home-feed-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -203,10 +206,11 @@ async function loadFirstPage(silent: boolean = false) {
   try {
     const page = await fetchFeedPage('', _state.currentChannel, '全部', pitTypesToCategories())
     if (seq !== _requestSeq) return // 过期请求（已切频道/已刷新），丢弃
-    _state.allItems = page.items.slice(0, MAX_FEED_ITEMS)
+    await nextTick()
+    if (seq !== _requestSeq) return
+    _state.allItems = page.items
     _state.nextCursor = page.nextCursor
-    _state.hasMore = page.hasMore && _state.allItems.length < MAX_FEED_ITEMS
-    _state.reachedLimit = _state.allItems.length >= MAX_FEED_ITEMS
+    _state.hasMore = page.hasMore
     _state.state = 'loaded'
   } catch (e) {
     if (seq !== _requestSeq) return
@@ -220,30 +224,19 @@ async function loadFirstPage(silent: boolean = false) {
 // 加载更多（防重入；opaque cursor 传递）
 async function loadMore() {
   if (_state.isLoadingMore || !_state.hasMore || _state.state !== 'loaded') return
-  if (_state.reachedLimit || _state.allItems.length >= MAX_FEED_ITEMS) {
-    _state.hasMore = false
-    _state.reachedLimit = true
-    notifyChanged()
-    return
-  }
   const seq = _requestSeq
   _state.isLoadingMore = true
   try {
     const page = await fetchFeedPage(_state.nextCursor, _state.currentChannel, '全部', pitTypesToCategories())
     if (seq !== _requestSeq) return // 期间已切频道，丢弃
+    await nextTick()
+    if (seq !== _requestSeq) return
     if (page.items.length == 0) {
       _state.hasMore = false
     } else {
-      const remaining = MAX_FEED_ITEMS - _state.allItems.length
-      const incoming = page.items.slice(0, remaining)
-      _state.allItems = [..._state.allItems, ...incoming]
+      _state.allItems = [..._state.allItems, ...page.items]
       _state.nextCursor = page.nextCursor
-      if (_state.allItems.length >= MAX_FEED_ITEMS) {
-        _state.hasMore = false
-        _state.reachedLimit = true
-      } else {
-        _state.hasMore = page.hasMore
-      }
+      _state.hasMore = page.hasMore
     }
   } catch (e) {
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
@@ -260,7 +253,6 @@ function setChannel(ch: string) {
   _state.nextCursor = ''
   _state.allItems = []
   _state.hasMore = true
-  _state.reachedLimit = false
   _state.errorMessage = ''
   notifyChanged()
   loadFirstPage()
@@ -317,16 +309,15 @@ function refreshIfPreferencesChanged() {
 
 class HomeFeedStoreHandle {
   get state(): string { return _state.state }
-  get loading(): boolean { return _loading.value }
-  get isEmpty(): boolean { return _isEmpty.value }
+  get loading(): boolean { return isLoading() }
+  get isEmpty(): boolean { return isEmpty() }
   get errorMessage(): string { return _state.errorMessage }
   get currentChannel(): string { return _state.currentChannel }
   get allItems(): FeedItem[] { return _state.allItems }
-  get displayItems(): FeedItem[] { return _displayItems.value }
-  get feedRows(): FeedRow[] { return _feedRows.value }
+  get displayItems(): FeedItem[] { return displayItems() }
+  get masonryBlocks(): MasonryBlock[] { return masonryBlocks() }
   get isLoadingMore(): boolean { return _state.isLoadingMore }
   get hasMore(): boolean { return _state.hasMore }
-  get reachedLimit(): boolean { return _state.reachedLimit }
   loadFirstPage(silent: boolean = false): Promise<void> { return loadFirstPage(silent) }
   loadMore(): Promise<void> { return loadMore() }
   setChannel(ch: string): void { setChannel(ch) }

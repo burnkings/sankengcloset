@@ -42,7 +42,8 @@ const props = withDefaults(defineProps<{
   deadlineText?: string
   saved?: boolean
   showSave?: boolean
-}>(), { title: '', brand: '', priceText: '', image: '', badgeText: '', badgeStatus: 'brand', deadlineText: '', saved: false, showSave: true })
+  imageHeight?: string
+}>(), { title: '', brand: '', priceText: '', image: '', badgeText: '', badgeStatus: 'brand', deadlineText: '', saved: false, showSave: true, imageHeight: PRODUCT_CARD_IMAGE_HEIGHT_V3 })
 
 const emit = defineEmits<{
   tap: []
@@ -50,11 +51,11 @@ const emit = defineEmits<{
 }>()
 
 const cardStyle = { width: '100%', marginBottom: '28rpx' }
-const imageWrap = computed((): any => ({ position: 'relative', width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
-const imageStyle = { width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3 }
-const imageFallbackStyle = computed((): any => ({ width: '100%', height: PRODUCT_CARD_IMAGE_HEIGHT_V3, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
+const imageWrap = computed((): any => ({ position: 'relative', width: '100%', height: props.imageHeight, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
+const imageStyle = computed((): any => ({ width: '100%', height: props.imageHeight }))
+const imageFallbackStyle = computed((): any => ({ width: '100%', height: props.imageHeight, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const fallbackTextStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }))
-const saveButtonStyle = { position: 'absolute', top: '8rpx', right: '8rpx', width: '72rpx', height: '72rpx', borderRadius: '36rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.55)' }
+const saveButtonStyle = { position: 'absolute', top: '8rpx', right: '8rpx', width: '72rpx', height: '72rpx', borderRadius: '36rpx', alignItems: 'center', justifyContent: 'center' }
 const infoStyle = { paddingTop: '12rpx' }
 const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textSecondary }))
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text, marginTop: '4rpx' }))

@@ -1,0 +1,38 @@
+<template>
+  <view v-if="visible" :style="btnStyle" @tap="emit('tap')">
+    <AppIcon name="arrow-up" :size="44" />
+  </view>
+</template>
+
+<script setup lang="uts">
+import { getSafeBottomInset } from '@/utils/window-info'
+import AppIcon from '@/components/base/AppIcon.uvue'
+
+// BackToTop — 返回顶部圆形浮钮（小红书风：深色半透明圆底 + 白色箭头）
+const props = withDefaults(defineProps<{
+  visible?: boolean
+  offsetY?: number
+}>(), {
+  visible: false,
+  offsetY: 0,
+})
+
+const emit = defineEmits<{ tap: [] }>()
+const safeBottom = getSafeBottomInset()
+
+const btnStyle = computed((): any => ({
+  position: 'fixed' as string,
+  right: '32rpx',
+  bottom: `${safeBottom + 180 + props.offsetY}px`,
+  width: '96rpx',
+  height: '96rpx',
+  borderRadius: '48rpx',
+  backgroundColor: 'rgba(0,0,0,0.35)',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 99,
+}))
+</script>
+
+<style>
+</style>

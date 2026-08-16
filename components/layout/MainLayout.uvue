@@ -1,7 +1,7 @@
 <template>
   <view :style="layoutStyle">
     <slot name="navbar" />
-    <scroll-view v-if="scrollable" :style="bodyStyle">
+    <scroll-view v-if="scrollable" :style="bodyStyle" :scroll-top="scrollTop" @scrolltolower="emit('scrolltolower')" @scroll="onScroll">
       <view :style="statusSpacerStyle" />
       <view :style="navbarSpacerStyle" />
       <slot />
@@ -20,18 +20,28 @@
 import { flexFill } from '@/theme/layout/flex'
 
 import { PAGE_BOTTOM_SAFE_SPACER, PAGE_HEADER_HEIGHT } from '@/theme/tokens/responsive'
-import { useTheme } from '@/theme/use-theme'
+import { n } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight } from '@/utils/window-info'
 import AppFeedbackToast from '@/components/base/AppFeedbackToast.uvue'
-const theme = useTheme()
 
 const props = withDefaults(defineProps<{
   navbarContentHeight?: string
   scrollable?: boolean
+  scrollTop?: number
 }>(), {
   navbarContentHeight: PAGE_HEADER_HEIGHT,
   scrollable: true,
+  scrollTop: 0,
 })
+
+const emit = defineEmits<{ scrolltolower: []; scroll: [scrollTop: number] }>()
+
+function onScroll(e: any) {
+  const eObj = e as UTSJSONObject
+  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  const top = d != null && d['scrollTop'] != null ? d['scrollTop'] as number : 0
+  emit('scroll', top)
+}
 
 const statusBarHeight = getStatusBarHeight()
 // App 原生渲染器不依赖 100vh；在部分 Android 设备上 100vh + 子级 height:0 会把内容区算成 0。
@@ -39,7 +49,7 @@ const windowHeight = getWindowHeight()
 
 const layoutStyle = computed((): any => ({
   height: `${windowHeight}px`,
-  backgroundColor: theme.neutral.bg,
+  backgroundColor: n.value.bg,
 }))
 
 const bodyStyle = computed((): any => ({
@@ -50,5 +60,5 @@ const bodyStyle = computed((): any => ({
 const statusSpacerStyle = { height: `${statusBarHeight}px`, flexShrink: 0 }
 const navbarSpacerStyle = computed((): any => ({ height: props.navbarContentHeight, flexShrink: 0 }))
 
-const safeBottomStyle = computed((): any => ({ height: PAGE_BOTTOM_SAFE_SPACER, flexShrink: 0, backgroundColor: theme.neutral.bg }))
+const safeBottomStyle = computed((): any => ({ height: PAGE_BOTTOM_SAFE_SPACER, flexShrink: 0, backgroundColor: n.value.bg }))
 </script>

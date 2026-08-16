@@ -1,7 +1,7 @@
 /**
  * ReminderStore — 提醒状态管理
  */
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 
 import { Reminder, ReminderUpdateData, STATUS_PENDING } from '@/domain/reminder'
 import { PurchaseRecord } from '@/domain/purchase-record'
@@ -10,6 +10,7 @@ import * as repo from '@/domain/repositories/reminder-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listRemindersRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
+import { scheduleReminderNotification } from '@/utils/notify'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -31,18 +32,18 @@ const _state = reactive<ReminderState>({
   currentSort: 'date-asc',
 })
 
-const _activeItems = computed((): Reminder[] => _state.items.filter((r) => !r.isDeleted))
+function activeItems(): Reminder[] { return _state.items.filter((r) => !r.isDeleted) }
 
-const _todayItems = computed((): Reminder[] => {
+function todayItems(): Reminder[] {
   const today = new Date().toISOString().split('T')[0]
-  return _activeItems.value.filter((r) => r.remindDate === today && r.status === STATUS_PENDING)
-})
+  return activeItems().filter((r) => r.remindDate === today && r.status === STATUS_PENDING)
+}
 
-const _upcomingItems = computed((): Reminder[] => {
+function upcomingItems(): Reminder[] {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   const weekLater = today + 7 * 86400000
-  return _activeItems.value.filter((r) => {
+  return activeItems().filter((r) => {
     if (r.status !== STATUS_PENDING) return false
     try {
       const t = new Date(r.remindDate).getTime()
@@ -51,23 +52,23 @@ const _upcomingItems = computed((): Reminder[] => {
       return false
     }
   })
-})
+}
 
-const _overdueItems = computed((): Reminder[] => {
+function overdueItems(): Reminder[] {
   const today = new Date().toISOString().split('T')[0]
-  return _activeItems.value.filter((r) => r.remindDate < today || r.status === 'MISSED')
-})
+  return activeItems().filter((r) => r.remindDate < today || r.status === 'MISSED')
+}
 
-const _missedItems = computed((): Reminder[] => {
+function missedItems(): Reminder[] {
   const today = new Date().toISOString().split('T')[0]
-  return _activeItems.value.filter((r) => r.remindDate < today && r.status === 'PENDING')
-})
+  return activeItems().filter((r) => r.remindDate < today && r.status === 'PENDING')
+}
 
-const _doneItems = computed((): Reminder[] => _activeItems.value.filter((r) => r.status === 'DONE'))
+function doneItems(): Reminder[] { return activeItems().filter((r) => r.status === 'DONE') }
 
-const _filteredItems = computed((): Reminder[] => {
+function filteredItems(): Reminder[] {
   autoMarkOverdue()
-  let result = _activeItems.value
+  let result = activeItems()
   if (_state.filterStatus) {
     if (_state.filterStatus === 'MISSED') {
       const today = new Date().toISOString().split('T')[0]
@@ -100,20 +101,33 @@ const _filteredItems = computed((): Reminder[] => {
     return 0
   })
   return result
-})
+}
 
-const _displayItems = computed((): ReminderDisplayModel[] => toDisplayModels(_filteredItems.value))
-const _groupedItems = computed((): ReminderGroupViewModel[] => groupByDate(_displayItems.value))
-const _itemCount = computed((): number => _activeItems.value.length)
-const _pendingCount = computed((): number => _activeItems.value.filter((r) => r.status == 'PENDING').length)
-const _todayCount = computed((): number => _todayItems.value.length)
-const _upcomingCount = computed((): number => _upcomingItems.value.length)
-const _overdueCount = computed((): number => _overdueItems.value.length)
-const _missedCount = computed((): number => _missedItems.value.length)
-const _balancePendingCount = computed((): number => _activeItems.value.filter((r) => r.type === 'BALANCE' && r.status === 'PENDING').length)
+function displayItems(): ReminderDisplayModel[] { return toDisplayModels(filteredItems()) }
+function groupedItems(): ReminderGroupViewModel[] { return groupByDate(displayItems()) }
+function itemCount(): number { return activeItems().length }
+function pendingCount(): number { return activeItems().filter((r) => r.status == 'PENDING').length }
+function todayCount(): number { return todayItems().length }
+function upcomingCount(): number { return upcomingItems().length }
+function overdueCount(): number { return overdueItems().length }
+function missedCount(): number { return missedItems().length }
+function balancePendingCount(): number { return activeItems().filter((r) => r.type === 'BALANCE' && r.status === 'PENDING').length }
 
 const CHANGE_EVENT = 'store:reminder-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+
+function reminderContent(item: Reminder): string {
+  if (item.type === 'BALANCE') return `尾款提醒：${item.title}`
+  if (item.type === 'ARRIVAL') return `到货提醒：${item.title}`
+  if (item.type === 'RELEASE') return `发售提醒：${item.title}`
+  return item.note !== '' ? item.note : `提醒：${item.title}`
+}
+
+function scheduleFor(item: Reminder) {
+  if (item.status === STATUS_PENDING && item.remindDate !== '') {
+    scheduleReminderNotification(item.title, reminderContent(item), item.remindDate, item.remindTime)
+  }
+}
 
 // ====== 模块级 action ======
 
@@ -162,6 +176,7 @@ function addItem(item: Reminder): Reminder | null {
     _state.items = [..._state.items, added]
     enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', added.id, 'create', JSON.stringify(added))
     if (getCachedAccessToken() != '') createAssetRemote('reminders', added as UTSJSONObject).catch(() => {})
+    scheduleFor(added)
     notifyChanged()
     return added
   } catch (err) {
@@ -192,6 +207,7 @@ function updateItem(id: string, data: ReminderUpdateData): boolean {
       const current = _state.items.find((item) => item.id == id)
       if (current != null) patchAssetRemote('reminders', id, current as UTSJSONObject).catch(() => {})
     }
+    if (existing != null) scheduleFor(existing)
     notifyChanged()
   }
   return ok
@@ -270,8 +286,8 @@ function updateLinkedReminder(existing: Reminder, title: string, date: string, t
  * 改订单金额、日期、取消或入橱时，这些提醒会同步更新/结束，而不是留下孤儿提醒。
  */
 function syncPurchaseReminders(purchase: PurchaseRecord): void {
-  const balance = _activeItems.value.find((item) => item.relatedPurchaseId == purchase.id && item.type == 'BALANCE')
-  const arrival = _activeItems.value.find((item) => item.relatedPurchaseId == purchase.id && item.type == 'ARRIVAL')
+  const balance = activeItems().find((item) => item.relatedPurchaseId == purchase.id && item.type == 'BALANCE')
+  const arrival = activeItems().find((item) => item.relatedPurchaseId == purchase.id && item.type == 'ARRIVAL')
   const active = purchase.paymentStatus != 'CANCELLED'
   const needsBalance = active && purchase.remainingAmount > 0 && purchase.deadline != ''
   if (needsBalance) {
@@ -346,21 +362,21 @@ class ReminderStoreHandle {
   get filterStatus(): string { return _state.filterStatus }
   get searchKeyword(): string { return _state.searchKeyword }
   get currentSort(): string { return _state.currentSort }
-  get activeItems(): Reminder[] { return _activeItems.value }
-  get todayItems(): Reminder[] { return _todayItems.value }
-  get upcomingItems(): Reminder[] { return _upcomingItems.value }
-  get overdueItems(): Reminder[] { return _overdueItems.value }
-  get doneItems(): Reminder[] { return _doneItems.value }
-  get filteredItems(): Reminder[] { return _filteredItems.value }
-  get displayItems(): ReminderDisplayModel[] { return _displayItems.value }
-  get groupedItems(): ReminderGroupViewModel[] { return _groupedItems.value }
-  get itemCount(): number { return _itemCount.value }
-  get pendingCount(): number { return _pendingCount.value }
-  get todayCount(): number { return _todayCount.value }
-  get upcomingCount(): number { return _upcomingCount.value }
-  get overdueCount(): number { return _overdueCount.value }
-  get missedCount(): number { return _missedCount.value }
-  get balancePendingCount(): number { return _balancePendingCount.value }
+  get activeItems(): Reminder[] { return activeItems() }
+  get todayItems(): Reminder[] { return todayItems() }
+  get upcomingItems(): Reminder[] { return upcomingItems() }
+  get overdueItems(): Reminder[] { return overdueItems() }
+  get doneItems(): Reminder[] { return doneItems() }
+  get filteredItems(): Reminder[] { return filteredItems() }
+  get displayItems(): ReminderDisplayModel[] { return displayItems() }
+  get groupedItems(): ReminderGroupViewModel[] { return groupedItems() }
+  get itemCount(): number { return itemCount() }
+  get pendingCount(): number { return pendingCount() }
+  get todayCount(): number { return todayCount() }
+  get upcomingCount(): number { return upcomingCount() }
+  get overdueCount(): number { return overdueCount() }
+  get missedCount(): number { return missedCount() }
+  get balancePendingCount(): number { return balancePendingCount() }
   fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: Reminder): Reminder | null { return addItem(item) }
   updateItem(id: string, data: ReminderUpdateData): boolean { return updateItem(id, data) }

@@ -19,7 +19,15 @@
           <view :style="summaryCard">
               <view :style="priceRow"><text :style="priceText">{{ formatMoney(item!.price) }}</text><text v-if="item!.originalPrice > item!.price" :style="oldPrice">{{ formatMoney(item!.originalPrice) }}</text></view>
             <text :style="titleText">{{ item!.title }}</text>
-            <text :style="brandText">{{ item!.brandName }}</text>
+            <view :style="brandRow">
+              <text :style="brandText">{{ item!.brandName }}</text>
+              <view :style="blacklistBtn" @tap="onToggleBlacklist">
+                <text :style="blacklistBtnText">{{ blacklist.isBlacklisted(item!.brandName) ? '已屏蔽·恢复' : '屏蔽品牌' }}</text>
+              </view>
+            </view>
+            <view v-if="blacklist.isBlacklisted(item!.brandName)" :style="blockedBanner">
+              <text :style="blockedBannerText">该品牌已被你屏蔽，首页、搜索与收藏中将不再展示。可点上方「已屏蔽·恢复」取消。</text>
+            </view>
             <view :style="statusTag">
               <view :style="statusDot" />
               <text :style="statusTagText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text>
@@ -59,7 +67,7 @@
   </MainLayout>
     <view v-if="item !== null" :style="botBar">
     <view :style="botItem" @tap="toggleSaved">
-      <view :style="botIcon"><AppIcon name="wardrobe" :size="40" :active="isSaved" /></view>
+      <view :style="botIcon"><AppIcon name="heart" :size="40" :active="isSaved" /></view>
       <text :style="botLabel">{{ isSaved ? '已收藏' : '收藏' }}</text>
     </view>
     <view :style="botItem" @tap="createReminder">
@@ -86,6 +94,7 @@ import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { useBlacklistStore } from '@/stores/blacklist-store'
 import { calculateWardrobeCompatibility } from '@/services/ai/wardrobe-compatibility-service'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -104,10 +113,20 @@ const shopUrl = ref('')
 const library = useContentLibraryStore()
 const session = useSessionStore()
 const wardrobe = useWardrobeStore()
+const blacklist = useBlacklistStore()
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
 const compatibility = computed(() => item.value !== null ? calculateWardrobeCompatibility(item.value!, wardrobe.items) : calculateWardrobeCompatibility(new FeedItem(), wardrobe.items))
 const compatibilityNames = computed((): string => compatibility.value.matchedItems.map((entry) => entry.name).join('、'))
 const stages = ['图透', '定金', '尾款', '现货']
+// 按商品角标推导当前发售进度（0-4：0 未知/1 图透/2 定金/3 尾款/4 现货）
+const currentStage = computed((): number => {
+  const badge = item.value != null ? item.value!.badgeText : ''
+  if (badge === '现货') return 4
+  if (badge === '尾款') return 3
+  if (badge === '定金' || badge === '预约' || badge === '预售') return 2
+  if (badge === '图透' || badge === '新品') return 1
+  return 0
+})
 const currentImageIndex = ref(0)
 function formatMoney(cents: number): string { return formatPrice(cents) }
   const detailImages = ref<string[]>([])
@@ -138,6 +157,14 @@ function toggleSaved() {
   // 统一数据源：content-library-store → 后端 /api/v1/wishlist（失败自动入队，恢复后重放）
   const saved = library.toggleFavorite(entityId, item.value!.title)
   showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
+}
+
+function onToggleBlacklist() {
+  if (item.value === null) return
+  const name = item.value!.brandName
+  if (name === '') { showFeedback('该商品暂无品牌信息'); return }
+  const blocked = blacklist.toggleBlacklist(name)
+  showFeedback(blocked ? `已屏蔽品牌：${name}` : `已恢复品牌：${name}`)
 }
 
 function openOfficial() {
@@ -213,6 +240,11 @@ const priceText = { fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3Tex
 const oldPrice = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }))
 const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
 const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
+const brandRow = { flexDirection: 'row' as string, alignItems: 'center' }
+const blacklistBtn = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx' }))
+const blacklistBtnText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[600] as string }))
+const blockedBanner = computed((): any => ({ marginTop: '16rpx', padding: '16rpx', borderRadius: '12rpx', backgroundColor: n.value.surfacePink }))
+const blockedBannerText = computed((): any => ({ fontSize: fontSize.xs, color: brand[600] as string, lineHeight: '32rpx' }))
 const statusTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink }))
 const statusDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '8rpx' }
 const statusTagText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500] }
@@ -230,13 +262,13 @@ const recordBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRad
 const recordText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '8rpx' }))
 const stepCard = computed((): any => ({ ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const stepLine = computed((): any => ({ position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.border }))
-const stepLineFill = { position: 'absolute' as string, left: '110rpx', width: '257rpx', top: '71rpx', height: '2rpx', backgroundColor: brand[500] }
+const stepLineFill = computed((): any => ({ position: 'absolute' as string, left: '110rpx', width: `${Math.round(257 * Math.min(currentStage.value, 4) / 4)}rpx`, top: '71rpx', height: '2rpx', backgroundColor: brand[500] }))
 const stepRow = { ...flexFill, ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between' }
 function stepItem(idx: number) { return { flex: 1, alignItems: 'center' } }
 function stepDot(idx: number) {
-  const filled = idx < 2
-  const outline = idx === 2
-  const idle = idx === 3
+  const filled = idx < currentStage.value
+  const outline = idx === currentStage.value && currentStage.value < 4
+  const idle = !filled && !outline
   return {
     width: '24rpx',
     height: '24rpx',
@@ -249,8 +281,8 @@ function stepDot(idx: number) {
   }
 }
 function stepLabel(idx: number) {
-  const active = idx < 2
-  const next = idx === 2
+  const active = idx < currentStage.value
+  const next = idx === currentStage.value
   return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: active ? n.value.text : (next ? n.value.text : n.value.textSecondary), marginTop: '12rpx' }
 }
 const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))

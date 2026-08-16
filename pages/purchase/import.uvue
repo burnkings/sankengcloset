@@ -9,19 +9,21 @@
             <text :style="heroDescription">只提取订单、定金、已付金额与补款时间。识别结果会先进入确认页，绝不会自动建单或扣款。</text>
           </view>
 
-          <text :style="sectionTitle">1. 添加订单截图</text>
-          <view :style="imagePicker" @tap="chooseScreenshot">
-            <AppImage v-if="sourceImage !== ''" :src="sourceImage" width="100%" height="100%" mode="aspectFill" />
-            <view v-else :style="imagePlaceholder">
-              <AppIcon name="import" :size="52" :active="true" />
-              <text :style="imagePlaceholderTitle">选择淘宝、微店或团长订单截图</text>
-              <text :style="imagePlaceholderDesc">相册和相机都可以，截图仅用于本次识别</text>
+          <FormSection title="1. 添加订单截图">
+            <view :style="imagePicker" @tap="chooseScreenshot">
+              <AppImage v-if="sourceImage !== ''" :src="sourceImage" width="100%" height="100%" mode="aspectFill" />
+              <view v-else :style="imagePlaceholder">
+                <AppIcon name="import" :size="52" :active="true" />
+                <text :style="imagePlaceholderTitle">选择淘宝、微店或团长订单截图</text>
+                <text :style="imagePlaceholderDesc">相册和相机都可以，截图仅用于本次识别</text>
+              </view>
             </view>
-          </view>
+          </FormSection>
 
-          <text :style="sectionTitle">2. 补充来源链接（可选）</text>
-          <AppInput v-model="sourceLink" placeholder="粘贴淘宝 / 闲鱼 / 拼多多商品链接" :clearable="true" />
-          <text :style="fieldHint">链接只用于标注来源；短链无法解析时仍可继续，不会中断入库。</text>
+          <FormSection title="2. 补充来源链接（可选）">
+            <AppInput v-model="sourceLink" placeholder="粘贴淘宝 / 闲鱼 / 拼多多商品链接" :clearable="true" />
+            <text :style="fieldHint">链接只用于标注来源；短链无法解析时仍可继续，不会中断入库。</text>
+          </FormSection>
 
           <view v-if="errorMessage !== ''" :style="errorCard"><text :style="errorText">{{ errorMessage }}</text></view>
 
@@ -35,10 +37,10 @@
       </scroll-view>
     </template>
   </MainLayout>
-  <view :style="bottomBar">
+  <BottomActionBar>
     <view :style="secondaryButton" @tap="continueManually"><text :style="secondaryButtonText">手动补全</text></view>
     <view :style="primaryButton(working)" @tap="startRecognition"><text :style="primaryButtonText">{{ working ? '正在识别…' : '识别并确认' }}</text></view>
-  </view>
+  </BottomActionBar>
 </template>
 
 <script setup lang="uts">
@@ -57,6 +59,8 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
+import FormSection from '@/components/v3/FormSection.uvue'
+import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 
 const sourceImage = ref('')
 const sourceLink = ref('')
@@ -146,7 +150,6 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER
 const heroCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginBottom: '36rpx' }))
 const heroTitle = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.text, lineHeight: '48rpx' }))
 const heroDescription = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '38rpx', marginTop: '10rpx' }))
-const sectionTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '16rpx', marginTop: '24rpx' }))
 const imagePicker = computed((): any => ({ height: '340rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, borderWidth: '2rpx', borderStyle: 'dashed', borderColor: n.value.border }))
 const imagePlaceholder = { height: '100%', alignItems: 'center', justifyContent: 'center' }
 const imagePlaceholderTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '16rpx' }))
@@ -158,7 +161,6 @@ const privacyCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: 
 const privacyTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const privacyText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginTop: '8rpx' }))
 const bottomSpacer = { height: '160rpx' }
-const bottomBar = computed((): any => ({ ...flexRow, position: 'fixed', left: '0', right: '0', bottom: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingTop: '16rpx', paddingBottom: `${safeBottom + 20}px`, backgroundColor: n.value.surface }))
 const secondaryButton = computed((): any => ({ height: '88rpx', width: '190rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
 const secondaryButtonText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 function primaryButton(disabled: boolean): any { return { ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: disabled ? brand[300] as string : brand[500] as string, alignItems: 'center', justifyContent: 'center' } }

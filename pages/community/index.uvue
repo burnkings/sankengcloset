@@ -27,14 +27,14 @@
         </view>
 
         <!-- 公开 Gallery：loading / empty / error 三态 -->
-        <view v-if="viewMode !== 'mine' && library.publicLoading" :style="stateWrap">
+        <view v-if="viewMode !== 'mine' && (library.publicLoading || !library.publicLoadedOnce)" :style="stateWrap">
           <FeedSkeleton />
         </view>
         <view v-else-if="viewMode !== 'mine' && library.publicError !== ''" :style="stateWrap">
           <PageState icon="info" title="灵感加载失败" :message="library.publicError" action-text="重新加载" @action="reloadPublic" />
         </view>
         <view v-else-if="viewMode !== 'mine' && visibleLooks.length === 0" :style="stateWrap">
-          <PageState icon="camera" title="还没有穿搭灵感" message="发布你的第一套搭配，成为大家的灵感" action-text="去发布" @action="goCreate" />
+          <PageState icon="camera" title="还没有穿搭灵感" message="同好们还没分享，敬请期待" />
         </view>
 
         <!-- 公开 Gallery 帖子：双列 NoteCard（V3 §6.4） -->

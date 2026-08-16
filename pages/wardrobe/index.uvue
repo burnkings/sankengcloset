@@ -1,18 +1,24 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="衣橱" :show-back="true" /></template>
+  <MainLayout navbar-content-height="192rpx" :scroll-top="scrollTop" @scroll="onPageScroll">
+    <template #navbar>
+      <AppNavbar title="衣橱" :show-back="true" />
+      <view :style="searchBarFixed"><AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" :adjust-position="false" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput></view>
+    </template>
     <template #default>
-      <scroll-view :style="scrollStyle">
-        <view class="page-canvas" :style="pageWrap">
-          <AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput>
+      <view class="page-canvas" :style="pageWrap">
 
           <!-- V3 §6.12 SummaryStrip：只显示总件数和当前筛选数 -->
           <view :style="summaryWrap">
             <SummaryStrip :items="summaryItems" />
+            <view v-if="catChips.length > 0" :style="catChipWrap">
+              <view v-for="chip in catChips" :key="chip.label" :style="catChipStyle()">
+                <text :style="catChipText">{{ chip.label }} {{ chip.count }}</text>
+              </view>
+            </view>
           </view>
 
           <view :style="actionRow">
-            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">{{ store.sortLabel }}</text></view>
+            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">{{ sortLabel }}</text></view>
             <view :style="quickFilters">
               <view :style="quickChip(unwornOnly)" @tap="toggleUnwornOnly"><text :style="quickChipText(unwornOnly)">仅看未穿</text></view>
             </view>
@@ -27,18 +33,37 @@
           </template>
 
           <view v-else :style="grid">
-            <view v-for="(item, idx) in visibleItems" :key="item.id" :style="card(idx)" @tap="openItem(item.id)">
-              <view :style="imageWrap">
-                <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                <view :style="catBadge"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
-                <view v-if="item.isFavorite" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
+            <view :style="colLeft">
+              <view v-for="item in leftItems" :key="item.id" :style="card" @tap="openItem(item.id)">
+                <view :style="imgWrap(item.id)">
+                  <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                  <view :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
+                  <view v-if="item.isFavorite" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
+                </view>
+                <view :style="cardBody">
+                  <text :style="cardName">{{ item.name }}</text>
+                  <view :style="cardBottomRow">
+                    <text :style="cardBrand">{{ item.brand !== '' ? item.brand : catLabel(item.category) }}</text>
+                    <StatusChip :label="wearLabel(item.wearStatus)" :status="wearStatusClass(item.wearStatus)" size="sm" />
+                    <text v-if="item.purchasePrice > 0" :style="cardPrice">¥{{ item.purchasePrice }}</text>
+                  </view>
+                </view>
               </view>
-              <view :style="cardBody">
-                <text :style="cardName">{{ item.name }}</text>
-                <view :style="cardBottomRow">
-                  <text :style="cardBrand">{{ item.brand !== '' ? item.brand : catLabel(item.category) }}</text>
-                  <StatusChip :label="wearLabel(item.wearStatus)" :status="wearStatusClass(item.wearStatus)" size="sm" />
-                  <text v-if="item.purchasePrice > 0" :style="cardPrice">¥{{ item.purchasePrice }}</text>
+            </view>
+            <view :style="colRight">
+              <view v-for="item in rightItems" :key="item.id" :style="card" @tap="openItem(item.id)">
+                <view :style="imgWrap(item.id)">
+                  <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                  <view :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
+                  <view v-if="item.isFavorite" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
+                </view>
+                <view :style="cardBody">
+                  <text :style="cardName">{{ item.name }}</text>
+                  <view :style="cardBottomRow">
+                    <text :style="cardBrand">{{ item.brand !== '' ? item.brand : catLabel(item.category) }}</text>
+                    <StatusChip :label="wearLabel(item.wearStatus)" :status="wearStatusClass(item.wearStatus)" size="sm" />
+                    <text v-if="item.purchasePrice > 0" :style="cardPrice">¥{{ item.purchasePrice }}</text>
+                  </view>
                 </view>
               </view>
             </view>
@@ -46,20 +71,23 @@
 
           <view :style="bottomSpacer" />
         </view>
-      </scroll-view>
     </template>
   </MainLayout>
   <AppFab @tap="goAdd" />
+  <BackToTop :visible="showBackTop" @tap="backToTop" />
 </template>
 
 <script setup lang="uts">
-import { useWardrobeStore } from '@/stores/wardrobe-store'
-import { WardrobeItem } from '@/domain/wardrobe-item'
+import { ref, computed, nextTick } from 'vue'
+import { useWardrobeStore, WardrobeDisplayModel } from '@/stores/wardrobe-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
+import { getStatusBarHeight } from '@/utils/window-info'
+import { upx2px } from '@/utils/window-info'
+import { zIndex } from '@/theme/tokens/z-index'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -71,6 +99,7 @@ import StatusChip from '@/components/v3/StatusChip.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
+import BackToTop from '@/components/base/BackToTop.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 const store = useWardrobeStore()
@@ -79,7 +108,19 @@ const activeFilter = ref('全部')
 const unwornOnly = ref(false)
 const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
 
-const activeCatLabel = computed((): string => activeFilter.value === '全部' ? '' : activeFilter.value)
+// 返回顶部
+const scrollTop = ref(0)
+const lastScrollTop = ref(0)
+const showBackTop = ref(false)
+function onPageScroll(top: number) {
+  lastScrollTop.value = top
+  showBackTop.value = top > 300
+}
+function backToTop() {
+  showBackTop.value = false
+  scrollTop.value = lastScrollTop.value
+  nextTick(() => { scrollTop.value = 0 })
+}
 
 function applySearch() { store.setSearch(searchValue.value) }
 function onFilter(label: string) {
@@ -92,7 +133,30 @@ function toggleUnwornOnly() {
   store.setStatus(unwornOnly.value ? 'UNWORN' : '')
 }
 const hasAnyItems = computed((): boolean => store.itemCount > 0)
-const visibleItems = computed((): WardrobeItem[] => store.sortedItems)
+const visibleItems = computed(() => store.sortedItems)
+// 双列错落瀑布流：按索引奇偶分列，图片高度按 id 哈希 4 档错峰（与首页 feedImageHeight 一致）
+const leftItems = computed((): WardrobeDisplayModel[] => {
+  const items = visibleItems.value
+  const list: WardrobeDisplayModel[] = []
+  for (let i = 0; i < items.length; i++) { if (i % 2 == 0) list.push(items[i]) }
+  return list
+})
+const rightItems = computed((): WardrobeDisplayModel[] => {
+  const items = visibleItems.value
+  const list: WardrobeDisplayModel[] = []
+  for (let i = 0; i < items.length; i++) { if (i % 2 == 1) list.push(items[i]) }
+  return list
+})
+function wardrobeImageHeight(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 1000003
+  const m = h % 4
+  if (m == 0) return '440rpx'
+  if (m == 1) return '520rpx'
+  if (m == 2) return '470rpx'
+  return '580rpx'
+}
+const sortLabel = computed((): string => store.sortLabel)
 const sortOptions = ['newest', 'earliest', 'priceHigh', 'priceLow', 'name']
 const sortLabels = ['最近加入', '最早加入', '价格高到低', '价格低到高', '名称']
 function showSortSheet() {
@@ -107,19 +171,54 @@ function wearStatusClass(s: string): string {
 }
 function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
-onLoad(() => { initPageTheme() })
-onShow(() => { initPageTheme(); store.fetchItems() })
-watch(searchValue, (value: string) => { store.setSearch(value) })
+onLoad(() => { nextTick(() => initPageTheme()) })
+onShow(() => { nextTick(() => { initPageTheme(); store.fetchItems() }) })
 
-const scrollStyle = { flex: 1 }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 
-// V3 §6.12 SummaryStrip：总件数 + 当前筛选数（不展示 Dashboard 式统计卡）
+const statusBarH = getStatusBarHeight()
+const searchBarFixed = computed((): any => ({
+  position: 'fixed' as string,
+  top: `${statusBarH + upx2px(88)}px`,
+  left: '0',
+  right: '0',
+  zIndex: zIndex.navbar,
+  backgroundColor: n.value.bg,
+  paddingLeft: PAGE_GUTTER_V3,
+  paddingRight: PAGE_GUTTER_V3,
+  paddingTop: '8rpx',
+  paddingBottom: '8rpx',
+}))
+
+// V3 §6.12 SummaryStrip：总件数 + 总投入；坑向分布用下方独立胶囊行
 const summaryWrap = { marginTop: '16rpx' }
+const totalSpentYuan = computed((): number => {
+  const items = store.items
+  let sum = 0
+  for (let i = 0; i < items.length; i++) sum += items[i].purchasePrice
+  return sum
+})
 const summaryItems = computed(() => [
   { label: '衣橱共', value: `${store.itemCount} 件` },
-  { label: '当前筛选', value: `${visibleItems.value.length} 件` },
+  { label: '总投入', value: `¥${totalSpentYuan.value}` },
 ])
+// 坑向胶囊：每个坑向独立小标签，避免单行拼接换行挤压
+const catChips = computed((): { label: string; count: number }[] => {
+  const counts = store.categoryCounts
+  const list: { label: string; count: number }[] = []
+  const jk = counts['JK'] as number
+  const lol = counts['LOLITA'] as number
+  const han = counts['HANFU'] as number
+  if (jk != null && jk > 0) list.push({ label: 'JK', count: jk })
+  if (lol != null && lol > 0) list.push({ label: 'Lolita', count: lol })
+  if (han != null && han > 0) list.push({ label: '汉服', count: han })
+  return list
+})
+const catChipWrap = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '12rpx' }
+function catChipStyle(): any {
+  return { height: '44rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }
+}
+const catChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, color: brand.primary }))
 
 const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '16rpx', marginBottom: '16rpx' }
 const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))
@@ -134,10 +233,14 @@ function quickChipText(active: boolean): any {
 }
 
 const bottomSpacer = { height: '80rpx' }
-// V3 §6.12 双列图库：图片比例与公共商品卡统一（353×470）
-const grid = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '16rpx', paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
-function card(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border, marginRight: idx % 2 == 0 ? COLUMN_GAP_V3 : '0', marginBottom: '28rpx' } }
-const imageWrap = computed((): any => ({ width: PRODUCT_CARD_WIDTH_V3, height: '470rpx', position: 'relative', backgroundColor: n.value.bgSecondary }))
+// V3 §6.12 双列错落瀑布流：左右两列独立堆叠，图片高度按 id 哈希错峰（与首页一致）
+const grid = { ...flexRow, flexDirection: 'row', alignItems: 'flex-start' as string, marginTop: '16rpx' }
+const colLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
+const colRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
+const card = computed((): any => ({ borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '28rpx' }))
+function imgWrap(id: string): any {
+  return { width: PRODUCT_CARD_WIDTH_V3, height: wardrobeImageHeight(id), position: 'relative' as string, backgroundColor: n.value.bgSecondary }
+}
 // 类别小标签：低饱和色底（V3 §3.1），不用 hex+alpha 拼接
 function catBadge(): any {
   return { position: 'absolute', top: '12rpx', left: '12rpx', paddingLeft: '12rpx', paddingRight: '12rpx', height: '36rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }

@@ -1,55 +1,71 @@
 <template>
-  <MainLayout>
+  <MainLayout :scroll-top="scrollTop" @scroll="onPageScroll">
     <template #navbar><PageHeader title="收藏" /></template>
     <template #default>
       <view :style="tabsTopSpacer" />
-      <FilterChips :items="tabs" :active="activeTab" @change="onTabTap" />
+      <FilterChips :items="tabs" :active="activeTab" :gutter="PAGE_GUTTER_V3" @change="onTabTap" />
 
       <view :style="pageCanvasStyle">
         <!-- 商品收藏：统一数据源（content-library-store → 后端 /api/v1/wishlist），三态展示 -->
-        <view v-if="activeTab === '商品' && library.favoritesLoading" :style="emptyContainer">
+        <view v-if="activeTab === '商品' && (library.favoritesLoading || !library.favoritesLoadedOnce)" :style="emptyContainer">
           <FeedSkeleton />
         </view>
         <view v-else-if="activeTab === '商品' && library.favoritesError !== '' && library.favoriteProducts.length === 0" :style="emptyContainer">
           <PageState icon="info" title="收藏加载失败" :message="library.favoritesError" action-text="重新加载" @action="reloadFavorites" />
         </view>
-        <view v-else-if="activeTab === '商品' && library.favoriteProducts.length > 0" :style="contentTop">
+        <view v-else-if="activeTab === '商品' && visibleFavoriteProducts.length > 0" :style="contentTop">
           <view v-if="library.favoritesError !== ''" :style="partialErrorWrap">
             <text :style="partialErrorText">{{ library.favoritesError }}</text>
             <text :style="partialErrorAction" @tap="reloadFavorites">重新加载</text>
+            <text v-if="library.invalidFavoriteIds.length > 0" :style="partialErrorAction" @tap="clearInvalidFavorites">清除失效</text>
           </view>
-          <view :style="productGrid">
-            <view v-for="(item, idx) in library.favoriteProducts" :key="item.id" :style="productShell(idx)">
-              <ProductCard
-                :image="item.coverUrl"
-                :brand="item.brandName"
-                :title="item.title"
-                :price-text="productPriceText(item.price)"
-                :badge-text="item.badgeText"
-                :deadline-text="productDeadlineText(item.eventEndAt)"
-                @tap="openProduct(item)"
-              />
+          <view :style="productColumns">
+            <view :style="productColLeft">
+              <view v-for="item in productLeft" :key="item.id">
+                <ProductCard
+                  :image="item.coverUrl"
+                  :brand="item.brandName"
+                  :title="item.title"
+                  :price-text="productPriceText(item.price)"
+                  :badge-text="item.badgeText"
+                  :deadline-text="productDeadlineText(item.eventEndAt)"
+                  :image-height="feedImageHeight(item)"
+                  :saved="library.isFavorite(item.entityId)"
+                  @tap="openProduct(item)"
+                  @toggle-save="onToggleSave(item)"
+                />
+              </view>
             </view>
-          </view>
-        </view>
-
-        <view v-else-if="activeTab === '穿搭' && library.outfitPosts.length > 0" :style="contentTop">
-          <view :style="outfitGrid">
-            <view v-for="look in library.outfitPosts" :key="look.id" :style="outfitShell">
-              <NoteCard :title="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="'我的动态'" :image="look.image" :like-count="0" @tap="openLook(look)" />
+            <view :style="productColRight">
+              <view v-for="item in productRight" :key="item.id">
+                <ProductCard
+                  :image="item.coverUrl"
+                  :brand="item.brandName"
+                  :title="item.title"
+                  :price-text="productPriceText(item.price)"
+                  :badge-text="item.badgeText"
+                  :deadline-text="productDeadlineText(item.eventEndAt)"
+                  :image-height="feedImageHeight(item)"
+                  :saved="library.isFavorite(item.entityId)"
+                  @tap="openProduct(item)"
+                  @toggle-save="onToggleSave(item)"
+                />
+              </view>
             </view>
           </view>
         </view>
 
         <view v-else-if="activeTab === '品牌' && library.followedBrands.length > 0" :style="contentTop">
-          <ListGroup>
-            <view v-for="(brandName, idx) in library.followedBrands" :key="brandName" :style="brandRow(idx)" @tap="openBrand(brandName)">
-              <view :style="brandAvatar"><text :style="brandInitial">{{ brandName.substring(0, 1) }}</text></view>
-              <text :style="brandNameText">{{ brandName }}</text>
-              <text :style="followedText">已关注</text>
-              <AppIcon name="chevron-right" :size="30" />
-            </view>
-          </ListGroup>
+          <view :style="listSections">
+            <ListGroup>
+              <view v-for="(brandName, idx) in library.followedBrands" :key="brandName" :style="brandRow(idx)">
+                <view :style="brandAvatar"><text :style="brandInitial">{{ brandName.substring(0, 1) }}</text></view>
+                <text :style="brandNameText">{{ brandName }}</text>
+                <text :style="followedText">已关注</text>
+                <AppIcon name="chevron-right" :size="30" />
+              </view>
+            </ListGroup>
+          </view>
         </view>
 
         <view v-else :style="emptyContainer">
@@ -58,14 +74,16 @@
       </view>
     </template>
   </MainLayout>
+  <BackToTop :visible="showBackTop" @tap="backToTop" />
 </template>
 
 <script setup lang="uts">
 import { openPrimaryTab } from '@/utils/tab-navigation'
+import { showFeedback } from '@/utils/feedback'
 import { FeedItem } from '@/domain/content/feed-item'
-import { SavedOutfitPost } from '@/stores/content-library-store'
-import { formatPrice, formatDeadline } from '@/stores/home-feed-store'
+import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useBlacklistStore } from '@/stores/blacklist-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -73,10 +91,10 @@ import { COLUMN_GAP_V3, PAGE_HEADER_CONTENT_GAP, PRODUCT_CARD_WIDTH_V3, PAGE_GUT
 import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import BackToTop from '@/components/base/BackToTop.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import FilterChips from '@/components/v3/FilterChips.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
-import NoteCard from '@/components/v3/NoteCard.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
@@ -84,16 +102,31 @@ import PageState from '@/components/v3/PageState.uvue'
 const activeTab = ref('商品')
 const tabs = ['商品', '穿搭', '品牌', '合集']
 const library = useContentLibraryStore()
+const blacklist = useBlacklistStore()
+
+// 返回顶部
+const scrollTop = ref(0)
+const lastScrollTop = ref(0)
+const showBackTop = ref(false)
+function onPageScroll(top: number) {
+  lastScrollTop.value = top
+  showBackTop.value = top > 300
+}
+function backToTop() {
+  showBackTop.value = false
+  scrollTop.value = lastScrollTop.value
+  nextTick(() => { scrollTop.value = 0 })
+}
 
 const emptyTitleText = computed((): string => {
   if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
-  if (activeTab.value === '穿搭') return '还没有发布穿搭动态'
+  if (activeTab.value === '穿搭') return '暂无收藏的穿搭'
   if (activeTab.value === '合集') return '还没有创建收藏合集'
   return '还没有收藏心动小裙子'
 })
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
-  if (activeTab.value === '穿搭') return '在圈子发布后，会集中显示在这里'
+  if (activeTab.value === '穿搭') return '收藏的穿搭会显示在这里'
   if (activeTab.value === '合集') return '以后可以按场景整理心动内容'
   return '从新品、预约和降价中慢慢挑选'
 })
@@ -103,30 +136,48 @@ function productPriceText(cents: number): string { return formatPrice(cents) }
 function productDeadlineText(iso: string): string { return formatDeadline(iso) }
 function goDiscover() { openPrimaryTab('/pages/discover/index') }
 function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
-function openLook(look: SavedOutfitPost) { uni.navigateTo({ url: '/pages/community/mine' }) }
+function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
+const visibleFavoriteProducts = computed((): FeedItem[] => {
+  return library.favoriteProducts.filter((item) => !blacklist.isBlacklisted(item.brandName))
+})
+const productLeft = computed((): FeedItem[] => {
+  const left: FeedItem[] = []
+  for (let i = 0; i < visibleFavoriteProducts.value.length; i++) {
+    if (i % 2 == 0) left.push(visibleFavoriteProducts.value[i])
+  }
+  return left
+})
+const productRight = computed((): FeedItem[] => {
+  const right: FeedItem[] = []
+  for (let i = 0; i < visibleFavoriteProducts.value.length; i++) {
+    if (i % 2 == 1) right.push(visibleFavoriteProducts.value[i])
+  }
+  return right
+})
 function openBrand(brandName: string) {
   uni.setStorageSync('pending_search_keyword', brandName)
   uni.navigateTo({ url: '/pages/search/index' })
 }
 function reloadFavorites() { library.refreshFavorites() }
+function clearInvalidFavorites() { library.removeInvalidFavorites(); showFeedback('已清除失效收藏') }
 onLoad(() => { initPageTheme() })
 onPageShow(() => { initPageTheme(); library.reload(); library.refreshFavorites() })
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
-const pageCanvasStyle = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const pageCanvasStyle = {}
 const contentTop = { paddingTop: '24rpx' }
+const listSections = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const emptyContainer = { paddingTop: '24rpx' }
 const emptyIcon = computed((): string => {
   if (activeTab.value === '品牌') return 'heart'
-  if (activeTab.value === '穿搭') return 'camera'
+  if (activeTab.value === '穿搭') return 'heart'
   if (activeTab.value === '合集') return 'grid'
   return 'wardrobe'
 })
-const productGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
-function productShell(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, marginRight: idx % 2 == 0 ? COLUMN_GAP_V3 : '0' } }
-// 穿搭 tab：双列 NoteCard（V3 §6.3 穿搭用 NoteCard；真实本地/远程发布，不填充假数据）
-const outfitGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
-const outfitShell = { width: PRODUCT_CARD_WIDTH_V3, marginRight: COLUMN_GAP_V3 }
+// 商品双列错落瀑布流：左右两列独立堆叠（与首页/搜索一致）
+const productColumns = { ...flexRow, alignItems: 'flex-start' as string, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
+const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
 // 品牌：紧凑列表（V3 §6.3 品牌用紧凑列表）
 function brandRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderBottomWidth: idx < library.followedBrands.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border } }
 const brandAvatar = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))

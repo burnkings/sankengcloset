@@ -1,0 +1,72 @@
+<template>
+  <DetailLayout title="品牌目录">
+    <view :style="contentWrap">
+      <view v-if="loading" :style="emptyWrap"><FeedSkeleton /></view>
+
+      <view v-else-if="brands.length === 0" :style="emptyWrap">
+        <PageState icon="grid" title="暂无品牌" message="品牌数据接入中，敬请期待" />
+      </view>
+
+      <view v-else :style="brandGrid">
+        <view v-for="(item, idx) in brands" :key="item.id" :style="brandCard(idx)" @tap="openBrand(item)">
+          <view :style="brandMonogram"><text :style="brandInitial">{{ initialOf(item.name) }}</text></view>
+          <view :style="brandCopy">
+            <text :style="brandName">{{ item.name }}</text>
+            <text :style="brandMeta">{{ brandMetaOf(item) }}</text>
+          </view>
+          <view :style="followAction(item.name)" @tap.stop="toggleBrand(item.name)"><text :style="followText(item.name)">{{ library.isFollowingBrand(item.name) ? '已关注' : '关注' }}</text></view>
+        </view>
+      </view>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import { Brand } from '@/domain/content/brand'
+import { listBrands } from '@/services/content/brand-service'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
+
+const library = useContentLibraryStore()
+const brands = ref<Brand[]>([])
+const loading = ref(true)
+
+function initialOf(name: string): string { return name == '' ? '#' : name.substring(0, 1) }
+function brandMetaOf(item: Brand): string {
+  if (item.category !== '') return item.category
+  if (item.description !== '') return item.description
+  return item.nameEn !== '' ? item.nameEn : '三坑品牌'
+}
+function openBrand(item: Brand) { uni.navigateTo({ url: `/pages/brand/detail?id=${item.id}&name=${encodeURIComponent(item.name)}` }) }
+function toggleBrand(name: string) {
+  const followed = library.toggleBrandFollow(name)
+  showFeedback(followed ? `已关注 ${name}` : `已取消关注 ${name}`)
+}
+
+onLoad(() => { initPageTheme() })
+onMounted(async () => {
+  const list = await listBrands()
+  brands.value = list
+  loading.value = false
+})
+
+const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
+const emptyWrap = { paddingTop: '48rpx' }
+const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
+function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
+const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const brandCopy = { ...flexFill }
+const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+function followAction(brandName: string) { return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName) ? brand[600] : n.value.bgSecondary, marginLeft: '8rpx' } }
+function followText(brandName: string) { return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName) ? baseColors.white : brand[600] } }
+</script>

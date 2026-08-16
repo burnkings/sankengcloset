@@ -21,18 +21,21 @@ import { n } from '@/theme/use-theme'
 const props = withDefaults(defineProps<{
   items?: Array<string>
   active?: string
-}>(), { items: () => [], active: '' })
+  gutter?: string
+}>(), { items: () => [], active: '', gutter: '0' })
 
 const emit = defineEmits<{ change: [value: string] }>()
 function onTap(item: string) { emit('change', item) }
 
-const scrollStyle = { width: '100%' }
+const scrollStyle = { width: '100%', flexDirection: 'row' }
 const capsuleRow = computed((): any => ({
   ...flexRow,
   flexDirection: 'row',
+  flexShrink: 0,
+  height: FILTER_CHIP_HEIGHT,
   alignItems: 'center',
-  paddingLeft: '32rpx',
-  paddingRight: '32rpx',
+  paddingLeft: props.gutter,
+  paddingRight: props.gutter,
 }))
 
 function chipWrapStyle(idx: number) {

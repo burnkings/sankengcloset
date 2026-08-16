@@ -16,13 +16,18 @@ const props = withDefaults(defineProps<{
   size?: string
 }>(), { label: '', status: 'neutral', size: 'sm' })
 
-type StatusKey = keyof typeof statusColors
-type StatusDarkKey = keyof typeof statusColorsDark
+function pick(status: string): { text: string; bg: string } {
+  const colors = isDark.value ? statusColorsDark : statusColors
+  if (status === 'positive') return colors.positive
+  if (status === 'pending') return colors.pending
+  if (status === 'error') return colors.error
+  if (status === 'initial') return colors.initial
+  if (status === 'brand') return colors.brand
+  return colors.neutral
+}
 
 const chipStyle = computed((): any => {
-  const colors = isDark.value ? statusColorsDark : statusColors
-  const key = (props.status as string) in colors ? (props.status as StatusKey | StatusDarkKey) : 'neutral'
-  const s = (colors as any)[key] as { text: string; bg: string }
+  const s = pick(props.status)
   const isSm = props.size === 'sm'
   return {
     display: 'flex',
@@ -40,9 +45,7 @@ const chipStyle = computed((): any => {
 })
 
 const textStyle = computed((): any => {
-  const colors = isDark.value ? statusColorsDark : statusColors
-  const key = (props.status as string) in colors ? (props.status as StatusKey | StatusDarkKey) : 'neutral'
-  const s = (colors as any)[key] as { text: string; bg: string }
+  const s = pick(props.status)
   return {
     fontSize: props.size === 'sm' ? v3TextStyle.caption.fontSize : v3TextStyle.meta.fontSize,
     fontWeight: 500,

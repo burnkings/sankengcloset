@@ -184,8 +184,8 @@ export const MANAGEMENT_ROW_MIN_HEIGHT_V3 = '112rpx'
 export const SUMMARY_STRIP_HEIGHT_V3 = '112rpx'
 /** V3 首页头部最大高度 */
 export const HOME_HEADER_MAX_HEIGHT_V3 = '252rpx'
-/** V3 双列卡宽：16 + 353 + 12 + 353 + 16 = 750 */
-export const PRODUCT_CARD_WIDTH_V3 = '353rpx'
+/** V3 双列卡宽：32 + 337 + 12 + 337 + 32 = 750 */
+export const PRODUCT_CARD_WIDTH_V3 = '337rpx'
 /** V3 商品卡图片 3:4 → 353×470 */
 export const PRODUCT_CARD_IMAGE_HEIGHT_V3 = '470rpx'
 /** V3 搜索框高度 */

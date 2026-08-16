@@ -28,10 +28,10 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ change: [value: string] }>()
 function onTap(item: string) { emit('change', item) }
 
-const scrollStyle = { width: '100%' }
+const scrollStyle = { width: '100%', flexDirection: 'row' }
 const rowStyle = computed((): any => ({
   ...flexRow,
-  minWidth: '100%',
+  flexShrink: 0,
   height: '64rpx',
   paddingLeft: props.edgeInset ? '32rpx' : '0',
   paddingRight: props.edgeInset ? '32rpx' : '0',

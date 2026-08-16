@@ -1,0 +1,24 @@
+<template>
+  <text :style="labelStyle">{{ label }}</text>
+</template>
+
+<script setup lang="uts">
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { n } from '@/theme/use-theme'
+
+// V3 FieldLabel — 表单字段标签（统一字号/字重/颜色/间距）
+const props = withDefaults(defineProps<{
+  label?: string
+}>(), { label: '' })
+
+const labelStyle = computed((): any => ({
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.semibold as number,
+  color: n.value.text,
+  marginTop: '24rpx',
+  marginBottom: '14rpx',
+}))
+</script>
+
+<style>
+</style>

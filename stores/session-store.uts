@@ -1,5 +1,5 @@
 /** V2.6 会话 Store：内测阶段默认使用本机 Mock 会话，保留正式微信登录实现。 */
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
 import { apiPost, apiGet, apiGetAuthorized } from '@/services/platform/api-client'
 import { flushLocalOperations } from '@/services/sync/local-sync-queue'
@@ -41,9 +41,9 @@ const _state = reactive<SessionState>({
   errorMessage: '',
 })
 
-const _isLoggedIn = computed((): boolean => _state.state === 'logged_in')
-const _userId = computed((): string => _isLoggedIn.value ? _state.profile.userId : '')
-const _isMock = computed((): boolean => _isLoggedIn.value && _state.mode === SESSION_MODE_MOCK)
+function isLoggedIn(): boolean { return _state.state === 'logged_in' }
+function userId(): string { return isLoggedIn() ? _state.profile.userId : '' }
+function isMock(): boolean { return isLoggedIn() && _state.mode === SESSION_MODE_MOCK }
 
 const CHANGE_EVENT = 'store:session-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -184,9 +184,9 @@ reload()
 class SessionStoreHandle {
   get state(): string { return _state.state }
   get profile(): SessionProfile { return _state.profile }
-  get isLoggedIn(): boolean { return _isLoggedIn.value }
-  get userId(): string { return _userId.value }
-  get isMock(): boolean { return _isMock.value }
+  get isLoggedIn(): boolean { return isLoggedIn() }
+  get userId(): string { return userId() }
+  get isMock(): boolean { return isMock() }
   get loggingIn(): boolean { return _state.loggingIn }
   get errorMessage(): string { return _state.errorMessage }
   reload(): void { reload() }

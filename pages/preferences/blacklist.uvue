@@ -1,0 +1,48 @@
+<template>
+  <DetailLayout title="屏蔽品牌">
+    <view :style="contentWrap">
+      <view v-if="blacklist.count === 0" :style="emptyWrap">
+        <PageState icon="info" title="还没有屏蔽品牌" message="在商品详情或品牌页点「屏蔽」，就不会再看到该品牌的内容" />
+      </view>
+      <ListGroup v-else>
+        <view v-for="(name, idx) in blacklist.brands" :key="name" :style="rowShell(idx, blacklist.brands.length)" @tap="remove(name)">
+          <text :style="rowName">{{ name }}</text>
+          <text :style="rowAction">恢复</text>
+        </view>
+      </ListGroup>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import PageState from '@/components/v3/PageState.uvue'
+import { useBlacklistStore } from '@/stores/blacklist-store'
+import { brand, semantic } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+
+const blacklist = useBlacklistStore()
+
+function remove(name: string) {
+  blacklist.toggleBlacklist(name)
+  showFeedback(`已恢复品牌：${name}`)
+}
+
+onLoad(() => { initPageTheme() })
+
+const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const emptyWrap = { paddingTop: '48rpx' }
+function rowShell(idx: number, total: number): any {
+  return { ...flexRow, alignItems: 'center', minHeight: '104rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }
+}
+const rowName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const rowAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] as string }))
+</script>
+
+<style>
+</style>

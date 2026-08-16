@@ -1,5 +1,5 @@
 /** PurchaseStore — 页面与购买仓库之间的状态层。 */
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 import { toDisplayModels, PurchaseDisplayModel } from '@/domain/purchase-presenter'
@@ -25,21 +25,21 @@ const _state = reactive<PurchaseState>({
   filterStatus: '',
 })
 
-const _activeItems = computed((): PurchaseRecord[] => _state.items.filter((r) => !r.isDeleted))
-const _filteredItems = computed((): PurchaseRecord[] => {
-  let result = _activeItems.value
+function activeItems(): PurchaseRecord[] { return _state.items.filter((r) => !r.isDeleted) }
+function filteredItems(): PurchaseRecord[] {
+  let result = activeItems()
   if (_state.filterStatus != '') result = result.filter((r) => r.paymentStatus == _state.filterStatus)
   return [...result].sort((a, b) => {
     const da = a.purchaseDate != '' ? new Date(a.purchaseDate).getTime() : 0
     const db = b.purchaseDate != '' ? new Date(b.purchaseDate).getTime() : 0
     return db - da
   })
-})
-const _displayItems = computed((): PurchaseDisplayModel[] => toDisplayModels(_filteredItems.value))
-const _pendingPayments = computed((): PurchaseRecord[] => _activeItems.value.filter((r) => r.remainingAmount > 0))
-const _totalSpent = computed((): number => _activeItems.value.reduce((sum, r) => sum + r.totalAmount, 0))
-const _remainingTotal = computed((): number => _activeItems.value.reduce((sum, r) => sum + r.remainingAmount, 0))
-const _itemCount = computed((): number => _activeItems.value.length)
+}
+function displayItems(): PurchaseDisplayModel[] { return toDisplayModels(filteredItems()) }
+function pendingPayments(): PurchaseRecord[] { return activeItems().filter((r) => r.remainingAmount > 0) }
+function totalSpent(): number { return activeItems().reduce((sum, r) => sum + r.totalAmount, 0) }
+function remainingTotal(): number { return activeItems().reduce((sum, r) => sum + r.remainingAmount, 0) }
+function itemCount(): number { return activeItems().length }
 
 const CHANGE_EVENT = 'store:purchase-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -211,14 +211,14 @@ function linkWardrobe(id: string, wardrobeId: string): boolean {
 }
 
 function recordsForMonth(monthCode: string): PurchaseRecord[] {
-  return _activeItems.value.filter((item) => item.paymentStatus != 'CANCELLED' && item.purchaseDate.indexOf(monthCode) == 0)
+  return activeItems().filter((item) => item.paymentStatus != 'CANCELLED' && item.purchaseDate.indexOf(monthCode) == 0)
 }
 function monthlyCommitted(monthCode: string): number { return recordsForMonth(monthCode).reduce((sum, item) => sum + item.totalAmount, 0) }
 function monthlyPaid(monthCode: string): number { return recordsForMonth(monthCode).reduce((sum, item) => sum + item.paidAmount, 0) }
 function monthlyOutstanding(monthCode: string): number { return recordsForMonth(monthCode).reduce((sum, item) => sum + item.remainingAmount, 0) }
 
 // 品牌联想（购买记录编辑页用）：去重排序的品牌清单
-const _brands = computed((): string[] => {
+function brands(): string[] {
   const set = new Set<string>()
   for (let i = 0; i < _state.items.length; i++) {
     if (_state.items[i].brand.trim() !== '') set.add(_state.items[i].brand.trim())
@@ -226,7 +226,7 @@ const _brands = computed((): string[] => {
   const arr = Array.from(set) as string[]
   arr.sort()
   return arr
-})
+}
 
 // ====== useXxxStore：返回 store 句柄（页面零改动）======
 
@@ -234,13 +234,13 @@ class PurchaseStoreHandle {
   get loading(): boolean { return _state.loading }
   get error(): string { return _state.error }
   get filterStatus(): string { return _state.filterStatus }
-  get filteredItems(): PurchaseRecord[] { return _filteredItems.value }
-  get displayItems(): PurchaseDisplayModel[] { return _displayItems.value }
-  get pendingPayments(): PurchaseRecord[] { return _pendingPayments.value }
-  get totalSpent(): number { return _totalSpent.value }
-  get remainingTotal(): number { return _remainingTotal.value }
-  get itemCount(): number { return _itemCount.value }
-  get brands(): string[] { return _brands.value }
+  get filteredItems(): PurchaseRecord[] { return filteredItems() }
+  get displayItems(): PurchaseDisplayModel[] { return displayItems() }
+  get pendingPayments(): PurchaseRecord[] { return pendingPayments() }
+  get totalSpent(): number { return totalSpent() }
+  get remainingTotal(): number { return remainingTotal() }
+  get itemCount(): number { return itemCount() }
+  get brands(): string[] { return brands() }
   monthlyCommitted(monthCode: string): number { return monthlyCommitted(monthCode) }
   monthlyPaid(monthCode: string): number { return monthlyPaid(monthCode) }
   monthlyOutstanding(monthCode: string): number { return monthlyOutstanding(monthCode) }

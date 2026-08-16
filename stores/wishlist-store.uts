@@ -2,7 +2,7 @@
  * WishlistStore — 心愿单状态管理
  * Page → Store → Repository
  */
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 
 import { WishItem, WishUpdateData, PRIORITY_ORDER, WISH_STATUS_FLOW } from '@/domain/wish-item'
 import { toDisplayModel, toDisplayModels, WishDisplayModel } from '@/domain/wish-presenter'
@@ -34,14 +34,14 @@ const _state = reactive<WishlistState>({
   showFavoritesOnly: false,
 })
 
-// ====== 模块级 computed 派生 ======
+// ====== 模块级派生函数 ======
 
-const _activeItems = computed((): WishItem[] =>
-  _state.items.filter((w) => !w.isDeleted)
-)
+function activeItems(): WishItem[] {
+  return _state.items.filter((w) => !w.isDeleted)
+}
 
-const _filteredItems = computed((): WishItem[] => {
-  let result = _activeItems.value
+function filteredItems(): WishItem[] {
+  let result = activeItems()
 
   // 状态筛选
   if (_state.filterStatus) {
@@ -87,48 +87,48 @@ const _filteredItems = computed((): WishItem[] => {
   })
 
   return result
-})
+}
 
-const _displayItems = computed((): WishDisplayModel[] =>
-  toDisplayModels(_filteredItems.value)
-)
+function displayItems(): WishDisplayModel[] {
+  return toDisplayModels(filteredItems())
+}
 
-const _itemCount = computed((): number => _activeItems.value.length)
-const _favoriteCount = computed((): number =>
-  _activeItems.value.filter((w) => w.isFavorite).length
-)
+function itemCount(): number { return activeItems().length }
+function favoriteCount(): number {
+  return activeItems().filter((w) => w.isFavorite).length
+}
 
-const _wishCount = computed((): number =>
-  _activeItems.value.filter((w) => w.status == 'WISH').length
-)
-const _watchingCount = computed((): number =>
-  _activeItems.value.filter((w) => w.status == 'WATCHING').length
-)
-const _decidedCount = computed((): number =>
-  _activeItems.value.filter((w) => w.status == 'DECIDED').length
-)
-const _purchasedCount = computed((): number =>
-  _activeItems.value.filter((w) => w.status == 'PURCHASED').length
-)
+function wishCount(): number {
+  return activeItems().filter((w) => w.status == 'WISH').length
+}
+function watchingCount(): number {
+  return activeItems().filter((w) => w.status == 'WATCHING').length
+}
+function decidedCount(): number {
+  return activeItems().filter((w) => w.status == 'DECIDED').length
+}
+function purchasedCount(): number {
+  return activeItems().filter((w) => w.status == 'PURCHASED').length
+}
 
-const _highPriorityCount = computed((): number =>
-  _activeItems.value.filter((w) =>
+function highPriorityCount(): number {
+  return activeItems().filter((w) =>
     w.priority == 'HIGH' && w.status != 'PURCHASED' && w.status != 'CANCELED'
   ).length
-)
+}
 
-const _estimatedTotal = computed((): number =>
-  _activeItems.value
+function estimatedTotal(): number {
+  return activeItems()
     .filter((w) => w.status != 'PURCHASED' && w.status != 'CANCELED')
     .reduce((sum, w) => sum + w.estimatedPrice, 0)
-)
-const _decisionReserveTotal = computed((): number =>
-  _activeItems.value.filter((w) => w.status == 'DECIDED').reduce((sum, w) => sum + w.estimatedPrice, 0)
-)
+}
+function decisionReserveTotal(): number {
+  return activeItems().filter((w) => w.status == 'DECIDED').reduce((sum, w) => sum + w.estimatedPrice, 0)
+}
 
-const _convertedCount = computed((): number =>
-  _activeItems.value.filter((w) => w.purchaseId !== '').length
-)
+function convertedCount(): number {
+  return activeItems().filter((w) => w.purchaseId !== '').length
+}
 
 const CHANGE_EVENT = 'store:wishlist-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
@@ -394,19 +394,19 @@ class WishListStoreHandle {
   get searchKeyword(): string { return _state.searchKeyword }
   get currentSort(): string { return _state.currentSort }
   get showFavoritesOnly(): boolean { return _state.showFavoritesOnly }
-  get activeItems(): WishItem[] { return _activeItems.value }
-  get filteredItems(): WishItem[] { return _filteredItems.value }
-  get displayItems(): WishDisplayModel[] { return _displayItems.value }
-  get itemCount(): number { return _itemCount.value }
-  get favoriteCount(): number { return _favoriteCount.value }
-  get wishCount(): number { return _wishCount.value }
-  get watchingCount(): number { return _watchingCount.value }
-  get decidedCount(): number { return _decidedCount.value }
-  get purchasedCount(): number { return _purchasedCount.value }
-  get highPriorityCount(): number { return _highPriorityCount.value }
-  get estimatedTotal(): number { return _estimatedTotal.value }
-  get decisionReserveTotal(): number { return _decisionReserveTotal.value }
-  get convertedCount(): number { return _convertedCount.value }
+  get activeItems(): WishItem[] { return activeItems() }
+  get filteredItems(): WishItem[] { return filteredItems() }
+  get displayItems(): WishDisplayModel[] { return displayItems() }
+  get itemCount(): number { return itemCount() }
+  get favoriteCount(): number { return favoriteCount() }
+  get wishCount(): number { return wishCount() }
+  get watchingCount(): number { return watchingCount() }
+  get decidedCount(): number { return decidedCount() }
+  get purchasedCount(): number { return purchasedCount() }
+  get highPriorityCount(): number { return highPriorityCount() }
+  get estimatedTotal(): number { return estimatedTotal() }
+  get decisionReserveTotal(): number { return decisionReserveTotal() }
+  get convertedCount(): number { return convertedCount() }
   fetchItems(): Promise<void> { return fetchItems() }
   addItem(item: WishItem): WishItem | null { return addItem(item) }
   updateItem(id: string, data: WishUpdateData): boolean { return updateItem(id, data) }

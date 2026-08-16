@@ -1,5 +1,6 @@
 <template>
   <view :style="rowStyle" @tap="emit('tap')">
+    <view v-if="icon !== ''" :style="iconWrap"><AppIcon :name="icon" :size="36" /></view>
     <view :style="contentWrap">
       <text :style="titleStyle">{{ title }}</text>
       <text v-if="subtitle !== ''" :style="subtitleStyle">{{ subtitle }}</text>
@@ -26,7 +27,8 @@ const props = withDefaults(defineProps<{
   subtitle?: string
   value?: string
   showArrow?: boolean
-}>(), { title: '', subtitle: '', value: '', showArrow: true })
+  icon?: string
+}>(), { title: '', subtitle: '', value: '', showArrow: true, icon: '' })
 
 const emit = defineEmits<{ tap: [] }>()
 
@@ -41,6 +43,7 @@ const rowStyle = computed((): any => ({
   borderBottomStyle: 'solid',
   borderBottomColor: n.value.border,
 }))
+const iconWrap = computed((): any => ({ width: '56rpx', height: '56rpx', borderRadius: '14rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }))
 const contentWrap = { flex: 1, justifyContent: 'center' }
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: v3TextStyle.body.lineHeight, fontWeight: 400, color: n.value.text }))
 const subtitleStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textTertiary, marginTop: '4rpx' }))
