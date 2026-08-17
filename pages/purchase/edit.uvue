@@ -76,6 +76,7 @@ import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
+import { parseMoneyYuan, validatePaymentSplit } from '@/utils/money'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -89,6 +90,9 @@ import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 const store = usePurchaseStore()
 const isEdit = ref(false)
 const editId = ref('')
+// 保存后延迟返回的定时器：页面卸载时清理，避免残留
+let backTimer: number | null = null
+onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
 // 保存防重复：确认/入库期间锁住按钮，防止连点产生重复订单
 const saving = ref(false)
 type FormState = {
@@ -144,9 +148,12 @@ function save() {
   if (saving.value) return
   if (form.value.name.trim() === '') { showFeedback('请填写商品名称'); return }
   // 金额输入一律按「元」解析，入库统一转为「分」；展示层再转回元
-  const total = parseFloat(form.value.totalAmountStr)
-  const deposit = parseFloat(form.value.depositAmountStr)
-  const paid = parseFloat(form.value.paidAmountStr)
+  // 边界：NaN/Infinity/负数/超上限均由 parseMoneyYuan 拦截为 0
+  const total = parseMoneyYuan(form.value.totalAmountStr)
+  const deposit = parseMoneyYuan(form.value.depositAmountStr)
+  const paid = parseMoneyYuan(form.value.paidAmountStr)
+  const splitError = validatePaymentSplit(total, deposit, paid)
+  if (splitError !== '') { showFeedback(splitError); return }
   saving.value = true
   if (isEdit.value) {
     const data = new PurchaseUpdateData()
@@ -155,9 +162,9 @@ function save() {
     data.shopName = form.value.shopName.trim()
     data.category = form.value.category
     data.paymentStatus = form.value.paymentStatus
-    data.totalAmount = total > 0 ? Math.round(total * 100) : 0
-    data.depositAmount = deposit > 0 ? Math.round(deposit * 100) : 0
-    data.paidAmount = paid > 0 ? Math.round(paid * 100) : 0
+    data.totalAmount = total
+    data.depositAmount = deposit
+    data.paidAmount = paid
     data.purchaseDate = form.value.purchaseDate.trim()
     data.deadline = form.value.deadline.trim()
     data.arrivalDate = form.value.arrivalDate.trim()
@@ -170,9 +177,9 @@ function save() {
     record.shopName = form.value.shopName.trim()
     record.category = form.value.category
     record.paymentStatus = form.value.paymentStatus
-    record.totalAmount = total > 0 ? Math.round(total * 100) : 0
-    record.depositAmount = deposit > 0 ? Math.round(deposit * 100) : 0
-    record.paidAmount = paid > 0 ? Math.round(paid * 100) : 0
+    record.totalAmount = total
+    record.depositAmount = deposit
+    record.paidAmount = paid
     record.purchaseDate = form.value.purchaseDate.trim()
     record.deadline = form.value.deadline.trim()
     record.arrivalDate = form.value.arrivalDate.trim()
@@ -187,7 +194,7 @@ function save() {
     }
   }
   showFeedback(isEdit.value ? '修改已保存' : '添加成功')
-  setTimeout(() => { uni.navigateBack() }, 300)
+  backTimer = setTimeout(() => { uni.navigateBack() }, 300)
 }
 
 onLoad((options) => {

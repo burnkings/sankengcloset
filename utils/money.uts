@@ -1,0 +1,36 @@
+/**
+ * money — 金额输入解析与校验工具
+ * 统一处理「元」字符串输入 → 校验 → 分（订单类）或元（衣橱类）。
+ * 边界：NaN / Infinity / 负数 / 超上限一律返回 0 或拦截。
+ */
+
+const MONEY_DEFAULT_MAX_YUAN = 9999999
+
+/** 元字符串 → 分（订单/预算类入库单位）。非法输入返回 0。 */
+export function parseMoneyYuan(raw: string, maxYuan: number = MONEY_DEFAULT_MAX_YUAN): number {
+  const trimmed = raw.trim()
+  if (trimmed === '') return 0
+  const value = parseFloat(trimmed)
+  if (isNaN(value) || !isFinite(value)) return 0
+  if (value < 0) return 0
+  if (value > maxYuan) return 0
+  return Math.round(value * 100)
+}
+
+/** 元字符串 → 元（衣橱类入库单位，保持元语义）。非法输入返回 -1（调用方提示）。 */
+export function parseMoneyYuanKeep(raw: string, maxYuan: number = MONEY_DEFAULT_MAX_YUAN): number {
+  const trimmed = raw.trim()
+  if (trimmed === '') return 0
+  const value = parseFloat(trimmed)
+  if (isNaN(value) || !isFinite(value)) return -1
+  if (value < 0) return -1
+  if (value > maxYuan) return -1
+  return value
+}
+
+/** 校验金额业务约束：deposit <= total 且 paid <= total。 */
+export function validatePaymentSplit(totalCents: number, depositCents: number, paidCents: number): string {
+  if (depositCents > totalCents) return '定金不能超过总价'
+  if (paidCents > totalCents) return '已付金额不能超过总价'
+  return ''
+}

@@ -104,17 +104,17 @@ const tabs = ['商品', '穿搭', '品牌', '合集']
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
 
-// 返回顶部
+// 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
 const scrollTop = ref(0)
-const lastScrollTop = ref(0)
+let lastScrollTop = 0
 const showBackTop = ref(false)
 function onPageScroll(top: number) {
-  lastScrollTop.value = top
-  showBackTop.value = top > 300
+  lastScrollTop = top
+  if ((top > 300) !== showBackTop.value) showBackTop.value = top > 300
 }
 function backToTop() {
   showBackTop.value = false
-  scrollTop.value = lastScrollTop.value
+  scrollTop.value = lastScrollTop
   nextTick(() => { scrollTop.value = 0 })
 }
 
@@ -161,7 +161,14 @@ function openBrand(brandName: string) {
 function reloadFavorites() { library.refreshFavorites() }
 function clearInvalidFavorites() { library.removeInvalidFavorites(); showFeedback('已清除失效收藏') }
 onLoad(() => { initPageTheme() })
-onPageShow(() => { initPageTheme(); library.reload(); library.refreshFavorites() })
+// 网络请求 30s TTL：频繁切 tab 不重复拉取（本地 reload 每次仍执行）
+let lastFavoritesFetchAt = 0
+onPageShow(() => {
+  initPageTheme()
+  library.reload()
+  const now = Date.now()
+  if (now - lastFavoritesFetchAt >= 30000) { lastFavoritesFetchAt = now; library.refreshFavorites() }
+})
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
 const pageCanvasStyle = {}

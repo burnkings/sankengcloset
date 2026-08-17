@@ -104,6 +104,9 @@
       </view>
       <picker-view :value="dateTimePickerVal" :style="pickerViewStyle" :indicator-style="indicatorStyleStr" @change="onDateTimeChange">
         <picker-view-column>
+          <view v-for="y in pickerYearOptions" :key="y" :style="pickerItem"><text :style="pickerItemText">{{ y }}年</text></view>
+        </picker-view-column>
+        <picker-view-column>
           <view v-for="m in 12" :key="m" :style="pickerItem"><text :style="pickerItemText">{{ m }}月</text></view>
         </picker-view-column>
         <picker-view-column>
@@ -152,6 +155,9 @@ function getTypePlaceholder(type: string): string {
 
 const store = useReminderStore()
 const wardrobeStore = useWardrobeStore()
+// 保存/删除后延迟返回的定时器：页面卸载时清理，避免残留
+let backTimer: number | null = null
+onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
 const isEdit = ref(false)
 const editId = ref('')
 const saving = ref(false)
@@ -162,9 +168,11 @@ const showDatePicker = ref(false)
 const relatedPurchaseId = ref('')
 const relatedWishId = ref('')
 const tempSelected = ref<string[]>([])
-const dateTimePickerVal = ref([0, 0, 0, 0])
+const dateTimePickerVal = ref([0, 0, 0, 0, 0])
 const tempMonthDay = ref('')
 const tempHourMin = ref('')
+const pickerYearBase = new Date().getFullYear()
+const pickerYearOptions = [pickerYearBase, pickerYearBase + 1, pickerYearBase + 2]
 
 type ReminderFormState = {
   title: string
@@ -211,33 +219,59 @@ const dateTimeDisplay = computed((): string => {
   return display
 })
 
-function getDaysInMonth(): number {
-  const m = dateTimePickerVal.value[0] + 1
-  if (m === 2) return 29
-  if (m === 4 || m === 6 || m === 9 || m === 11) return 30
-  return 31
+function pickerYear(): number {
+  const idx = dateTimePickerVal.value[0]
+  return (idx >= 0 && idx < pickerYearOptions.length) ? pickerYearOptions[idx] : pickerYearBase
 }
+
+function getDaysInMonth(): number {
+  const m = dateTimePickerVal.value[1] + 1
+  return new Date(pickerYear(), m, 0).getDate()
+}
+
+function pad2(value: number): string { return value < 10 ? '0' + value.toString() : value.toString() }
 
 function initDateTimePicker() {
   const now = new Date()
-  const d = form.value.remindDate !== '' ? form.value.remindDate : now.toISOString().split('T')[0]
+  const d = form.value.remindDate !== '' ? form.value.remindDate : `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
   const t = form.value.remindTime !== '' ? form.value.remindTime : '12:00'
   const dp = d.split('-')
   const tp = t.split(':')
-  dateTimePickerVal.value = [parseInt(dp[1]) - 1, parseInt(dp[2]) - 1, parseInt(tp[0]), parseInt(tp[1])]
+  let yearIdx = 0
+  const yearNum = parseInt(dp[0])
+  if (!isNaN(yearNum)) {
+    for (let i = 0; i < pickerYearOptions.length; i++) { if (pickerYearOptions[i] === yearNum) { yearIdx = i; break } }
+  }
+  let monthIdx = 0
+  const monthNum = parseInt(dp[1])
+  if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) monthIdx = monthNum - 1
+  let dayIdx = 0
+  const dayNum = parseInt(dp[2])
+  if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) dayIdx = dayNum - 1
+  let hourIdx = 0
+  const hourNum = parseInt(tp[0])
+  if (!isNaN(hourNum) && hourNum >= 0 && hourNum <= 23) hourIdx = hourNum
+  let minuteIdx = 0
+  const minuteNum = parseInt(tp[1])
+  if (!isNaN(minuteNum) && minuteNum >= 0 && minuteNum <= 59) minuteIdx = minuteNum
+  dateTimePickerVal.value = [yearIdx, monthIdx, dayIdx, hourIdx, minuteIdx]
   tempMonthDay.value = d
   tempHourMin.value = t
   showDatePicker.value = true
 }
 
 function onDateTimeChange(e: any) {
-  const val = e.detail.value as number[]
+  const eObj = e as UTSJSONObject
+  const raw = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  const val = raw != null && raw['value'] != null ? raw['value'] as number[] : dateTimePickerVal.value
   dateTimePickerVal.value = val
-  const m = val[0] + 1
-  const day = Math.min(val[1] + 1, m === 2 ? 29 : (m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31))
-  const yr = new Date().getFullYear()
-  tempMonthDay.value = `${yr}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  tempHourMin.value = `${String(val[2]).padStart(2, '0')}:${String(val[3]).padStart(2, '0')}`
+  const yr = pickerYear()
+  const m = val[1] + 1
+  const day = Math.min(val[2] + 1, new Date(yr, m, 0).getDate())
+  tempMonthDay.value = `${yr}-${pad2(m)}-${pad2(day)}`
+  const hour = val[3]
+  const minute = val[4]
+  tempHourMin.value = `${pad2(hour)}:${pad2(minute)}`
 }
 
 function confirmDateTime() {
@@ -334,7 +368,7 @@ function onSaveTap() {
     if (store.addItem(item) === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
   }
   showFeedback(isEdit.value ? '修改已保存' : '创建成功')
-  setTimeout(() => { uni.navigateBack() }, 300)
+  backTimer = setTimeout(() => { uni.navigateBack() }, 300)
 }
 
 function onDeleteTap() { showDeleteDialog.value = true }
@@ -344,7 +378,7 @@ function deleteItem() {
   if (editId.value === '') { showFeedback('删除失败，请重试'); return }
   if (!store.deleteItem(editId.value)) { showFeedback('删除失败，请重试'); return }
   showFeedback('提醒已删除')
-  setTimeout(() => { uni.navigateBack() }, 220)
+  backTimer = setTimeout(() => { uni.navigateBack() }, 220)
 }
 
 function handleBack() {

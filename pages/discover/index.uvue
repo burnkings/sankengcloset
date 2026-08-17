@@ -133,7 +133,7 @@ function toggleBrand(brandName: string) {
   showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
 }
 function openEditorial(item: FeatureItem) {
-  uni.navigateTo({ url: `/pages/editorial/detail?id=${item.id}&title=${encodeURIComponent(item.title)}&category=${item.category}` })
+  uni.navigateTo({ url: `/pages/editorial/detail?id=${item.id}&title=${encodeURIComponent(item.title)}&category=${encodeURIComponent(item.category)}` })
 }
 function openBrandDirectory() { uni.navigateTo({ url: '/pages/brand/index' }) }
 function openBrand(item: BrandItem) { uni.navigateTo({ url: `/pages/brand/detail?id=${item.id}&name=${encodeURIComponent(item.name)}` }) }

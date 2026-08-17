@@ -24,7 +24,7 @@ export function parseCommerceLink(rawLink: string): ParsedCommerceLink {
   else if (value.includes('yangkeduo.com') || value.includes('pinduoduo.com')) result.platform = '拼多多'
   else throw new Error('暂支持淘宝、闲鱼和拼多多链接')
 
-  const patterns = [/id=(\\d+)/, /itemId=(\\d+)/, /goods_id=(\\d+)/, /[?&]id=(\\d+)/]
+  const patterns = [/id=(\d+)/, /itemId=(\d+)/, /goods_id=(\d+)/, /[?&]id=(\d+)/]
   for (const pattern of patterns) {
     const match = raw.match(pattern)
     if (match != null && match.length > 1) { result.productId = match[1]; break }

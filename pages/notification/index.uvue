@@ -63,8 +63,9 @@ function readAll() { notices.markAllRead(); showFeedback('通知已全部标为�
 function openNotice(id: string, target: string) {
   notices.markRead(id)
   if (target === '') return
-  if (target === '/pages/community/index') { openPrimaryTab(target); return }
-  uni.navigateTo({ url: target })
+  const tabPages = ['/pages/home/index', '/pages/discover/index', '/pages/favorites/index', '/pages/community/index', '/pages/profile/index']
+  if (tabPages.indexOf(target) >= 0) openPrimaryTab(target)
+  else uni.navigateTo({ url: target })
 }
 // V3 §3.5：通知类型用线性图标，不使用文字符号
 function noticeVisual(type: string): NoticeVisual {

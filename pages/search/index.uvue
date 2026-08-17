@@ -130,17 +130,17 @@ function deadlineText(iso: string): string { return formatDeadline(iso) }
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
 
-// 返回顶部：scrollTop 用于 scroll-view 滚动定位，lastScrollTop 记录实际滚动位置
+// 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
 const scrollTop = ref(0)
-const lastScrollTop = ref(0)
+let lastScrollTop = 0
 const showBackTop = ref(false)
 function onPageScroll(top: number) {
-  lastScrollTop.value = top
-  showBackTop.value = top > 300
+  lastScrollTop = top
+  if ((top > 300) !== showBackTop.value) showBackTop.value = top > 300
 }
 function backToTop() {
   showBackTop.value = false
-  scrollTop.value = lastScrollTop.value
+  scrollTop.value = lastScrollTop
   nextTick(() => { scrollTop.value = 0 })
 }
 

@@ -36,7 +36,12 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{ scrolltolower: []; scroll: [scrollTop: number] }>()
 
+// scroll 事件 80ms 节流：滚动每帧触发，避免向页面逐帧 emit 造成整页重渲染
+let lastScrollEmitAt = 0
 function onScroll(e: any) {
+  const now = Date.now()
+  if (now - lastScrollEmitAt < 80) return
+  lastScrollEmitAt = now
   const eObj = e as UTSJSONObject
   const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
   const top = d != null && d['scrollTop'] != null ? d['scrollTop'] as number : 0

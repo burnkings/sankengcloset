@@ -2,13 +2,19 @@ import { reactive } from 'vue'
 
 const _feedback = reactive<{ visible: boolean; message: string }>({ visible: false, message: '' })
 let feedbackSequence = 0
+let hideTimer: number | null = null
 
 export function showFeedback(message: string) {
   feedbackSequence += 1
   const currentSequence = feedbackSequence
   _feedback.message = message
   _feedback.visible = true
-  setTimeout(() => {
+  if (hideTimer != null) {
+    clearTimeout(hideTimer)
+    hideTimer = null
+  }
+  hideTimer = setTimeout(() => {
+    hideTimer = null
     if (currentSequence === feedbackSequence) _feedback.visible = false
   }, 1800)
 }
@@ -16,6 +22,10 @@ export function showFeedback(message: string) {
 export function hideFeedback() {
   feedbackSequence += 1
   _feedback.visible = false
+  if (hideTimer != null) {
+    clearTimeout(hideTimer)
+    hideTimer = null
+  }
 }
 
 export const feedbackState = _feedback

@@ -200,6 +200,7 @@ async function loadDetail() {
   currentImageIndex.value = 0
   try {
     const result = await fetchProductDetail(itemId.value)
+    if (unmounted) return
     if (result === null) { item.value = null; errorMessage.value = '商品信息不存在'; return }
     item.value = result.item
     detailImages.value = result.images
@@ -209,13 +210,19 @@ async function loadDetail() {
       await library.refreshRemoteFavorites()
     }
   } catch (e) {
+    if (unmounted) return
     item.value = null
     detailImages.value = []
     errorMessage.value = e instanceof Error ? e.message : '商品加载失败'
   } finally {
+    if (unmounted) return
     loading.value = false
   }
 }
+
+// 页面卸载后丢弃异步回调，避免写入已销毁实例的 ref
+let unmounted = false
+onUnload(() => { unmounted = true })
 
 onMounted(() => {
   const pages = getCurrentPages()

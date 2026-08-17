@@ -17,6 +17,10 @@ import { useBlacklistStore } from '@/stores/blacklist-store'
 
 export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭']
 
+// ====== 常量 ======
+/** Feed 内存上限：超过后截断最旧条目，防止持续上拉无限增长 */
+const MAX_FEED_ITEMS = 200
+
 // ====== 格式化工具 ======
 
 /** 价格格式化：分 → ¥xxx.xx */
@@ -234,7 +238,10 @@ async function loadMore() {
     if (page.items.length == 0) {
       _state.hasMore = false
     } else {
-      _state.allItems = [..._state.allItems, ...page.items]
+      let merged = [..._state.allItems, ...page.items]
+      // 内存保护：最多保留最新 200 条，避免持续上拉无限膨胀
+      if (merged.length > MAX_FEED_ITEMS) merged = merged.slice(merged.length - MAX_FEED_ITEMS)
+      _state.allItems = merged
       _state.nextCursor = page.nextCursor
       _state.hasMore = page.hasMore
     }

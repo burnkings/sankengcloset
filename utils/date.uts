@@ -1,0 +1,21 @@
+/**
+ * date — 本地日期工具
+ * 统一使用本地时区生成「日期语义」字段（YYYY-MM-DD）。
+ * 注意：toISOString() 返回 UTC 日期，在 UTC+8 本地 0:00-7:59 会差一天，
+ * 所有「今天/逾期/今日提醒」类判断必须走本文件工具。
+ */
+
+function pad2(value: number): string { return value < 10 ? '0' + value.toString() : value.toString() }
+
+/** 本地今天日期：YYYY-MM-DD */
+export function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+/** 本地日期偏移：YYYY-MM-DD（days 可为负表示过去） */
+export function localDateShifted(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}

@@ -192,18 +192,18 @@ const notices = useNotificationCenterStore()
 const library = useContentLibraryStore()
 const channels = CHANNELS
 
-// 返回顶部
+// 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
 const scrollTop = ref(0)
-const lastScrollTop = ref(0)
+let lastScrollTop = 0
 const showBackTop = ref(false)
 function onPageScroll(e: UniScrollEvent) {
   const top = e.detail.scrollTop
-  lastScrollTop.value = top
-  showBackTop.value = top > 300
+  lastScrollTop = top
+  if ((top > 300) !== showBackTop.value) showBackTop.value = top > 300
 }
 function backToTop() {
   showBackTop.value = false
-  scrollTop.value = lastScrollTop.value
+  scrollTop.value = lastScrollTop
   nextTick(() => { scrollTop.value = 0 })
 }
 
@@ -242,7 +242,7 @@ function onTap(item: FeedItem) {
     return
   }
   if (item.feedType === 'editorial') {
-    uni.navigateTo({ url: `/pages/editorial/detail?title=${encodeURIComponent(item.title)}&category=${item.category}&image=${encodeURIComponent(item.coverUrl)}` })
+    uni.navigateTo({ url: `/pages/editorial/detail?title=${encodeURIComponent(item.title)}&category=${encodeURIComponent(item.category)}&image=${encodeURIComponent(item.coverUrl)}` })
     return
   }
   if (item.entityId == '') return

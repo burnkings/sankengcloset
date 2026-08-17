@@ -111,6 +111,9 @@ const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配
 const library = useContentLibraryStore()
 const wardrobeStore = useWardrobeStore()
 const publishing = ref(false)
+// 发布后延迟跳转的定时器：页面卸载时清理，避免残留
+let backTimer: number | null = null
+onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
 
 // 关联衣橱单品（复用提醒页的选择器）
 const showWardrobePicker = ref(false)
@@ -168,7 +171,7 @@ function publishLook() {
     library.saveOutfit(imagePath, caption.value, category.value, topic.value, selectedWardrobeIds.value)
     publishing.value = false
     showFeedback('已保存为本地草稿')
-    setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
+    backTimer = setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
   }
   const publishRemote = async () => {
     try {
@@ -183,7 +186,7 @@ function publishLook() {
       await createCommunityPostRemote(payload)
       publishing.value = false
       showFeedback('已发布到圈子')
-      setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
+      backTimer = setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
     } catch (e) {
       publishing.value = false
       showFeedback(e instanceof Error ? e.message : '发布失败，请重试')

@@ -171,12 +171,18 @@ function stopClock() {
   clockTimer = null
 }
 onLoad(() => { initPageTheme() })
+// 网络请求 30s TTL：频繁切 tab 不重复拉取（本地 reload 每次仍执行）
+let lastNetworkFetchAt = 0
 onShow(() => {
   initPageTheme()
   library.reload()
-  // 公开 Gallery 与我的发布分别拉取
-  library.refreshPublicPosts()
-  library.refreshMyPosts()
+  const now = Date.now()
+  if (now - lastNetworkFetchAt >= 30000) {
+    lastNetworkFetchAt = now
+    // 公开 Gallery 与我的发布分别拉取
+    library.refreshPublicPosts()
+    library.refreshMyPosts()
+  }
   startClock()
   try {
     const pendingView = uni.getStorageSync('community_view') as string

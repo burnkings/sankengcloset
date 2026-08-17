@@ -79,6 +79,9 @@ import AppDialog from '@/components/base/AppDialog.uvue'
 const store = useWardrobeStore()
 const purchaseStore = usePurchaseStore()
 const wishStore = useWishListStore()
+// 保存/删除后延迟返回的定时器：页面卸载时清理，避免残留
+let backTimer: number | null = null
+onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
 const isEdit = ref(false)
 const editId = ref('')
 const imagePath = ref('')
@@ -119,7 +122,7 @@ function choosePhoto() {
 function save() {
   if (form.value.name.trim() === '') { showFeedback('请填写单品名称'); return }
   const price = form.value.price.trim() === '' ? 0 : parseFloat(form.value.price)
-  if (isNaN(price) || price < 0) { showFeedback('请填写正确的价格'); return }
+  if (isNaN(price) || !isFinite(price) || price < 0 || price > 9999999) { showFeedback('请填写正确的价格'); return }
   if (isEdit.value) {
     const data = new WardrobeUpdateData()
     data.name = form.value.name.trim(); data.category = form.value.category; data.brand = form.value.brand.trim(); data.purchasePrice = price
@@ -140,9 +143,9 @@ function save() {
     if (sourceWishId.value !== '') wishStore.linkWardrobe(sourceWishId.value, added.id)
   }
   showFeedback(isEdit.value ? '衣橱单品已更新' : '已加入衣橱')
-  setTimeout(() => { uni.navigateBack() }, 240)
+  backTimer = setTimeout(() => { uni.navigateBack() }, 240)
 }
-function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); setTimeout(() => { uni.navigateBack() }, 220) } }
+function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); backTimer = setTimeout(() => { uni.navigateBack() }, 220) } }
 function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
 onMounted(() => {
   store.fetchItems()

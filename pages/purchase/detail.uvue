@@ -174,7 +174,7 @@ function onAddToWardrobe() {
   const source = record.value
   // 订单金额单位为分，衣橱编辑页按元接收
   const priceYuan = source.totalAmount > 0 ? (source.totalAmount / 100).toString() : ''
-  uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}&category=${source.category}&price=${priceYuan}&purchaseDate=${source.purchaseDate}&purchaseId=${source.id}&wishId=${source.wishId}` })
+  uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}&category=${encodeURIComponent(source.category)}&price=${priceYuan}&purchaseDate=${encodeURIComponent(source.purchaseDate)}&purchaseId=${source.id}&wishId=${source.wishId}` })
 }
 function onViewWardrobeItem() {
   const id = record.value != null ? record.value.wardrobeId : ''

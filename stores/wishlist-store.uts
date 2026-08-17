@@ -11,6 +11,7 @@ import { PurchaseRecord } from '@/domain/purchase-record'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listWishesRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
+import { localToday } from '@/utils/date'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -302,7 +303,7 @@ function convertToPurchase(id: string): PurchaseRecord | null {
   record.paidAmount = 0
   record.remainingAmount = Math.round(item.estimatedPrice * 100)
   record.paymentStatus = 'PRE_ORDER'
-  record.purchaseDate = new Date().toISOString().split('T')[0]
+  record.purchaseDate = localToday()
   record.wishId = item.id
   record.note = `从心愿单转入: ${item.name}`
   return record

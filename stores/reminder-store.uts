@@ -11,6 +11,7 @@ import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/loc
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listRemindersRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
 import { scheduleReminderNotification } from '@/utils/notify'
+import { localToday, localDateShifted } from '@/utils/date'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -35,7 +36,7 @@ const _state = reactive<ReminderState>({
 function activeItems(): Reminder[] { return _state.items.filter((r) => !r.isDeleted) }
 
 function todayItems(): Reminder[] {
-  const today = new Date().toISOString().split('T')[0]
+  const today = localToday()
   return activeItems().filter((r) => r.remindDate === today && r.status === STATUS_PENDING)
 }
 
@@ -55,12 +56,12 @@ function upcomingItems(): Reminder[] {
 }
 
 function overdueItems(): Reminder[] {
-  const today = new Date().toISOString().split('T')[0]
+  const today = localToday()
   return activeItems().filter((r) => r.remindDate < today || r.status === 'MISSED')
 }
 
 function missedItems(): Reminder[] {
-  const today = new Date().toISOString().split('T')[0]
+  const today = localToday()
   return activeItems().filter((r) => r.remindDate < today && r.status === 'PENDING')
 }
 
@@ -71,7 +72,7 @@ function filteredItems(): Reminder[] {
   let result = activeItems()
   if (_state.filterStatus) {
     if (_state.filterStatus === 'MISSED') {
-      const today = new Date().toISOString().split('T')[0]
+      const today = localToday()
       result = result.filter((r) => r.status === 'MISSED' || r.remindDate < today)
     } else {
       result = result.filter((r) => r.status == _state.filterStatus)
@@ -328,7 +329,7 @@ function swapItems(id1: string, id2: string) {
 
 function autoMarkOverdue() {
   const now = new Date()
-  const today = now.toISOString().split('T')[0]
+  const today = localToday()
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
   let changed = false
   for (let i = 0; i < _state.items.length; i++) {

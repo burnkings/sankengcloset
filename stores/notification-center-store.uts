@@ -85,7 +85,9 @@ function reload() {
 }
 
 function persistReadState() {
-  uni.setStorageSync(READ_IDS_KEY, _state.items.filter((item) => item.read).map((item) => item.id).join(','))
+  try {
+    uni.setStorageSync(READ_IDS_KEY, _state.items.filter((item) => item.read).map((item) => item.id).join(','))
+  } catch (e) {}
 }
 
 function markRead(id: string) {

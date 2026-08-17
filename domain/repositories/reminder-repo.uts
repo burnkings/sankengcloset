@@ -4,6 +4,7 @@
 
 import { Reminder, ReminderUpdateData } from '@/domain/reminder'
 import { getRuntimeConfig } from '@/config/runtime'
+import { localToday, localDateShifted } from '@/utils/date'
 
 const STORAGE_KEY = 'reminder_items'
 /** 早期调试版种入的模板数据 id，读取时过滤，避免存量污染 */
@@ -125,10 +126,10 @@ export function initMockData() {
   if (existing.length > 0) return
 
   const now = new Date()
-  const today = now.toISOString().split('T')[0]
-  const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0]
-  const nextWeek = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
-  const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0]
+  const today = localToday()
+  const tomorrow = localDateShifted(1)
+  const nextWeek = localDateShifted(7)
+  const yesterday = localDateShifted(-1)
   const nowStr = now.toISOString()
 
   const mockData: Reminder[] = [
