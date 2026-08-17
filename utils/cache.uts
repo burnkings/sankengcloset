@@ -1,0 +1,35 @@
+/**
+ * cache — 本地缓存键管理与清理封装
+ * 收敛页面直读 storage 的缓存清理逻辑（profile 页），统一缓存键定义与「清除搜索/社区/圈子草稿」语义。
+ */
+
+/** 可安全清理的缓存键（跨页临时态 + 历史记录；不含用户核心数据） */
+export const CLEARABLE_CACHE_KEYS: string[] = [
+  'search_recent',
+  'pending_search_keyword',
+  'community_view',
+  'community_topic',
+  'local_outfit_image',
+  'local_outfit_caption',
+  'local_outfit_category',
+  'local_outfit_topic',
+]
+
+/** 计算可清理缓存的总字节数 */
+export function clearableCacheBytes(): number {
+  let bytes = 0
+  for (let i = 0; i < CLEARABLE_CACHE_KEYS.length; i++) {
+    try {
+      const v = uni.getStorageSync(CLEARABLE_CACHE_KEYS[i]) as string
+      if (v != null && v !== '') bytes += v.length
+    } catch (e) {}
+  }
+  return bytes
+}
+
+/** 清除全部可清理缓存（静默容错） */
+export function clearClearableCache() {
+  for (let i = 0; i < CLEARABLE_CACHE_KEYS.length; i++) {
+    try { uni.removeStorageSync(CLEARABLE_CACHE_KEYS[i]) } catch (e) {}
+  }
+}

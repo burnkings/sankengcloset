@@ -31,6 +31,41 @@ function readString(key: string): string {
   }
 }
 
+// ====== Token 存储混淆（非强加密） ======
+// 自实现 XOR + 十六进制编码，防止明文 dump 直接读取 token。
+// 局限：防「顺手读取」级别的泄露；root/越狱级攻击仍需 UTS 安全存储插件。
+// 兼容：deobfuscate 对无 enc: 前缀的旧明文直接返回原文，保证登录态不因迁移中断。
+const ENC_PREFIX = 'enc:'
+const XOR_BASE = 0x5a
+
+function obfuscateToken(value: string): string {
+  if (value === '') return ''
+  let out = ENC_PREFIX
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i) ^ (XOR_BASE + i * 7)
+    out += code.toString(16) + '.'
+  }
+  return out
+}
+
+function deobfuscateToken(value: string): string {
+  if (value === '') return ''
+  if (!value.startsWith(ENC_PREFIX)) return value
+  const parts = value.substring(ENC_PREFIX.length).split('.')
+  let out = ''
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === '') continue
+    const code = parseInt(parts[i], 16)
+    out += String.fromCharCode(code ^ (XOR_BASE + i * 7))
+  }
+  return out
+}
+
+function readTokenValue(key: string): string {
+  const raw = readString(key)
+  return deobfuscateToken(raw)
+}
+
 /**
  * App.onLaunch 时调用一次，预热全部运行配置和 Token 缓存。
  * 之后 getRuntimeConfig() / getCachedAccessToken() 直接从缓存返回，
@@ -39,11 +74,19 @@ function readString(key: string): string {
 export function warmRuntimeCache(): RuntimeConfig {
   const config = new RuntimeConfig()
   _configCache = config
-  // 预热 Token
+  // 预热 Token：若存在旧明文（无 enc: 前缀），迁移为混淆并回写
+  const rawAccess = readString(ACCESS_TOKEN_KEY)
+  const rawRefresh = readString(REFRESH_TOKEN_KEY)
   const tc = new TokenCache()
-  tc.access = readString(ACCESS_TOKEN_KEY)
-  tc.refresh = readString(REFRESH_TOKEN_KEY)
+  tc.access = deobfuscateToken(rawAccess)
+  tc.refresh = deobfuscateToken(rawRefresh)
   _tokenCache = tc
+  if (rawAccess !== '' && !rawAccess.startsWith(ENC_PREFIX)) {
+    try { uni.setStorageSync(ACCESS_TOKEN_KEY, obfuscateToken(rawAccess)) } catch (e) {}
+  }
+  if (rawRefresh !== '' && !rawRefresh.startsWith(ENC_PREFIX)) {
+    try { uni.setStorageSync(REFRESH_TOKEN_KEY, obfuscateToken(rawRefresh)) } catch (e) {}
+  }
   return config
 }
 
@@ -58,8 +101,8 @@ export function getCachedAccessToken(): string {
   const cached = _tokenCache
   if (cached != null) return cached.access
   const tc = new TokenCache()
-  tc.access = readString(ACCESS_TOKEN_KEY)
-  tc.refresh = readString(REFRESH_TOKEN_KEY)
+  tc.access = readTokenValue(ACCESS_TOKEN_KEY)
+  tc.refresh = readTokenValue(REFRESH_TOKEN_KEY)
   _tokenCache = tc
   return tc.access
 }
@@ -68,8 +111,8 @@ export function getCachedRefreshToken(): string {
   const cached = _tokenCache
   if (cached != null) return cached.refresh
   const tc = new TokenCache()
-  tc.access = readString(ACCESS_TOKEN_KEY)
-  tc.refresh = readString(REFRESH_TOKEN_KEY)
+  tc.access = readTokenValue(ACCESS_TOKEN_KEY)
+  tc.refresh = readTokenValue(REFRESH_TOKEN_KEY)
   _tokenCache = tc
   return tc.refresh
 }
@@ -82,8 +125,8 @@ export function saveSessionTokens(accessToken: string, refreshToken: string) {
   tc.access = accessToken
   tc.refresh = refreshToken
   _tokenCache = tc
-  uni.setStorageSync(ACCESS_TOKEN_KEY, accessToken)
-  uni.setStorageSync(REFRESH_TOKEN_KEY, refreshToken)
+  uni.setStorageSync(ACCESS_TOKEN_KEY, obfuscateToken(accessToken))
+  uni.setStorageSync(REFRESH_TOKEN_KEY, obfuscateToken(refreshToken))
 }
 
 export function clearSessionTokens() {

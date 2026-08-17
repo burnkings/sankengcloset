@@ -1,6 +1,8 @@
 import { reactive } from 'vue'
 import { AiImportTask, AI_IMPORT_IDLE, AI_IMPORT_PROCESSING, AI_IMPORT_READY, AI_IMPORT_FAILED, AI_IMPORT_CONFIRMED } from '@/domain/ai/ai-import-task'
 import { analyzeImportImage } from '@/services/ai/ai-import-service'
+import { analyzePurchaseScreenshot } from '@/services/ai/purchase-import-service'
+import { PurchaseImportTask } from '@/domain/ai/purchase-import-task'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
 // ====== 模块级 reactive 状态（单例）======
@@ -48,6 +50,11 @@ async function analyze(sourceImage: string, useDemo: boolean): Promise<AiImportT
   }
 }
 
+/** 订单截图识别（PurchaseImportTask）：仅转发请求，页面负责状态展示；异常向上抛出由页面捕获。 */
+function analyzePurchase(sourceImage: string, sourceLink: string): Promise<PurchaseImportTask | null> {
+  return analyzePurchaseScreenshot(sourceImage, sourceLink)
+}
+
 function confirm(targetType: string, targetId: string, confirmedPayload: string) {
   if (_state.task === null) return
   _state.task!.state = AI_IMPORT_CONFIRMED
@@ -75,6 +82,7 @@ class AiImportStoreHandle {
   get ready(): boolean { return ready() }
   reset(): void { reset() }
   analyze(sourceImage: string, useDemo: boolean): Promise<AiImportTask | null> { return analyze(sourceImage, useDemo) }
+  analyzePurchase(sourceImage: string, sourceLink: string): Promise<PurchaseImportTask | null> { return analyzePurchase(sourceImage, sourceLink) }
   confirm(targetType: string, targetId: string, confirmedPayload: string): void { confirm(targetType, targetId, confirmedPayload) }
 }
 

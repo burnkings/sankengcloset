@@ -44,10 +44,10 @@
 </template>
 
 <script setup lang="uts">
-import { analyzePurchaseScreenshot } from '@/services/ai/purchase-import-service'
 import { parseCommerceLink } from '@/services/ai/ai-import-service'
 import { PurchaseImportTask } from '@/domain/ai/purchase-import-task'
 import { useSessionStore } from '@/stores/session-store'
+import { useAiImportStore } from '@/stores/ai-import-store'
 import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -67,6 +67,7 @@ const sourceLink = ref('')
 const working = ref(false)
 const errorMessage = ref('')
 const session = useSessionStore()
+const aiImportStore = useAiImportStore()
 
 function chooseScreenshot() {
   uni.chooseImage({
@@ -133,7 +134,7 @@ async function startRecognition() {
   working.value = true
   errorMessage.value = ''
   try {
-    const task = await analyzePurchaseScreenshot(sourceImage.value, sourceLink.value)
+    const task = await aiImportStore.analyzePurchase(sourceImage.value, sourceLink.value)
     navigateToConfirmation(task, false)
   } catch (e) {
     errorMessage.value = e instanceof Error ? e.message : '识别失败，请手动补全订单字段'

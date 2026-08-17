@@ -74,6 +74,7 @@ import ListGroup from '@/components/v3/ListGroup.uvue'
 import ListRow from '@/components/v3/ListRow.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { clearableCacheBytes, clearClearableCache } from '@/utils/cache'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
@@ -120,7 +121,6 @@ function onManageTap(id: string) {
   if (id === 'budget') goPage('/pages/budget/index')
 }
 function onHelpTap() { goPage('/pages/help/index') }
-const CACHE_KEYS = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic', 'local_outfit_image', 'local_outfit_caption', 'local_outfit_category', 'local_outfit_topic']
 const showClearCacheDialog = ref(false)
 const cacheSizeText = ref('')
 function formatCacheSize(bytes: number): string {
@@ -130,23 +130,14 @@ function formatCacheSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 function refreshCacheSize() {
-  let bytes = 0
-  try {
-    for (let i = 0; i < CACHE_KEYS.length; i++) {
-      const v = uni.getStorageSync(CACHE_KEYS[i]) as string
-      if (v != null && v !== '') bytes += v.length
-    }
-  } catch (e) {}
-  cacheSizeText.value = formatCacheSize(bytes)
+  cacheSizeText.value = formatCacheSize(clearableCacheBytes())
 }
 function onClearCacheTap() {
   refreshCacheSize()
   showClearCacheDialog.value = true
 }
 function doClearCache() {
-  try {
-    for (let i = 0; i < CACHE_KEYS.length; i++) uni.removeStorageSync(CACHE_KEYS[i])
-  } catch (e) {}
+  clearClearableCache()
   showClearCacheDialog.value = false
   refreshCacheSize()
   showFeedback('缓存已清理')
