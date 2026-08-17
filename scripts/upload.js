@@ -2,18 +2,26 @@
 const ci = require('/opt/HBuilderX/plugins/weapp-miniprogram-ci/node_modules/miniprogram-ci');
 const path = require('path');
 
+// 敏感信息从环境变量读取，禁止硬编码 appid / 私钥路径
+const appid = process.env.MP_APPID || '';
+const privateKeyPath = process.env.MP_PRIVATE_KEY || '';
+if (!appid || !privateKeyPath) {
+  console.error('[FAIL] 缺少环境变量 MP_APPID / MP_PRIVATE_KEY，请配置后重试');
+  process.exit(1);
+}
+
 const project = new ci.Project({
-  appid: 'wx976f673896c8b565',
+  appid,
   type: 'miniProgram',
-  projectPath: path.resolve('/home/admin/projects/sankengcloset/unpackage/dist/dev/mp-weixin'),
-  privateKeyPath: '/home/admin/projects/sankengcloset/.wechat/private.key',
+  projectPath: path.resolve(process.env.MP_DIST_DIR || 'unpackage/dist/dev/mp-weixin'),
+  privateKeyPath,
   ignores: ['node_modules/**/*', '.git/**/*'],
 });
 
 ci.upload({
   project,
-  version: '1.8.0',
-  desc: 'V2.3+V2.4 后端基础+远程客户端运行时：WeChat认证/JWT/PostgreSQL/远程API客户端/会话管理/同步队列',
+  version: process.env.MP_VERSION || '1.8.0',
+  desc: process.env.MP_DESC || '',
   setting: {
     es6: true,
     minify: false,

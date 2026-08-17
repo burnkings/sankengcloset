@@ -71,8 +71,7 @@ const _state = reactive<NotificationCenterState>({
 function unreadCount(): number { return _state.items.filter((item) => !item.read).length }
 function visibleItems(): AppNotification[] { return _state.activeType === 'all' ? _state.items : _state.items.filter((item) => item.type === _state.activeType) }
 
-const CHANGE_EVENT = 'store:notification-center-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

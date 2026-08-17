@@ -101,6 +101,7 @@ import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 import BackToTop from '@/components/base/BackToTop.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { categoryLabelToCode } from '@/utils/category'
 
 const store = useWardrobeStore()
 const searchValue = ref('')
@@ -125,8 +126,7 @@ function backToTop() {
 function applySearch() { store.setSearch(searchValue.value) }
 function onFilter(label: string) {
   activeFilter.value = label
-  const map = { 'JK制服': 'JK', 'Lolita': 'LOLITA', '汉服': 'HANFU', '其他': 'OTHER' }
-  store.setCategory(label === '全部' ? '' : (map[label] != null ? map[label] as string : ''))
+  store.setCategory(label === '全部' ? '' : categoryLabelToCode(label))
 }
 function toggleUnwornOnly() {
   unwornOnly.value = !unwornOnly.value

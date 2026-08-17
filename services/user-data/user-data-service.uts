@@ -160,8 +160,12 @@ export function createCommunityPostRemote(payload: UTSJSONObject) {
 /**
  * 上传图片并返回 mediaId。
  * 流程：POST /api/v1/uploads:prepare（purpose=outfit）→ PUT content（原始二进制）
+ * 超过 2MB 拒绝上传并提示压缩（避免整图读入内存造成内存压力）。
  */
+const UPLOAD_MAX_BYTES = 2 * 1024 * 1024
 export async function uploadOutfitImageRemote(localPath: string): Promise<string> {
+  const size = await getLocalFileSize(localPath)
+  if (size > UPLOAD_MAX_BYTES) throw new Error('图片超过 2MB，请先压缩后重试')
   const contentType = localPath.endsWith('.png') ? 'image/png' : localPath.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
   const prepared = await apiPostAuthorized('/api/v1/uploads:prepare', { purpose: 'outfit', contentType })
   const preparedData = asObject(prepared.data)
@@ -173,4 +177,18 @@ export async function uploadOutfitImageRemote(localPath: string): Promise<string
   const binary = await readFileAsArrayBuffer(localPath)
   await apiUploadBinary('/api/v1/uploads/' + encodeQuery(uploadId) + '/content', binary, contentType)
   return mediaId
+}
+
+function getLocalFileSize(localPath: string): Promise<number> {
+  return new Promise<number>((resolve) => {
+    try {
+      uni.getFileInfo({
+        filePath: localPath,
+        success: (res) => resolve(res.size),
+        fail: () => resolve(0),
+      })
+    } catch (e) {
+      resolve(0)
+    }
+  })
 }

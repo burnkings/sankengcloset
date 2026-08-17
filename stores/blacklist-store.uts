@@ -35,8 +35,7 @@ function isBlacklisted(brandName: string): boolean {
   return _state.brands.indexOf(brandName) >= 0
 }
 
-const CHANGE_EVENT = 'store:blacklist-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 function toggleBlacklist(brandName: string): boolean {
   if (brandName === '') return false

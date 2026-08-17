@@ -22,8 +22,8 @@ export async function searchProducts(keyword: string, cursor: string = ''): Prom
   let path = '/api/v1/search?q=' + encodeQuery(q)
   if (cursor != '') path += '&cursor=' + encodeQuery(cursor)
   const response = await apiGet(path)
-  const rawItems = response.data as any[] | null
-  if (rawItems != null) {
+  const rawItems = response.data
+  if (rawItems != null && Array.isArray(rawItems)) {
     for (let i = 0; i < rawItems.length; i++) {
       result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
     }

@@ -14,7 +14,7 @@
     "mp-weixin" : {
         "appid" : "wx976f673896c8b565",
         "setting" : {
-            "urlCheck" : false
+            "urlCheck" : true
         },
         "usingComponents" : true,
         "darkmode" : true,

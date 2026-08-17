@@ -32,8 +32,7 @@ const _state = reactive<BudgetState>({
 
 function isConfigured(): boolean { return _state.monthlyLimit > 0 }
 
-const CHANGE_EVENT = 'store:budget-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

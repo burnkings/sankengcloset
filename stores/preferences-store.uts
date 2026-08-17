@@ -26,9 +26,10 @@ function readPreferences(): PreferencesData {
     const parsed = JSON.parse(raw as string) as UTSJSONObject
     if (parsed == null) return new PreferencesData()
     const data = new PreferencesData()
-    if (parsed['pitTypes'] != null) {
+    const pitRaw = parsed['pitTypes']
+    if (pitRaw != null && Array.isArray(pitRaw)) {
       // 迁移旧存量值：LOLITA/HANFU（大写英文）→ Lolita/汉服（UI 文案）
-      const stored = parsed['pitTypes'] as string[]
+      const stored = pitRaw as string[]
       const normalized = [] as string[]
       for (let i = 0; i < stored.length; i++) {
         const v = stored[i]
@@ -51,7 +52,8 @@ function readPreferences(): PreferencesData {
         data.pitTypes = normalized
       }
     }
-    if (parsed['followedBrands'] != null) data.followedBrands = parsed['followedBrands'] as string[]
+    const brandRaw = parsed['followedBrands']
+    if (brandRaw != null && Array.isArray(brandRaw)) data.followedBrands = brandRaw as string[]
     if (parsed['priceRange'] != null) data.priceRange = parsed['priceRange'] as string
     return data
   } catch (e) {
@@ -86,8 +88,7 @@ const _state = reactive<PreferencesState>({
   preferences: new PreferencesData(),
 })
 
-const CHANGE_EVENT = 'store:preferences-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

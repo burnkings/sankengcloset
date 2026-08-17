@@ -1,9 +1,4 @@
 /** Open a primary destination with native tabBar (page keep-alive) on all platforms. */
 export function openPrimaryTab(url: string) {
-  // #ifdef APP
   uni.switchTab({ url })
-  // #endif
-  // #ifndef APP
-  uni.switchTab({ url })
-  // #endif
 }

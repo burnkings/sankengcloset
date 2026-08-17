@@ -20,8 +20,7 @@ const _state = reactive<AiImportState>({
 function processing(): boolean { return _state.state === AI_IMPORT_PROCESSING }
 function ready(): boolean { return _state.state === AI_IMPORT_READY }
 
-const CHANGE_EVENT = 'store:ai-import-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

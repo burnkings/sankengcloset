@@ -266,9 +266,16 @@ const footerText = computed((): string => {
 })
 // 筛选后内容不足一屏时不展示 footer，避免制造虚假操作预期。
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
-onMounted(() => { store.loadFirstPage() })
-onReady(() => { refreshViewport() })
-onLoad(() => { nextTick(() => initPageTheme()); refreshViewport() })
+// 首屏加载在 onLoad 首次触发（loadedOnce 防 onPageShow 重复首刷）
+let initialLoadDone = false
+onLoad(() => {
+  nextTick(() => initPageTheme())
+  refreshViewport()
+  if (!initialLoadDone) {
+    initialLoadDone = true
+    store.loadFirstPage()
+  }
+})
 onPageShow(() => { initPageTheme(); store.refreshIfPreferencesChanged(); notices.reload(); library.reload() })
 
 // --- Spacing tokens (V3 §3.3) ---

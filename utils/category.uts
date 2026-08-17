@@ -1,0 +1,21 @@
+/**
+ * category — 坑向分类 label ↔ code 双向映射（唯一实现）
+ * 供 wardrobe-store、衣橱页、心愿单等共享，避免各页面重复定义映射。
+ */
+import { CATEGORY_LABELS_CLASS } from '@/domain/clothing-category'
+
+/** code → 展示 label（如 'LOLITA' → 'Lolita'） */
+export function categoryCodeToLabel(code: string): string {
+  if (code == 'JK') return CATEGORY_LABELS_CLASS.JK
+  if (code == 'LOLITA') return CATEGORY_LABELS_CLASS.LOLITA
+  if (code == 'HANFU') return CATEGORY_LABELS_CLASS.HANFU
+  return CATEGORY_LABELS_CLASS.OTHER
+}
+
+/** 展示 label → code（如 'Lolita' → 'LOLITA'） */
+export function categoryLabelToCode(label: string): string {
+  if (label == 'JK制服') return CATEGORY_LABELS_CLASS.JK
+  if (label == 'Lolita') return CATEGORY_LABELS_CLASS.LOLITA
+  if (label == '汉服') return CATEGORY_LABELS_CLASS.HANFU
+  return CATEGORY_LABELS_CLASS.OTHER
+}

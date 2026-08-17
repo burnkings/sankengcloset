@@ -4,6 +4,8 @@ import * as repo from '@/domain/repositories/wardrobe-repo'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listWardrobeRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
+import { SortType } from '@/types/sort'
+import { categoryCodeToLabel } from '@/utils/category'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -24,17 +26,12 @@ const _state = reactive<WardrobeState>({
   error: '',
   currentCategory: '',
   searchKeyword: '',
-  currentSort: 'newest',
+  currentSort: SortType.NEWEST,
   viewMode: 'grid',
   currentStatus: '',
 })
 
-function categoryLabel(c: string): string {
-  if (c == 'JK') return 'JK制服'
-  if (c == 'LOLITA') return 'Lolita'
-  if (c == 'HANFU') return '汉服'
-  return '其他'
-}
+function categoryLabel(c: string): string { return categoryCodeToLabel(c) }
 
 function filteredItems(): WardrobeItem[] {
   return _state.items.filter((item) => {
@@ -120,8 +117,7 @@ function sortLabel(): string {
   return '最近加入'
 }
 
-const CHANGE_EVENT = 'store:wardrobe-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

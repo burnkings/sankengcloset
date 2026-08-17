@@ -14,6 +14,15 @@ function bindNetworkListener() {
   })
 }
 
+// 首次启动隐私确认：未同意则先进入隐私引导页（App.uvue 无模板能力，用页面承载）
+function ensurePrivacyConsent() {
+  try {
+    const agreed = uni.getStorageSync('v2_privacy_agreed') as string
+    if (agreed === '1') return
+    uni.redirectTo({ url: '/pages/privacy/index' })
+  } catch (e) {}
+}
+
 onLaunch(() => {
   warmRuntimeCache()
   // 主题初始化延迟到下一微任务：避开 vapor 首帧渲染 effect 的建立窗口，
@@ -22,6 +31,7 @@ onLaunch(() => {
     initializeTheme()
     syncTabBarChrome()
   })
+  ensurePrivacyConsent()
   // 启动时冲刷队列（离线期间的写操作补上送）
   useSyncStore().syncNow()
   bindNetworkListener()
@@ -31,8 +41,6 @@ onAppShow(() => {
   syncSystemChrome()
   useSyncStore().syncNow()
 })
-
-onAppHide(() => {})
 </script>
 
 <style>

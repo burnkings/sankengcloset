@@ -41,8 +41,7 @@ function totalSpent(): number { return activeItems().reduce((sum, r) => sum + r.
 function remainingTotal(): number { return activeItems().reduce((sum, r) => sum + r.remainingAmount, 0) }
 function itemCount(): number { return activeItems().length }
 
-const CHANGE_EVENT = 'store:purchase-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 
@@ -81,7 +80,11 @@ function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
   return item
 }
 
-/** 远程 payload：规格字段（分）+ 旧兼容字段（分）双写，与后端「金额一律整数分」契约对齐 */
+/**
+ * 远程 payload：规格字段（分）+ 旧兼容字段（分）双写。
+ * 与后端「金额一律整数分」契约对齐：totalCents 等为当前规格字段，totalAmount 等为 legacy 兼容字段，
+ * 后端统一为分后仅保留规格字段；删除 legacy 双写前需与后端确认无消费方。
+ */
 function toRemotePayload(record: PurchaseRecord): UTSJSONObject {
   return {
     id: record.id,

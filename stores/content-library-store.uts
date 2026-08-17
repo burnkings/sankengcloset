@@ -197,8 +197,7 @@ function followedBrandCount(): number { return _state.followedBrands.length }
 function outfitCount(): number { return _state.outfitPosts.length }
 function likedPostCount(): number { return _state.likedPostIds.length }
 
-const CHANGE_EVENT = 'store:content-library-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

@@ -1,0 +1,82 @@
+<template>
+  <view :style="pageRoot">
+    <view :style="cardWrap">
+      <view :style="brandRow">
+        <text :style="brandTitle">三坑绮橱</text>
+        <text :style="brandSub">隐私政策与用户协议</text>
+      </view>
+
+      <view :style="summaryCard">
+        <text :style="summaryTitle">我们如何保护你的信息</text>
+        <text :style="summaryText">在开始使用前，请阅读《用户协议》与《隐私政策》。我们仅收集为你提供服务所必需的信息（账号、商品收藏与记录），不收集位置、通讯录、麦克风等无关信息；照片仅在你主动选择时读取。</text>
+        <view :style="linkRow" @tap="openLegal('privacy')"><text :style="linkText">查看《隐私政策》</text><AppIcon name="chevron-right" :size="28" /></view>
+        <view :style="linkRow" @tap="openLegal('agreement')"><text :style="linkText">查看《用户协议》</text><AppIcon name="chevron-right" :size="28" /></view>
+      </view>
+
+      <view :style="agreeBtn" @tap="onAgree"><text :style="agreeBtnText">同意并继续</text></view>
+      <view :style="disagreeBtn" @tap="onDisagree"><text :style="disagreeBtnText">不同意</text></view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { computed } from 'vue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { PAGE_GUTTER_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { n } from '@/theme/use-theme'
+
+const PRIVACY_AGREED_KEY = 'v2_privacy_agreed'
+
+function openLegal(type: string) {
+  uni.navigateTo({ url: `/pages/about/legal?type=${type}` })
+}
+
+function onAgree() {
+  try {
+    uni.setStorageSync(PRIVACY_AGREED_KEY, '1')
+    uni.setStorageSync('v2_privacy_agreed_at', Date.now().toString())
+  } catch (e) {}
+  uni.reLaunch({ url: '/pages/home/index' })
+}
+
+function onDisagree() {
+  // #ifdef APP
+  uni.showModal({
+    title: '需要同意才能使用',
+    content: '不同意隐私政策将无法使用三坑绮橱，是否退出？',
+    confirmText: '退出',
+    cancelText: '再想想',
+    success: (res) => { if (res.confirm) uni.exitApp() },
+  })
+  // #endif
+  // #ifdef MP-WEIXIN
+  uni.showModal({
+    title: '需要同意才能使用',
+    content: '不同意隐私政策将无法使用三坑绮橱，请点击「同意并继续」。',
+    showCancel: false,
+    confirmText: '知道了',
+  })
+  // #endif
+}
+
+const pageRoot = computed((): any => ({ flex: 1, backgroundColor: n.value.bg, justifyContent: 'center', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }))
+const cardWrap = { flexDirection: 'column' as string }
+const brandRow = { alignItems: 'center', marginBottom: '48rpx' }
+const brandTitle = computed((): any => ({ fontSize: '44rpx', fontWeight: fontWeight.bold, color: n.value.text, marginRight: '16rpx' }))
+const brandSub = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+const summaryCard = computed((): any => ({ backgroundColor: n.value.surface, borderRadius: CARD_RADIUS_V3, padding: '28rpx', marginBottom: '40rpx', borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }))
+const summaryTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '16rpx' }))
+const summaryText = computed((): any => ({ fontSize: fontSize.sm, lineHeight: 1.7, color: n.value.textSecondary, marginBottom: '20rpx' }))
+const linkRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between', height: '76rpx', borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.border }))
+const linkText = { fontSize: fontSize.sm, color: brand.primary }
+const agreeBtn = { height: '88rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', marginBottom: '20rpx' }
+const agreeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+const disagreeBtn = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+const disagreeBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }))
+</script>
+
+<style>
+.page-root { flex: 1; }
+</style>

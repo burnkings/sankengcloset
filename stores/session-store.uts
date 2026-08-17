@@ -49,8 +49,7 @@ function isLoggedIn(): boolean { return _state.state === 'logged_in' }
 function userId(): string { return isLoggedIn() ? _state.profile.userId : '' }
 function isMock(): boolean { return isLoggedIn() && _state.mode === SESSION_MODE_MOCK }
 
-const CHANGE_EVENT = 'store:session-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

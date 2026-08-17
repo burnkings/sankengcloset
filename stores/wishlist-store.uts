@@ -131,8 +131,7 @@ function convertedCount(): number {
   return activeItems().filter((w) => w.purchaseId !== '').length
 }
 
-const CHANGE_EVENT = 'store:wishlist-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 

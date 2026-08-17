@@ -114,8 +114,7 @@ function overdueCount(): number { return overdueItems().length }
 function missedCount(): number { return missedItems().length }
 function balancePendingCount(): number { return activeItems().filter((r) => r.type === 'BALANCE' && r.status === 'PENDING').length }
 
-const CHANGE_EVENT = 'store:reminder-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 function reminderContent(item: Reminder): string {
   if (item.type === 'BALANCE') return `尾款提醒：${item.title}`

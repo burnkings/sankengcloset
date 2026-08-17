@@ -9,7 +9,6 @@ type SyncState = {
   operations: SyncOperation[]
   syncing: boolean
   lastSyncAt: string
-  online: boolean
   errorMessage: string
 }
 
@@ -17,22 +16,19 @@ const _state = reactive<SyncState>({
   operations: [] as SyncOperation[],
   syncing: false,
   lastSyncAt: '',
-  online: true,
   errorMessage: '',
 })
 
 function pendingCount(): number { return _state.operations.length }
 function hasPending(): boolean { return pendingCount() > 0 }
 
-const CHANGE_EVENT = 'store:sync-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== 模块级 action ======
 
 function reload() {
   _state.operations = readPendingOperations()
   _state.lastSyncAt = getLastSyncAt()
-  _state.online = true
   notifyChanged()
 }
 
@@ -61,7 +57,6 @@ class SyncStoreHandle {
   get operations(): SyncOperation[] { return _state.operations }
   get syncing(): boolean { return _state.syncing }
   get lastSyncAt(): string { return _state.lastSyncAt }
-  get online(): boolean { return _state.online }
   get errorMessage(): string { return _state.errorMessage }
   get pendingCount(): number { return pendingCount() }
   get hasPending(): boolean { return hasPending() }

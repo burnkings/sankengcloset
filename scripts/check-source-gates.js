@@ -110,3 +110,49 @@ if (tabBar && Array.isArray(tabBar.list)) {
 
 if (failed) process.exit(1)
 console.log('[PASS] V3 source gates — no components/v2 refs, theme tokens reactive, pages.json routes & tabbar icons exist')
+
+// ---------- 4. 审计回归门禁 ----------
+// 4.1 正则字面量中的双重转义 \d（商品链接 ID 提取失效回归）
+for (const dir of ['pages', 'components', 'stores', 'services', 'utils', 'domain']) {
+  for (const file of walk(dir)) {
+    if (!file.endsWith('.uts') && !file.endsWith('.uvue')) continue
+    const src = fs.readFileSync(file, 'utf8')
+    if (/\/[^/\n]*\\\\d/.test(src)) fail(`${file} 正则字面量含双重转义 \\\\d（应写 \\d）`)
+  }
+}
+
+// 4.2 法律文本占位符扫描（发布前必须由运营填值；开发期警告不阻断，发布门禁用 LEGAL_RELEASE 变量强制）
+for (const file of walk('pages')) {
+  if (!file.endsWith('.uts') && !file.endsWith('.uvue')) continue
+  const src = fs.readFileSync(file, 'utf8')
+  if (/\[[^\]]*占位[^\]]*\]/.test(src)) {
+    if (process.env.LEGAL_RELEASE === '1') fail(`${file} 含未替换占位符（[xxx占位]）`)
+    else console.warn(`[WARN] ${file} 含未替换占位符（[xxx占位]）——运营填值后发布`)
+  }
+}
+const legalSrc = fs.readFileSync('pages/about/legal-content.uts', 'utf8')
+if (legalSrc.includes("'待运营补充'")) {
+  if (process.env.LEGAL_RELEASE === '1') fail('pages/about/legal-content.uts 运营信息常量仍为「待运营补充」，发布前需由运营填值')
+  else console.warn('[WARN] pages/about/legal-content.uts 运营信息常量仍为「待运营补充」——运营填值后发布（发布门禁：LEGAL_RELEASE=1 时强制拒绝）')
+}
+
+// 4.3 manifest urlCheck 断言（发布必须开启合法域名校验）
+const manifestRaw = fs.readFileSync('manifest.json', 'utf8')
+if (/"urlCheck"\s*:\s*false/.test(manifestRaw)) fail('manifest.json mp-weixin urlCheck 必须为 true（发布配置）')
+
+// 4.4 页面 navigateTo 跳 tabBar 路径扫描（tabBar 页只能 switchTab）
+if (tabBar && Array.isArray(tabBar.list)) {
+  const tabPaths = tabBar.list.map((item) => item.pagePath)
+  for (const file of walk('pages')) {
+    if (!file.endsWith('.uvue')) continue
+    const src = stripComments(fs.readFileSync(file, 'utf8'))
+    for (const tp of tabPaths) {
+      if (new RegExp(`navigateTo\\(\\{[^}]*url:[^}]*['"]\/${tp}['"]`).test(src)) {
+        fail(`${file} 使用 navigateTo 跳转 tabBar 页 /${tp}（应使用 switchTab）`)
+      }
+    }
+  }
+}
+
+if (failed) process.exit(1)
+console.log('[PASS] audit regression gates — no double-escape regex, no legal placeholders, urlCheck on, no navigateTo-to-tabBar')

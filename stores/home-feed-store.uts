@@ -25,7 +25,7 @@ const MAX_FEED_ITEMS = 200
 
 /** 价格格式化：分 → ¥xxx.xx */
 export function formatPrice(cents: number): string {
-  if (cents <= 0) return ''
+  if (isNaN(cents) || cents <= 0) return ''
   const yuan = cents / 100
   if (yuan >= 10000) return `¥${(yuan / 10000).toFixed(1)}万`
   if (yuan == Math.floor(yuan)) return `¥${Math.floor(yuan)}`
@@ -205,8 +205,7 @@ function buildBlocks(): MasonryBlock[] {
 }
 function invalidateBlocksCache() { _blocksCache = null; _blocksSig = '' }
 
-const CHANGE_EVENT = 'store:home-feed-changed'
-function notifyChanged() { uni.$emit(CHANGE_EVENT) }
+function notifyChanged() {}
 
 // ====== request generation：旧请求不得覆盖新频道数据 ======
 

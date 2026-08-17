@@ -68,10 +68,12 @@ async function fetchRemoteFeed(cursor: string, channel: string, category: string
   if (cat != '') { path += (hasQuery ? '&' : '?') + 'category=' + encodeQuery(cat); hasQuery = true }
   if (categories != '') { path += (hasQuery ? '&' : '?') + 'categories=' + encodeQuery(categories); hasQuery = true }
   const response = await apiGet(path)
-  const rawItems = response.data as any[]
   const result = new FeedPage()
   result.requestId = response.requestId
-  if (rawItems != null) for (let i = 0; i < rawItems.length; i++) result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
+  const rawItems = response.data
+  if (rawItems != null && Array.isArray(rawItems)) {
+    for (let i = 0; i < rawItems.length; i++) result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
+  }
   const page = response.page as UTSJSONObject | null
   result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
   result.hasMore = page != null && page['hasMore'] == true

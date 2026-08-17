@@ -175,7 +175,7 @@
       }
     },
     {
-      "path": "pages/dev/design-system-v3",
+      "path": "pages/privacy/index",
       "style": {
         "navigationStyle": "custom"
       }
