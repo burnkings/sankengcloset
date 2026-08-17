@@ -1,0 +1,47 @@
+<template>
+  <view>
+    <view v-if="full != null && full.feedType === 'release_event'" class="feed-single-card" @tap="emit('tap', full)">
+      <ReleaseCard :title="full.title" :brand="full.brandName" :image="full.coverUrl" :overlay-text="formatRelativeTime(full.eventStartAt)" @tap="emit('tap', full)" @remind="emit('tap', full)" @view="emit('tap', full)" />
+    </view>
+    <view v-else-if="full != null && full.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="emit('tap', full)">
+      <view :style="imgWrap45">
+        <AppImage :src="full.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+        <view :style="outfitInfoOverlay">
+          <text :style="outfitTitle">{{ full.title }}</text>
+          <text :style="outfitSub">{{ full.subtitle }}</text>
+        </view>
+      </view>
+    </view>
+    <view v-else-if="full != null" class="feed-single-card" @tap="emit('tap', full)">
+      <EditorialCard :title="full.title" :image="full.coverUrl" :source-label="full.sourceLabel !== '' ? full.sourceLabel : feedLabel(full.feedType)" :updated-text="formatRelativeTime(full.eventStartAt)" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppImage from '@/components/base/AppImage.uvue'
+import ReleaseCard from '@/components/v3/ReleaseCard.uvue'
+import EditorialCard from '@/components/v3/EditorialCard.uvue'
+import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
+import { formatRelativeTime } from '@/stores/home-feed-store'
+import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
+import { baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+
+const props = withDefaults(defineProps<{
+  full: FeedItem | null
+}>(), { full: null })
+
+const emit = defineEmits<{
+  tap: [item: FeedItem]
+}>()
+
+function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
+
+const outfitCard = { marginTop: '0', borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
+const imgWrap45 = { width: '718rpx', height: '760rpx', position: 'relative' as string, overflow: 'hidden' }
+const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: '24rpx', paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
+const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }
+</script>

@@ -49,21 +49,7 @@
                 <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
               </view>
             </view>
-          <view v-else-if="block.full !== null && block.full!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(block.full!)">
-            <ReleaseCard :title="block.full!.title" :brand="block.full!.brandName" :image="block.full!.coverUrl" :overlay-text="formatRelativeTime(block.full!.eventStartAt)" @tap="onTap(block.full!)" @remind="onTap(block.full!)" @view="onTap(block.full!)" />
-          </view>
-          <view v-else-if="block.full !== null && block.full!.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="onTap(block.full!)">
-            <view :style="imgWrap45">
-              <AppImage :src="block.full!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-              <view :style="outfitInfoOverlay">
-                <text :style="outfitTitle">{{ block.full!.title }}</text>
-                <text :style="outfitSub">{{ block.full!.subtitle }}</text>
-              </view>
-            </view>
-          </view>
-          <view v-else-if="block.full !== null" class="feed-single-card" @tap="onTap(block.full!)">
-            <EditorialCard :title="block.full!.title" :image="block.full!.coverUrl" :source-label="block.full!.sourceLabel !== '' ? block.full!.sourceLabel : feedLabel(block.full!.feedType)" :updated-text="formatRelativeTime(block.full!.eventStartAt)" />
-          </view>
+          <FeedBlock v-else :full="block.full" @tap="onTap" />
         </view>
 
         <view v-if="showFeedFooter" :style="footerWrap">
@@ -88,21 +74,7 @@
               <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
             </view>
           </view>
-          <view v-else-if="block.full !== null && block.full!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(block.full!)">
-            <ReleaseCard :title="block.full!.title" :brand="block.full!.brandName" :image="block.full!.coverUrl" :overlay-text="formatRelativeTime(block.full!.eventStartAt)" @tap="onTap(block.full!)" @remind="onTap(block.full!)" @view="onTap(block.full!)" />
-          </view>
-          <view v-else-if="block.full !== null && block.full!.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="onTap(block.full!)">
-            <view :style="imgWrap45">
-              <AppImage :src="block.full!.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-              <view :style="outfitInfoOverlay">
-                <text :style="outfitTitle">{{ block.full!.title }}</text>
-                <text :style="outfitSub">{{ block.full!.subtitle }}</text>
-              </view>
-            </view>
-          </view>
-          <view v-else-if="block.full !== null" class="feed-single-card" @tap="onTap(block.full!)">
-            <EditorialCard :title="block.full!.title" :image="block.full!.coverUrl" :source-label="block.full!.sourceLabel !== '' ? block.full!.sourceLabel : feedLabel(block.full!.feedType)" :updated-text="formatRelativeTime(block.full!.eventStartAt)" />
-          </view>
+          <FeedBlock v-else :full="block.full" @tap="onTap" />
         </list-item>
 
         <list-item v-if="showFeedFooter">
@@ -118,27 +90,24 @@
 
 <script setup lang="uts">
 import { nextTick } from 'vue'
-import { useHomeFeedStore, CHANNELS, formatRelativeTime, MasonryBlock } from '@/stores/home-feed-store'
+import { useHomeFeedStore, CHANNELS, MasonryBlock } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
-import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
-import { brand, baseColors } from '@/theme/tokens/colors'
-import { fontSize, fontWeight, v3TextStyle } from '@/theme/tokens/typography'
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow, flexCenter } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight, upx2px } from '@/utils/window-info'
 import { openPrimaryTab } from '@/utils/tab-navigation'
-import { SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3, COLUMN_GAP_V3, CARD_VERTICAL_GAP_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3, COLUMN_GAP_V3, CARD_VERTICAL_GAP_V3 } from '@/theme/tokens/responsive'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import BackToTop from '@/components/base/BackToTop.uvue'
 import ChannelTabs from '@/components/v3/ChannelTabs.uvue'
 import FeedColumn from '@/components/v3/FeedColumn.uvue'
-import ReleaseCard from '@/components/v3/ReleaseCard.uvue'
-import EditorialCard from '@/components/v3/EditorialCard.uvue'
+import FeedBlock from '@/components/v3/FeedBlock.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 
@@ -179,7 +148,6 @@ try {
 }
 // #endif
 
-function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
 function blockKey(block: MasonryBlock): string {
   if (block.type == 'full') {
     const f = block.full
@@ -281,13 +249,6 @@ const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: '48
 const waterfallRow = { ...flexRow, alignItems: 'flex-start' as string }
 const masonryColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
 const masonryColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginTop: CARD_V_GAP }
-
-// Outfit card — 单列全宽穿搭卡（与微信端同构，V3 token 化）
-const outfitCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
-const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: '24rpx', paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
-const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
-const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }
-const imgWrap45 = { width: '718rpx', height: '760rpx', position: 'relative' as string, overflow: 'hidden' }
 
 // Footer
 const footerWrap = { ...flexCenter, paddingTop: '32rpx', paddingBottom: PAGE_BOTTOM_SAFE_SPACER }
