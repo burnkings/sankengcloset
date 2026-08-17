@@ -49,7 +49,6 @@ function getSystemDark(): boolean {
     return false
   }
 }
-
 function computeIsDark(mode: ThemeMode): boolean {
   if (mode === 'dark') return true
   if (mode === 'light') return false
@@ -108,6 +107,9 @@ function applyPalette() {
 let lastTabBarMode = ''
 // #ifdef APP
 let osThemeChangeId: number | null = null
+// #endif
+// #ifdef MP-WEIXIN
+let hostThemeChangeId: number | null = null
 // #endif
 
 function syncFromGlobal(): boolean {
@@ -176,9 +178,28 @@ function enableSystemThemeListener() {
       applyPalette()
       applySystemChrome()
       syncTabBarChrome()
+      notifyThemeChanged()
     }
   })
   // #endif
+  // #ifdef MP-WEIXIN
+  // 小程序端监听宿主系统主题变化（onHostThemeChange 可 off，微信 unixVer 4.41+）
+  if (hostThemeChangeId != null) return
+  hostThemeChangeId = uni.onHostThemeChange((result: OnHostThemeChangeCallbackResult) => {
+    if (_state.themeMode !== 'system') return
+    const newDark = result.hostTheme == 'dark'
+    if (_state.isDark != newDark) {
+      _state.isDark = newDark
+      setGlobalDark(newDark)
+      lastTabBarMode = ''
+      applyPalette()
+      applySystemChrome()
+      syncTabBarChrome()
+      notifyThemeChanged()
+    }
+  })
+  // #endif
+  // Web 端无系统主题监听：仅手动三态，不注册（getSystemDark 首次读取 hostTheme 兜底）
 }
 
 function disableSystemThemeListener() {
@@ -187,6 +208,13 @@ function disableSystemThemeListener() {
   if (listenerId != null) {
     uni.offOsThemeChange(listenerId)
     osThemeChangeId = null
+  }
+  // #endif
+  // #ifdef MP-WEIXIN
+  const hostListenerId = hostThemeChangeId
+  if (hostListenerId != null) {
+    uni.offHostThemeChange(hostListenerId)
+    hostThemeChangeId = null
   }
   // #endif
 }
@@ -211,6 +239,15 @@ export function initPageTheme() {
 }
 
 /**
+ * 主题变更事件广播：通知已打开页面即时刷新。
+ * 页面侧如需实时刷新可 uni.$on('theme:changed') 订阅（onUnload 配对 $off）；
+ * 多数页面已有 onShow → initPageTheme 兜底，本事件用于「已停留页面」的即时同步。
+ */
+export function notifyThemeChanged() {
+  uni.$emit('theme:changed')
+}
+
+/**
  * 设置三态主题模式
  * @param mode 'system' | 'light' | 'dark'
  */
@@ -229,6 +266,7 @@ export function setThemeMode(mode: ThemeMode) {
   } else {
     disableSystemThemeListener()
   }
+  notifyThemeChanged()
 }
 
 /**

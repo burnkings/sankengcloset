@@ -193,6 +193,18 @@ function masonryBlocks(): MasonryBlock[] {
   return blocks
 }
 
+// ====== 瀑布流缓存：签名不变时复用已构建块，避免滚动/点赞触发全量重建 ======
+let _blocksCache: MasonryBlock[] | null = null
+let _blocksSig = ''
+function buildBlocks(): MasonryBlock[] {
+  const sig = `${_state.currentChannel}|${_state.allItems.length}|${buildPrefSignature()}|${blacklist.brands.join(',')}`
+  if (_blocksCache != null && _blocksSig === sig) return _blocksCache!
+  _blocksSig = sig
+  _blocksCache = masonryBlocks()
+  return _blocksCache!
+}
+function invalidateBlocksCache() { _blocksCache = null; _blocksSig = '' }
+
 const CHANGE_EVENT = 'store:home-feed-changed'
 function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
@@ -216,6 +228,7 @@ async function loadFirstPage(silent: boolean = false) {
     _state.nextCursor = page.nextCursor
     _state.hasMore = page.hasMore
     _state.state = 'loaded'
+    invalidateBlocksCache()
   } catch (e) {
     if (seq !== _requestSeq) return
     _state.state = 'error'
@@ -244,6 +257,7 @@ async function loadMore() {
       _state.allItems = merged
       _state.nextCursor = page.nextCursor
       _state.hasMore = page.hasMore
+      invalidateBlocksCache()
     }
   } catch (e) {
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
@@ -261,6 +275,7 @@ function setChannel(ch: string) {
   _state.allItems = []
   _state.hasMore = true
   _state.errorMessage = ''
+  invalidateBlocksCache()
   notifyChanged()
   loadFirstPage()
 }
@@ -322,7 +337,7 @@ class HomeFeedStoreHandle {
   get currentChannel(): string { return _state.currentChannel }
   get allItems(): FeedItem[] { return _state.allItems }
   get displayItems(): FeedItem[] { return displayItems() }
-  get masonryBlocks(): MasonryBlock[] { return masonryBlocks() }
+  get masonryBlocks(): MasonryBlock[] { return buildBlocks() }
   get isLoadingMore(): boolean { return _state.isLoadingMore }
   get hasMore(): boolean { return _state.hasMore }
   loadFirstPage(silent: boolean = false): Promise<void> { return loadFirstPage(silent) }

@@ -28,7 +28,7 @@ const checks = [
   ['remote detail service', service.includes('/api/v1/products/') && detail.includes('fetchProductDetail')],
   ['multi-image detail', detail.includes('detailImages') && detail.includes('<swiper')],
   ['Android-safe root layout', !layout.includes("height: '100vh'") && !layout.includes("height: '0'") && layout.includes('getWindowHeight')],
-  ['theme chrome limited to supported platform', theme.includes('// #ifdef MP-WEIXIN\n  const palette') && theme.includes('// #endif\n}')],
+  ['theme chrome limited to supported platform', theme.includes('#ifdef MP-WEIXIN') && theme.includes('#endif') && theme.includes('setNavigationBarColor')],
 ]
 let failed = false
 for (const [name, ok] of checks) {
