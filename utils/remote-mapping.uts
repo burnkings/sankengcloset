@@ -1,0 +1,29 @@
+/**
+ * remote-mapping — 远程 UTSJSONObject → 实体的字段取值工具
+ * 收敛 4 个 store 的 mapRemoteXxx 手写逐字段 `raw['x'] != null ? raw['x'] as T : default` 模式。
+ * 语义与现状一致：字段缺失/为 null 时回退默认值；isFavorite 等布尔用 `== true`。
+ */
+
+export function readStr(raw: UTSJSONObject, key: string, fallback: string = ''): string {
+  const v = raw[key]
+  return v != null ? v as string : fallback
+}
+
+export function readNum(raw: UTSJSONObject, key: string, fallback: number = 0): number {
+  const v = raw[key]
+  return v != null ? v as number : fallback
+}
+
+export function readBool(raw: UTSJSONObject, key: string): boolean {
+  return raw[key] == true
+}
+
+export function readStrArray(raw: UTSJSONObject, key: string, fallback: string[] = []): string[] {
+  const v = raw[key]
+  return v != null ? v as string[] : fallback
+}
+
+export function readObj(raw: UTSJSONObject, key: string): UTSJSONObject | null {
+  const v = raw[key]
+  return v != null ? v as UTSJSONObject : null
+}

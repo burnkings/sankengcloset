@@ -1,0 +1,26 @@
+/**
+ * write-back — 统一「远程直写 + 失败入队」写回策略
+ * 4 个 store（wardrobe/purchase/wishlist/reminder）的 12+ 处重复「有 token 直写远程、失败入队；
+ * 无 token 直接入队」收敛为单次调用。
+ *
+ * 行为等价：有 token → remoteCall() 失败才 enqueue；无 token → 直接 enqueue。
+ */
+import { ApiResponse } from '@/services/platform/api-client'
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+
+export function syncWriteBack(
+  entityType: string,
+  entityId: string,
+  action: string,
+  payload: string,
+  remoteCall: () => Promise<ApiResponse>,
+): void {
+  if (getCachedAccessToken() != '') {
+    remoteCall().catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
+    })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
+  }
+}

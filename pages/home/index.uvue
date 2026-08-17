@@ -40,37 +40,15 @@
           <PageState icon="info" title="暂无内容" message="切换其他频道看看" />
         </view>
 
-        <view v-for="block in store.masonryBlocks" :key="blockKey(block)">
-          <view v-if="block.type === 'columns'" class="feed-pair-row" :style="waterfallRow">
-            <view :style="masonryColLeft">
-              <view v-for="item in block.left" :key="item.id">
-                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
-                  <view :style="outfitFlowImgWrap(item)">
-                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                    <view :style="outfitInfoOverlay">
-                      <text :style="outfitTitle">{{ item.title }}</text>
-                      <text :style="outfitSub">{{ item.subtitle }}</text>
-                    </view>
-                  </view>
-                </view>
-                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
+          <view v-for="block in store.masonryBlocks" :key="blockKey(block)">
+            <view v-if="block.type === 'columns'" class="feed-pair-row" :style="waterfallRow">
+              <view :style="masonryColLeft">
+                <FeedColumn :items="block.left" @tap="onTap" @toggle-save="onToggleSave" />
+              </view>
+              <view :style="masonryColRight">
+                <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
               </view>
             </view>
-            <view :style="masonryColRight">
-              <view v-for="item in block.right" :key="item.id">
-                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
-                  <view :style="outfitFlowImgWrap(item)">
-                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                    <view :style="outfitInfoOverlay">
-                      <text :style="outfitTitle">{{ item.title }}</text>
-                      <text :style="outfitSub">{{ item.subtitle }}</text>
-                    </view>
-                  </view>
-                </view>
-                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
-              </view>
-            </view>
-          </view>
           <view v-else-if="block.full !== null && block.full!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(block.full!)">
             <ReleaseCard :title="block.full!.title" :brand="block.full!.brandName" :image="block.full!.coverUrl" :overlay-text="formatRelativeTime(block.full!.eventStartAt)" @tap="onTap(block.full!)" @remind="onTap(block.full!)" @view="onTap(block.full!)" />
           </view>
@@ -104,32 +82,10 @@
         <list-item v-for="block in store.masonryBlocks" :key="blockKey(block)">
           <view v-if="block.type === 'columns'" class="feed-pair-row" :style="waterfallRow">
             <view :style="masonryColLeft">
-              <view v-for="item in block.left" :key="item.id">
-                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
-                  <view :style="outfitFlowImgWrap(item)">
-                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                    <view :style="outfitInfoOverlay">
-                      <text :style="outfitTitle">{{ item.title }}</text>
-                      <text :style="outfitSub">{{ item.subtitle }}</text>
-                    </view>
-                  </view>
-                </view>
-                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
-              </view>
+              <FeedColumn :items="block.left" @tap="onTap" @toggle-save="onToggleSave" />
             </view>
             <view :style="masonryColRight">
-              <view v-for="item in block.right" :key="item.id">
-                <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="onTap(item)">
-                  <view :style="outfitFlowImgWrap(item)">
-                    <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                    <view :style="outfitInfoOverlay">
-                      <text :style="outfitTitle">{{ item.title }}</text>
-                      <text :style="outfitSub">{{ item.subtitle }}</text>
-                    </view>
-                  </view>
-                </view>
-                <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="library.isFavorite(item.entityId)" @tap="onTap(item)" @toggle-save="onToggleSave(item)" />
-              </view>
+              <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
             </view>
           </view>
           <view v-else-if="block.full !== null && block.full!.feedType === 'release_event'" class="feed-single-card" @tap="onTap(block.full!)">
@@ -162,7 +118,7 @@
 
 <script setup lang="uts">
 import { nextTick } from 'vue'
-import { useHomeFeedStore, CHANNELS, formatPrice, formatRelativeTime, formatDeadline, MasonryBlock, feedImageHeight } from '@/stores/home-feed-store'
+import { useHomeFeedStore, CHANNELS, formatRelativeTime, MasonryBlock } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
@@ -180,7 +136,7 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import BackToTop from '@/components/base/BackToTop.uvue'
 import ChannelTabs from '@/components/v3/ChannelTabs.uvue'
-import ProductCard from '@/components/v3/ProductCard.uvue'
+import FeedColumn from '@/components/v3/FeedColumn.uvue'
 import ReleaseCard from '@/components/v3/ReleaseCard.uvue'
 import EditorialCard from '@/components/v3/EditorialCard.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
@@ -328,11 +284,6 @@ const masonryColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirec
 
 // Outfit card — 单列全宽穿搭卡（与微信端同构，V3 token 化）
 const outfitCard = { marginTop: CARD_V_GAP, borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
-// Outfit card — 双列半宽版本（列内，与 ProductCard 同尺寸，图片高度随 feedImageHeight 错落）
-const outfitFlowCard = { width: '100%', borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
-function outfitFlowImgWrap(item: FeedItem): any {
-  return { width: '100%', height: feedImageHeight(item), position: 'relative' as string, overflow: 'hidden' }
-}
 const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: '24rpx', paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
 const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }

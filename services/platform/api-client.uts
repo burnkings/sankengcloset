@@ -166,49 +166,35 @@ export async function refreshRemoteSession(): Promise<boolean> {
  * 通用 Authorized 请求：401 时单飞刷新令牌并重试一次。
  * 所有需认证读取（/api/v1/me/*、/wishlist、/brands/followed 等）必须走此方法。
  */
-export async function apiGetAuthorized(path: string): Promise<ApiResponse> {
-  try { return await apiGet(path) }
-  catch (e) {
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+async function apiAuthorized(method: HttpMethod, path: string, payload?: any): Promise<ApiResponse> {
+  try {
+    if (method == 'GET') return await apiGet(path)
+    if (method == 'DELETE') return await apiDelete(path)
+    if (method == 'PUT') return await apiPut(path, payload)
+    if (method == 'PATCH') return await apiPatch(path, payload)
+    return await apiPost(path, payload)
+  } catch (e) {
     if (e instanceof ApiRequestError && e.statusCode === 401 && (await refreshWithSingleFlight())) {
-      return await apiGet(path)
-    }
-    throw e
-  }
-}
-
-export async function apiPostAuthorized(path: string, payload: any): Promise<ApiResponse> {
-  try { return await apiPost(path, payload) }
-  catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode === 401 && (await refreshWithSingleFlight())) {
+      if (method == 'GET') return await apiGet(path)
+      if (method == 'DELETE') return await apiDelete(path)
+      if (method == 'PUT') return await apiPut(path, payload)
+      if (method == 'PATCH') return await apiPatch(path, payload)
       return await apiPost(path, payload)
     }
     throw e
   }
 }
 
-export async function apiPutAuthorized(path: string, payload: any): Promise<ApiResponse> {
-  try { return await apiPut(path, payload) }
-  catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshWithSingleFlight())) return await apiPut(path, payload)
-    throw e
-  }
-}
+export function apiGetAuthorized(path: string): Promise<ApiResponse> { return apiAuthorized('GET', path) }
 
-export async function apiPatchAuthorized(path: string, payload: any): Promise<ApiResponse> {
-  try { return await apiPatch(path, payload) }
-  catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshWithSingleFlight())) return await apiPatch(path, payload)
-    throw e
-  }
-}
+export function apiPostAuthorized(path: string, payload: any): Promise<ApiResponse> { return apiAuthorized('POST', path, payload) }
 
-export async function apiDeleteAuthorized(path: string): Promise<ApiResponse> {
-  try { return await apiDelete(path) }
-  catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode == 401 && (await refreshWithSingleFlight())) return await apiDelete(path)
-    throw e
-  }
-}
+export function apiPutAuthorized(path: string, payload: any): Promise<ApiResponse> { return apiAuthorized('PUT', path, payload) }
+
+export function apiPatchAuthorized(path: string, payload: any): Promise<ApiResponse> { return apiAuthorized('PATCH', path, payload) }
+
+export function apiDeleteAuthorized(path: string): Promise<ApiResponse> { return apiAuthorized('DELETE', path) }
 
 /**
  * 上传图片二进制（PUT 原始 body）。

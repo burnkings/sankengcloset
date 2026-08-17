@@ -4,10 +4,11 @@ import { reactive } from 'vue'
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 import { toDisplayModels, PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import * as repo from '@/domain/repositories/purchase-repo'
-import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { syncWriteBack } from '@/services/sync/write-back'
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listPurchasesRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
 import { useReminderStore } from '@/stores/reminder-store'
+import { readStr, readNum, readBool } from '@/utils/remote-mapping'
 
 // ====== 模块级 reactive 状态（单例）======
 
@@ -58,25 +59,25 @@ function readCents(raw: UTSJSONObject, centsKey: string, legacyKey: string): num
 
 function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
   const item = new PurchaseRecord()
-  item.id = raw['id'] != null ? raw['id'] as string : ''
-  item.name = raw['name'] != null ? raw['name'] as string : ''
-  item.brand = raw['brand'] != null ? raw['brand'] as string : ''
-  item.shopName = raw['shopName'] != null ? raw['shopName'] as string : ''
-  item.category = raw['category'] != null ? raw['category'] as string : 'OTHER'
+  item.id = readStr(raw, 'id')
+  item.name = readStr(raw, 'name')
+  item.brand = readStr(raw, 'brand')
+  item.shopName = readStr(raw, 'shopName')
+  item.category = readStr(raw, 'category', 'OTHER')
   item.totalAmount = readCents(raw, 'totalCents', 'totalAmount')
   item.depositAmount = readCents(raw, 'depositCents', 'depositAmount')
   item.paidAmount = readCents(raw, 'paidCents', 'paidAmount')
   item.remainingAmount = readCents(raw, 'remainingCents', 'remainingAmount')
-  item.paymentStatus = raw['paymentStatus'] != null ? raw['paymentStatus'] as string : 'PRE_ORDER'
-  item.purchaseDate = raw['purchaseDate'] != null ? raw['purchaseDate'] as string : ''
-  item.deadline = raw['deadline'] != null ? raw['deadline'] as string : ''
-  item.arrivalDate = raw['arrivalDate'] != null ? raw['arrivalDate'] as string : ''
-  item.wishId = raw['wishId'] != null ? raw['wishId'] as string : ''
-  item.wardrobeId = raw['wardrobeId'] != null ? raw['wardrobeId'] as string : ''
-  item.note = raw['note'] != null ? raw['note'] as string : ''
-  item.isFavorite = raw['isFavorite'] == true
-  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
-  item.updatedAt = raw['updatedAt'] != null ? raw['updatedAt'] as string : ''
+  item.paymentStatus = readStr(raw, 'paymentStatus', 'PRE_ORDER')
+  item.purchaseDate = readStr(raw, 'purchaseDate')
+  item.deadline = readStr(raw, 'deadline')
+  item.arrivalDate = readStr(raw, 'arrivalDate')
+  item.wishId = readStr(raw, 'wishId')
+  item.wardrobeId = readStr(raw, 'wardrobeId')
+  item.note = readStr(raw, 'note')
+  item.isFavorite = readBool(raw, 'isFavorite')
+  item.createdAt = readStr(raw, 'createdAt')
+  item.updatedAt = readStr(raw, 'updatedAt')
   return item
 }
 
@@ -145,13 +146,7 @@ function addPurchase(record: PurchaseRecord): PurchaseRecord | null {
     _state.items = [..._state.items, added]
     useReminderStore().syncPurchaseReminders(added)
     // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
-    if (getCachedAccessToken() != '') {
-      createAssetRemote('purchases', toRemotePayload(added)).catch(() => {
-        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(toRemotePayload(added)))
-      })
-    } else {
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', added.id, 'create', JSON.stringify(toRemotePayload(added)))
-    }
+    syncWriteBack('purchase', added.id, 'create', JSON.stringify(toRemotePayload(added)), () => createAssetRemote('purchases', toRemotePayload(added)))
     notifyChanged()
     return added
   } catch (err) {
@@ -169,13 +164,7 @@ function updatePurchase(id: string, data: PurchaseUpdateData): boolean {
     const current = _state.items.find((item) => item.id == id)
     if (current != null) {
       // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
-      if (getCachedAccessToken() != '') {
-        patchAssetRemote('purchases', id, toRemotePayload(current)).catch(() => {
-          enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(toRemotePayload(current)))
-        })
-      } else {
-        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(toRemotePayload(current)))
-      }
+      syncWriteBack('purchase', id, 'update', JSON.stringify(toRemotePayload(current)), () => patchAssetRemote('purchases', id, toRemotePayload(current)))
     }
     notifyChanged()
   }
@@ -186,13 +175,7 @@ function deletePurchase(id: string): boolean {
   const ok = repo.softDelete(id)
   if (ok) {
     _state.items = _state.items.filter((r) => r.id !== id)
-    if (getCachedAccessToken() != '') {
-      deleteAssetRemote('purchases', id).catch(() => {
-        enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
-      })
-    } else {
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'delete', '')
-    }
+    syncWriteBack('purchase', id, 'delete', '', () => deleteAssetRemote('purchases', id))
     notifyChanged()
   }
   return ok
@@ -213,9 +196,7 @@ function linkWardrobe(id: string, wardrobeId: string): boolean {
     record.wardrobeId = wardrobeId
     record.updatedAt = new Date().toISOString()
     useReminderStore().syncPurchaseReminders(record)
-    if (getCachedAccessToken() != '') patchAssetRemote('purchases', id, toRemotePayload(record)).catch(() => {
-      enqueueLocalOperation(getCurrentSyncUserId(), 'purchase', id, 'update', JSON.stringify(toRemotePayload(record)))
-    })
+    syncWriteBack('purchase', id, 'update', JSON.stringify(toRemotePayload(record)), () => patchAssetRemote('purchases', id, toRemotePayload(record)))
   }
   notifyChanged()
   return true

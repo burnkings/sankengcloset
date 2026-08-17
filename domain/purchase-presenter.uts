@@ -9,6 +9,7 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
 } from './purchase-record'
+import { formatCentsYuan } from '@/utils/format'
 
 /** 展示模型 — PurchaseCard + Detail 页面直接使用 */
 export class PurchaseDisplayModel {
@@ -63,9 +64,9 @@ function checkOverdue(deadline: string, status: string): boolean {
   }
 }
 
-/** 金额一律以「分」为单位（与后端契约、FeedItem.price 一致），展示时才转元 */
+/** 金额一律以「分」为单位（与后端契约、FeedItem.price 一致），展示时才转元；统一实现见 utils/format.uts */
 function formatCents(cents: number): string {
-  return `¥${(cents / 100).toFixed(2)}`
+  return formatCentsYuan(cents)
 }
 
 /** 单条转换 */
