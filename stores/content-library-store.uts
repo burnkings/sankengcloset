@@ -4,7 +4,7 @@ import { SyncOperation } from '@/domain/sync/sync-operation'
 import { getCachedAccessToken } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { fetchProductDetail } from '@/services/content/product-service'
-import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, CommunityPostRemote } from '@/services/user-data/user-data-service'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, uploadOutfitImageRemote, createCommunityPostRemote, CommunityPostRemote } from '@/services/user-data/user-data-service'
 
 /**
  * ContentLibraryStore — V2.6 用户内容资产 + 圈子穿搭灵感 Gallery
@@ -574,6 +574,27 @@ function hasPendingBrandFollow(ops: SyncOperation[], brandName: string): boolean
   return false
 }
 
+/**
+ * 发布穿搭帖子到圈子：上传图片 → 创建远程帖子 → 刷新我的发布。
+ * 收敛 share/create 页面的 uploadOutfitImageRemote + createCommunityPostRemote 直连。
+ * 未登录时返回 false（由调用方回退本地草稿 saveOutfit）。
+ */
+export async function publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): Promise<boolean> {
+  if (getCachedAccessToken() == '') return false
+  const mediaId = await uploadOutfitImageRemote(imagePath)
+  const backendCategory = category === '混搭' ? 'MIXED' : (category === 'Lolita' ? 'LOLITA' : (category === '汉服' ? 'HANFU' : 'JK'))
+  const payload = {
+    mediaId,
+    caption,
+    category: backendCategory,
+    topic,
+    wardrobeIds,
+  } as UTSJSONObject
+  await createCommunityPostRemote(payload)
+  reload()
+  return true
+}
+
 function saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): string {
   const id = `outfit_${Date.now()}`
   uni.setStorageSync(outfitKey(id, 'image'), image)
@@ -686,6 +707,7 @@ class ContentLibraryStoreHandle {
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
   toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
   saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): string { return saveOutfit(image, caption, category, topic, wardrobeIds) }
+  publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): Promise<boolean> { return publishOutfitRemote(imagePath, caption, category, topic, wardrobeIds) }
   removeOutfit(id: string): void { removeOutfit(id) }
   isPostLiked(postId: string): boolean { return isPostLiked(postId) }
   togglePostLike(postId: string): boolean { return togglePostLike(postId) }

@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { AiImportTask, AI_IMPORT_IDLE, AI_IMPORT_PROCESSING, AI_IMPORT_READY, AI_IMPORT_FAILED, AI_IMPORT_CONFIRMED } from '@/domain/ai/ai-import-task'
 import { analyzeImportImage } from '@/services/ai/ai-import-service'
-import { analyzePurchaseScreenshot } from '@/services/ai/purchase-import-service'
+import { analyzePurchaseScreenshot, confirmPurchaseImport } from '@/services/ai/purchase-import-service'
 import { PurchaseImportTask } from '@/domain/ai/purchase-import-task'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
@@ -55,6 +55,11 @@ function analyzePurchase(sourceImage: string, sourceLink: string): Promise<Purch
   return analyzePurchaseScreenshot(sourceImage, sourceLink)
 }
 
+/** 订单导入确认回执：订单保存后上报 AI 任务确认（异常向上抛，由调用方静默处理）。 */
+function confirmPurchaseTask(taskId: string, purchaseId: string, confirmedPayload: UTSJSONObject): Promise<void> {
+  return confirmPurchaseImport(taskId, purchaseId, confirmedPayload)
+}
+
 function confirm(targetType: string, targetId: string, confirmedPayload: string) {
   if (_state.task === null) return
   _state.task!.state = AI_IMPORT_CONFIRMED
@@ -83,6 +88,7 @@ class AiImportStoreHandle {
   reset(): void { reset() }
   analyze(sourceImage: string, useDemo: boolean): Promise<AiImportTask | null> { return analyze(sourceImage, useDemo) }
   analyzePurchase(sourceImage: string, sourceLink: string): Promise<PurchaseImportTask | null> { return analyzePurchase(sourceImage, sourceLink) }
+  confirmPurchaseTask(taskId: string, purchaseId: string, confirmedPayload: UTSJSONObject): Promise<void> { return confirmPurchaseTask(taskId, purchaseId, confirmedPayload) }
   confirm(targetType: string, targetId: string, confirmedPayload: string): void { confirm(targetType, targetId, confirmedPayload) }
 }
 

@@ -1,0 +1,38 @@
+/**
+ * SearchStore — 搜索请求封装
+ * 收敛页面直接调用 search-service 的写法：页面负责防抖/时序，本 store 负责请求 + 品牌黑名单过滤。
+ * 采用「store 封装 + 页面保留时序」的中间收敛方案，行为与直连等价。
+ */
+import { searchProducts } from '@/services/content/search-service'
+import { SearchResult } from '@/services/content/search-service'
+import { useBlacklistStore } from '@/stores/blacklist-store'
+import { FeedItem } from '@/domain/content/feed-item'
+
+const blacklist = useBlacklistStore()
+
+function filterBlocked(items: FeedItem[]): FeedItem[] {
+  return items.filter((item) => !blacklist.isBlacklisted(item.brandName))
+}
+
+/** 首屏搜索：返回过滤后的结果页 */
+export function requestSearchPage(keyword: string, cursor: string = ''): Promise<SearchResult> {
+  return searchProducts(keyword, cursor).then((res: SearchResult) => {
+    const result = new SearchResult()
+    result.nextCursor = res.nextCursor
+    result.hasMore = res.hasMore
+    result.items = filterBlocked(res.items)
+    return result
+  })
+}
+
+class SearchStoreHandle {
+  requestSearchPage(keyword: string, cursor: string = ''): Promise<SearchResult> {
+    return requestSearchPage(keyword, cursor)
+  }
+}
+
+let _handle: SearchStoreHandle | null = null
+export function useSearchStore(): SearchStoreHandle {
+  if (_handle == null) _handle = new SearchStoreHandle()
+  return _handle!
+}

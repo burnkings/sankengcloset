@@ -1,0 +1,25 @@
+/**
+ * BrandStore — 品牌目录请求封装
+ * 收敛 brand/index 与 brand/detail 页面直接调用 brand-service 的写法。
+ */
+import { listBrands, fetchBrandDetail, listBrandProducts } from '@/services/content/brand-service'
+import { Brand } from '@/domain/content/brand'
+import { FeedItem } from '@/domain/content/feed-item'
+
+class BrandStoreHandle {
+  fetchBrands(): Promise<Brand[]> {
+    return listBrands()
+  }
+  fetchDetail(id: string): Promise<Brand | null> {
+    return fetchBrandDetail(id)
+  }
+  fetchProducts(brandId: string): Promise<FeedItem[]> {
+    return listBrandProducts(brandId)
+  }
+}
+
+let _handle: BrandStoreHandle | null = null
+export function useBrandStore(): BrandStoreHandle {
+  if (_handle == null) _handle = new BrandStoreHandle()
+  return _handle!
+}

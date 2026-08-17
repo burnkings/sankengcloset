@@ -68,8 +68,8 @@
 
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
+import { useAiImportStore } from '@/stores/ai-import-store'
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
-import { confirmPurchaseImport } from '@/services/ai/purchase-import-service'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -88,6 +88,7 @@ import FieldLabel from '@/components/v3/FieldLabel.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 
 const store = usePurchaseStore()
+const aiImportStore = useAiImportStore()
 const isEdit = ref(false)
 const editId = ref('')
 // 保存后延迟返回的定时器：页面卸载时清理，避免残留
@@ -188,7 +189,7 @@ function save() {
     const added = store.addPurchase(record)
     if (added === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
     if (sourceImportTaskId.value !== '') {
-      confirmPurchaseImport(sourceImportTaskId.value, added.id, added as UTSJSONObject).catch(() => {
+      aiImportStore.confirmPurchaseTask(sourceImportTaskId.value, added.id, added as UTSJSONObject).catch(() => {
         // 订单本身已保存；确认回执会由服务端任务保留待下次重试，不影响用户记录。
       })
     }

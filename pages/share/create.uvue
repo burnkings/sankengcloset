@@ -100,7 +100,6 @@ import { showFeedback } from '@/utils/feedback'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { getCachedAccessToken } from '@/config/runtime'
-import { uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
 
 const selectedImage = ref('')
 const caption = ref('')
@@ -175,15 +174,8 @@ function publishLook() {
   }
   const publishRemote = async () => {
     try {
-      const mediaId = await uploadOutfitImageRemote(selectedImage.value)
-      const payload = {
-        mediaId,
-        caption: caption.value,
-        category: toBackendCategory(category.value),
-        topic: topic.value,
-        wardrobeIds: selectedWardrobeIds.value,
-      } as UTSJSONObject
-      await createCommunityPostRemote(payload)
+      const ok = await library.publishOutfitRemote(selectedImage.value, caption.value, category.value, topic.value, selectedWardrobeIds.value)
+      if (!ok) { completePublish(selectedImage.value); return }
       publishing.value = false
       showFeedback('已发布到圈子')
       backTimer = setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
@@ -197,14 +189,6 @@ function publishLook() {
   } else {
     completePublish(selectedImage.value)
   }
-}
-
-// UI 文案（Lolita/汉服/混搭）→ 后端枚举（LOLITA/HANFU/MIXED）
-function toBackendCategory(value: string): string {
-  if (value === 'Lolita') return 'LOLITA'
-  if (value === '汉服') return 'HANFU'
-  if (value === '混搭') return 'MIXED'
-  return 'JK'
 }
 
 // 隐私提示随登录态变化：登录后走远程上传，未登录仅存本机草稿

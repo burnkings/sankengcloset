@@ -81,7 +81,7 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
-import { fetchProductDetail } from '@/services/content/product-service'
+import { useProductDetailStore } from '@/stores/product-detail-store'
 import { formatPrice } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSessionStore } from '@/stores/session-store'
@@ -112,6 +112,7 @@ const shopUrl = ref('')
 // 收藏态：与收藏页共用 content-library-store 统一数据源（后端 /api/v1/wishlist）
 const library = useContentLibraryStore()
 const session = useSessionStore()
+const productDetailStore = useProductDetailStore()
 const wardrobe = useWardrobeStore()
 const blacklist = useBlacklistStore()
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
@@ -199,7 +200,7 @@ async function loadDetail() {
   errorMessage.value = ''
   currentImageIndex.value = 0
   try {
-    const result = await fetchProductDetail(itemId.value)
+    const result = await productDetailStore.load(itemId.value)
     if (unmounted) return
     if (result === null) { item.value = null; errorMessage.value = '商品信息不存在'; return }
     item.value = result.item

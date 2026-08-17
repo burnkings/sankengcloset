@@ -106,7 +106,7 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
-import { useBlacklistStore } from '@/stores/blacklist-store'
+import { useSearchStore } from '@/stores/search-store'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -122,13 +122,13 @@ import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
-import { searchProducts, SearchResult } from '@/services/content/search-service'
+import { SearchResult } from '@/services/content/search-service'
 
 function priceText(cents: number): string { return formatPrice(cents) }
 function deadlineText(iso: string): string { return formatDeadline(iso) }
 
 const library = useContentLibraryStore()
-const blacklist = useBlacklistStore()
+const searchStore = useSearchStore()
 
 // 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
 const scrollTop = ref(0)
@@ -196,11 +196,11 @@ function runSearch(q: string) {
   searchError.value = ''
   nextCursor.value = ''
   hasMore.value = true
-  searchProducts(normalized)
+  searchStore.requestSearchPage(normalized)
     .then((res: SearchResult) => {
       // 用户继续输入后，旧请求不得覆盖新关键词的状态。
       if (requestSequence != searchSequence) return
-      results.value = res.items.filter((item) => !blacklist.isBlacklisted(item.brandName))
+      results.value = res.items
       nextCursor.value = res.nextCursor
       hasMore.value = res.hasMore
       searching.value = false
@@ -219,10 +219,10 @@ function loadMore() {
   if (normalized === '' || isLoadingMore.value || !hasMore.value || searching.value) return
   isLoadingMore.value = true
   const requestSequence = searchSequence
-  searchProducts(normalized, nextCursor.value)
+  searchStore.requestSearchPage(normalized, nextCursor.value)
     .then((res: SearchResult) => {
       if (requestSequence != searchSequence) return
-      results.value = [...results.value, ...res.items.filter((item) => !blacklist.isBlacklisted(item.brandName))]
+      results.value = [...results.value, ...res.items]
       nextCursor.value = res.nextCursor
       hasMore.value = res.hasMore
       isLoadingMore.value = false

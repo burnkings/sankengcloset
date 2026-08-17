@@ -12,6 +12,7 @@ const networkConfig = fs.readFileSync('nativeResources/android/res/xml/sankeng_n
 const betaConfig = fs.readFileSync('nativeResources/android/res/xml/sankeng_beta_network_security_config.xml', 'utf8')
 const runtime = fs.readFileSync('config/runtime.uts', 'utf8')
 const detail = fs.readFileSync('pages/product/detail.uvue', 'utf8')
+const detailStore = fs.readFileSync('stores/product-detail-store.uts', 'utf8')
 const service = fs.readFileSync('services/content/product-service.uts', 'utf8')
 const layout = fs.readFileSync('components/layout/MainLayout.uvue', 'utf8')
 const theme = fs.readFileSync('theme/use-theme.uts', 'utf8')
@@ -25,7 +26,7 @@ const checks = [
   ['secure config forbids cleartext', networkConfig.includes('cleartextTrafficPermitted="false"')],
   ['beta config isolated (not referenced by release manifest)', !nativeManifest.includes('sankeng_beta_network_security_config') && betaConfig.includes('cleartextTrafficPermitted="true"')],
   ['production API base URL', runtime.includes("apiBaseUrl: string = 'https://api.sankengcloset.icu'")],
-  ['remote detail service', service.includes('/api/v1/products/') && detail.includes('fetchProductDetail')],
+  ['remote detail service', service.includes('/api/v1/products/') && detailStore.includes('fetchProductDetail') && detail.includes('productDetailStore.load')],
   ['multi-image detail', detail.includes('detailImages') && detail.includes('<swiper')],
   ['Android-safe root layout', !layout.includes("height: '100vh'") && !layout.includes("height: '0'") && layout.includes('getWindowHeight')],
   ['theme chrome limited to supported platform', theme.includes('#ifdef MP-WEIXIN') && theme.includes('#endif') && theme.includes('setNavigationBarColor')],

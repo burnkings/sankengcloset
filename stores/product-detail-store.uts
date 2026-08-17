@@ -1,0 +1,18 @@
+/**
+ * ProductDetailStore — 商品详情请求封装
+ * 收敛页面直接调用 product-service 的写法；calculateWardrobeCompatibility 为纯计算函数，由页面直接使用。
+ */
+import { fetchProductDetail } from '@/services/content/product-service'
+import { ProductDetailModel } from '@/services/content/product-service'
+
+class ProductDetailStoreHandle {
+  load(id: string): Promise<ProductDetailModel | null> {
+    return fetchProductDetail(id)
+  }
+}
+
+let _handle: ProductDetailStoreHandle | null = null
+export function useProductDetailStore(): ProductDetailStoreHandle {
+  if (_handle == null) _handle = new ProductDetailStoreHandle()
+  return _handle!
+}

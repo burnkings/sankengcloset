@@ -23,8 +23,8 @@
 
 <script setup lang="uts">
 import { Brand } from '@/domain/content/brand'
-import { listBrands } from '@/services/content/brand-service'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useBrandStore } from '@/stores/brand-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -36,6 +36,7 @@ import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 
 const library = useContentLibraryStore()
+const brandStore = useBrandStore()
 const brands = ref<Brand[]>([])
 const loading = ref(true)
 
@@ -53,7 +54,7 @@ function toggleBrand(name: string) {
 
 onLoad(() => { initPageTheme() })
 onMounted(async () => {
-  const list = await listBrands()
+  const list = await brandStore.fetchBrands()
   brands.value = list
   loading.value = false
 })

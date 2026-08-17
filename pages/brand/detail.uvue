@@ -60,9 +60,9 @@
 <script setup lang="uts">
 import { Brand } from '@/domain/content/brand'
 import { FeedItem } from '@/domain/content/feed-item'
-import { fetchBrandDetail, listBrandProducts } from '@/services/content/brand-service'
 import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useBrandStore } from '@/stores/brand-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -77,6 +77,7 @@ import PageState from '@/components/v3/PageState.uvue'
 
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
+const brandStore = useBrandStore()
 const brandId = ref('')
 const brandName = ref('')
 const brandDetail = ref<Brand | null>(null)
@@ -119,10 +120,10 @@ onLoad((query) => {
   }
 })
 onMounted(async () => {
-  const detail = await fetchBrandDetail(brandId.value)
+  const detail = await brandStore.fetchDetail(brandId.value)
   brandDetail.value = detail
   if (detail != null && brandName.value === '') brandName.value = detail.name
-  const list = await listBrandProducts(brandId.value)
+  const list = await brandStore.fetchProducts(brandId.value)
   products.value = list
   loading.value = false
 })
