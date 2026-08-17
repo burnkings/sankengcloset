@@ -268,9 +268,13 @@ const compatibilityMatches = computed((): any => ({ fontSize: fontSize.xs, color
 const decisionRow = { ...flexRow, marginTop: '22rpx' }
 const recordBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
 const recordText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '8rpx' }))
+// 步骤条进度线：起点/终点距卡片边缘 110rpx（与 stepDot 定位一致），
+// 行程 257rpx = (750 - 2*110 - 2*24 padding)/2 ≈ 257（双列卡片半宽），4 段均分
+const STEP_TRACK_OFFSET_RPX = '110rpx'
+const STEP_TRACK_RANGE_RPX = 257
 const stepCard = computed((): any => ({ ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
-const stepLine = computed((): any => ({ position: 'absolute' as string, left: '110rpx', right: '110rpx', top: '71rpx', height: '2rpx', backgroundColor: n.value.border }))
-const stepLineFill = computed((): any => ({ position: 'absolute' as string, left: '110rpx', width: `${Math.round(257 * Math.min(currentStage.value, 4) / 4)}rpx`, top: '71rpx', height: '2rpx', backgroundColor: brand[500] }))
+const stepLine = computed((): any => ({ position: 'absolute' as string, left: STEP_TRACK_OFFSET_RPX, right: STEP_TRACK_OFFSET_RPX, top: '71rpx', height: '2rpx', backgroundColor: n.value.border }))
+const stepLineFill = computed((): any => ({ position: 'absolute' as string, left: STEP_TRACK_OFFSET_RPX, width: `${Math.round(STEP_TRACK_RANGE_RPX * Math.min(currentStage.value, 4) / 4)}rpx`, top: '71rpx', height: '2rpx', backgroundColor: brand[500] }))
 const stepRow = { ...flexFill, ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between' }
 function stepItem(idx: number) { return { flex: 1, alignItems: 'center' } }
 function stepDot(idx: number) {
