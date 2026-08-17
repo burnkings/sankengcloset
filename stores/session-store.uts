@@ -3,6 +3,10 @@ import { reactive } from 'vue'
 import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
 import { apiPost, apiGet, apiGetAuthorized } from '@/services/platform/api-client'
 import { flushLocalOperations } from '@/services/sync/local-sync-queue'
+import { bumpFetchSeq as bumpWardrobeFetch } from '@/stores/wardrobe-store'
+import { bumpFetchSeq as bumpPurchaseFetch } from '@/stores/purchase-store'
+import { bumpFetchSeq as bumpWishlistFetch } from '@/stores/wishlist-store'
+import { bumpFetchSeq as bumpReminderFetch } from '@/stores/reminder-store'
 
 const STATE_KEY = 'v21_session_state'
 const USER_ID_KEY = 'v21_session_user_id'
@@ -169,6 +173,11 @@ function logout() {
   _state.state = 'guest'
   _state.profile = new SessionProfile()
   _state.errorMessage = ''
+  // 丢弃各业务 store 的 in-flight 请求，防旧账号数据晚返回覆盖新状态
+  bumpWardrobeFetch()
+  bumpPurchaseFetch()
+  bumpWishlistFetch()
+  bumpReminderFetch()
   notifyChanged()
 }
 

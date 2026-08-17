@@ -46,6 +46,10 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
+// 请求序号：切账号/登出时 bump，丢弃过期请求，防旧账号数据覆盖新状态
+let _fetchSeq = 0
+export function bumpFetchSeq() { _fetchSeq += 1 }
+
 /** 金额读取：优先后端规格字段（totalCents 等，一律分），回退旧兼容字段（同为分） */
 function readCents(raw: UTSJSONObject, centsKey: string, legacyKey: string): number {
   const cents = raw[centsKey] != null ? raw[centsKey] as number : 0
@@ -107,23 +111,27 @@ function toRemotePayload(record: PurchaseRecord): UTSJSONObject {
 }
 
 async function fetchPurchases() {
+  const seq = ++_fetchSeq
   _state.loading = true
   _state.error = ''
   try {
     if (getCachedAccessToken() != '') {
       const remote = await listPurchasesRemote()
+      if (seq !== _fetchSeq) return
       const restored = [] as PurchaseRecord[]
       for (let i = 0; i < remote.length; i++) restored.push(mapRemotePurchase(remote[i]))
       _state.items = restored
     } else {
+      if (seq !== _fetchSeq) return
       repo.initMockData()
       _state.items = repo.getAll()
     }
   } catch (err) {
+    if (seq !== _fetchSeq) return
     _state.error = err instanceof Error ? err.message : '加载失败'
     _state.items = repo.getAll()
   } finally {
-    _state.loading = false
+    if (seq === _fetchSeq) _state.loading = false
   }
   notifyChanged()
 }

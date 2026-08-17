@@ -136,6 +136,10 @@ function notifyChanged() { uni.$emit(CHANGE_EVENT) }
 
 // ====== 模块级 action ======
 
+// 请求序号：切账号/登出时 bump，丢弃过期请求，防旧账号数据覆盖新状态
+let _fetchSeq = 0
+export function bumpFetchSeq() { _fetchSeq += 1 }
+
 function mapRemoteWish(raw: UTSJSONObject): WishItem {
   const item = new WishItem()
   item.id = raw['id'] != null ? raw['id'] as string : ''
@@ -158,22 +162,26 @@ function mapRemoteWish(raw: UTSJSONObject): WishItem {
 }
 
 async function fetchItems() {
+  const seq = ++_fetchSeq
   _state.loading = true
   _state.error = ''
   try {
     if (getCachedAccessToken() != '') {
       const remote = await listWishesRemote()
+      if (seq !== _fetchSeq) return
       const restored = [] as WishItem[]
       for (let i = 0; i < remote.length; i++) restored.push(mapRemoteWish(remote[i]))
       _state.items = restored
     } else {
+      if (seq !== _fetchSeq) return
       _state.items = repo.getAll()
     }
   } catch (err) {
+    if (seq !== _fetchSeq) return
     _state.error = err instanceof Error ? err.message : '加载失败'
     _state.items = repo.getAll()
   } finally {
-    _state.loading = false
+    if (seq === _fetchSeq) _state.loading = false
   }
   notifyChanged()
 }

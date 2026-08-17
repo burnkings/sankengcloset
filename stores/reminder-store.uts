@@ -126,11 +126,15 @@ function reminderContent(item: Reminder): string {
 
 function scheduleFor(item: Reminder) {
   if (item.status === STATUS_PENDING && item.remindDate !== '') {
-    scheduleReminderNotification(item.title, reminderContent(item), item.remindDate, item.remindTime)
+    scheduleReminderNotification(item.title, reminderContent(item), item.remindDate, item.remindTime, `reminder-${item.id}`)
   }
 }
 
 // ====== 模块级 action ======
+
+// 请求序号：切账号/登出时 bump，丢弃过期请求，防旧账号数据覆盖新状态
+let _fetchSeq = 0
+export function bumpFetchSeq() { _fetchSeq += 1 }
 
 function mapRemoteReminder(raw: UTSJSONObject): Reminder {
   const item = new Reminder()
@@ -150,22 +154,26 @@ function mapRemoteReminder(raw: UTSJSONObject): Reminder {
 }
 
 async function fetchItems() {
+  const seq = ++_fetchSeq
   _state.loading = true
   _state.error = ''
   try {
     if (getCachedAccessToken() != '') {
       const remote = await listRemindersRemote()
+      if (seq !== _fetchSeq) return
       const restored = [] as Reminder[]
       for (let i = 0; i < remote.length; i++) restored.push(mapRemoteReminder(remote[i]))
       _state.items = restored
     } else {
+      if (seq !== _fetchSeq) return
       _state.items = repo.getAll()
     }
   } catch (err) {
+    if (seq !== _fetchSeq) return
     _state.error = err instanceof Error ? err.message : '加载失败'
     _state.items = repo.getAll()
   } finally {
-    _state.loading = false
+    if (seq === _fetchSeq) _state.loading = false
   }
   autoMarkOverdue()
   notifyChanged()

@@ -35,8 +35,10 @@ function targetTimestamp(dateStr: string, timeStr: string): number {
 /**
  * 调度一条本地通知：在 remindDate + remindTime 时刻弹出。
  * 未授权通知权限或目标时刻已过则跳过。应用被杀后依赖厂商推送通道，标准基座可能不可靠。
+ * key 用于去重：同一 key 在 60s 内仅调度一次，避免提醒编辑/联动反复叠加相同通知。
  */
-export function scheduleReminderNotification(title: string, content: string, remindDate: string, remindTime: string): void {
+const lastScheduled = {} as UTSJSONObject
+export function scheduleReminderNotification(title: string, content: string, remindDate: string, remindTime: string, key: string = ''): void {
   if (title === '' || remindDate === '') return
   if (!notificationAuthorized()) return
   const when = targetTimestamp(remindDate, remindTime)
@@ -45,13 +47,19 @@ export function scheduleReminderNotification(title: string, content: string, rem
   if (when <= now) return
   const delay = Math.floor((when - now) / 1000)
   if (delay <= 0 || delay > 14 * 86400) return
+  // 同 key 60s 内去重（平台无取消/去重接口，仅能避免重复调度）
+  if (key !== '') {
+    const prev = lastScheduled[key] != null ? lastScheduled[key] as number : 0
+    if (now - prev < 60000) return
+    lastScheduled[key] = now
+  }
   try {
     uni.createPushMessage({
       title: title,
       content: content,
       delay: delay,
       sound: 'system',
-      payload: { title: title } as UTSJSONObject,
+      payload: key !== '' ? { key, reminderId: key } as UTSJSONObject : { title: title } as UTSJSONObject,
       success: () => {},
       fail: () => {},
     })

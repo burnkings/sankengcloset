@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
-import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { enqueueLocalOperation, getCurrentSyncUserId, readPendingOperations } from '@/services/sync/local-sync-queue'
+import { SyncOperation } from '@/domain/sync/sync-operation'
 import { getCachedAccessToken } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { fetchProductDetail } from '@/services/content/product-service'
@@ -316,6 +317,8 @@ function isFavorite(entityId: string): boolean {
  * - 已登录：直接远程写（Authorized CRUD），仅失败时入队由 syncNow 重放。
  * - 未登录：本地乐观更新 + 入队，登录后 flush 重放真实 CRUD。
  */
+// 收藏操作序号：取消→重收时丢弃旧回调，防止 itemId 回填到已移除的旧条目
+let _favoriteOpSeq = 0
 function toggleFavorite(entityId: string, title: string = ''): boolean {
   if (entityId === '') return false
   const entries = [..._state.favoriteEntries]
@@ -324,6 +327,8 @@ function toggleFavorite(entityId: string, title: string = ''): boolean {
     if (entries[i].productId == entityId) { found = i; break }
   }
   if (found >= 0) {
+    // 取消收藏：使 in-flight 回填回调失效，避免旧 itemId 写回
+    _favoriteOpSeq += 1
     // 取消收藏：删除 wishlist_items 条目
     const removed = entries[found]
     entries.splice(found, 1)
@@ -346,6 +351,8 @@ function toggleFavorite(entityId: string, title: string = ''): boolean {
     return false
   }
   // 添加收藏：创建 wishlist_items 条目
+  _favoriteOpSeq += 1
+  const opSeq = _favoriteOpSeq
   const entry = new FavoriteEntry()
   entry.productId = entityId
   entry.title = title
@@ -357,10 +364,12 @@ function toggleFavorite(entityId: string, title: string = ''): boolean {
   if (getCachedAccessToken() != '') {
     addWishlistRemote(entityId, title).then((itemId: string) => {
       if (itemId == '') return
-      // 回填服务端条目 ID，保证后续取消收藏可精确删除
+      // 序号失效（期间已取消/重新收藏）或条目已同步，跳过回填
+      if (opSeq !== _favoriteOpSeq) return
+      // 回填服务端条目 ID，保证后续取消收藏可精确删除（只回填尚未同步的条目，防写错）
       const current = [..._state.favoriteEntries]
       for (let i = 0; i < current.length; i++) {
-        if (current[i].productId == entityId) {
+        if (current[i].productId == entityId && current[i].itemId == '') {
           current[i].itemId = itemId
           break
         }
@@ -369,6 +378,7 @@ function toggleFavorite(entityId: string, title: string = ''): boolean {
       writeEntries(current)
       notifyChanged()
     }).catch(() => {
+      if (opSeq !== _favoriteOpSeq) return
       enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'upsert', JSON.stringify({ productId: entityId, title }))
     })
   } else {
@@ -378,12 +388,12 @@ function toggleFavorite(entityId: string, title: string = ''): boolean {
   return true
 }
 
-/** 登录态拉取服务端收藏（服务端为准），未登录保留本地缓存 */
+/** 登录态拉取服务端收藏：服务端快照 ∪ 本地未同步条目合并（多端冲突保护），未登录保留本地缓存 */
 async function refreshRemoteFavorites(): Promise<void> {
   if (getCachedAccessToken() == '') return
   try {
     const items = await listWishlistRemote()
-    const entries: FavoriteEntry[] = []
+    const serverByProduct = new Map<string, FavoriteEntry>()
     for (let i = 0; i < items.length; i++) {
       const raw = items[i]
       const productId = raw['productId'] != null ? raw['productId'] as string : ''
@@ -392,15 +402,56 @@ async function refreshRemoteFavorites(): Promise<void> {
       entry.productId = productId
       entry.itemId = raw['id'] != null ? raw['id'] as string : ''
       entry.title = raw['title'] != null ? raw['title'] as string : ''
-      entries.push(entry)
+      serverByProduct.set(productId, entry)
     }
-    _state.favoriteEntries = entries
-    writeEntries(entries)
+    // 本地尚未同步（itemId 为空）或本地队列仍有 pending favorite 的条目：本地优先保留
+    const pendingOps = readPendingOperations()
+    const localMerged = [] as FavoriteEntry[]
+    const local = _state.favoriteEntries
+    for (let i = 0; i < local.length; i++) {
+      const l = local[i]
+      const serverEntry = serverByProduct.get(l.productId)
+      if (serverEntry != null) {
+        // 服务端已有：采用服务端权威（itemId 精确）
+        localMerged.push(serverEntry!)
+      } else if (l.itemId == '' || hasPendingFavorite(pendingOps, l.productId)) {
+        // 服务端无且本地未同步：保留本地（多端冲突保护，防 B 端旧快照覆盖 A 端新收藏）
+        localMerged.push(l)
+      }
+      // 服务端无且本地已标记删除的项不并入
+    }
+    // 服务端独有的条目（本端从未见过）追加
+    for (let i = 0; i < items.length; i++) {
+      const raw = items[i]
+      const productId = raw['productId'] != null ? raw['productId'] as string : ''
+      if (productId == '') continue
+      if (localMerged.some((e) => e.productId == productId)) continue
+      const entry = new FavoriteEntry()
+      entry.productId = productId
+      entry.itemId = raw['id'] != null ? raw['id'] as string : ''
+      entry.title = raw['title'] != null ? raw['title'] as string : ''
+      localMerged.push(entry)
+    }
+    _state.favoriteEntries = localMerged
+    writeEntries(localMerged)
     syncFavoriteIds()
     notifyChanged()
   } catch (e) {
     // 离线时保留本地收藏缓存
   }
+}
+
+/** 本地同步队列中是否存在该商品待同步的 favorite 操作（添加/删除） */
+function hasPendingFavorite(ops: SyncOperation[], productId: string): boolean {
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i].entityType != 'favorite') continue
+    if (ops[i].entityId == productId) return true
+    try {
+      const body = JSON.parse(ops[i].payload) as UTSJSONObject
+      if (body != null && body['productId'] != null && body['productId'] as string == productId) return true
+    } catch (e) {}
+  }
+  return false
 }
 
 /** 收藏页：刷新收藏列表并拉取商品详情（公开 /api/v1/products/:id，未登录也可展示本地收藏）
@@ -494,17 +545,34 @@ function toggleBrandFollow(brandName: string): boolean {
   return idx < 0
 }
 
-/** 登录态下拉取服务端已关注品牌并合并（服务端为准） */
+/** 登录态下拉取服务端已关注品牌并合并：服务端快照 ∪ 本地待同步关注（多端冲突保护） */
 async function refreshRemoteBrands(): Promise<void> {
   if (getCachedAccessToken() == '') return
   try {
     const remote = await listFollowedBrandsRemote()
-    _state.followedBrands = remote
-    writeList(FOLLOWED_BRANDS_KEY, remote)
+    const merged = [...remote]
+    // 本地队列有 pending brand_follow 的品牌：本地优先保留
+    const pendingOps = readPendingOperations()
+    const local = readList(FOLLOWED_BRANDS_KEY)
+    for (let i = 0; i < local.length; i++) {
+      const brand = local[i]
+      if (merged.indexOf(brand) >= 0) continue
+      if (hasPendingBrandFollow(pendingOps, brand)) merged.push(brand)
+    }
+    _state.followedBrands = merged
+    writeList(FOLLOWED_BRANDS_KEY, merged)
     notifyChanged()
   } catch (e) {
     // 离线时保留本地关注列表
   }
+}
+
+/** 本地同步队列中是否存在该品牌的待同步 brand_follow 操作 */
+function hasPendingBrandFollow(ops: SyncOperation[], brandName: string): boolean {
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i].entityType == 'brand_follow' && ops[i].entityId == brandName) return true
+  }
+  return false
 }
 
 function saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): string {

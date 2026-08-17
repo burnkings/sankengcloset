@@ -7,6 +7,16 @@ import { listWishlistRemote } from '@/services/user-data/user-data-service'
 const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
 const PREFIX = 'v21_sync_op_'
 const DEVICE_KEY = 'v21_device_id'
+const DROPPED_KEY = 'v21_sync_dropped'
+const DROPPED_MAX = 100
+
+// ====== 队列淘汰策略 ======
+/** 单条操作最大重试次数：超过后不再重放，移入存档 */
+const MAX_RETRY = 3
+/** 操作最大保留时长（7 天）：超过后不再重放，移入存档 */
+const TTL_MS = 7 * 24 * 3600 * 1000
+/** 暂不支持自动重放的实体：本地已乐观更新、后端无幂等 CRUD 端点，直接存档降级 */
+const NON_REPLAYABLE = ['outfit', 'post_like', 'brand_follow', 'wish', 'notification_read', 'ai_import_confirmation', 'budget']
 
 function readString(key: string): string {
   try { const value = uni.getStorageSync(key); return value == null ? '' : value as string } catch (e) { return '' }
@@ -41,6 +51,78 @@ function readOperation(id: string): SyncOperation {
 function removeOperation(id: string) {
   const fields = ['user','device','entity_type','entity_id','action','payload','created_at','retry','status']
   for (let i = 0; i < fields.length; i++) { try { uni.removeStorageSync(key(id, fields[i])) } catch (e) {} }
+}
+
+/**
+ * 判定操作是否应淘汰：重试超限或超期。
+ * 淘汰不等于丢数据：操作会移入 v21_sync_dropped 存档（上限 100 条，可 drain 恢复）。
+ */
+function shouldDrop(op: SyncOperation): boolean {
+  if (op.retryCount >= MAX_RETRY) return true
+  const createdAtMs = parseInt(op.createdAt)
+  if (isNaN(createdAtMs)) return false
+  return Date.now() - createdAtMs > TTL_MS
+}
+
+/** 移入存档：removeOperation 后追加完整 JSON 到 v21_sync_dropped（上限 DROPPED_MAX，超出丢最旧） */
+function dropOperation(op: SyncOperation, reason: string) {
+  removeOperation(op.opId)
+  try {
+    const record = {
+      opId: op.opId,
+      userId: op.userId,
+      deviceId: op.deviceId,
+      entityType: op.entityType,
+      entityId: op.entityId,
+      action: op.action,
+      payload: op.payload,
+      createdAt: op.createdAt,
+      retryCount: op.retryCount,
+      status: op.status,
+      reason,
+      droppedAt: Date.now().toString(),
+    } as UTSJSONObject
+    const raw = readString(DROPPED_KEY)
+    let list: UTSJSONObject[] = []
+    if (raw !== '') {
+      try {
+        const parsed = JSON.parse(raw) as UTSJSONObject[]
+        if (parsed != null) list = parsed
+      } catch (e) {}
+    }
+    list.push(record)
+    if (list.length > DROPPED_MAX) list = list.slice(list.length - DROPPED_MAX)
+    uni.setStorageSync(DROPPED_KEY, JSON.stringify(list))
+  } catch (e) {}
+}
+
+/** 读取存档（供未来版本从存档恢复重入队）。 */
+export function drainDroppedOperations(): SyncOperation[] {
+  const raw = readString(DROPPED_KEY)
+  if (raw === '') return []
+  try {
+    const parsed = JSON.parse(raw) as UTSJSONObject[]
+    if (parsed == null) return []
+    const result: SyncOperation[] = []
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i]
+      const op = new SyncOperation()
+      op.opId = item['opId'] != null ? item['opId'] as string : ''
+      op.userId = item['userId'] != null ? item['userId'] as string : ''
+      op.deviceId = item['deviceId'] != null ? item['deviceId'] as string : ''
+      op.entityType = item['entityType'] != null ? item['entityType'] as string : ''
+      op.entityId = item['entityId'] != null ? item['entityId'] as string : ''
+      op.action = item['action'] != null ? item['action'] as string : ''
+      op.payload = item['payload'] != null ? item['payload'] as string : ''
+      op.createdAt = item['createdAt'] != null ? item['createdAt'] as string : ''
+      op.retryCount = item['retryCount'] != null ? item['retryCount'] as number : 0
+      op.status = item['status'] != null ? item['status'] as string : SYNC_PENDING
+      result.push(op)
+    }
+    return result
+  } catch (e) {
+    return []
+  }
 }
 function safePayload(value: string): string { if (value === '' || value.charAt(0) !== '{') return JSON.stringify({ value }); try { JSON.parse(value); return value } catch (e) { return JSON.stringify({ value }) } }
 
@@ -97,17 +179,22 @@ async function replayFavorite(op: SyncOperation): Promise<boolean> {
  * - 后端 /api/v1/sync/operations:batch 仅写入 sync_operations 审计表、不应用业务数据，
  *   因此离线期间入队的操作必须在恢复后重放真实的 /api/v1/me/* CRUD 端点。
  * - 支持实体：reminder / wardrobe_item / wishlist_item / purchase / favorite（真实 CRUD 重放）。
- * - 其余实体（outfit 缺图、post_like 等）不在此自动重放，保持队列等待后续扩展。
- * @returns true 重放成功；false 失败（保留队列）
+ * - 其余实体（outfit 缺图、post_like 等）无对应幂等重放端点：
+ *   本地 _state 已乐观更新，继续保留只会每次前台恢复全量重读 → 存档降级，等价「放弃服务端补偿、保留本地最终态」。
+ * @returns true 重放成功或已降级处理；false 失败（保留队列重试）
  */
 async function replayOperation(op: SyncOperation): Promise<boolean> {
   if (op.entityType == 'favorite') return await replayFavorite(op)
+  if (NON_REPLAYABLE.indexOf(op.entityType) >= 0) {
+    dropOperation(op, 'no_replay_support')
+    return true
+  }
   let path = ''
   if (op.entityType == 'reminder') path = '/api/v1/me/reminders'
   else if (op.entityType == 'wardrobe_item') path = '/api/v1/me/wardrobe'
   else if (op.entityType == 'wishlist_item') path = '/api/v1/me/wishes'
   else if (op.entityType == 'purchase') path = '/api/v1/me/purchases'
-  else return false // 暂不支持自动重放的实体：保留队列，不阻塞其他操作
+  else return false // 未知实体：保留队列，不阻塞其他操作
 
   try {
     if (op.action == 'create' || op.action == 'upsert' || op.action == 'import') {
@@ -145,8 +232,13 @@ async function flushRemote(ids: string[]): Promise<number> {
       removeOperation(ids[i])
       acceptedCount++
     } else {
-      op.status = SYNC_FAILED
       op.retryCount += 1
+      // 重试超限或超期：移入存档，不再永久保留
+      if (shouldDrop(op)) {
+        dropOperation(op, op.retryCount >= MAX_RETRY ? 'max_retry' : 'ttl_expired')
+        continue
+      }
+      op.status = SYNC_FAILED
       writeOperation(op)
       remaining.push(ids[i])
     }
@@ -157,14 +249,34 @@ async function flushRemote(ids: string[]): Promise<number> {
 }
 
 export async function flushLocalOperations(): Promise<number> {
-  const config = getRuntimeConfig(); const ids = readIds(); if (ids.length === 0) return 0
+  const config = getRuntimeConfig()
+  let ids = readIds()
+  if (ids.length === 0) return 0
+  // 预清扫：App 长期离线从未触发 flush 时，先淘汰超期操作（移入存档），避免一次性全量重读
+  const swept: string[] = []
+  for (let i = 0; i < ids.length; i++) {
+    const op = readOperation(ids[i])
+    if (shouldDrop(op)) dropOperation(op, 'ttl_expired')
+    else swept.push(ids[i])
+  }
+  if (swept.length !== ids.length) { ids = swept; writeIds(ids) }
+  if (ids.length === 0) return 0
   try {
     if (config.mode === DATA_MODE_REMOTE) return await flushRemote(ids)
     if (!config.mockOnline) throw new Error('当前为离线模拟，操作已保留')
     await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
-    for (let i = 0; i < ids.length; i++) removeOperation(ids[i]); writeIds([]); uni.setStorageSync('v21_sync_last_success_at', Date.now().toString()); return ids.length
+    for (let i = 0; i < ids.length; i++) removeOperation(ids[i]); writeIds([]); try { uni.setStorageSync('v21_sync_last_success_at', Date.now().toString()) } catch (e) {}; return ids.length
   } catch (e) {
-    for (let i = 0; i < ids.length; i++) { const op = readOperation(ids[i]); op.status = SYNC_FAILED; op.retryCount += 1; writeOperation(op) }
+    const remaining: string[] = []
+    for (let i = 0; i < ids.length; i++) {
+      const op = readOperation(ids[i])
+      op.retryCount += 1
+      if (shouldDrop(op)) { dropOperation(op, op.retryCount >= MAX_RETRY ? 'max_retry' : 'ttl_expired'); continue }
+      op.status = SYNC_FAILED
+      writeOperation(op)
+      remaining.push(ids[i])
+    }
+    writeIds(remaining)
     throw e
   }
 }
