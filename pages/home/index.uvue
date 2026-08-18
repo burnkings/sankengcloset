@@ -265,9 +265,4 @@ const footerTxt = computed((): any => ({ fontSize: fontSize.sm, color: n.value.t
   padding-left: 32rpx;
   padding-right: 32rpx;
 }
-
-.feed-single-card {
-  margin-left: 32rpx;
-  margin-right: 32rpx;
-}
 </style>

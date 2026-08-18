@@ -1,14 +1,11 @@
 /**
- * format — 金额/日期格式化唯一实现
- * 收敛历史散落的 3 套金额实现（feed 的 formatPrice / purchase 的 formatCents / wish 的 formatPrice）与 5 处日期逻辑。
+ * format — 金额格式化唯一实现
+ * 收敛历史散落的 3 套金额实现（feed 的 formatPrice / purchase 的 formatCents / wish 的 formatPrice）。
  * 保留两种金额语义（既定 UI 行为，禁止一刀切）：
  * - formatPriceCents：feed 卡片（≤0 空 / ≥1万 显示 x.x万 / 整数省略小数 / 否则两位）
  * - formatCentsYuan：订单展示（恒 ¥x.xx）
+ * 日期工具见 utils/date.uts（本地时区语义）。
  */
-
-function padZero(n: number): string {
-  return n < 10 ? '0' + n.toString() : n.toString()
-}
 
 /** feed 卡片金额：分 → ¥xxx.xx（万单位 / 整数省略） */
 export function formatPriceCents(cents: number): string {
@@ -22,23 +19,6 @@ export function formatPriceCents(cents: number): string {
 /** 订单展示金额：分 → ¥x.xx（恒两位） */
 export function formatCentsYuan(cents: number): string {
   return `¥${(cents / 100).toFixed(2)}`
-}
-
-/** 本地今天日期：YYYY-MM-DD */
-export function localToday(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${padZero(d.getMonth() + 1)}-${padZero(d.getDate())}`
-}
-
-/** 日期格式化：YYYY-MM-DD（无效返回 '—'） */
-export function formatDate(dateStr: string): string {
-  if (!dateStr) return '—'
-  try {
-    const d = new Date(dateStr)
-    return `${d.getFullYear()}-${padZero(d.getMonth() + 1)}-${padZero(d.getDate())}`
-  } catch (e) {
-    return dateStr
-  }
 }
 
 /** 相对时间：基于 ISO 字符串（x天前/x天后） */

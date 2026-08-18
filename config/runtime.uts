@@ -56,6 +56,8 @@ function deobfuscateToken(value: string): string {
   for (let i = 0; i < parts.length; i++) {
     if (parts[i] === '') continue
     const code = parseInt(parts[i], 16)
+    // 损坏存储（非 hex 片段）：返回空串，视为无 token，触发重新登录而非乱码
+    if (isNaN(code)) return ''
     out += String.fromCharCode(code ^ (XOR_BASE + i * 7))
   }
   return out
@@ -125,8 +127,12 @@ export function saveSessionTokens(accessToken: string, refreshToken: string) {
   tc.access = accessToken
   tc.refresh = refreshToken
   _tokenCache = tc
-  uni.setStorageSync(ACCESS_TOKEN_KEY, obfuscateToken(accessToken))
-  uni.setStorageSync(REFRESH_TOKEN_KEY, obfuscateToken(refreshToken))
+  try {
+    uni.setStorageSync(ACCESS_TOKEN_KEY, obfuscateToken(accessToken))
+    uni.setStorageSync(REFRESH_TOKEN_KEY, obfuscateToken(refreshToken))
+  } catch (e) {
+    // storage 写入失败（配额/异常）：保留内存会话，重启后需重新登录
+  }
 }
 
 export function clearSessionTokens() {

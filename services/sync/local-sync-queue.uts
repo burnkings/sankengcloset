@@ -2,7 +2,7 @@ import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-ope
 import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
 import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized } from '@/services/platform/api-client'
 import { encodeQuery } from '@/services/platform/api-client'
-import { listWishlistRemote } from '@/services/user-data/user-data-service'
+import { listWishlistRemote, followBrandRemote, unfollowBrandRemote, setCommunityPostLikeRemote, deleteCommunityPostRemote, saveBudgetRemote } from '@/services/user-data/user-data-service'
 
 const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
 const PREFIX = 'v21_sync_op_'
@@ -15,8 +15,9 @@ const DROPPED_MAX = 100
 const MAX_RETRY = 3
 /** 操作最大保留时长（7 天）：超过后不再重放，移入存档 */
 const TTL_MS = 7 * 24 * 3600 * 1000
-/** 暂不支持自动重放的实体：本地已乐观更新、后端无幂等 CRUD 端点，直接存档降级 */
-const NON_REPLAYABLE = ['outfit', 'post_like', 'brand_follow', 'wish', 'notification_read', 'ai_import_confirmation', 'budget']
+/** 真正无自动重放端点的实体：本地已乐观更新、后端无对应 CRUD，直接存档降级。
+ * 注意：brand_follow/post_like/budget/outfit(远程删除) 均有真实直写端点，在 replayOperation 中重放，不入本列表。 */
+const NON_REPLAYABLE = ['wish', 'notification_read', 'ai_import_confirmation']
 
 function readString(key: string): string {
   try { const value = uni.getStorageSync(key); return value == null ? '' : value as string } catch (e) { return '' }
@@ -64,24 +65,23 @@ function shouldDrop(op: SyncOperation): boolean {
   return Date.now() - createdAtMs > TTL_MS
 }
 
-/** 移入存档：removeOperation 后追加完整 JSON 到 v21_sync_dropped（上限 DROPPED_MAX，超出丢最旧） */
+/** 移入存档：先写存档成功后再从队列移除（避免存档失败时操作彻底丢失）。 */
 function dropOperation(op: SyncOperation, reason: string) {
-  removeOperation(op.opId)
+  const record = {
+    opId: op.opId,
+    userId: op.userId,
+    deviceId: op.deviceId,
+    entityType: op.entityType,
+    entityId: op.entityId,
+    action: op.action,
+    payload: op.payload,
+    createdAt: op.createdAt,
+    retryCount: op.retryCount,
+    status: op.status,
+    reason,
+    droppedAt: Date.now().toString(),
+  } as UTSJSONObject
   try {
-    const record = {
-      opId: op.opId,
-      userId: op.userId,
-      deviceId: op.deviceId,
-      entityType: op.entityType,
-      entityId: op.entityId,
-      action: op.action,
-      payload: op.payload,
-      createdAt: op.createdAt,
-      retryCount: op.retryCount,
-      status: op.status,
-      reason,
-      droppedAt: Date.now().toString(),
-    } as UTSJSONObject
     const raw = readString(DROPPED_KEY)
     let list: UTSJSONObject[] = []
     if (raw !== '') {
@@ -93,7 +93,11 @@ function dropOperation(op: SyncOperation, reason: string) {
     list.push(record)
     if (list.length > DROPPED_MAX) list = list.slice(list.length - DROPPED_MAX)
     uni.setStorageSync(DROPPED_KEY, JSON.stringify(list))
-  } catch (e) {}
+  } catch (e) {
+    // 存档写入失败：不删除队列，保留操作等待下次重试，避免不可恢复丢失
+    return
+  }
+  removeOperation(op.opId)
 }
 
 /** 读取存档（供未来版本从存档恢复重入队）。 */
@@ -143,7 +147,7 @@ export function readPendingOperations(): SyncOperation[] { const ids = readIds()
  * - create/upsert：POST 创建条目（status 必填 'WISH'，productId 关联商品）。
  * - delete：按 productId 查服务端条目后 DELETE（幂等：不存在视为已删除）。
  */
-async function replayFavorite(op: SyncOperation): Promise<boolean> {
+async function replayFavorite(op: SyncOperation): Promise<number> {
   try {
     const payload = safePayload(op.payload)
     if (op.action == 'delete') {
@@ -158,19 +162,19 @@ async function replayFavorite(op: SyncOperation): Promise<boolean> {
         if (raw['productId'] != null && raw['productId'] as string == productId) {
           const itemId = raw['id'] != null ? raw['id'] as string : ''
           if (itemId != '') await apiDeleteAuthorized('/api/v1/wishlist/' + encodeQuery(itemId))
-          return true
+          return 1
         }
       }
-      return true
+      return 1
     }
     const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
     const productId = body['productId'] != null ? body['productId'] as string : op.entityId
     const title = body['title'] != null ? body['title'] as string : productId
-    if (productId == '') return false
+    if (productId == '') return 0
     await apiPostAuthorized('/api/v1/wishlist', { title, status: 'WISH', productId } as UTSJSONObject)
-    return true
+    return 1
   } catch (e) {
-    return false
+    return 0
   }
 }
 
@@ -183,37 +187,93 @@ async function replayFavorite(op: SyncOperation): Promise<boolean> {
  *   本地 _state 已乐观更新，继续保留只会每次前台恢复全量重读 → 存档降级，等价「放弃服务端补偿、保留本地最终态」。
  * @returns true 重放成功或已降级处理；false 失败（保留队列重试）
  */
-async function replayOperation(op: SyncOperation): Promise<boolean> {
+async function replayOperation(op: SyncOperation): Promise<number> {
+  // 返回 0=失败(保留队列重试) 1=成功(移除) 2=dropped(存档，不计入 acceptedCount)
   if (op.entityType == 'favorite') return await replayFavorite(op)
   if (NON_REPLAYABLE.indexOf(op.entityType) >= 0) {
     dropOperation(op, 'no_replay_support')
-    return true
+    return 2
+  }
+  if (op.entityType == 'brand_follow') return await replayBrandFollow(op)
+  if (op.entityType == 'post_like') return await replayPostLike(op)
+  if (op.entityType == 'budget') return await replayBudget(op)
+  if (op.entityType == 'outfit') {
+    // 本地草稿（outfit_ 前缀）无远程端点 → 存档降级；远程帖子删除 → 真实 DELETE
+    if (op.entityId.startsWith('outfit_') || op.action != 'delete') {
+      dropOperation(op, 'no_replay_support')
+      return 2
+    }
+    try {
+      await deleteCommunityPostRemote(op.entityId)
+      return 1
+    } catch (e) {
+      return 0
+    }
   }
   let path = ''
   if (op.entityType == 'reminder') path = '/api/v1/me/reminders'
   else if (op.entityType == 'wardrobe_item') path = '/api/v1/me/wardrobe'
   else if (op.entityType == 'wishlist_item') path = '/api/v1/me/wishes'
   else if (op.entityType == 'purchase') path = '/api/v1/me/purchases'
-  else return false // 未知实体：保留队列，不阻塞其他操作
+  else return 0 // 未知实体：保留队列，不阻塞其他操作
 
   try {
     if (op.action == 'create' || op.action == 'upsert' || op.action == 'import') {
       const payload = safePayload(op.payload)
       const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
       await apiPostAuthorized(path, body)
-      return true
+      return 1
     }
     if (op.action == 'delete') {
       await apiDeleteAuthorized(path + '/' + encodeQuery(op.entityId))
-      return true
+      return 1
     }
     // update / 状态动作：PATCH 部分字段
     const payload = safePayload(op.payload)
     const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
     await apiPatchAuthorized(path + '/' + encodeQuery(op.entityId), body)
-    return true
+    return 1
   } catch (e) {
-    return false
+    return 0
+  }
+}
+
+/** 品牌关注/取关重放：upsert → follow，delete → unfollow */
+async function replayBrandFollow(op: SyncOperation): Promise<number> {
+  const brandName = op.entityId
+  if (brandName === '') return 0
+  try {
+    if (op.action == 'delete') await unfollowBrandRemote(brandName)
+    else await followBrandRemote(brandName)
+    return 1
+  } catch (e) {
+    return 0
+  }
+}
+
+/** 帖子点赞/取消重放：upsert → liked=true，delete → liked=false */
+async function replayPostLike(op: SyncOperation): Promise<number> {
+  const postId = op.entityId
+  if (postId === '') return 0
+  try {
+    const wanted = op.action != 'delete'
+    await setCommunityPostLikeRemote(postId, wanted)
+    return 1
+  } catch (e) {
+    return 0
+  }
+}
+
+/** 预算设置重放：upsert → saveBudgetRemote(payload) */
+async function replayBudget(op: SyncOperation): Promise<number> {
+  if (op.action == 'delete') { dropOperation(op, 'no_replay_support'); return 2 }
+  try {
+    const payload = safePayload(op.payload)
+    const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
+    await saveBudgetRemote(body)
+    return 1
+  } catch (e) {
+    return 0
   }
 }
 
@@ -227,10 +287,13 @@ async function flushRemote(ids: string[]): Promise<number> {
   let acceptedCount = 0
   for (let i = 0; i < ids.length; i++) {
     const op = readOperation(ids[i])
-    const ok = await replayOperation(op)
-    if (ok) {
+    const result = await replayOperation(op)
+    if (result == 1) {
       removeOperation(ids[i])
       acceptedCount++
+    } else if (result == 2) {
+      // dropped：已由 replayOperation 内部存档，直接移除，不计入成功条数
+      removeOperation(ids[i])
     } else {
       op.retryCount += 1
       // 重试超限或超期：移入存档，不再永久保留
@@ -252,18 +315,20 @@ export async function flushLocalOperations(): Promise<number> {
   const config = getRuntimeConfig()
   let ids = readIds()
   if (ids.length === 0) return 0
-  // 预清扫：App 长期离线从未触发 flush 时，先淘汰超期操作（移入存档），避免一次性全量重读
+  // 环境未就绪（未登录远程 / 离线模拟）：直接返回，不消耗 retryCount、不标记失败，保留队列
+  if (config.mode === DATA_MODE_REMOTE && getAccessToken() === '') return 0
+  if (!config.mockOnline) return 0
+  // 预清扫：App 长期离线从未触发 flush 时，先淘汰超期/重试超限操作（移入存档），避免一次性全量重读
   const swept: string[] = []
   for (let i = 0; i < ids.length; i++) {
     const op = readOperation(ids[i])
-    if (shouldDrop(op)) dropOperation(op, 'ttl_expired')
+    if (shouldDrop(op)) dropOperation(op, op.retryCount >= MAX_RETRY ? 'max_retry' : 'ttl_expired')
     else swept.push(ids[i])
   }
   if (swept.length !== ids.length) { ids = swept; writeIds(ids) }
   if (ids.length === 0) return 0
   try {
     if (config.mode === DATA_MODE_REMOTE) return await flushRemote(ids)
-    if (!config.mockOnline) throw new Error('当前为离线模拟，操作已保留')
     await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
     for (let i = 0; i < ids.length; i++) removeOperation(ids[i]); writeIds([]); try { uni.setStorageSync('v21_sync_last_success_at', Date.now().toString()) } catch (e) {}; return ids.length
   } catch (e) {

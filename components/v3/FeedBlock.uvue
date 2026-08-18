@@ -27,7 +27,7 @@ import { formatRelativeTime } from '@/stores/home-feed-store'
 import { getFeedTypeLabel } from '@/presentation/content/feed-presenter'
 import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { CARD_RADIUS_V3, CARD_VERTICAL_GAP_V3 } from '@/theme/tokens/responsive'
 
 const props = withDefaults(defineProps<{
   full: FeedItem | null
@@ -39,9 +39,16 @@ const emit = defineEmits<{
 
 function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }
 
-const outfitCard = { marginTop: '0', borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
+const outfitCard = { marginTop: CARD_VERTICAL_GAP_V3, borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }
 const imgWrap45 = { width: '718rpx', height: '760rpx', position: 'relative' as string, overflow: 'hidden' }
 const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '0', right: '0', padding: '24rpx', paddingTop: '80rpx', backgroundColor: 'rgba(0,0,0,0.3)' }
 const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }
 </script>
+
+<style>
+.feed-single-card {
+  margin-left: 32rpx;
+  margin-right: 32rpx;
+}
+</style>

@@ -4,6 +4,7 @@
  * 无 token 直接入队」收敛为单次调用。
  *
  * 行为等价：有 token → remoteCall() 失败才 enqueue；无 token → 直接 enqueue。
+ * 返回 opId；入队失败（storage 写满等）返回 ''，调用方应感知本地持久化失败。
  */
 import { ApiResponse } from '@/services/platform/api-client'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
@@ -15,12 +16,12 @@ export function syncWriteBack(
   action: string,
   payload: string,
   remoteCall: () => Promise<ApiResponse>,
-): void {
+): string {
   if (getCachedAccessToken() != '') {
-    remoteCall().catch(() => {
-      enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
+    return remoteCall().then(() => '').catch(() => {
+      return enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
     })
   } else {
-    enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
+    return enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
   }
 }

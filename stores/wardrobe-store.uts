@@ -196,8 +196,10 @@ function updateItem(id: string, data: WardrobeUpdateData): boolean {
   if (ok) {
     _state.items = repo.getAll()
     const current = _state.items.find((item) => item.id == id)
-    // 统一写回：有 token 直写远程、失败入队；无 token 直接入队。payload 一律用同步后的完整对象
-    syncWriteBack('wardrobe_item', id, 'update', current != null ? JSON.stringify(current) : JSON.stringify(data), () => patchAssetRemote('wardrobe', id, current as UTSJSONObject))
+    if (current != null) {
+      // 统一写回：有 token 直写远程、失败入队；无 token 直接入队。payload 一律用同步后的完整对象
+      syncWriteBack('wardrobe_item', id, 'update', JSON.stringify(current), () => patchAssetRemote('wardrobe', id, current as UTSJSONObject))
+    }
     notifyChanged()
   }
   return ok

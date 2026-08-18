@@ -4,7 +4,7 @@ import { SyncOperation } from '@/domain/sync/sync-operation'
 import { getCachedAccessToken } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { fetchProductDetail } from '@/services/content/product-service'
-import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, uploadOutfitImageRemote, createCommunityPostRemote, CommunityPostRemote } from '@/services/user-data/user-data-service'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
 
 /**
  * ContentLibraryStore — V2.6 用户内容资产 + 圈子穿搭灵感 Gallery
@@ -575,9 +575,10 @@ function hasPendingBrandFollow(ops: SyncOperation[], brandName: string): boolean
 }
 
 /**
- * 发布穿搭帖子到圈子：上传图片 → 创建远程帖子 → 刷新我的发布。
+ * 发布穿搭帖子到圈子：上传图片 → 创建远程帖子 → 刷新本地草稿列表。
  * 收敛 share/create 页面的 uploadOutfitImageRemote + createCommunityPostRemote 直连。
  * 未登录时返回 false（由调用方回退本地草稿 saveOutfit）。
+ * 注：reload() 仅重读本地存储；远程新帖由社区页 onShow → refreshMyPosts 拉取。
  */
 export async function publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): Promise<boolean> {
   if (getCachedAccessToken() == '') return false

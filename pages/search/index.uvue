@@ -108,7 +108,7 @@ import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSearchStore } from '@/stores/search-store'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { fontSize } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { zIndex } from '@/theme/tokens/z-index'
@@ -350,7 +350,6 @@ function recentChip(idx: number) {
   return { minHeight: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '12rpx', marginBottom: '12rpx' } as UTSJSONObject
 }
 const recentChipText = computed((): any => ({ fontSize: '25rpx', fontWeight: '500', color: n.value.text }))
-const recentEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, paddingTop: '12rpx', paddingBottom: '20rpx' }))
 
 const hotList = { marginTop: '8rpx' } as UTSJSONObject
 const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as UTSJSONObject

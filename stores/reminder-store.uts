@@ -240,7 +240,7 @@ function markDone(id: string): boolean {
       existing.status = 'DONE'
       existing.updatedAt = new Date().toISOString()
     }
-    enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', 'status=DONE')
+    enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify({ status: 'DONE' }))
     if (getCachedAccessToken() != '') {
       const current = _state.items.find((item) => item.id == id)
       if (current != null) patchAssetRemote('reminders', id, current as UTSJSONObject).catch(() => {})
@@ -257,7 +257,7 @@ function markUndone(id: string): boolean {
   existing.status = 'PENDING'
   existing.updatedAt = new Date().toISOString()
   repo.persist(items)
-  enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', 'status=PENDING')
+  enqueueLocalOperation(getCurrentSyncUserId(), 'reminder', id, 'update', JSON.stringify({ status: 'PENDING' }))
   if (getCachedAccessToken() != '') {
     patchAssetRemote('reminders', id, existing as UTSJSONObject).catch(() => {})
   }
