@@ -26,9 +26,25 @@
 
 **关键说明**：
 - **H10（onPageScroll 签名）**：深查后确认「三页 `(top:number)` vs 首页 `(e:UniScrollEvent)`」源于滚动来源不同（MainLayout emit number vs 原生 scroll-view 事件对象），**非 bug，无需修改**，已核销。
-- **H1（同步队列）**：7 类无重放端点实体改为「存档降级」（`v21_sync_dropped` 上限 100 条可 `drainDroppedOperations` 恢复），不再永久保留。
+- **H1（同步队列）**：无重放端点实体改为「存档降级」（`v21_sync_dropped` 上限 100 条可 `drainDroppedOperations` 恢复），不再永久保留。
 - **待运营**：`LEGAL_ENTITY` 等 5 个法律常量（H9）与微信合法域名配置（H7）代码已落地，发布前需运营填值/配置——发布门禁 `LEGAL_RELEASE=1 npm run check` 会强制拒绝占位符。
 - **需真机回归**：小程序深色系统监听（C1）、vapor 主题 getter 追踪（C2）、token 混淆登录链路（E7）、页面收敛后的业务回归（E1）。
+
+### 复查轮次（同日，commit `9b1a321`）
+
+对首轮修复做深度复查，发现并修复 **2 项高危回归 + 6 项中危 + 7 项低危**：
+
+| 风险 | 修复项 | 内容 |
+|---|---|---|
+| 高危 | R1 | `NON_REPLAYABLE` 误 drop 有直写端点的实体（brand_follow/post_like/budget/outfit 远程删除）→ 离线操作被静默丢弃。为 4 类实体补真实重放端点，列表缩小为 `['wish','notification_read','ai_import_confirmation']` |
+| 高危 | R2 | FeedBlock 引用页面 class `.feed-single-card`，vapor 样式隔离 2.0 下组件默认 isolated 不能引用页面 class → 首页全宽块通栏。样式移入组件自身 `<style>` |
+| 中危 | R3 | flush 对未登录/离线模拟提前 return，不再无谓消耗 retryCount（原 3 次后离线操作全量 drop） |
+| 中危 | R4 | dropOperation 先写存档成功再删队列（原先删后存，存档失败时操作彻底丢失） |
+| 中危 | R5 | reminder markDone/markUndone payload 改 JSON（原 `'status=DONE'` 经 safePayload 包装后重放发错字段） |
+| 中危 | R6 | FeedBlock outfit 全宽块 marginTop 28rpx→0 数值漂移恢复 |
+| 中危 | R7 | syncWriteBack 返回 opId（入队失败可感知） |
+| 中危 | R8 | replayOperation 返回枚举，dropped 不计入 acceptedCount |
+| 低危 | R9-R15 | 预清扫 reason 区分、未用 import 清理、注释修正、null 守卫、死代码、token 混淆防御 |
 
 ---
 
