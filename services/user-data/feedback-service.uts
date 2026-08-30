@@ -1,0 +1,43 @@
+/**
+ * feedback-service — 意见反馈提交
+ * 后端暂无反馈接口，当前为 Mock（本地 storage 记录）。
+ * 后端就绪后实现 submitFeedbackRemote 即可，页面调用签名不变。
+ */
+import { FeedbackRecord } from '@/domain/user/feedback-record'
+
+const STORAGE_KEY = 'v2_feedback_records'
+const MAX_RECORDS = 50
+
+/** 提交反馈（Mock：写入本地 storage，返回 opId/记录 id；失败返回空串） */
+export function submitFeedbackRemote(record: FeedbackRecord): string {
+  if (record.content.trim() === '') return ''
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY) as string
+    let list: FeedbackRecord[] = []
+    if (raw != null && raw !== '') {
+      try {
+        const parsed = JSON.parse(raw) as UTSJSONObject[]
+        if (parsed != null) {
+          for (let i = 0; i < parsed.length; i++) {
+            const obj = parsed[i]
+            const item = new FeedbackRecord()
+            item.id = obj['id'] != null ? obj['id'] as string : ''
+            item.type = obj['type'] != null ? obj['type'] as string : ''
+            item.content = obj['content'] != null ? obj['content'] as string : ''
+            item.contact = obj['contact'] != null ? obj['contact'] as string : ''
+            item.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''
+            const imgs = obj['images']
+            if (imgs != null && Array.isArray(imgs)) item.images = imgs as string[]
+            list.push(item)
+          }
+        }
+      } catch (e) {}
+    }
+    list.unshift(record)
+    while (list.length > MAX_RECORDS) list.pop()
+    uni.setStorageSync(STORAGE_KEY, JSON.stringify(list))
+    return record.id
+  } catch (e) {
+    return ''
+  }
+}

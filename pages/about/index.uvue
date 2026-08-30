@@ -4,29 +4,38 @@
       <!-- 品牌区 -->
       <view :style="brandCard">
         <view :style="logoWrap"><text :style="logoText">SK</text></view>
-        <text :style="appName">三坑绮橱</text>
-        <text :style="appVersion">V2.5.0-beta.2</text>
+        <text :style="appName">{{ APP_NAME }}</text>
+        <text :style="appVersion">{{ APP_VERSION }}</text>
         <text :style="appSlogan">三坑文化爱好者的商品信息与发售资讯平台</text>
       </view>
 
       <!-- 服务条款 -->
       <text :style="groupTitle">服务条款</text>
       <ListGroup>
-        <view :style="shell(0, 2)" @tap="openLegal('agreement')">
+        <view :style="shell(0, 4)" @tap="openLegal('agreement')">
           <ListRow title="用户协议" />
         </view>
-        <view :style="shell(1, 2)" @tap="openLegal('privacy')">
+        <view :style="shell(1, 4)" @tap="openLegal('privacy')">
           <ListRow title="隐私政策" />
+        </view>
+        <view :style="shell(2, 4)" @tap="openFeedback">
+          <ListRow title="意见反馈" icon="help-circle" />
+        </view>
+        <view :style="shell(3, 4)" @tap="onCheckUpdateTap">
+          <ListRow title="检查更新" :value="APP_VERSION" icon="sync" />
         </view>
       </ListGroup>
 
       <text :style="copyright">© 2026 三坑绮橱 · 昆山三坑绮橱工作室</text>
     </view>
   </DetailLayout>
+
+  <AppDialog :visible="showUpdateDialog" :title="updateDialogTitle" :message="updateDialogMessage" confirm-text="立即更新" :show-cancel="true" cancel-text="稍后" @confirm="onUpdateConfirm" @cancel="showUpdateDialog = false" />
 </template>
 
 <script setup lang="uts">
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import ListRow from '@/components/v3/ListRow.uvue'
 import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -34,6 +43,15 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { brand } from '@/theme/tokens/colors'
 import { showFeedback } from '@/utils/feedback'
+import { APP_NAME, APP_VERSION } from '@/config/app-version'
+import { checkUpdateRemote, AppVersionInfo } from '@/services/user-data/app-update-service'
+
+const showUpdateDialog = ref(false)
+const updateDialogTitle = ref('发现新版本')
+const updateDialogMessage = ref('')
+let pendingUpdateUrl = ''
+
+onLoad(() => { initPageTheme() })
 
 function shell(idx: number, total: number) {
   return {
@@ -47,16 +65,36 @@ function openLegal(type: string) {
   uni.navigateTo({ url: `/pages/about/legal?type=${type}` })
 }
 
-function onHelpTap() {
-  showFeedback('反馈入口将在账号服务接入后开放')
+function openFeedback() {
+  uni.navigateTo({ url: '/pages/feedback/index' })
 }
 
-function onClearCacheTap() {
-  const cacheKeys = ['search_recent', 'pending_search_keyword', 'community_view', 'community_topic']
+async function onCheckUpdateTap() {
+  showFeedback('正在检查更新…')
   try {
-    for (let i = 0; i < cacheKeys.length; i++) uni.removeStorageSync(cacheKeys[i])
-  } catch (e) {}
-  showFeedback('缓存已清理，账号与个人数据已保留')
+    const info: AppVersionInfo = await checkUpdateRemote()
+    if (info.hasUpdate) {
+      updateDialogTitle.value = '发现新版本 ' + info.latestVersion
+      updateDialogMessage.value = info.releaseNote !== '' ? info.releaseNote : '已发布新版本，建议尽快更新。'
+      pendingUpdateUrl = info.updateUrl
+      showUpdateDialog.value = true
+    } else {
+      showFeedback('当前已是最新版本 ' + APP_VERSION)
+    }
+  } catch (e) {
+    showFeedback('检查更新失败，请稍后重试')
+  }
+}
+
+function onUpdateConfirm() {
+  showUpdateDialog.value = false
+  if (pendingUpdateUrl !== '') {
+    // #ifdef APP
+    plus.runtime.openURL(pendingUpdateUrl)
+    // #endif
+  } else {
+    showFeedback('更新地址待配置')
+  }
 }
 
 const contentWrap = {

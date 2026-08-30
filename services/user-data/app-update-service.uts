@@ -1,0 +1,23 @@
+/**
+ * app-update-service — 版本检查
+ * 后端暂无版本检查接口，当前为 Mock（当前版本即最新）。
+ * 后端就绪后实现 fetchRemote 逻辑即可，页面调用签名不变。
+ */
+import { APP_VERSION } from '@/config/app-version'
+
+export class AppVersionInfo {
+  latestVersion: string = ''
+  hasUpdate: boolean = false
+  updateUrl: string = ''
+  releaseNote: string = ''
+}
+
+/** 检查最新版本（Mock：无更新）。后端接口就绪后改为请求版本检查 API。 */
+export async function checkUpdateRemote(): Promise<AppVersionInfo> {
+  const info = new AppVersionInfo()
+  info.latestVersion = APP_VERSION
+  info.hasUpdate = false
+  info.updateUrl = ''
+  info.releaseNote = ''
+  return info
+}

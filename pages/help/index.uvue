@@ -12,7 +12,7 @@
       <text :style="groupTitle">联系我们</text>
       <ListGroup>
         <view :style="shell(0, 2)"><ListRow title="客服邮箱" value="建设中" :show-arrow="false" /></view>
-        <view :style="shell(1, 2)" @tap="onFeedbackTap"><ListRow title="意见反馈" value="建设中" /></view>
+        <view :style="shell(1, 2)" @tap="onFeedbackTap"><ListRow title="意见反馈" icon="help-circle" /></view>
       </ListGroup>
 
       <text :style="copyright">三坑绮橱 · 帮助与反馈</text>
@@ -39,7 +39,7 @@ function shell(idx: number, total: number) {
   }
 }
 function onFaqTap() { showFeedback('功能开发中，敬请期待') }
-function onFeedbackTap() { showFeedback('反馈渠道建设中，敬请期待') }
+function onFeedbackTap() { uni.navigateTo({ url: '/pages/feedback/index' }) }
 
 const contentWrap = { paddingTop: '8rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
 const groupTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '8rpx', marginTop: '24rpx', marginBottom: '12rpx' }))

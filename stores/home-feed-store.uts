@@ -16,7 +16,7 @@ import { formatPriceCents, formatRelativeTime as formatRelativeTimeImpl, formatD
 
 // ====== 频道定义 ======
 
-export const CHANNELS = ['推荐', '新品', '预约', '降价', '穿搭']
+export const CHANNELS = ['推荐', '上新', '预约', '现货']
 
 // ====== 常量 ======
 /** Feed 内存上限：超过后截断最旧条目，防止持续上拉无限增长 */

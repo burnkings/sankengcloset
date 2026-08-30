@@ -1,0 +1,152 @@
+<template>
+  <DetailLayout title="意见反馈">
+    <view :style="contentWrap">
+      <FormSection title="反馈类型">
+        <view :style="typeRow">
+          <view v-for="t in feedbackTypes" :key="t" :style="typeChip(t)" @tap="onTypeSelect(t)"><text :style="typeChipText(t)">{{ t }}</text></view>
+        </view>
+      </FormSection>
+
+      <FormSection title="反馈内容">
+        <view :style="noteShell">
+          <textarea :value="content" placeholder="请描述你的问题或建议（最多 500 字）" :placeholder-style="placeholderStyleStr" :style="noteInput" :maxlength="500" @input="onContentInput" />
+        </view>
+      </FormSection>
+
+      <FormSection title="上传截图（可选）">
+        <view :style="uploadRow">
+          <view v-for="(img, idx) in images" :key="idx" :style="thumbWrap">
+            <AppImage :src="img" width="100%" height="100%" mode="aspectFill" @tap="previewImage(idx)" />
+            <view :style="removeWrap" @tap.stop="removeImage(idx)"><AppIcon name="close" :size="24" /></view>
+          </view>
+          <view v-if="images.length < 3" :style="addWrap" @tap="chooseImages">
+            <AppIcon name="camera" :size="40" :active="true" />
+            <text :style="addText">添加截图</text>
+          </view>
+        </view>
+      </FormSection>
+
+      <FormSection title="联系方式（可选）">
+        <AppInput v-model="contact" placeholder="便于我们回访（微信/邮箱）" :clearable="true" />
+      </FormSection>
+
+      <view :style="bottomSpacer" />
+    </view>
+
+    <BottomActionBar>
+      <view :style="submitButton" @tap="onSubmit"><text :style="submitText">提交反馈</text></view>
+    </BottomActionBar>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import FormSection from '@/components/v3/FormSection.uvue'
+import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
+import { FEEDBACK_TYPES, FeedbackRecord } from '@/domain/user/feedback-record'
+import { submitFeedbackRemote } from '@/services/user-data/feedback-service'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { CARD_PADDING, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import { getSafeBottomInset } from '@/utils/window-info'
+
+const feedbackTypes = FEEDBACK_TYPES
+const activeType = ref('')
+const content = ref('')
+const contact = ref('')
+const images = ref<string[]>([])
+const submitting = ref(false)
+
+onLoad(() => { initPageTheme() })
+
+function onTypeSelect(t: string) { activeType.value = t }
+
+function onContentInput(e: any) {
+  const eObj = e as UTSJSONObject
+  const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  content.value = d != null && d['value'] != null ? d['value'] as string : ''
+}
+
+function chooseImages() {
+  const remain = 3 - images.value.length
+  if (remain <= 0) return
+  uni.chooseImage({
+    count: remain,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      const paths = res.tempFilePaths
+      if (paths != null && paths.length > 0) {
+        images.value = [...images.value, ...paths]
+      }
+    },
+  })
+}
+
+function removeImage(idx: number) {
+  const next = [...images.value]
+  next.splice(idx, 1)
+  images.value = next
+}
+
+function previewImage(idx: number) {
+  if (idx >= 0 && idx < images.value.length) {
+    uni.previewImage({ current: images.value[idx], urls: images.value })
+  }
+}
+
+function onSubmit() {
+  if (submitting.value) return
+  if (activeType.value === '') { showFeedback('请选择反馈类型'); return }
+  if (content.value.trim() === '') { showFeedback('请填写反馈内容'); return }
+  submitting.value = true
+  const record = new FeedbackRecord()
+  record.id = 'feedback_' + Date.now()
+  record.type = activeType.value
+  record.content = content.value.trim()
+  record.images = [...images.value]
+  record.createdAt = Date.now().toString()
+  record.contact = contact.value.trim()
+  const opId = submitFeedbackRemote(record)
+  submitting.value = false
+  if (opId === '') { showFeedback('提交失败，请重试'); return }
+  showFeedback('反馈已提交，感谢你的建议')
+  backTimer = setTimeout(() => { uni.navigateBack() }, 300)
+}
+
+let backTimer: number | null = null
+onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
+
+const safeBottom = getSafeBottomInset()
+const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
+const typeRow = { ...flexRow, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
+function typeChip(t: string): any {
+  const active = activeType.value === t
+  return {
+    height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '32rpx',
+    backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary,
+    alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', marginBottom: '12rpx',
+  }
+}
+function typeChipText(t: string): any {
+  const active = activeType.value === t
+  return { fontSize: fontSize.sm, fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: active ? baseColors.white : n.value.text }
+}
+const noteShell = computed((): any => ({ backgroundColor: n.value.inputFill, borderRadius: '16rpx', padding: '20rpx' }))
+const noteInput = computed((): any => ({ width: '100%', minHeight: '240rpx', fontSize: fontSize.sm, lineHeight: '40rpx', color: n.value.text }))
+const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
+const uploadRow = { ...flexRow, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
+const thumbWrap = { width: '180rpx', height: '180rpx', borderRadius: '12rpx', overflow: 'hidden', marginRight: '16rpx', marginBottom: '12rpx', position: 'relative' as string }
+const removeWrap = { position: 'absolute' as string, top: '6rpx', right: '6rpx', width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }
+const addWrap = computed((): any => ({ width: '180rpx', height: '180rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: '1rpx', borderStyle: 'dashed' as string, borderColor: n.value.border }))
+const addText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
+const bottomSpacer = { height: `${safeBottom + 120}px` }
+const submitButton = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
+const submitText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+</script>

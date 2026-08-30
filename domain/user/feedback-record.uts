@@ -1,0 +1,12 @@
+/** feedback-record — 意见反馈记录模型 */
+
+export class FeedbackRecord {
+  id: string = ''          // feedback_ + Date.now()
+  type: string = ''        // 功能建议 / 问题反馈 / 内容纠错 / 其他
+  content: string = ''
+  images: string[] = []    // 本地临时路径（Mock 阶段仅记录，不持久化大图）
+  createdAt: string = ''
+  contact: string = ''     // 预留：联系方式
+}
+
+export const FEEDBACK_TYPES = ['功能建议', '问题反馈', '内容纠错', '其他']

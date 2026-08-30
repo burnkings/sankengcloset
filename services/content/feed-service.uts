@@ -34,15 +34,36 @@ export function mapFeedItem(raw: UTSJSONObject): FeedItem {
   item.sourceLabel = raw['sourceLabel'] != null ? raw['sourceLabel'] as string : ''
   item.rankingScore = raw['rankingScore'] != null ? raw['rankingScore'] as number : 0
   item.category = raw['category'] != null ? raw['category'] as string : ''
+  // ====== 业务字段完整透传（Phase 1.1-B） ======
+  item.pitType = raw['pitType'] != null ? raw['pitType'] as string : ''
+  item.priceSummary = raw['priceSummary'] != null ? raw['priceSummary'] as string : ''
+  item.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
+  item.releaseType = raw['releaseType'] != null ? raw['releaseType'] as string : ''
+  item.releaseTypeName = raw['releaseTypeName'] != null ? raw['releaseTypeName'] as string : ''
+  // tags：后端 string[]，明确类型安全解析；缺失/异常时使用安全空值，禁止伪造
+  const rawTags = raw['tags'] as any[] | null
+  if (rawTags != null && Array.isArray(rawTags)) {
+    const list: string[] = []
+    for (let i = 0; i < rawTags.length; i++) {
+      const t = rawTags[i]
+      if (t != null) list.push(t as string)
+    }
+    item.tags = list
+  }
+  item.feedReason = raw['feedReason'] != null ? raw['feedReason'] as string : ''
+  item.personalScore = raw['personalScore'] != null ? raw['personalScore'] as number : 0
+  item.matchReason = raw['matchReason'] != null ? raw['matchReason'] as string : ''
+  item.finalScore = raw['finalScore'] != null ? raw['finalScore'] as number : 0
+  item.publishedAt = raw['publishedAt'] != null ? raw['publishedAt'] as string : ''
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
   return item
 }
 
 function channelCode(channel: string): string {
-  if (channel == '新品') return 'new'
+  if (channel == '上新') return 'new'
   if (channel == '预约') return 'reservation'
-  if (channel == '降价') return 'price_drop'
-  if (channel == '穿搭') return 'outfit'
+  // TODO: 「现货」channel 值待后端确认（feed-presenter 已确认 releaseType==='spot' →「现货」，feed channel 枚举未在数据契约定义）
+  if (channel == '现货') return 'spot'
   return 'recommend'
 }
 
@@ -55,7 +76,7 @@ function categoryCode(category: string): string {
 /**
  * 拉取 Feed 一页。
  * @param cursor 服务端返回的 opaque cursor（首屏传 ''）；禁止用页号×每页条数伪造。
- * @param channel 频道名（推荐/新品/预约/降价/穿搭）
+ * @param channel 频道名（推荐/上新/预约/现货）
  */
 async function fetchRemoteFeed(cursor: string, channel: string, category: string, categories: string = ''): Promise<FeedPage> {
   let path = '/api/v1/feed'
@@ -63,6 +84,7 @@ async function fetchRemoteFeed(cursor: string, channel: string, category: string
   // 只传前端真实设置的值：cursor 首页(0)不传、channel 默认推荐不传、category/categories 空不传；limit 由后端默认 20
   if (cursor != '') { path += '?cursor=' + encodeQuery(cursor); hasQuery = true }
   const ch = channelCode(channel)
+  // 未知 channel 值回退 recommend 语义（不传 channel 参数），避免后端 400/空数据
   if (ch != '' && ch != 'recommend') { path += (hasQuery ? '&' : '?') + 'channel=' + encodeQuery(ch); hasQuery = true }
   const cat = categoryCode(category)
   if (cat != '') { path += (hasQuery ? '&' : '?') + 'category=' + encodeQuery(cat); hasQuery = true }
@@ -90,9 +112,9 @@ export async function fetchFeedPage(cursor: string, channel: string = '推荐', 
  */
 export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
   if (channel == '' || channel == '推荐') return items
-  if (channel == '新品') return items.filter((i) => i.badgeText == '新品')
-  if (channel == '预约') return items.filter((i) => i.badgeText == '预约' || i.badgeText == '定金')
-  if (channel == '降价') return items.filter((i) => i.badgeText == '降价')
-  if (channel == '穿搭') return items.filter((i) => i.feedType == 'outfit')
+  // 预约：真实业务字段判断（saleStatus / releaseType），禁止 badgeText 猜测发售状态
+  if (channel == '预约') return items.filter((i) => i.saleStatus == 'PRE_ORDER' || i.releaseType == 'reservation' || i.badgeText == '预约' || i.badgeText == '定金')
+  if (channel == '上新') return items.filter((i) => i.badgeText == '新品')
+  if (channel == '现货') return items.filter((i) => i.releaseType == 'spot' || i.saleStatus == 'ON_SALE' || i.badgeText == '现货')
   return items.filter((i) => i.category == channel)
 }
