@@ -1,0 +1,127 @@
+<template>
+  <view :style="cardStyle" @tap="emit('tap')">
+    <!-- 排名徽标 + 图片 -->
+    <view :style="leftWrap">
+      <view :style="rankBadge(rankStyle)"><text :style="rankText(rankStyle)">{{ rank }}</text></view>
+      <view :style="imageWrap">
+        <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+        <view v-if="item.riskLevel === 'high' || item.riskLevel === 'medium'" :style="riskMask">
+          <text :style="riskMaskText">风险提示</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 信息区 -->
+    <view :style="infoWrap">
+      <view :style="titleRow">
+        <text :style="titleStyle">{{ item.title }}</text>
+        <text v-if="item.rank === 1" :style="crown">♛</text>
+      </view>
+      <text :style="brandStyle">{{ item.brandName }}</text>
+
+      <!-- 热榜 -->
+      <template v-if="variant === 'hot'">
+        <view :style="tagRow">
+          <view :style="categoryTag"><text :style="categoryTagText">{{ item.category }}</text></view>
+          <text :style="hotText">{{ item.favoriteCount }} 人关注</text>
+        </view>
+      </template>
+
+      <!-- 上新榜 -->
+      <template v-else-if="variant === 'new'">
+        <view :style="tagRow">
+          <view :style="newTag"><text :style="newTagText">新品</text></view>
+          <view :style="releaseTag"><text :style="releaseTagText">{{ item.releaseTypeName }}</text></view>
+          <text :style="metaText">{{ item.daysAgo }} 天前上新</text>
+        </view>
+        <text :style="metaText">{{ item.reservationCount }} 人蹲预约</text>
+      </template>
+
+      <!-- 避雷榜 -->
+      <template v-else-if="variant === 'risk'">
+        <view :style="tagRow">
+          <view :style="riskLevelTag"><text :style="riskLevelText">{{ riskLevelLabel }}</text></view>
+          <view v-for="(point, idx) in item.riskPoints" :key="idx" :style="riskPointTag"><text :style="riskPointText">{{ point }}</text></view>
+        </view>
+        <text :style="traceText">{{ item.traceable ? '风险依据可追溯' : '' }}</text>
+      </template>
+
+      <text :style="priceStyle">{{ priceText }}</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppImage from '@/components/base/AppImage.uvue'
+import { RankingItem } from '@/domain/ranking/ranking-item'
+import { formatPriceCents } from '@/utils/format'
+import { brand, semantic, warm, baseColors } from '@/theme/tokens/colors'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+const props = withDefaults(defineProps<{
+  item: RankingItem
+  variant: string   // 'hot' | 'new' | 'risk'
+}>(), { item: new RankingItem(), variant: 'hot' })
+
+const emit = defineEmits<{ tap: [] }>()
+
+const rankStyle = computed((): string => {
+  if (props.item.rank === 1) return 'gold'
+  if (props.item.rank === 2) return 'silver'
+  if (props.item.rank === 3) return 'bronze'
+  return 'normal'
+})
+const riskLevelLabel = computed((): string => props.item.riskLevel === 'high' ? '高风险' : '中风险')
+const priceText = computed((): string => formatPriceCents(props.item.priceCents))
+
+function rankColor(style: string): string {
+  if (style === 'gold') return '#D4AF37'
+  if (style === 'silver') return '#A8A8A8'
+  if (style === 'bronze') return '#B87333'
+  return n.value.text
+}
+
+const cardStyle = computed((): any => ({
+  ...flexRow,
+  alignItems: 'center',
+  backgroundColor: n.value.surface,
+  borderRadius: CARD_RADIUS_V3,
+  padding: '24rpx',
+  marginBottom: '24rpx',
+  borderWidth: '1rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.border,
+}))
+const leftWrap = { ...flexRow, alignItems: 'center', marginRight: '24rpx' }
+const rankBadge = (style: string): any => ({ width: '56rpx', alignItems: 'center', marginRight: '16rpx' })
+const rankText = (style: string): any => ({ fontSize: style === 'gold' ? '40rpx' : style === 'normal' ? '28rpx' : '36rpx', fontWeight: style === 'gold' ? 700 : style === 'normal' ? 500 : 600, color: rankColor(style) })
+const imageWrap = computed((): any => ({ width: '132rpx', height: '132rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, position: 'relative' as string }))
+const riskMask = { position: 'absolute' as string, top: '0', left: '0', right: '0', bottom: '0', backgroundColor: baseColors.overlayLight, alignItems: 'center', justifyContent: 'center' }
+const riskMaskText = { fontSize: '20rpx', fontWeight: 600, color: baseColors.white }
+const infoWrap = { flex: 1 }
+const titleRow = { ...flexRow, alignItems: 'center' }
+const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis', flex: 1 }))
+const crown = { fontSize: '28rpx', color: '#D4AF37', marginLeft: '8rpx' }
+const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, marginTop: '4rpx' }))
+const tagRow = { ...flexRow, alignItems: 'center', flexWrap: 'wrap' as string, marginTop: '8rpx' }
+const categoryTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
+const categoryTagText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary }))
+const hotText = computed((): any => ({ fontSize: '22rpx', fontWeight: 600, color: brand.primary }))
+const newTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: semantic.info, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
+const newTagText = { fontSize: '20rpx', fontWeight: 600, color: baseColors.white }
+const releaseTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
+const releaseTagText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary }))
+const metaText = computed((): any => ({ fontSize: '20rpx', color: n.value.textTertiary, marginTop: '4rpx' }))
+const riskLevelTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: props.item.riskLevel === 'high' ? semantic.error : semantic.warning, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
+const riskLevelText = { fontSize: '20rpx', fontWeight: 600, color: baseColors.white }
+const riskPointTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginTop: '4rpx' }))
+const riskPointText = computed((): any => ({ fontSize: '20rpx', color: brand.primary }))
+const traceText = computed((): any => ({ fontSize: '20rpx', color: n.value.textTertiary, marginTop: '6rpx' }))
+const priceStyle = computed((): any => ({ fontSize: '30rpx', fontWeight: 600, color: brand.strong, marginTop: '8rpx' }))
+</script>
+
+<style>
+</style>

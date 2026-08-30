@@ -1,0 +1,96 @@
+/**
+ * ranking-service — 三坑榜单数据
+ * 当前为纯 Mock 数据（后端暂无 /api/v1/ranking 接口）。
+ * 后端就绪后实现 fetchRankingRemote 即可，页面调用签名不变。
+ */
+import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW, RANKING_TAB_RISK } from '@/domain/ranking/ranking-item'
+
+function makeItem(rank: number, entityId: string, title: string, brandName: string, coverUrl: string, priceCents: number, category: string): RankingItem {
+  const item = new RankingItem()
+  item.rank = rank
+  item.entityId = entityId
+  item.title = title
+  item.brandName = brandName
+  item.coverUrl = coverUrl
+  item.priceCents = priceCents
+  item.category = category
+  return item
+}
+
+function hotMock(): RankingItem[] {
+  const list: RankingItem[] = []
+  const hot = [
+    ['p1001', '绀金格纹短裙 45cm', '兔缝缝', '48800', 'JK'],
+    ['p1002', '灰粉樱吹雪 JSK', '星辰猫', '52900', 'Lolita'],
+    ['p1003', '青莲马面裙', '织造司', '36900', '汉服'],
+    ['p1004', '绀紫格子长裙', '白桃乌龙', '39800', 'JK'],
+    ['p1005', '红格呢大衣', '兔缝缝', '69800', 'JK'],
+    ['p1006', '月光绸衬衣', '织造司', '25900', '汉服'],
+    ['p1007', '星空柄 茶会裙', '星辰猫', '62800', 'Lolita'],
+    ['p1008', '蓝格 JSK 三件套', '中牌', '45800', 'Lolita'],
+  ]
+  for (let i = 0; i < hot.length; i++) {
+    const row = hot[i]
+    const item = makeItem(i + 1, row[0], row[1], row[2], '', parseInt(row[3]), row[4])
+    item.favoriteCount = [1200, 860, 740, 520, 460, 390, 330, 210][i]
+    list.push(item)
+  }
+  return list
+}
+
+function newMock(): RankingItem[] {
+  const list: RankingItem[] = []
+  const rows = [
+    ['p2001', '雪松绿格裙', '兔缝缝', '46800', 'JK', '首发', 2, 320],
+    ['p2002', '银月柄 云肩', '星辰猫', '56800', 'Lolita', '再贩', 3, 260],
+    ['p2003', '烟青绣花襦裙', '织造司', '42800', '汉服', '首发', 5, 190],
+    ['p2004', '茶格短裙', '白桃乌龙', '32800', 'JK', '现货', 1, 150],
+    ['p2005', '夜樱 JSK', '中牌', '49900', 'Lolita', '再贩', 4, 210],
+    ['p2006', '黛青直裾', '织造司', '39800', '汉服', '现货', 6, 120],
+    ['p2007', '榛格长裙', '兔缝缝', '41800', 'JK', '首发', 8, 98],
+    ['p2008', '星屑斗篷', '星辰猫', '68800', 'Lolita', '首发', 7, 86],
+  ]
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const item = makeItem(i + 1, row[0], row[1], row[2], '', parseInt(row[3]), row[4])
+    item.releaseTypeName = row[5]
+    item.daysAgo = parseInt(row[6])
+    item.reservationCount = parseInt(row[7])
+    list.push(item)
+  }
+  return list
+}
+
+function riskMock(): RankingItem[] {
+  const list: RankingItem[] = []
+  const rows = [
+    ['p3001', '旧版复刻格裙', '某工作室', '46800', 'JK', 'high', ['再贩价低于首发 15%', '近 30 天降价 20%']],
+    ['p3002', '棉纱连衣裙', '某品牌', '29800', 'Lolita', 'high', ['超过预计发货时间 30 天未发货']],
+    ['p3003', '提花马面', '某汉服店', '36800', '汉服', 'medium', ['版权争议标记（申诉中）']],
+    ['p3004', '亮面格裙', '某代购', '32800', 'JK', 'medium', ['批量质量翻车标记']],
+    ['p3005', '绒面斗篷', '某店铺', '58800', 'Lolita', 'high', ['当前价高于原价 1.5 倍']],
+    ['p3006', '棉麻短衫', '某店', '18800', '汉服', 'medium', ['内容质量分低于 40']],
+  ]
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const item = makeItem(i + 1, row[0], row[1], row[2], '', parseInt(row[3]), row[4])
+    item.riskLevel = row[5]
+    item.riskPoints = row[6] as string[]
+    item.traceable = true
+    list.push(item)
+  }
+  return list
+}
+
+/** 加载榜单（Mock）。tab: 'hot' | 'new' | 'risk' */
+export function loadRanking(tab: string): RankingItem[] {
+  if (tab == RANKING_TAB_HOT) return hotMock()
+  if (tab == RANKING_TAB_NEW) return newMock()
+  if (tab == RANKING_TAB_RISK) return riskMock()
+  return hotMock()
+}
+
+/** 后端榜单接口占位：返回空数组；后端就绪后接入 /api/v1/ranking。 */
+export async function fetchRankingRemote(tab: string): Promise<RankingItem[]> {
+  return []
+}

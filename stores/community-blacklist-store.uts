@@ -1,0 +1,59 @@
+/**
+ * CommunityBlacklistStore — 圈子用户拉黑（区别于品牌黑名单 blacklist-store）
+ * 拉黑后该作者的动态在圈子公开流中过滤；本地持久化，无后端接口（预留扩展）。
+ */
+import { reactive } from 'vue'
+
+const STORAGE_KEY = 'v2_blacklist_users'
+
+function readUsers(): string[] {
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY) as string
+    if (raw == null || raw === '') return []
+    return raw.split(',').filter((u) => u !== '')
+  } catch (e) {
+    return []
+  }
+}
+function writeUsers(users: string[]) {
+  try { uni.setStorageSync(STORAGE_KEY, users.join(',')) } catch (e) {}
+}
+
+type UserBlacklistState = {
+  users: string[]
+}
+
+const _state = reactive<UserBlacklistState>({
+  users: readUsers(),
+})
+
+function isBlacklisted(userId: string): boolean {
+  if (userId === '') return false
+  return _state.users.indexOf(userId) >= 0
+}
+
+function toggleBlacklist(userId: string): boolean {
+  if (userId === '') return false
+  const idx = _state.users.indexOf(userId)
+  if (idx >= 0) {
+    const next = [..._state.users]
+    next.splice(idx, 1)
+    _state.users = next
+  } else {
+    _state.users = [..._state.users, userId]
+  }
+  writeUsers(_state.users)
+  return idx < 0
+}
+
+class CommunityBlacklistStoreHandle {
+  get users(): string[] { return [..._state.users] }
+  isBlacklisted(userId: string): boolean { return isBlacklisted(userId) }
+  toggleBlacklist(userId: string): boolean { return toggleBlacklist(userId) }
+}
+
+let _handle: CommunityBlacklistStoreHandle | null = null
+export function useCommunityBlacklistStore(): CommunityBlacklistStoreHandle {
+  if (_handle == null) _handle = new CommunityBlacklistStoreHandle()
+  return _handle!
+}

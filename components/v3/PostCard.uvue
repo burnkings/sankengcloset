@@ -1,0 +1,90 @@
+<template>
+  <view :style="cardStyle">
+    <!-- 头部：头像 + 昵称/时间 + 更多 -->
+    <view :style="headerRow">
+      <view :style="avatarWrap"><text :style="avatarText">{{ avatarText }}</text></view>
+      <view :style="headerCopy">
+        <text :style="authorStyle">{{ author }}</text>
+        <text :style="timeStyle">{{ timeText }}</text>
+      </view>
+      <view :style="moreWrap" @tap="emit('more')"><AppIcon name="more" :size="36" /></view>
+    </view>
+
+    <!-- 正文 -->
+    <text v-if="caption !== ''" :style="captionStyle">{{ caption }}</text>
+
+    <!-- 图片 -->
+    <view v-if="image !== ''" :style="imageWrap" @tap="emit('tap')">
+      <AppImage :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+    </view>
+
+    <!-- 商品关联标签 -->
+    <view v-if="productId !== ''" :style="productTag" @tap="emit('product')">
+      <AppIcon name="shirt" :size="20" :active="true" /><text :style="productTagText">查看商品</text>
+    </view>
+
+    <!-- 底部：点赞 -->
+    <view :style="footerRow">
+      <view :style="likeWrap" @tap="emit('toggleLike')">
+        <AppIcon :name="liked ? 'heart' : 'heart'" :size="34" :active="liked" />
+        <text :style="likeCountStyle">{{ likeCount }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import { v3TextStyle } from '@/theme/tokens/typography'
+import { CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { flexRow } from '@/theme/layout/flex'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { n, isDark } from '@/theme/use-theme'
+
+// PostCard — 圈子单列动态卡：头像左上 + 昵称/时间 + 更多菜单（拉黑/举报）+ 图文 + 点赞
+const props = withDefaults(defineProps<{
+  image?: string
+  caption?: string
+  author?: string
+  avatarText?: string
+  timeText?: string
+  likeCount?: number
+  liked?: boolean
+  productId?: string
+}>(), { image: '', caption: '', author: '', avatarText: '同', timeText: '', likeCount: 0, liked: false, productId: '' })
+
+const emit = defineEmits<{
+  tap: []
+  toggleLike: []
+  more: []
+  product: []
+}>()
+
+const cardStyle = computed((): any => ({
+  backgroundColor: n.value.surface,
+  borderRadius: CARD_RADIUS_V3,
+  padding: '20rpx',
+  marginBottom: '20rpx',
+  borderWidth: '1rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.border,
+}))
+const headerRow = { ...flexRow, alignItems: 'center' }
+const avatarWrap = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }))
+const avatarText = computed((): any => ({ fontSize: '30rpx', fontWeight: 600, color: brand[600] as string }))
+const headerCopy = { flex: 1 }
+const authorStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+const timeStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '4rpx' }))
+const moreWrap = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+const captionStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: '40rpx', color: n.value.text, marginTop: '16rpx' }))
+const imageWrap = computed((): any => ({ width: '100%', height: '460rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, marginTop: '16rpx' }))
+const productTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink, marginTop: '12rpx' }))
+const productTagText = computed((): any => ({ fontSize: '20rpx', fontWeight: 600, color: brand.primary, marginLeft: '4rpx' }))
+const footerRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
+const likeWrap = { ...flexRow, alignItems: 'center', minWidth: '64rpx', height: '56rpx' }
+const likeCountStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, marginLeft: '6rpx' }))
+</script>
+
+<style>
+</style>

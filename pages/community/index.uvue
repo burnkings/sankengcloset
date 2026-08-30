@@ -37,12 +37,9 @@
           <PageState icon="camera" title="还没有穿搭灵感" message="同好们还没分享，敬请期待" />
         </view>
 
-        <!-- 公开 Gallery 帖子：双列 NoteCard（V3 §6.4） -->
-        <view v-if="viewMode !== 'mine' && visibleLooks.length > 0" :style="lookGrid">
-          <view v-for="look in visibleLooks" :key="look.id" :style="lookShell">
-            <NoteCard :title="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :image="look.imageUrl" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" @tap="onLookTap(look)" @toggle-like="togglePublicLike(look.id)" />
-            <view v-if="look.productId !== ''" :style="productTag" @tap="openLinkedProduct(look.productId)"><AppIcon name="shirt" :size="20" :active="true" /><text :style="productTagText">查看商品</text></view>
-          </view>
+        <!-- 公开 Gallery 帖子：单列 PostCard 动态流（头像/昵称/时间/更多菜单） -->
+        <view v-if="viewMode !== 'mine' && visibleLooks.length > 0" :style="postList">
+          <PostCard v-for="look in visibleLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :avatar-text="look.initial" :time-text="postTime(look.createdAt)" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" :product-id="look.productId" @tap="onLookTap(look)" @toggle-like="togglePublicLike(look.id)" @more="onMoreTap(look)" @product="openLinkedProduct(look.productId)" />
         </view>
 
         <!-- 我的发布 -->
@@ -60,31 +57,70 @@
       </view>
     </template>
   </MainLayout>
+
+  <AppDialog :visible="showBlacklistDialog" title="拉黑该作者" message="拉黑后不再看到 TA 的动态，确定拉黑吗？" confirm-text="拉黑" :show-cancel="true" cancel-text="取消" @confirm="confirmBlacklist" @cancel="showBlacklistDialog = false" />
+  <AppDialog :visible="showReportDialog" title="举报这条动态" message="举报后我们会尽快处理，感谢你的反馈。" confirm-text="举报" :show-cancel="true" cancel-text="取消" @confirm="confirmReport" @cancel="showReportDialog = false" />
 </view>
 </template>
 
 <script setup lang="uts">
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, FEED_GUTTER_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import NoteCard from '@/components/v3/NoteCard.uvue'
+import PostCard from '@/components/v3/PostCard.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { useContentLibraryStore, SavedOutfitPost, PublicLookPost } from '@/stores/content-library-store'
+import { useCommunityBlacklistStore } from '@/stores/community-blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
+import { showFeedback } from '@/utils/feedback'
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
 const viewMode = ref('') // '' | 'mine'
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
+const userBlacklist = useCommunityBlacklistStore()
 const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑']
 const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']
+
+// 更多菜单：拉黑 / 举报
+const showBlacklistDialog = ref(false)
+const showReportDialog = ref(false)
+let pendingLook: PublicLookPost | null = null
+
+function onMoreTap(look: PublicLookPost) {
+  pendingLook = look
+  uni.showActionSheet({
+    itemList: ['拉黑该作者', '举报这条动态'],
+    success: (res) => {
+      if (pendingLook == null) return
+      if (res.tapIndex === 0) showBlacklistDialog.value = true
+      else if (res.tapIndex === 1) showReportDialog.value = true
+    },
+  })
+}
+
+function confirmBlacklist() {
+  showBlacklistDialog.value = false
+  if (pendingLook == null) return
+  const uid = pendingLook.authorUserId
+  userBlacklist.toggleBlacklist(uid)
+  showFeedback('已拉黑该用户，其动态将不再显示')
+}
+
+function confirmReport() {
+  showReportDialog.value = false
+  // 举报本地仅记录日志；后端就绪后走 reportCommunityPostRemote 扩展点
+  showFeedback('举报已提交，感谢你的反馈')
+}
 
 // 公开 Gallery：仅筛选作用于公开帖子
 function filterByPitAndTopic(items: PublicLookPost[]): PublicLookPost[] {
@@ -97,7 +133,10 @@ function filterByPitAndTopic(items: PublicLookPost[]): PublicLookPost[] {
   }
   return result
 }
-const visibleLooks = computed((): PublicLookPost[] => filterByPitAndTopic(library.publicPosts))
+const visibleLooks = computed((): PublicLookPost[] => {
+  const filtered = filterByPitAndTopic(library.publicPosts)
+  return filtered.filter((item) => !userBlacklist.isBlacklisted(item.authorUserId))
+})
 // 我的发布：筛选只作用于我的帖子
 const visibleUserLooks = computed((): SavedOutfitPost[] => {
   let result: SavedOutfitPost[] = library.outfitPosts
@@ -232,12 +271,11 @@ const dropdownWrapPit = { position: 'relative' as string, marginLeft: '12rpx' }
 const dropdownButton = computed((): any => ({ ...flexRow, alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }))
 const dropdownText = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
 
-// 帖子：双列 NoteCard（V3 §6.4 双列穿搭笔记，图片优先）
+// 帖子：我的发布仍用双列 NoteCard（V3 §6.4 双列穿搭笔记，图片优先）
 const lookGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
 const lookShell = { width: PRODUCT_CARD_WIDTH_V3, marginRight: COLUMN_GAP_V3 }
-// Phase 2.3-A：商品关联入口标签（帖子有 productId 时显示）
-const productTag = computed((): any => ({ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink, marginTop: '-16rpx', marginBottom: '20rpx' }))
-const productTagText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.semibold, color: brand.primary, marginLeft: '4rpx' }))
+// 公开 Gallery：单列 PostCard 动态流
+const postList = { paddingLeft: '8rpx', paddingRight: '8rpx' }
 // 三态使用 V3 PageState / FeedSkeleton（无本地样式）
 const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '96rpx', paddingBottom: '96rpx' }
 </script>

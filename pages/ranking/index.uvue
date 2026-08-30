@@ -1,0 +1,151 @@
+<template>
+  <DetailLayout title="三坑榜单">
+    <view :style="contentWrap">
+      <!-- Tab 切换：热榜 / 上新榜 / 避雷榜 -->
+      <view :style="tabBar">
+        <SegmentedControl :items="tabItems" :active="activeTab" variant="solid" @change="onTabChange" />
+      </view>
+
+      <!-- 二级筛选栏（随 Tab 变化） -->
+      <view :style="filterBar">
+        <text :style="filterLabel">{{ filterLabelText }}</text>
+        <view :style="filterChipsWrap">
+          <view v-for="opt in activeFilterOptions" :key="opt" :style="filterChip(opt)" @tap="onFilterTap(opt)"><text :style="filterChipText(opt)">{{ opt }}</text></view>
+        </view>
+      </view>
+
+      <!-- 榜单卡片列表 -->
+      <scroll-view :style="listScroll" scroll-y>
+        <view :style="listWrap">
+          <RankingCard v-for="item in visibleItems" :key="item.entityId" :item="item" :variant="activeTabCode" @tap="openProduct(item)" />
+          <PageState v-if="visibleItems.length === 0" icon="info" title="暂无榜单数据" message="筛选条件下暂无内容" />
+          <view :style="bottomSpacer" />
+        </view>
+      </scroll-view>
+
+      <!-- 底部免责说明 -->
+      <view :style="disclaimerWrap"><text :style="disclaimerText">榜单由用户真实行为生成，无付费上榜，异常数据自动过滤（Mock 数据仅用于功能预览）</text></view>
+    </view>
+  </DetailLayout>
+</template>
+
+<script setup lang="uts">
+import DetailLayout from '@/components/layout/DetailLayout.uvue'
+import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
+import RankingCard from '@/components/v3/RankingCard.uvue'
+import PageState from '@/components/v3/PageState.uvue'
+import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW, RANKING_TAB_RISK } from '@/domain/ranking/ranking-item'
+import { loadRanking } from '@/services/content/ranking-service'
+import { PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { getSafeBottomInset } from '@/utils/window-info'
+
+const tabItems = ['热榜', '上新榜', '避雷榜']
+const activeTab = ref('热榜')
+const activeCategory = ref('全部')
+const activePeriod = ref('')
+const activeRiskType = ref('')
+const rankingData = ref<RankingItem[]>([])
+
+onLoad((options) => {
+  initPageTheme()
+  if (options != null) {
+    const tab = options['tab'] != null ? options['tab'] as string : ''
+    if (tab === RANKING_TAB_NEW) activeTab.value = '上新榜'
+    else if (tab === RANKING_TAB_RISK) activeTab.value = '避雷榜'
+  }
+  reloadData()
+})
+
+const activeTabCode = computed((): string => {
+  if (activeTab.value === '上新榜') return RANKING_TAB_NEW
+  if (activeTab.value === '避雷榜') return RANKING_TAB_RISK
+  return RANKING_TAB_HOT
+})
+
+// 二级筛选项（随 Tab 变化）
+const categories = ['全部', 'JK', 'Lolita', '汉服']
+const hotPeriods = ['7日', '30日', '全时段']
+const newPeriods = ['14日', '30日']
+const newReleaseTypes = ['首发', '再贩', '现货']
+const riskTypes = ['全部', '高风险', '中风险']
+
+const activeFilterOptions = computed((): string[] => {
+  if (activeTab.value === '上新榜') return ['周期', ...newPeriods, '分类', ...categories, '发售', ...newReleaseTypes]
+  if (activeTab.value === '避雷榜') return [...riskTypes, '分类', ...categories]
+  return [...hotPeriods, '分类', ...categories]
+})
+
+const filterLabelText = computed((): string => {
+  if (activeTab.value === '上新榜') return '上新榜'
+  if (activeTab.value === '避雷榜') return '避雷榜'
+  return '热榜'
+})
+
+function onTabChange(tab: string) {
+  activeTab.value = tab
+  activeCategory.value = '全部'
+  activePeriod.value = ''
+  activeRiskType.value = ''
+  reloadData()
+}
+
+function onFilterTap(opt: string) {
+  if (categories.indexOf(opt) >= 0) { activeCategory.value = opt; return }
+  if (hotPeriods.indexOf(opt) >= 0 || newPeriods.indexOf(opt) >= 0) { activePeriod.value = opt; return }
+  if (riskTypes.indexOf(opt) >= 0) { activeRiskType.value = opt; return }
+}
+
+function reloadData() {
+  rankingData.value = loadRanking(activeTabCode.value)
+}
+
+const visibleItems = computed((): RankingItem[] => {
+  let list = rankingData.value
+  if (activeCategory.value !== '全部') {
+    list = list.filter((item) => item.category === activeCategory.value)
+  }
+  if (activeTab.value === '避雷榜' && activeRiskType.value !== '') {
+    const wantHigh = activeRiskType.value === '高风险'
+    list = list.filter((item) => (item.riskLevel === 'high') === wantHigh)
+  }
+  return list
+})
+
+function openProduct(item: RankingItem) {
+  if (item.entityId === '') return
+  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+}
+
+const safeBottom = getSafeBottomInset()
+const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const tabBar = { marginBottom: '16rpx' }
+const filterBar = { ...flexRow, alignItems: 'center', marginBottom: '16rpx', flexWrap: 'wrap' as string }
+const filterLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '16rpx' }))
+const filterChipsWrap = { ...flexRow, flexWrap: 'wrap' as string, flex: 1 }
+function filterChip(opt: string): any {
+  const active = isFilterActive(opt)
+  return { height: '48rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '24rpx', backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }
+}
+function filterChipText(opt: string): any {
+  const active = isFilterActive(opt)
+  return { fontSize: '22rpx', fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: active ? baseColors.white : n.value.textSecondary }
+}
+function isFilterActive(opt: string): boolean {
+  if (categories.indexOf(opt) >= 0) return activeCategory.value === opt
+  if (hotPeriods.indexOf(opt) >= 0 || newPeriods.indexOf(opt) >= 0) return activePeriod.value === opt
+  if (riskTypes.indexOf(opt) >= 0) return activeRiskType.value === opt
+  return false
+}
+const listScroll = { flex: 1, minHeight: '0' }
+const listWrap = { paddingBottom: '24rpx' }
+const bottomSpacer = { height: '32rpx' }
+const disclaimerWrap = { paddingTop: '16rpx', paddingBottom: `${safeBottom + 24}px` }
+const disclaimerText = computed((): any => ({ fontSize: '20rpx', color: n.value.textTertiary, textAlign: 'center', lineHeight: '32rpx' }))
+</script>
+
+<style>
+</style>

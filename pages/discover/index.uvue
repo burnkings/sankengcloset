@@ -6,6 +6,13 @@
       <view class="page-canvas" :style="pageWrap">
         <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索品牌、发售与专题</text></view>
 
+        <SectionHeader title="榜单排行" action-text="查看全部" @action="openRanking('hot')" />
+        <view :style="rankingRow">
+          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><text :style="rankingTitle">热榜</text><text :style="rankingDesc">大家都在关注</text></view>
+          <view :style="rankingCard('new')" @tap="openRanking('new')"><text :style="rankingTitle">上新榜</text><text :style="rankingDesc">新款值得蹲</text></view>
+          <view :style="rankingCard('risk')" @tap="openRanking('risk')"><text :style="rankingTitle">避雷榜</text><text :style="rankingDesc">买前先看坑</text></view>
+        </view>
+
         <SectionHeader title="精选专题" action-text="查看更多" />
         <scroll-view direction="horizontal" :style="featureScroll">
           <view :style="featureRow">
@@ -118,6 +125,7 @@ class TopicItem {
 }
 
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
+function openRanking(tab: string) { uni.navigateTo({ url: `/pages/ranking/index?tab=${tab}` }) }
 function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
 function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); openPrimaryTab('/pages/community/index') }
 const library = useContentLibraryStore()
@@ -239,6 +247,14 @@ const topics = computed((): TopicItem[] => {
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const searchBox = computed((): any => ({ width: '686rpx', height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3, backgroundColor: n.value.inputFill, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
 const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
+// 榜单入口三卡
+const rankingRow = { ...flexRow, flexDirection: 'row' as string, justifyContent: 'space-between' }
+function rankingCard(variant: string): any {
+  const bg = variant === 'hot' ? '#F7E7EC' : (variant === 'new' ? '#ECF1F5' : '#FBF2E8')
+  return { width: '218rpx', height: '112rpx', borderRadius: '20rpx', backgroundColor: bg, padding: '20rpx', justifyContent: 'center', flexDirection: 'column' as string }
+}
+const rankingTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#262223' }
+const rankingDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 const featureScroll = { width: '718rpx', marginRight: '-32rpx' }
 const featureRow = { ...flexRow, width: '1060rpx' }
 function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS_V3, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.value.length - 1 ? '20rpx' : '0' } }

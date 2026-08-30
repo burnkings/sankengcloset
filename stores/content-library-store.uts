@@ -21,6 +21,7 @@ export class PublicLookPost {
   caption: string = ''
   category: string = ''
   topic: string = ''
+  authorUserId: string = ''
   authorNickname: string = ''
   likeCount: number = 0
   liked: boolean = false
@@ -277,6 +278,7 @@ async function refreshPublicPosts(): Promise<void> {
       post.caption = item.caption
       post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : 'JK'
       post.topic = item.topic
+      post.authorUserId = item.authorUserId
       post.authorNickname = item.authorNickname !== '' ? item.authorNickname : '同好'
       post.likeCount = item.likeCount
       post.liked = item.liked
