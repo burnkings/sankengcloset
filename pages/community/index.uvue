@@ -40,7 +40,8 @@
         <!-- 公开 Gallery 帖子：双列 NoteCard（V3 §6.4） -->
         <view v-if="viewMode !== 'mine' && visibleLooks.length > 0" :style="lookGrid">
           <view v-for="look in visibleLooks" :key="look.id" :style="lookShell">
-            <NoteCard :title="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :image="look.imageUrl" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" @tap="previewPostImage(look.imageUrl)" @toggle-like="togglePublicLike(look.id)" />
+            <NoteCard :title="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :image="look.imageUrl" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" @tap="onLookTap(look)" @toggle-like="togglePublicLike(look.id)" />
+            <view v-if="look.productId !== ''" :style="productTag" @tap="openLinkedProduct(look.productId)"><AppIcon name="shirt" :size="20" :active="true" /><text :style="productTagText">查看商品</text></view>
           </view>
         </view>
 
@@ -117,6 +118,16 @@ function openPitPicker() {
 }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
+// Phase 2.3-A：帖子 tap —— 有商品关联时跳商品详情，否则保持原行为（预览大图）
+function onLookTap(look: PublicLookPost) {
+  if (look.productId !== '') { openLinkedProduct(look.productId); return }
+  previewPostImage(look.imageUrl)
+}
+// Phase 2.3-A：商品关联入口 → Product Detail
+function openLinkedProduct(productId: string) {
+  if (productId === '') return
+  uni.navigateTo({ url: `/pages/product/detail?id=${productId}` })
+}
 function reloadPublic() { library.refreshPublicPosts() }
 // 公开帖点赞：作用于公开实体
 function togglePublicLike(id: string) {
@@ -224,6 +235,9 @@ const dropdownText = computed((): any => ({ fontSize: '22rpx', color: n.value.te
 // 帖子：双列 NoteCard（V3 §6.4 双列穿搭笔记，图片优先）
 const lookGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
 const lookShell = { width: PRODUCT_CARD_WIDTH_V3, marginRight: COLUMN_GAP_V3 }
+// Phase 2.3-A：商品关联入口标签（帖子有 productId 时显示）
+const productTag = computed((): any => ({ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink, marginTop: '-16rpx', marginBottom: '20rpx' }))
+const productTagText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.semibold, color: brand.primary, marginLeft: '4rpx' }))
 // 三态使用 V3 PageState / FeedSkeleton（无本地样式）
 const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '96rpx', paddingBottom: '96rpx' }
 </script>

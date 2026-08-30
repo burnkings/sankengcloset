@@ -30,7 +30,7 @@
             </view>
             <view :style="statusTag">
               <view :style="statusDot" />
-              <text :style="statusTagText">{{ item!.badgeText !== '' ? item!.badgeText : '官方信息' }}</text>
+              <text :style="statusTagText">{{ releaseStatusText !== '' ? releaseStatusText : '官方信息' }}</text>
             </view>
             <view v-if="compatibility.score >= 0" :style="compatibilityCard">
               <view :style="compatibilityHeader"><text :style="compatibilityTitle">与你衣橱的搭配度</text><text :style="compatibilityScore">{{ compatibility.score }}%</text></view>
@@ -43,17 +43,50 @@
             </view>
           </view>
 
-          <SectionHeader title="发售进度" />
-          <view :style="stepCard">
-            <view :style="stepLine" />
-            <view :style="stepLineFill" />
-            <view :style="stepRow">
-              <view v-for="(stage, idx) in stages" :key="stage" :style="stepItem(idx)">
-                <view :style="stepDot(idx)" />
-                <text :style="stepLabel(idx)">{{ stage }}</text>
-              </view>
+          <template v-if="release !== null">
+            <SectionHeader title="发售信息" />
+            <view :style="releaseCard">
+              <view v-if="release!.title !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ release!.title }}</text></view>
+              <view v-if="releaseStartText !== ''" :style="releaseRow"><text :style="releaseLabel">发售时间</text><text :style="releaseValue">{{ releaseStartText }}</text></view>
+              <view v-if="release!.depositAmount > 0" :style="releaseRow"><text :style="releaseLabel">定金</text><text :style="releaseValue">{{ formatMoney(release!.depositAmount) }}</text></view>
+              <view v-if="release!.finalPaymentAmount > 0" :style="releaseRow"><text :style="releaseLabel">尾款</text><text :style="releaseValue">{{ formatMoney(release!.finalPaymentAmount) }}</text></view>
+              <view v-if="release!.fullPrice > 0" :style="releaseRow"><text :style="releaseLabel">全价</text><text :style="releaseValue">{{ formatMoney(release!.fullPrice) }}</text></view>
             </view>
-          </view>
+          </template>
+
+          <template v-if="sameStyle !== null && sameStyle.products.length > 0">
+            <SectionHeader title="同款式" />
+            <view :style="sameStyleCard">
+              <view :style="sameStyleHeader">
+                <text :style="sameStyleName">{{ sameStyle!.canonicalName }}</text>
+                <text :style="sameStyleBrand">{{ sameStyle!.brandName }}</text>
+              </view>
+              <scroll-view scroll-x :show-scrollbar="false" :style="sameStyleScroll">
+                <view :style="sameStyleRow">
+                  <view v-for="s in sameStyle!.products" :key="s.id" :style="sameStyleItem" @tap="openSameStyle(s.id)">
+                    <AppImage :src="s.coverUrl" :style="sameStyleImage" mode="aspectFill" />
+                    <text :style="sameStyleTitle">{{ s.title }}</text>
+                    <text :style="sameStylePrice">{{ s.price > 0 ? formatMoney(s.price) : '价格待定' }}</text>
+                  </view>
+                </view>
+              </scroll-view>
+            </view>
+          </template>
+
+          <template v-if="realBuyerPosts.length > 0">
+            <SectionHeader title="真实买家" />
+            <view :style="buyerCard">
+              <scroll-view scroll-x :show-scrollbar="false" :style="buyerScroll">
+                <view :style="buyerRow">
+                  <view v-for="p in realBuyerPosts" :key="p.id" :style="buyerItem" @tap="openBuyerPost(p.id)">
+                    <AppImage :src="p.imageUrl" :style="buyerImage" mode="aspectFill" />
+                    <text :style="buyerAuthor">{{ p.authorNickname }}</text>
+                    <text :style="buyerCaption" :lines="1">{{ p.caption !== '' ? p.caption : '上身返图' }}</text>
+                  </view>
+                </view>
+              </scroll-view>
+            </view>
+          </template>
 
           <SectionHeader title="商品说明" />
           <view :style="detailCard"><text :style="detailText">{{ description !== '' ? description : (item!.subtitle !== '' ? item!.subtitle : '商品说明待品牌补充') }}</text></view>
@@ -81,6 +114,11 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
+import { ReleaseEvent } from '@/domain/content/release-event'
+import { StyleInfo } from '@/domain/content/style'
+import { deriveReleaseStatusText } from '@/presentation/content/feed-presenter'
+import { fetchStyle } from '@/services/content/style-service'
+import { fetchProductCommunity, ProductCommunityPost } from '@/services/content/product-service'
 import { useProductDetailStore } from '@/stores/product-detail-store'
 import { formatPrice } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
@@ -118,17 +156,25 @@ const blacklist = useBlacklistStore()
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
 const compatibility = computed(() => item.value !== null ? calculateWardrobeCompatibility(item.value!, wardrobe.items) : calculateWardrobeCompatibility(new FeedItem(), wardrobe.items))
 const compatibilityNames = computed((): string => compatibility.value.matchedItems.map((entry) => entry.name).join('、'))
-const stages = ['图透', '定金', '尾款', '现货']
-// 按商品角标推导当前发售进度（0-4：0 未知/1 图透/2 定金/3 尾款/4 现货）
-const currentStage = computed((): number => {
-  const badge = item.value != null ? item.value!.badgeText : ''
-  if (badge === '现货') return 4
-  if (badge === '尾款') return 3
-  if (badge === '定金' || badge === '预约' || badge === '预售') return 2
-  if (badge === '图透' || badge === '新品') return 1
-  return 0
+// 真实发售批次（后端 currentRelease → ReleaseEvent）：发售状态/时间/金额的唯一事实源，禁止 badgeText 猜测
+const currentRelease = ref(null) as Ref<ReleaseEvent | null>
+const release = computed((): ReleaseEvent | null => currentRelease.value)
+const releaseStatusText = computed((): string => deriveReleaseStatusText(currentRelease.value))
+const releaseStartText = computed((): string => {
+  const r = currentRelease.value
+  if (r == null) return ''
+  const start = dateOnly(r.startAt)
+  const end = dateOnly(r.endAt)
+  if (start === '' && end === '') return ''
+  if (start === '') return end
+  if (end === '') return start
+  return `${start} ~ ${end}`
 })
 const currentImageIndex = ref(0)
+// Phase 2.1 同款式：商品绑定 styleId 时加载款式信息（未归并商品保持 null，模块不显示）
+const sameStyle = ref(null) as Ref<StyleInfo | null>
+// Phase 2.3-A 真实买家：商品关联社区返图（空数组 = 模块不显示；失败静默不阻塞详情）
+const realBuyerPosts = ref([]) as Ref<ProductCommunityPost[]>
 function formatMoney(cents: number): string { return formatPrice(cents) }
   const detailImages = ref<string[]>([])
 
@@ -139,6 +185,19 @@ function formatMoney(cents: number): string { return formatPrice(cents) }
    currentImageIndex.value = current
  }
 function onBack() { uni.navigateBack() }
+
+/** 同款式商品跳转（Phase 2.1） */
+function openSameStyle(productId: string) {
+  if (productId === '') return
+  uni.navigateTo({ url: `/pages/product/detail?id=${productId}` })
+}
+
+/** 真实买家返图：复用社区内容预览机制（大图预览，不重做社区详情页） */
+function openBuyerPost(postId: string) {
+  const post = realBuyerPosts.value.find((p) => p.id === postId)
+  if (post == null || post.imageUrl === '') return
+  uni.previewImage({ current: post.imageUrl, urls: [post.imageUrl] })
+}
 
 function isLoggedIn(): boolean {
   // Mock 内测会话也算已登录：收藏写入本地（不请求受保护接口），正式会话走远程 wishlist
@@ -156,7 +215,9 @@ function toggleSaved() {
   }
 
   // 统一数据源：content-library-store → 后端 /api/v1/wishlist（失败自动入队，恢复后重放）
-  const saved = library.toggleFavorite(entityId, item.value!.title)
+  // releaseId：用户当前关注的发售批次（详情页 currentRelease 存在时提交，供收藏页锚定该批次）
+  const r = currentRelease.value
+  const saved = library.toggleFavorite(entityId, item.value!.title, r != null ? r.id : '')
   showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
 }
 
@@ -182,17 +243,27 @@ function encoded(value: string): string { return encodeURIComponent(value) ?? ''
 
 function createReminder() {
   if (item.value === null) return
-  const type = item.value!.badgeText === '尾款' ? 'BALANCE' : 'RELEASE'
-  const title = `${item.value!.title} ${item.value!.badgeText !== '' ? item.value!.badgeText : '发售'}`
+  const r = currentRelease.value
+  // 尾款期 → 尾款提醒；其余 → 发售提醒（基于真实 release 状态，非 badgeText）
+  const type = releaseStatusText.value === '尾款' ? 'BALANCE' : 'RELEASE'
+  const title = `${item.value!.title} ${releaseStatusText.value !== '' ? releaseStatusText.value : '发售'}`
   const note = `${item.value!.brandName} · 来源于商品详情`
-  uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${dateOnly(item.value!.eventEndAt)}&note=${encoded(note)}` })
+  // 时间优先级：尾款截止 > 发售结束 > 商品截止
+  const date = r != null && r.balanceDueAt !== '' ? dateOnly(r.balanceDueAt)
+    : (r != null && r.endAt !== '' ? dateOnly(r.endAt) : dateOnly(item.value!.eventEndAt))
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${date}&note=${encoded(note)}` })
 }
 
 function createPurchase() {
   if (item.value === null) return
-  const amount = item.value!.price > 0 ? (item.value!.price / 100).toString() : ''
+  const r = currentRelease.value
+  // 金额优先级：批次全价 > 商品当前价（有真实数据才带，不伪造）
+  const priceCents = r != null && r.fullPrice > 0 ? r.fullPrice : item.value!.price
+  const amount = priceCents > 0 ? (priceCents / 100).toString() : ''
   const category = item.value!.category === 'LOLITA' ? 'LOLITA' : (item.value!.category === 'HANFU' ? 'HANFU' : 'JK')
-  uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${dateOnly(item.value!.eventEndAt)}` })
+  const deadline = r != null && r.balanceDueAt !== '' ? dateOnly(r.balanceDueAt)
+    : (r != null && r.endAt !== '' ? dateOnly(r.endAt) : dateOnly(item.value!.eventEndAt))
+  uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${deadline}` })
 }
 
 async function loadDetail() {
@@ -207,6 +278,21 @@ async function loadDetail() {
     detailImages.value = result.images
     description.value = result.description
     shopUrl.value = result.shopUrl
+    currentRelease.value = result.currentRelease
+    // 同款式：仅当商品已归并（styleId 非空）时加载；失败静默（不阻塞详情）
+    sameStyle.value = null
+    if (result.styleId !== '') {
+      fetchStyle(result.styleId).then((style: StyleInfo | null) => {
+        if (unmounted) return
+        sameStyle.value = style
+      }).catch(() => {})
+    }
+    // 真实买家：商品关联社区返图（空 = 模块隐藏）；失败静默不阻塞详情
+    realBuyerPosts.value = []
+    fetchProductCommunity(itemId.value).then((posts: ProductCommunityPost[]) => {
+      if (unmounted) return
+      realBuyerPosts.value = posts
+    }).catch(() => {})
     if (isLoggedIn()) {
       await library.refreshRemoteFavorites()
     }
@@ -268,35 +354,30 @@ const compatibilityMatches = computed((): any => ({ fontSize: fontSize.xs, color
 const decisionRow = { ...flexRow, marginTop: '22rpx' }
 const recordBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
 const recordText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '8rpx' }))
-// 步骤条进度线：起点/终点距卡片边缘 110rpx（与 stepDot 定位一致），
-// 行程 257rpx = (750 - 2*110 - 2*24 padding)/2 ≈ 257（双列卡片半宽），4 段均分
-const STEP_TRACK_OFFSET_RPX = '110rpx'
-const STEP_TRACK_RANGE_RPX = 257
-const stepCard = computed((): any => ({ ...flexRow, height: '128rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
-const stepLine = computed((): any => ({ position: 'absolute' as string, left: STEP_TRACK_OFFSET_RPX, right: STEP_TRACK_OFFSET_RPX, top: '71rpx', height: '2rpx', backgroundColor: n.value.border }))
-const stepLineFill = computed((): any => ({ position: 'absolute' as string, left: STEP_TRACK_OFFSET_RPX, width: `${Math.round(STEP_TRACK_RANGE_RPX * Math.min(currentStage.value, 4) / 4)}rpx`, top: '71rpx', height: '2rpx', backgroundColor: brand[500] }))
-const stepRow = { ...flexFill, ...flexRow, alignItems: 'flex-start', justifyContent: 'space-between' }
-function stepItem(idx: number) { return { flex: 1, alignItems: 'center' } }
-function stepDot(idx: number) {
-  const filled = idx < currentStage.value
-  const outline = idx === currentStage.value && currentStage.value < 4
-  const idle = !filled && !outline
-  return {
-    width: '24rpx',
-    height: '24rpx',
-    borderRadius: '12rpx',
-    backgroundColor: filled ? brand[500] : (idle ? n.value.border : baseColors.white),
-    borderWidth: outline ? '4rpx' : '0',
-    borderStyle: 'solid' as string,
-    borderColor: outline ? brand[500] : baseColors.white,
-    marginTop: '36rpx',
-  }
-}
-function stepLabel(idx: number) {
-  const active = idx < currentStage.value
-  const next = idx === currentStage.value
-  return { fontSize: '22rpx', fontWeight: fontWeight.medium, color: active ? n.value.text : (next ? n.value.text : n.value.textSecondary), marginTop: '12rpx' }
-}
+// 发售信息卡：仅展示真实 release 数据（批次/时间/定金/尾款/全价），无数据不显示、不伪造、不显示 0
+const releaseCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const releaseRow = { flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between', minHeight: '56rpx' }
+const releaseLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
+const releaseValue = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '24rpx' }))
+// Phase 2.1 同款式：款式名 + 横向滚动同款商品（无 styleId 时不渲染）
+const sameStyleCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const sameStyleHeader = { ...flexRow, alignItems: 'center', marginBottom: '16rpx' }
+const sameStyleName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const sameStyleBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginLeft: '12rpx' }))
+const sameStyleScroll = { width: '100%', whiteSpace: 'nowrap' as string }
+const sameStyleRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string }
+const sameStyleItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
+const sameStyleImage = { width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: '#F2F2F2' }
+const sameStyleTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', maxLines: 2, lineHeight: '34rpx' }))
+const sameStylePrice = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500], marginTop: '4rpx' }))
+// Phase 2.3-A 真实买家：横向返图卡片（与同款式模块同构，V3 §6.4 卡片风格）
+const buyerCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const buyerScroll = { width: '100%', whiteSpace: 'nowrap' as string }
+const buyerRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string }
+const buyerItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
+const buyerImage = { width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: '#F2F2F2' }
+const buyerAuthor = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', maxLines: 1 }))
+const buyerCaption = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', maxLines: 1, lineHeight: '32rpx' }))
 const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 const actionSpacer = { height: `${upx2px(180) + safeBottom}px`, flexShrink: 0 }

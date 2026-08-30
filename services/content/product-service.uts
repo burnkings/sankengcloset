@@ -1,5 +1,19 @@
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { ReleaseEvent } from '@/domain/content/release-event'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
+
+/** Phase 2.3-A：商品关联社区内容（「真实买家」模块条目，最小字段） */
+export class ProductCommunityPost {
+  id: string = ''
+  authorNickname: string = ''
+  imageUrl: string = ''
+  caption: string = ''
+  category: string = ''
+  topic: string = ''
+  likeCount: number = 0
+  createdAt: string = ''
+  productId: string = ''
+}
 
 export class ProductDetailModel {
   item: FeedItem = new FeedItem()
@@ -7,6 +21,10 @@ export class ProductDetailModel {
   description: string = ''
   shopUrl: string = ''
   requestId: string = ''
+  /** 当前有效发售批次（后端 Product.currentRelease → 复用 ReleaseEvent Domain，非第二套模型） */
+  currentRelease: ReleaseEvent | null = null
+  /** 所属款式 id（Phase 2.1；未归并商品为空串，详情页不显示同款式模块） */
+  styleId: string = ''
 }
 
 function statusLabel(status: string): string {
@@ -19,6 +37,34 @@ function statusLabel(status: string): string {
 
 function addUniqueImage(images: string[], url: string) {
   if (url !== '' && images.indexOf(url) < 0) images.push(url)
+}
+
+/**
+ * 后端 currentRelease（ProductRelease DTO）→ ReleaseEvent 映射。
+ * 字段名对齐后端 camelCase：releaseName/releaseType/saleStatus/lifecycleStatus/
+ * isRerelease/depositCents/balanceCents/fullPriceCents/startAt/endAt/balanceDueAt/shipAt。
+ * 无 release 返回 null（UI 不伪造状态、不显示 0）。
+ */
+function mapCurrentRelease(raw: UTSJSONObject | null, productId: string, brandId: string): ReleaseEvent | null {
+  if (raw == null) return null
+  const release = new ReleaseEvent()
+  release.id = raw['id'] != null ? raw['id'] as string : ''
+  release.productId = productId
+  release.brandId = brandId
+  release.title = raw['releaseName'] != null ? raw['releaseName'] as string : ''
+  release.eventType = raw['releaseType'] != null ? raw['releaseType'] as string : 'unknown'
+  release.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
+  release.lifecycleStatus = raw['lifecycleStatus'] != null ? raw['lifecycleStatus'] as string : 'unknown'
+  release.status = release.lifecycleStatus
+  release.isRerelease = raw['isRerelease'] == true
+  release.depositAmount = raw['depositCents'] != null ? raw['depositCents'] as number : 0
+  release.finalPaymentAmount = raw['balanceCents'] != null ? raw['balanceCents'] as number : 0
+  release.fullPrice = raw['fullPriceCents'] != null ? raw['fullPriceCents'] as number : 0
+  release.startAt = raw['startAt'] != null ? raw['startAt'] as string : ''
+  release.endAt = raw['endAt'] != null ? raw['endAt'] as string : ''
+  release.balanceDueAt = raw['balanceDueAt'] != null ? raw['balanceDueAt'] as string : ''
+  release.shipAt = raw['shipAt'] != null ? raw['shipAt'] as string : ''
+  return release
 }
 
 function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailModel {
@@ -46,16 +92,47 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   addUniqueImage(result.images, item.coverUrl)
   if (result.images.length > 1) item.secondaryCoverUrl = result.images[1]
 
+  // 真实发售批次：currentRelease（存在时 eventEndAt 取 endAt，供截止时间展示）
+  const currentRelease = mapCurrentRelease(raw['currentRelease'] as UTSJSONObject | null, item.id, item.brandId)
+  result.currentRelease = currentRelease
+  if (currentRelease != null && currentRelease.endAt !== '') item.eventEndAt = currentRelease.endAt
+
   result.item = item
   result.description = raw['description'] != null ? raw['description'] as string : ''
   result.shopUrl = raw['shopUrl'] != null ? raw['shopUrl'] as string : ''
+  result.styleId = raw['styleId'] != null ? raw['styleId'] as string : ''
   result.requestId = requestId
   return result
 }
 
-export async function fetchProductDetail(id: string): Promise<ProductDetailModel | null> {
+export async function fetchProductDetail(id: string, releaseId: string = ''): Promise<ProductDetailModel | null> {
   if (id === '') return null
-  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}`)
+  // releaseId 非空：后端优先返回该批次 currentRelease（不存在则回退最新一条）
+  const query = releaseId !== '' ? `?releaseId=${encodeQuery(releaseId)}` : ''
+  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}${query}`)
   if (response.data == null) return null
   return mapRemoteProduct(response.data as UTSJSONObject, response.requestId)
+}
+
+/** Phase 2.3-A：商品关联社区内容（「真实买家」模块；后端默认 4 条，游客可读） */
+export async function fetchProductCommunity(id: string): Promise<ProductCommunityPost[]> {
+  if (id === '') return []
+  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}/community`)
+  const values = response.data as any[] | null
+  const result = [] as ProductCommunityPost[]
+  if (values != null) for (let i = 0; i < values.length; i++) {
+    const raw = values[i] as UTSJSONObject
+    const post = new ProductCommunityPost()
+    post.id = raw['id'] != null ? raw['id'] as string : ''
+    post.authorNickname = raw['authorNickname'] != null ? raw['authorNickname'] as string : '同好'
+    post.imageUrl = raw['imageUrl'] != null ? raw['imageUrl'] as string : ''
+    post.caption = raw['caption'] != null ? raw['caption'] as string : ''
+    post.category = raw['category'] != null ? raw['category'] as string : ''
+    post.topic = raw['topic'] != null ? raw['topic'] as string : ''
+    post.likeCount = raw['likeCount'] != null ? raw['likeCount'] as number : 0
+    post.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+    post.productId = raw['productId'] != null ? raw['productId'] as string : ''
+    result.push(post)
+  }
+  return result
 }

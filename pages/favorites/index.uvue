@@ -34,6 +34,14 @@
                   @tap="openProduct(item)"
                   @toggle-save="onToggleSave(item)"
                 />
+                <view :style="statusRow" @tap.stop="openStatusPicker(item)">
+                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
+                  <text :style="statusHintText">待购状态</text>
+                </view>
+                <view :style="releaseRow">
+                  <text :style="releaseStatusTextStyle">{{ favoriteReleaseText(item) }}</text>
+                  <text :style="reminderActionStyle" @tap.stop="onEnableReminder(item)">{{ reminderActionText(item) }}</text>
+                </view>
               </view>
             </view>
             <view :style="productColRight">
@@ -50,6 +58,14 @@
                   @tap="openProduct(item)"
                   @toggle-save="onToggleSave(item)"
                 />
+                <view :style="statusRow" @tap.stop="openStatusPicker(item)">
+                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
+                  <text :style="statusHintText">待购状态</text>
+                </view>
+                <view :style="releaseRow">
+                  <text :style="releaseStatusTextStyle">{{ favoriteReleaseText(item) }}</text>
+                  <text :style="reminderActionStyle" @tap.stop="onEnableReminder(item)">{{ reminderActionText(item) }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -71,6 +87,13 @@
         <view v-else :style="emptyContainer">
           <PageState :icon="emptyIcon" :title="emptyTitleText" :message="emptyDescText" action-text="去发现" @action="goDiscover" />
         </view>
+
+        <AppDialog :visible="showStatusPicker" title="待购状态" @cancel="showStatusPicker = false">
+          <view v-for="opt in statusOptions" :key="opt.value" :style="statusOptionRow" @tap="onSelectStatus(opt.value)">
+            <text :style="statusOptionText(opt.value)">{{ opt.label }}</text>
+            <AppIcon v-if="statusPickerCurrent === opt.value" name="check" :size="28" :active="true" />
+          </view>
+        </AppDialog>
       </view>
     </template>
   </MainLayout>
@@ -81,8 +104,11 @@
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { showFeedback } from '@/utils/feedback'
 import { FeedItem } from '@/domain/content/feed-item'
+import { ReleaseEvent } from '@/domain/content/release-event'
 import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
-import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useContentLibraryStore, FAVORITE_STATUS_LABELS } from '@/stores/content-library-store'
+import { useReminderStore } from '@/stores/reminder-store'
+import { deriveReleaseStatusText } from '@/presentation/content/feed-presenter'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -95,6 +121,7 @@ import BackToTop from '@/components/base/BackToTop.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import FilterChips from '@/components/v3/FilterChips.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
@@ -102,6 +129,7 @@ import PageState from '@/components/v3/PageState.uvue'
 const activeTab = ref('商品')
 const tabs = ['商品', '穿搭', '品牌', '合集']
 const library = useContentLibraryStore()
+const reminderStore = useReminderStore()
 const blacklist = useBlacklistStore()
 
 // 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
@@ -137,6 +165,105 @@ function productDeadlineText(iso: string): string { return formatDeadline(iso) }
 function goDiscover() { openPrimaryTab('/pages/discover/index') }
 function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
 function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
+
+// ====== Phase 1.1-C：发售状态 + 一键提醒（Favorite → Release → Reminder）======
+
+function dateOnly(value: string): string {
+  if (value === '') return ''
+  return value.length >= 10 ? value.substring(0, 10) : value
+}
+
+/** 提醒时间规则（用户明确关注的批次字段）：等待尾款→尾款截止；首发/再贩/现货→开售；
+ * 定金/抽选→截止；无对应时间不伪造（返回空串）。 */
+function reminderDateFor(release: ReleaseEvent, status: string): string {
+  if (status === 'WAIT_PRICE' && release.balanceDueAt !== '') return dateOnly(release.balanceDueAt)
+  if (release.releaseType === 'first_release' || release.releaseType === 'rerelease' || release.releaseType === 'spot') {
+    if (release.startAt !== '') return dateOnly(release.startAt)
+  }
+  if (release.releaseType === 'reservation' || release.releaseType === 'lottery') {
+    if (release.endAt !== '') return dateOnly(release.endAt)
+  }
+  if (release.balanceDueAt !== '') return dateOnly(release.balanceDueAt)
+  if (release.endAt !== '') return dateOnly(release.endAt)
+  if (release.startAt !== '') return dateOnly(release.startAt)
+  return ''
+}
+
+/** 收藏卡发售状态行：状态文案（尾款/再贩/抽选/现货/定金/预约…）+ 提醒日期 */
+function favoriteReleaseText(item: FeedItem): string {
+  const release = library.favoriteReleaseOf(item.entityId)
+  if (release == null) return '暂无发售信息'
+  const statusText = deriveReleaseStatusText(release)
+  const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
+  const statusPart = statusText !== '' ? statusText : '发售'
+  return date !== '' ? `${statusPart} ${date}` : statusPart
+}
+
+/** 提醒按钮文案：已提醒 / 可开启 / 无有效提醒时间 */
+function reminderActionText(item: FeedItem): string {
+  const reminders = reminderStore.remindersForProduct(item.entityId)
+  if (reminders.length > 0) return '🔔 已提醒'
+  const release = library.favoriteReleaseOf(item.entityId)
+  if (release == null) return '开启提醒'
+  const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
+  return date !== '' ? '🔔 开启提醒' : '开启提醒'
+}
+
+/** 一键开启提醒：无有效 Release 或无有效提醒时间不创建；重复（同 productId+releaseId+type）不创建 */
+function onEnableReminder(item: FeedItem) {
+  const release = library.favoriteReleaseOf(item.entityId)
+  if (release == null) { showFeedback('该商品暂无发售信息'); return }
+  const status = library.favoriteStatusOf(item.entityId)
+  const date = reminderDateFor(release, status)
+  if (date === '') { showFeedback('该发售暂无提醒时间，暂不能设置'); return }
+  const type = status === 'WAIT_PRICE' ? 'BALANCE' : 'RELEASE'
+  const statusText = deriveReleaseStatusText(release)
+  const title = `${item.title} ${statusText !== '' ? statusText : '发售'}`
+  const note = `${item.brandName} · 来自收藏`
+  const created = reminderStore.createProductReminder(item.entityId, release.id, type, title, date, note)
+  showFeedback(created != null ? '已开启提醒' : '该提醒已设置过')
+}
+
+// 待购状态机（Favorite = 待购决策池）：收藏→想买→等待开售→等待尾款→已购买
+class StatusOption {
+  value: string = ''
+  label: string = ''
+}
+function createStatusOption(value: string, label: string): StatusOption {
+  const o = new StatusOption()
+  o.value = value
+  o.label = label
+  return o
+}
+const statusOptions: StatusOption[] = [
+  createStatusOption('WISH', '收藏'),
+  createStatusOption('WANT', '想买'),
+  createStatusOption('WAIT_RELEASE', '等待开售'),
+  createStatusOption('WAIT_PRICE', '等待尾款'),
+  createStatusOption('PURCHASED', '已购买'),
+]
+const showStatusPicker = ref(false)
+const statusPickerCurrent = ref('')
+let statusPickerEntityId = ''
+function openStatusPicker(item: FeedItem) {
+  statusPickerEntityId = item.entityId
+  statusPickerCurrent.value = library.favoriteStatusOf(item.entityId)
+  showStatusPicker.value = true
+}
+function onSelectStatus(status: string) {
+  if (statusPickerEntityId === '') return
+  library.updateFavoriteStatus(statusPickerEntityId, status)
+  showStatusPicker.value = false
+}
+function favoriteStatusLabel(item: FeedItem): string {
+  const status = library.favoriteStatusOf(item.entityId)
+  const label = FAVORITE_STATUS_LABELS[status]
+  return label != null ? label as string : '收藏'
+}
+function statusOptionText(value: string): any {
+  const active = statusPickerCurrent.value == value
+  return { fontSize: fontSize.base, color: active ? brand[500] : n.value.text, fontWeight: active ? fontWeight.semibold : fontWeight.regular }
+}
 const visibleFavoriteProducts = computed((): FeedItem[] => {
   return library.favoriteProducts.filter((item) => !blacklist.isBlacklisted(item.brandName))
 })
@@ -185,6 +312,15 @@ const emptyIcon = computed((): string => {
 const productColumns = { ...flexRow, alignItems: 'flex-start' as string, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
 const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
+// 待购状态行（收藏决策池）
+const statusRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'center', marginTop: '8rpx', marginBottom: '20rpx', paddingTop: '10rpx', paddingBottom: '10rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
+const statusLabelText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500], marginRight: '8rpx' }))
+const statusHintText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+// 发售状态 + 提醒入口行（Phase 1.1-C）
+const releaseRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx', marginBottom: '20rpx', paddingTop: '10rpx', paddingBottom: '10rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
+const releaseStatusTextStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '8rpx' }))
+const reminderActionStyle = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }))
+const statusOptionRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', minHeight: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }))
 // 品牌：紧凑列表（V3 §6.3 品牌用紧凑列表）
 function brandRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderBottomWidth: idx < library.followedBrands.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border } }
 const brandAvatar = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))

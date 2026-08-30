@@ -3,8 +3,9 @@ import { enqueueLocalOperation, getCurrentSyncUserId, readPendingOperations } fr
 import { SyncOperation } from '@/domain/sync/sync-operation'
 import { getCachedAccessToken } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
+import { ReleaseEvent } from '@/domain/content/release-event'
 import { fetchProductDetail } from '@/services/content/product-service'
-import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
+import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, updateWishlistStatusRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
 
 /**
  * ContentLibraryStore — V2.6 用户内容资产 + 圈子穿搭灵感 Gallery
@@ -23,6 +24,8 @@ export class PublicLookPost {
   authorNickname: string = ''
   likeCount: number = 0
   liked: boolean = false
+  /** Phase 2.3-A：关联商品 id（空 = 普通内容，卡片不显示商品入口） */
+  productId: string = ''
   createdAt: string = ''
   initial: string = ''
 }
@@ -39,11 +42,25 @@ const MAX_LOCAL_OUTFITS = 30
 /**
  * 收藏条目：商品/实体 ID（详情页 entityId）↔ 后端 wishlist_items.id 映射。
  * itemId 为空表示尚未同步到服务端（离线/未登录收藏），登录或网络恢复后回填。
+ * status 为待购决策状态：WISH(收藏)/WANT(想买)/WAIT_RELEASE(等待开售)/WAIT_PRICE(等待尾款)/PURCHASED(已购买)
  */
 export class FavoriteEntry {
   productId: string = ''
   itemId: string = ''
   title: string = ''
+  status: string = 'WISH'
+  /** 用户关注的发售批次（wishlist_items.release_id；历史数据为空时收藏页 fallback product.currentRelease） */
+  releaseId: string = ''
+}
+
+/** 收藏决策状态机（与后端 WishlistStatus 一致；展示标签） */
+export const FAVORITE_STATUS_LABELS = {
+  WISH: '收藏',
+  WANT: '想买',
+  WATCHING: '观望',
+  WAIT_RELEASE: '等待开售',
+  WAIT_PRICE: '等待尾款',
+  PURCHASED: '已购买',
 }
 
 export class SavedOutfitPost {
@@ -100,6 +117,8 @@ function readEntries(): FavoriteEntry[] {
       entry.productId = item['productId'] != null ? item['productId'] as string : ''
       entry.itemId = item['itemId'] != null ? item['itemId'] as string : ''
       entry.title = item['title'] != null ? item['title'] as string : ''
+      entry.status = item['status'] != null ? item['status'] as string : 'WISH'
+      entry.releaseId = item['releaseId'] != null ? item['releaseId'] as string : ''
       if (entry.productId != '') entries.push(entry)
     }
     return entries
@@ -116,6 +135,8 @@ function writeEntries(entries: FavoriteEntry[]) {
         productId: entries[i].productId,
         itemId: entries[i].itemId,
         title: entries[i].title,
+        status: entries[i].status,
+        releaseId: entries[i].releaseId,
       } as UTSJSONObject)
     }
     uni.setStorageSync(FAVORITE_ENTRIES_KEY, JSON.stringify(serializable))
@@ -159,6 +180,8 @@ type ContentLibraryState = {
   favoriteEntries: FavoriteEntry[]
   favoriteIds: string[]
   favoriteProducts: FeedItem[]
+  /** 收藏商品的当前关注 Release（fetchProductDetail 按条目 releaseId 定位，无则 fallback 最新批次） */
+  favoriteReleases: ReleaseEvent[]
   favoritesLoading: boolean
   favoritesError: string
   favoritesLoadedOnce: boolean
@@ -177,6 +200,7 @@ const _state = reactive<ContentLibraryState>({
   favoriteEntries: [] as FavoriteEntry[],
   favoriteIds: [] as string[],
   favoriteProducts: [] as FeedItem[],
+  favoriteReleases: [] as ReleaseEvent[],
   favoritesLoading: false,
   favoritesError: '',
   favoritesLoadedOnce: false,
@@ -256,6 +280,7 @@ async function refreshPublicPosts(): Promise<void> {
       post.authorNickname = item.authorNickname !== '' ? item.authorNickname : '同好'
       post.likeCount = item.likeCount
       post.liked = item.liked
+      post.productId = item.productId
       post.createdAt = item.createdAt
       const nick = post.authorNickname
       post.initial = nick.length > 0 ? nick.substring(0, 1) : '同'
@@ -318,7 +343,7 @@ function isFavorite(entityId: string): boolean {
  */
 // 收藏操作序号：取消→重收时丢弃旧回调，防止 itemId 回填到已移除的旧条目
 let _favoriteOpSeq = 0
-function toggleFavorite(entityId: string, title: string = ''): boolean {
+function toggleFavorite(entityId: string, title: string = '', releaseId: string = ''): boolean {
   if (entityId === '') return false
   const entries = [..._state.favoriteEntries]
   let found = -1
@@ -356,12 +381,13 @@ function toggleFavorite(entityId: string, title: string = ''): boolean {
   entry.productId = entityId
   entry.title = title
   entry.itemId = ''
+  entry.releaseId = releaseId
   entries.unshift(entry)
   _state.favoriteEntries = entries
   writeEntries(entries)
   syncFavoriteIds()
   if (getCachedAccessToken() != '') {
-    addWishlistRemote(entityId, title).then((itemId: string) => {
+    addWishlistRemote(entityId, title, 'WISH', releaseId).then((itemId: string) => {
       if (itemId == '') return
       // 序号失效（期间已取消/重新收藏）或条目已同步，跳过回填
       if (opSeq !== _favoriteOpSeq) return
@@ -378,13 +404,50 @@ function toggleFavorite(entityId: string, title: string = ''): boolean {
       notifyChanged()
     }).catch(() => {
       if (opSeq !== _favoriteOpSeq) return
-      enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'upsert', JSON.stringify({ productId: entityId, title }))
+      enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'upsert', JSON.stringify({ productId: entityId, title, releaseId }))
     })
   } else {
-    enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'upsert', JSON.stringify({ productId: entityId, title }))
+    enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'upsert', JSON.stringify({ productId: entityId, title, releaseId }))
   }
   notifyChanged()
   return true
+}
+
+/**
+ * 更新收藏决策状态（收藏→想买→等待开售→已购买）。
+ * 本地立即生效；已登录走 PATCH /api/v1/wishlist/:id，失败入队重放；未登录直接入队。
+ */
+function updateFavoriteStatus(entityId: string, status: string): boolean {
+  if (entityId === '') return false
+  const entries = [..._state.favoriteEntries]
+  let found = -1
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].productId == entityId) { found = i; break }
+  }
+  if (found < 0) return false
+  const entry = entries[found]
+  if (entry.status == status) return true
+  entry.status = status
+  _state.favoriteEntries = entries
+  writeEntries(entries)
+  if (getCachedAccessToken() != '' && entry.itemId != '') {
+    updateWishlistStatusRemote(entry.itemId, status).catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entry.itemId, 'update', JSON.stringify({ productId: entityId, status }))
+    })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, 'update', JSON.stringify({ productId: entityId, status }))
+  }
+  notifyChanged()
+  return true
+}
+
+/** 读取某商品收藏条目的当前决策状态（未收藏返回空串） */
+function favoriteStatusOf(entityId: string): string {
+  const entries = _state.favoriteEntries
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].productId == entityId) return entries[i].status
+  }
+  return ''
 }
 
 /** 登录态拉取服务端收藏：服务端快照 ∪ 本地未同步条目合并（多端冲突保护），未登录保留本地缓存 */
@@ -401,6 +464,8 @@ async function refreshRemoteFavorites(): Promise<void> {
       entry.productId = productId
       entry.itemId = raw['id'] != null ? raw['id'] as string : ''
       entry.title = raw['title'] != null ? raw['title'] as string : ''
+      entry.status = raw['status'] != null ? raw['status'] as string : 'WISH'
+      entry.releaseId = raw['releaseId'] != null ? raw['releaseId'] as string : ''
       serverByProduct.set(productId, entry)
     }
     // 本地尚未同步（itemId 为空）或本地队列仍有 pending favorite 的条目：本地优先保留
@@ -429,6 +494,8 @@ async function refreshRemoteFavorites(): Promise<void> {
       entry.productId = productId
       entry.itemId = raw['id'] != null ? raw['id'] as string : ''
       entry.title = raw['title'] != null ? raw['title'] as string : ''
+      entry.status = raw['status'] != null ? raw['status'] as string : 'WISH'
+      entry.releaseId = raw['releaseId'] != null ? raw['releaseId'] as string : ''
       localMerged.push(entry)
     }
     _state.favoriteEntries = localMerged
@@ -454,26 +521,33 @@ function hasPendingFavorite(ops: SyncOperation[], productId: string): boolean {
 }
 
 /** 收藏页：刷新收藏列表并拉取商品详情（公开 /api/v1/products/:id，未登录也可展示本地收藏）
- * 详情加载失败只影响单条：本地收藏条目始终保留，已加载商品继续展示，失败条数转为可恢复错误提示。 */
+ * 详情加载失败只影响单条：本地收藏条目始终保留，已加载商品继续展示，失败条数转为可恢复错误提示。
+ * Release 定位规则：条目 releaseId 非空 → fetchProductDetail 按该批次定位 currentRelease（后端优先匹配，
+ * 批次不存在则回退最新一条）；releaseId 为空（历史数据）→ 后端直接返回最新 currentRelease。
+ * 回退不写回本地 releaseId（不覆盖用户原始批次锚）。 */
 async function refreshFavorites(): Promise<void> {
   await refreshRemoteFavorites()
   // 首次加载才显示骨架屏；之后进入静默刷新。
   if (!_state.favoritesLoadedOnce) _state.favoritesLoading = true
   _state.favoritesError = ''
   const products: FeedItem[] = []
+  const releases: ReleaseEvent[] = []
   const entries = _state.favoriteEntries
   const invalid: string[] = []
   for (let i = 0; i < entries.length; i++) {
     try {
-      const detail = await fetchProductDetail(entries[i].productId)
-      if (detail != null) products.push(detail.item)
-      else invalid.push(entries[i].productId)
+      const detail = await fetchProductDetail(entries[i].productId, entries[i].releaseId)
+      if (detail != null) {
+        products.push(detail.item)
+        if (detail.currentRelease != null) releases.push(detail.currentRelease)
+      } else invalid.push(entries[i].productId)
     } catch (e) {
       // 单条失败不中断整列表：保留本地收藏条目，稍后可整体重试
       invalid.push(entries[i].productId)
     }
   }
   _state.favoriteProducts = products
+  _state.favoriteReleases = releases
   _state.invalidFavoriteIds = invalid
   if (invalid.length > 0) {
     _state.favoritesError = `有 ${invalid.length} 个收藏的商品详情加载失败，可清除失效收藏`
@@ -499,6 +573,15 @@ function removeInvalidFavorites(): void {
   _state.invalidFavoriteIds = []
   _state.favoritesError = ''
   notifyChanged()
+}
+
+/** 收藏商品当前关注 Release（fetchProductDetail 已按条目 releaseId 定位，无则 fallback 最新批次） */
+function favoriteReleaseOf(entityId: string): ReleaseEvent | null {
+  if (entityId === '') return null
+  for (let i = 0; i < _state.favoriteReleases.length; i++) {
+    if (_state.favoriteReleases[i].productId == entityId) return _state.favoriteReleases[i]
+  }
+  return null
 }
 
 function isWished(entityId: string): boolean {
@@ -580,7 +663,7 @@ function hasPendingBrandFollow(ops: SyncOperation[], brandName: string): boolean
  * 未登录时返回 false（由调用方回退本地草稿 saveOutfit）。
  * 注：reload() 仅重读本地存储；远程新帖由社区页 onShow → refreshMyPosts 拉取。
  */
-export async function publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): Promise<boolean> {
+export async function publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): Promise<boolean> {
   if (getCachedAccessToken() == '') return false
   const mediaId = await uploadOutfitImageRemote(imagePath)
   const backendCategory = category === '混搭' ? 'MIXED' : (category === 'Lolita' ? 'LOLITA' : (category === '汉服' ? 'HANFU' : 'JK'))
@@ -590,19 +673,22 @@ export async function publishOutfitRemote(imagePath: string, caption: string, ca
     category: backendCategory,
     topic,
     wardrobeIds,
+    // Phase 2.3-A：可选商品关联（空串不传 → 后端 productId=null 普通内容）
+    ...(productId !== '' ? { productId } : {}),
   } as UTSJSONObject
   await createCommunityPostRemote(payload)
   reload()
   return true
 }
 
-function saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): string {
+function saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): string {
   const id = `outfit_${Date.now()}`
   uni.setStorageSync(outfitKey(id, 'image'), image)
   uni.setStorageSync(outfitKey(id, 'caption'), caption)
   uni.setStorageSync(outfitKey(id, 'category'), category)
   uni.setStorageSync(outfitKey(id, 'topic'), topic)
   if (wardrobeIds.length > 0) uni.setStorageSync(outfitKey(id, 'wardrobe_ids'), JSON.stringify(wardrobeIds))
+  if (productId !== '') uni.setStorageSync(outfitKey(id, 'product_id'), productId)
   uni.setStorageSync(outfitKey(id, 'created_at'), Date.now().toString())
 
   const ids = readList(OUTFIT_IDS_KEY)
@@ -678,6 +764,7 @@ reload()
 class ContentLibraryStoreHandle {
   get favoriteIds(): string[] { return _state.favoriteIds }
   get favoriteProducts(): FeedItem[] { return _state.favoriteProducts }
+  get favoriteReleases(): ReleaseEvent[] { return _state.favoriteReleases }
   get favoritesLoading(): boolean { return _state.favoritesLoading }
   get favoritesError(): string { return _state.favoritesError }
   get favoritesLoadedOnce(): boolean { return _state.favoritesLoadedOnce }
@@ -702,13 +789,16 @@ class ContentLibraryStoreHandle {
   refreshFavorites(): Promise<void> { return refreshFavorites() }
   removeInvalidFavorites(): void { removeInvalidFavorites() }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
-  toggleFavorite(entityId: string, title: string = ''): boolean { return toggleFavorite(entityId, title) }
+  toggleFavorite(entityId: string, title: string = '', releaseId: string = ''): boolean { return toggleFavorite(entityId, title, releaseId) }
+  favoriteReleaseOf(entityId: string): ReleaseEvent | null { return favoriteReleaseOf(entityId) }
+  favoriteStatusOf(entityId: string): string { return favoriteStatusOf(entityId) }
+  updateFavoriteStatus(entityId: string, status: string): boolean { return updateFavoriteStatus(entityId, status) }
   isWished(entityId: string): boolean { return isWished(entityId) }
   toggleWish(entityId: string): boolean { return toggleWish(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
   toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
-  saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): string { return saveOutfit(image, caption, category, topic, wardrobeIds) }
-  publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = []): Promise<boolean> { return publishOutfitRemote(imagePath, caption, category, topic, wardrobeIds) }
+  saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): string { return saveOutfit(image, caption, category, topic, wardrobeIds, productId) }
+  publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): Promise<boolean> { return publishOutfitRemote(imagePath, caption, category, topic, wardrobeIds, productId) }
   removeOutfit(id: string): void { removeOutfit(id) }
   isPostLiked(postId: string): boolean { return isPostLiked(postId) }
   togglePostLike(postId: string): boolean { return togglePostLike(postId) }

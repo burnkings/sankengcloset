@@ -44,7 +44,6 @@ const pages = [
   'pages/preferences/notification',
   'pages/about/index',
   'pages/about/legal',
-  'pages/dev/design-system-v3',
 ]
 
 // V3 核心组件（当前被页面引用；components/v2 已删除，不再检查）
@@ -64,13 +63,11 @@ const components = [
   'components/v3/FilterChips',
   'components/v3/ListGroup',
   'components/v3/ListRow',
-  'components/v3/ManagementRow',
   'components/v3/PageHeader',
   'components/v3/PageState',
   'components/v3/SectionHeader',
   'components/v3/StatusChip',
   'components/v3/SummaryStrip',
-  'components/v3/BottomSheet',
   'components/v3/AppSwitch',
   'components/v3/FeedSkeleton',
 ]

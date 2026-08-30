@@ -1,0 +1,51 @@
+/**
+ * StyleService — 款式查询（Phase 2.1 Style Entity MVP）
+ * GET /api/v1/styles/:id → 款式基础信息 + 关联商品
+ */
+import { StyleInfo, StyleItem } from '@/domain/content/style'
+import { apiGet, encodeQuery } from '@/services/platform/api-client'
+
+function mapStyleItem(raw: UTSJSONObject): StyleItem {
+  const item = new StyleItem()
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.title = raw['title'] != null ? raw['title'] as string : ''
+  item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
+  item.price = raw['priceCents'] != null ? raw['priceCents'] as number : 0
+  item.saleStatus = raw['status'] != null ? raw['status'] as string : ''
+  item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
+  return item
+}
+
+/** 款式详情（含同款商品列表）；不存在返回 null */
+export async function fetchStyle(styleId: string): Promise<StyleInfo | null> {
+  if (styleId === '') return null
+  const response = await apiGet(`/api/v1/styles/${encodeQuery(styleId)}`)
+  const raw = response.data
+  if (raw == null) return null
+  const obj = raw as UTSJSONObject
+  const style = new StyleInfo()
+  style.id = obj['id'] != null ? obj['id'] as string : ''
+  style.brandId = obj['brandId'] != null ? obj['brandId'] as string : ''
+  style.brandName = obj['brandName'] != null ? obj['brandName'] as string : ''
+  style.canonicalName = obj['canonicalName'] != null ? obj['canonicalName'] as string : ''
+  style.category = obj['category'] != null ? obj['category'] as string : ''
+  style.subCategory = obj['subCategory'] != null ? obj['subCategory'] as string : ''
+  style.description = obj['description'] != null ? obj['description'] as string : ''
+  style.productCount = obj['productCount'] != null ? obj['productCount'] as number : 0
+  const rawProducts = obj['products'] as any[] | null
+  if (rawProducts != null) {
+    const items: StyleItem[] = []
+    for (let i = 0; i < rawProducts.length; i++) {
+      const item = mapStyleItem(rawProducts[i] as UTSJSONObject)
+      if (item.id !== '') items.push(item)
+    }
+    style.products = items
+  }
+  const rawTags = obj['styleTags'] as any[] | null
+  if (rawTags != null) {
+    const tags: string[] = []
+    for (let i = 0; i < rawTags.length; i++) tags.push(rawTags[i] as string)
+    style.styleTags = tags
+  }
+  return style
+}

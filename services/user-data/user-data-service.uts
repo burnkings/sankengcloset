@@ -19,6 +19,8 @@ export class CommunityPostRemote {
   topic: string = ''
   likeCount: number = 0
   liked: boolean = false
+  /** Phase 2.3-A：关联商品 id（空 = 普通内容） */
+  productId: string = ''
   createdAt: string = ''
   updatedAt: string = ''
 }
@@ -35,6 +37,7 @@ export function mapCommunityPost(raw: UTSJSONObject): CommunityPostRemote {
   post.topic = asString(raw['topic'])
   post.likeCount = asNumber(raw['likeCount'])
   post.liked = asBoolean(raw['liked'])
+  post.productId = asString(raw['productId'])
   post.createdAt = asString(raw['createdAt'])
   post.updatedAt = asString(raw['updatedAt'])
   return post
@@ -140,11 +143,22 @@ export async function listWishlistRemote(): Promise<UTSJSONObject[]> {
   return result
 }
 
-/** 添加收藏（POST /api/v1/wishlist，status 必填）。返回新条目 id；失败抛错由调用方入队兜底。 */
-export async function addWishlistRemote(productId: string, title: string): Promise<string> {
-  const response = await apiPostAuthorized('/api/v1/wishlist', { title, status: 'WISH', productId } as UTSJSONObject)
+/**
+ * 添加收藏（POST /api/v1/wishlist，status 必填）。返回新条目 id；失败抛错由调用方入队兜底。
+ * status: WISH(收藏) / WANT(想买) / WATCHING / WAIT_RELEASE(等待开售) / WAIT_PRICE / PURCHASED
+ * releaseId: 用户当前关注的发售批次（wishlist_items.release_id，后端已支持；空串不传）
+ */
+export async function addWishlistRemote(productId: string, title: string, status: string = 'WISH', releaseId: string = ''): Promise<string> {
+  const payload = { title, status, productId } as UTSJSONObject
+  if (releaseId !== '') payload['releaseId'] = releaseId
+  const response = await apiPostAuthorized('/api/v1/wishlist', payload)
   const data = asObject(response.data)
   return data != null && data['id'] != null ? data['id'] as string : ''
+}
+
+/** 更新收藏状态（PATCH /api/v1/wishlist/:id，后端校验 WishlistStatus 枚举） */
+export function updateWishlistStatusRemote(itemId: string, status: string) {
+  return apiPatchAuthorized('/api/v1/wishlist/' + encodeQuery(itemId), { status } as UTSJSONObject)
 }
 
 /** 取消收藏（DELETE /api/v1/wishlist/:id） */

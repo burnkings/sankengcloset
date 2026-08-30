@@ -29,14 +29,28 @@ export class FeedItem {
   brandName: string = ''
   price: number = 0             // 分
   originalPrice: number = 0     // 分 (用于显示划线价)
-  badgeText: string = ''        // 角标文字 ("预售" / "降价" / "新品")
+  badgeText: string = ''        // 角标文字 ("预售" / "降价" / "新品")（后端业务字段生成，非前端猜测）
   eventStartAt: string = ''     // 发售事件开始时间
   eventEndAt: string = ''       // 发售事件结束时间
   liked: boolean = false
-  saved: boolean = false
+  saved: boolean = false        // 服务端真实收藏态（GET /api/v1/feed 按 userId 实时查询）
   wished: boolean = false
   sourceLabel: string = ''      // 来源标签 ("淘宝" / "官方" / "用户投稿")
   rankingScore: number = 0      // 排序分数
   category: string = ''         // JK / LOLITA / HANFU (用于频道筛选)
+
+  // ====== 业务字段（Phase 1.1-B：后端 ContentFeedItem 完整透传，UI 暂不强制展示） ======
+  pitType: string = ''          // 主要品类标签（与 category 同值，保留后端语义）
+  priceSummary: string = ''     // 价格摘要 e.g. "¥368.00"
+  saleStatus: string = ''       // UPCOMING / ON_SALE / PRE_ORDER / SOLD_OUT / ENDED
+  releaseType: string = ''      // first_release / rerelease / reservation / spot / lottery / unknown
+  releaseTypeName: string = ''  // 首发 / 再贩 / 预约 / 现货 / 抽选 / 未知
+  tags: string[] = []           // season + scene + element + recommended（明确类型，禁止 JSON string cast）
+  feedReason: string = ''       // 推荐理由 e.g. "热门品牌新品"
+  personalScore: number = 0     // 个性化评分 0-100（feed 路由 enrich 追加）
+  matchReason: string = ''      // 个性化匹配原因（feed 路由 enrich 追加）
+  finalScore: number = 0        // 最终排序分（feed 路由 enrich 追加）
+  publishedAt: string = ''      // product created_at 或 release start_at
+
   createdAt: string = ''
 }

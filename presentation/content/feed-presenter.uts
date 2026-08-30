@@ -7,6 +7,7 @@
  */
 
 import { brand, accent, semantic, jkColors, lolitaColors, hanfuColors } from '@/theme/tokens/colors'
+import { ReleaseEvent } from '@/domain/content/release-event'
 
 // ====== FeedType 展示 ======
 
@@ -80,6 +81,34 @@ export const ProductStatusLabels: UTSJSONObject = {
   SOLD_OUT: '已售罄',
   ENDED: '已下架',
 } as UTSJSONObject
+
+/**
+ * 发售状态主标签（Phase 1.1-A）：基于真实 currentRelease 推导，禁止 badgeText 猜测。
+ * 优先级：尾款期 > 再贩 > 抽选 > 现货 > 新品(首发) > 定金 > 预约 > saleStatus 兜底。
+ * 无 Release 或无法判断返回空串（UI 不伪造状态）。
+ */
+export function deriveReleaseStatusText(release: ReleaseEvent | null): string {
+  if (release == null) return ''
+  const t = release.releaseType
+  const sale = release.saleStatus
+  // 尾款期：有尾款金额且尾款截止时间在未来
+  if (release.finalPaymentAmount > 0 && release.balanceDueAt !== '') {
+    const due = new Date(release.balanceDueAt).getTime()
+    if (!isNaN(due) && due > Date.now()) return '尾款'
+  }
+  if (release.isRerelease || t === 'rerelease') return '再贩'
+  if (t === 'lottery') return '抽选'
+  if (t === 'spot') return '现货'
+  if (t === 'first_release') return '新品'
+  if (release.depositAmount > 0) return '定金'
+  if (t === 'reservation') return '预约'
+  if (sale === 'ON_SALE') return '开售'
+  if (sale === 'PRE_ORDER') return '预售'
+  if (sale === 'UPCOMING') return '预告'
+  if (sale === 'SOLD_OUT') return '售罄'
+  if (sale === 'ENDED') return '已结束'
+  return ''
+}
 
 export function getProductStatusColor(status: string): string {
   if (status === 'UPCOMING') return accent[500]

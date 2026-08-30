@@ -49,7 +49,7 @@
                 <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
               </view>
             </view>
-          <FeedBlock v-else :full="block.full" @tap="onTap" />
+          <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
         </view>
 
         <view v-if="showFeedFooter" :style="footerWrap">
@@ -74,7 +74,7 @@
               <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
             </view>
           </view>
-          <FeedBlock v-else :full="block.full" @tap="onTap" />
+          <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
         </list-item>
 
         <list-item v-if="showFeedFooter">
@@ -173,7 +173,19 @@ function onTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 function onToggleSave(item: FeedItem) {
+  // 同步翻转服务端 saved（乐观更新，刷新后以服务端权威值为准）
+  store.toggleSave(item.id)
   library.toggleFavorite(item.entityId, item.title)
+}
+// Feed 发售事件 → 设置提醒（Release → Reminder 链路；点卡片主体仍进商品详情）
+function onRemind(item: FeedItem) {
+  if (item.entityId == '') return
+  const type = 'RELEASE'
+  const title = item.title
+  const note = item.brandName !== '' ? `${item.brandName} · 来源于首页发售` : '来源于首页发售'
+  const date = item.eventStartAt != '' && item.eventStartAt.length >= 10 ? item.eventStartAt.substring(0, 10) : ''
+  const base = `/pages/reminder/edit?title=${encodeURIComponent(title)}&type=${type}&note=${encodeURIComponent(note)}`
+  uni.navigateTo({ url: date != '' ? `${base}&date=${date}` : base })
 }
 function onLoadMore() { store.loadMore() }
 function onRetry() { store.retry() }

@@ -64,7 +64,7 @@
                     :badge-text="item.badgeText"
                     :deadline-text="deadlineText(item.eventEndAt)"
                     :image-height="feedImageHeight(item)"
-                    :saved="library.isFavorite(item.entityId)"
+                    :saved="item.saved"
                     @tap="onResultTap(item)"
                     @toggle-save="onToggleSave(item)"
                   />
@@ -80,7 +80,7 @@
                     :badge-text="item.badgeText"
                     :deadline-text="deadlineText(item.eventEndAt)"
                     :image-height="feedImageHeight(item)"
-                    :saved="library.isFavorite(item.entityId)"
+                    :saved="item.saved"
                     @tap="onResultTap(item)"
                     @toggle-save="onToggleSave(item)"
                   />
@@ -295,6 +295,12 @@ function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 function onToggleSave(item: FeedItem) {
+  // 同步翻转服务端 saved（乐观更新，刷新后以服务端权威值为准）
+  const next = [...results.value]
+  for (let i = 0; i < next.length; i++) {
+    if (next[i].id == item.id) { next[i].saved = !next[i].saved; break }
+  }
+  results.value = next
   library.toggleFavorite(item.entityId, item.title)
 }
 const resultLeft = computed((): FeedItem[] => {
