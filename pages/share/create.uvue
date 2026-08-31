@@ -44,7 +44,7 @@
             <image v-if="selectedProductCover !== ''" :src="selectedProductCover" :style="productCardImg" mode="aspectFill" />
             <view v-else :style="productCardPlaceholder"><AppIcon name="shirt" :size="30" :active="true" /></view>
             <view :style="productCardInfo">
-              <text :style="productCardName" :lines="1">{{ selectedProductName }}</text>
+              <text :style="productCardName">{{ selectedProductName }}</text>
               <text :style="productCardBrand">{{ selectedProductBrand }}</text>
             </view>
             <view :style="productCardRemoveWrap" @tap.stop="removeProduct"><AppIcon name="close" :size="24" /></view>
@@ -67,7 +67,7 @@
         <AppInput v-model="productKeyword" placeholder="搜索商品名称 / 品牌" :clearable="true" @confirm="searchProductList" />
         <view :style="productSearchBtn" @tap="searchProductList"><AppIcon name="search" :size="26" :active="true" /></view>
       </view>
-      <scroll-view :style="productPickerScroll" scroll-y="true">
+      <scroll-view :style="productPickerScroll" direction="vertical">
         <view v-if="productSearchLoading" :style="productEmptyWrap"><text :style="productEmptyText">搜索中…</text></view>
         <view v-else-if="productResults.length === 0" :style="productEmptyWrap">
           <text :style="productEmptyText">{{ productKeyword !== '' ? '未找到相关商品' : '输入关键词搜索商品' }}</text>
@@ -77,7 +77,7 @@
             <image v-if="item.coverUrl !== ''" :src="item.coverUrl" :style="productResultImg" mode="aspectFill" />
             <view v-else :style="productResultImgPlaceholder"><AppIcon name="shirt" :size="26" :active="true" /></view>
             <view :style="productResultInfo">
-              <text :style="productResultTitle" :lines="1">{{ item.title }}</text>
+              <text :style="productResultTitle">{{ item.title }}</text>
               <text :style="productResultBrand">{{ item.brandName }}</text>
             </view>
             <view :style="productResultCheck" v-if="item.entityId === selectedProductId">
@@ -108,7 +108,7 @@ import FormSection from '@/components/v3/FormSection.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { useContentLibraryStore } from '@/stores/content-library-store'
-import { getCachedAccessToken } from '@/config/runtime'
+import { useSessionStore } from '@/stores/session-store'
 import { searchProducts } from '@/services/content/search-service'
 import { FeedItem } from '@/domain/content/feed-item'
 
@@ -119,6 +119,7 @@ const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服', '混搭']
 const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const library = useContentLibraryStore()
+const session = useSessionStore()
 const publishing = ref(false)
 // 发布后延迟跳转的定时器：页面卸载时清理，避免残留
 let backTimer: number | null = null
@@ -190,18 +191,19 @@ function publishLook() {
     showFeedback('先选一张想分享的美照')
     return
   }
-  publishing.value = true
-  const completePublish = (imagePath: string) => {
-    // 未登录：保存为本地草稿（outfit_ 前缀，登录后由同步队列重放）
-    library.saveOutfit(imagePath, caption.value, category.value, topic.value, [], selectedProductId.value)
-    publishing.value = false
-    showFeedback('已保存为本地草稿')
-    backTimer = setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
+  if (!session.isLoggedIn) {
+    showFeedback('请先登录后再发布')
+    return
   }
+  publishing.value = true
   const publishRemote = async () => {
     try {
       const ok = await library.publishOutfitRemote(selectedImage.value, caption.value, category.value, topic.value, [], selectedProductId.value)
-      if (!ok) { completePublish(selectedImage.value); return }
+      if (!ok) {
+        publishing.value = false
+        showFeedback('发布失败，请重试')
+        return
+      }
       publishing.value = false
       showFeedback('已发布到圈子')
       backTimer = setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
@@ -210,19 +212,15 @@ function publishLook() {
       showFeedback(e instanceof Error ? e.message : '发布失败，请重试')
     }
   }
-  if (getCachedAccessToken() != '') {
-    publishRemote()
-  } else {
-    completePublish(selectedImage.value)
-  }
+  publishRemote()
 }
 
-// 隐私提示随登录态变化：登录后走远程上传，未登录仅存本机草稿
+// 隐私提示随登录态变化：模拟登录/正式登录均可发布，未登录不产生任何内容
 // 圈子 Gallery 为内测功能：商品/系列/衣橱关联、举报与审核尚未上线，不做公开社区承诺
 const privacyNoteText = computed((): string => {
-  return getCachedAccessToken() != ''
+  return session.isLoggedIn
     ? '圈子 Gallery 内测中：发布后将展示在穿搭灵感流，供同好浏览与点赞。'
-    : '当前未登录：内容仅保存在本机作为草稿，登录后可同步到圈子。'
+    : '当前未登录：无法发布，请先登录后再分享穿搭。'
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}

@@ -7,7 +7,7 @@
         <text :style="authorStyle">{{ author }}</text>
         <text :style="timeStyle">{{ timeText }}</text>
       </view>
-      <view :style="moreWrap" @tap="emit('more')"><AppIcon name="more" :size="36" /></view>
+      <view :style="moreWrap" @tap.stop="emit('more')"><AppIcon name="more" :size="36" /></view>
     </view>
 
     <!-- 正文 -->
@@ -19,13 +19,13 @@
     </view>
 
     <!-- 商品关联标签 -->
-    <view v-if="productId !== ''" :style="productTag" @tap="emit('product')">
+    <view v-if="productId !== ''" :style="productTag" @tap.stop="emit('product')">
       <AppIcon name="shirt" :size="20" :active="true" /><text :style="productTagText">查看商品</text>
     </view>
 
     <!-- 底部：点赞 -->
     <view :style="footerRow">
-      <view :style="likeWrap" @tap="emit('toggleLike')">
+      <view :style="likeWrap" @tap.stop="emit('toggleLike')">
         <AppIcon :name="liked ? 'heart' : 'heart'" :size="34" :active="liked" />
         <text :style="likeCountStyle">{{ likeCount }}</text>
       </view>

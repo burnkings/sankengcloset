@@ -12,17 +12,14 @@
       <!-- 服务条款 -->
       <text :style="groupTitle">服务条款</text>
       <ListGroup>
-        <view :style="shell(0, 4)" @tap="openLegal('agreement')">
+        <view :style="shell(0, 3)" @tap="openLegal('agreement')">
           <ListRow title="用户协议" />
         </view>
-        <view :style="shell(1, 4)" @tap="openLegal('privacy')">
+        <view :style="shell(1, 3)" @tap="openLegal('privacy')">
           <ListRow title="隐私政策" />
         </view>
-        <view :style="shell(2, 4)" @tap="openFeedback">
-          <ListRow title="意见反馈" icon="help-circle" />
-        </view>
-        <view :style="shell(3, 4)" @tap="onCheckUpdateTap">
-          <ListRow title="检查更新" :value="APP_VERSION" icon="sync" />
+        <view :style="shell(2, 3)" @tap="onCheckUpdateTap">
+          <ListRow title="检查更新" :value="APP_VERSION" />
         </view>
       </ListGroup>
 
@@ -63,10 +60,6 @@ function shell(idx: number, total: number) {
 
 function openLegal(type: string) {
   uni.navigateTo({ url: `/pages/about/legal?type=${type}` })
-}
-
-function openFeedback() {
-  uni.navigateTo({ url: '/pages/feedback/index' })
 }
 
 async function onCheckUpdateTap() {

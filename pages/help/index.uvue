@@ -12,7 +12,7 @@
       <text :style="groupTitle">联系我们</text>
       <ListGroup>
         <view :style="shell(0, 2)"><ListRow title="客服邮箱" value="建设中" :show-arrow="false" /></view>
-        <view :style="shell(1, 2)" @tap="onFeedbackTap"><ListRow title="意见反馈" icon="help-circle" /></view>
+        <view :style="shell(1, 2)" @tap="onFeedbackTap"><ListRow title="意见反馈" /></view>
       </ListGroup>
 
       <text :style="copyright">三坑绮橱 · 帮助与反馈</text>

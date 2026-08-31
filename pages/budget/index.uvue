@@ -1,106 +1,215 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="月度预算" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="消费日志" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <!-- V3 §6.14 主模块：预算使用进度（非多张统计卡） -->
-        <view :style="progressCard">
-          <view :style="progressHeader">
-            <text :style="progressMonth">{{ currentMonth }}</text>
-            <text :style="progressUsage">已使用 {{ usagePercent }}%</text>
-          </view>
-          <view :style="progressTrack"><view :style="progressFill" /></view>
-          <SummaryStrip :items="summaryItems" />
+        <!-- 月份切换器：可查看任意历史月份 -->
+        <view :style="monthBar">
+          <view :style="monthArrow" @tap="prevMonth"><text :style="monthArrowText">‹</text></view>
+          <text :style="monthTitle">{{ displayMonth }}</text>
+          <view :style="monthArrow" @tap="nextMonth"><text :style="monthArrowText">›</text></view>
         </view>
 
-        <text :style="fieldLabel">月预算上限</text>
-        <AppInput v-model="limitText" placeholder="例如：2000" type="digit" />
+        <!-- 月度汇总 -->
+        <view :style="summaryCard">
+          <SummaryStrip :items="summaryItems" :surface="true" />
+        </view>
 
-        <text :style="fieldLabel">提醒阈值</text>
-        <SegmentedControl :items="alertLabels" :active="activeAlert" @change="onAlert" />
-
-        <view :style="ruleCard">
-          <view :style="ruleIcon"><AppIcon name="info" :size="36" :active="true" /></view>
-          <view :style="ruleTextWrap">
-            <text :style="ruleText">已承诺 ¥{{ formatAmount(monthCommitted) }}，预算剩余 ¥{{ formatAmount(remaining) }}。</text>
-            <text :style="ruleText">其中含“决定买”的 ¥{{ formatAmount(decisionReserve) }} 预留；{{ alertText }}</text>
+        <!-- 分类小计 -->
+        <view v-if="categoryRows.length > 0" :style="categoryCard">
+          <text :style="categoryTitle">分类支出</text>
+          <view v-for="row in categoryRows" :key="row.label" :style="categoryRow">
+            <text :style="categoryLabel">{{ row.label }}</text>
+            <text :style="categoryValue">{{ row.value }}</text>
           </view>
         </view>
 
-        <view :style="saveButton" @tap="save"><text :style="saveText">保存预算</text></view>
+        <!-- 逐笔消费流水（按日期分组） -->
+        <view v-if="visibleGroups.length > 0" :style="feedWrap">
+          <view v-for="group in visibleGroups" :key="group.date" :style="groupBlock">
+            <view :style="groupHeader">
+              <text :style="groupHeaderDate">{{ formatDay(group.date) }}</text>
+              <text :style="groupHeaderTotal">支出 {{ group.totalText }}</text>
+            </view>
+            <ListGroup>
+              <view v-for="(item, idx) in group.items" :key="item.id" :style="itemRow(item, idx, group.items.length)" @tap="openDetail(item.id)">
+                <view :style="categoryDot(item)"><text :style="categoryDotText(item)">{{ categoryAbbr(item) }}</text></view>
+                <view :style="itemCopy">
+                  <text :style="itemName">{{ item.name }}</text>
+                  <text :style="itemMeta">{{ item.brand !== '' ? item.brand : '三坑好物' }} · {{ statusText(item) }}</text>
+                </view>
+                <view :style="itemAmountWrap">
+                  <text :style="itemAmount">{{ formatCentsYuan(item.paidAmount) }}</text>
+                  <text v-if="item.remainingAmount > 0" :style="itemRemain">待付 {{ formatCentsYuan(item.remainingAmount) }}</text>
+                </view>
+              </view>
+            </ListGroup>
+          </view>
+        </view>
+
+        <!-- 空态 -->
+        <view v-else :style="emptyWrap">
+          <PageState icon="order" title="该月暂无消费" message="切换月份查看历史记录" />
+        </view>
       </view>
     </template>
   </MainLayout>
 </template>
 
 <script setup lang="uts">
-import { useBudgetStore } from '@/stores/budget-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
-import { useWishListStore } from '@/stores/wishlist-store'
-import { brand, baseColors } from '@/theme/tokens/colors'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
+import { PurchaseRecord, PAYMENT_STATUS_LABELS } from '@/domain/purchase-record'
+import { formatCentsYuan } from '@/utils/format'
+import { fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
-import { n, isDark, initPageTheme } from '@/theme/use-theme'
-import { showFeedback } from '@/utils/feedback'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
-import AppInput from '@/components/base/AppInput.uvue'
-import AppIcon from '@/components/base/AppIcon.uvue'
 import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
-import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
+import ListGroup from '@/components/v3/ListGroup.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 
-const budget = useBudgetStore(); const purchases = usePurchaseStore(); const wishes = useWishListStore()
-// 保存后延迟返回的定时器：页面卸载时清理，避免残留
-let backTimer: number | null = null
-onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
-const limitText = ref(budget.monthlyLimit > 0 ? budget.monthlyLimit.toString() : '')
-const alertValue = ref(budget.alertPercent)
-const alertLabels = ['70%', '80%', '90%']
-const activeAlert = computed((): string => `${alertValue.value}%`)
-const now = new Date(); const monthNumber = now.getMonth() + 1; const currentMonth = `${now.getFullYear()}年${monthNumber}月`; const monthCode = `${now.getFullYear()}-${monthNumber < 10 ? '0' + monthNumber.toString() : monthNumber.toString()}`
-const decisionReserve = computed((): number => wishes.decisionReserveTotal)
-// 订单金额单位为分（PurchaseRecord）；预算上限为元，这里 ÷100 统一到元再参与预算计算
-const purchaseCommitted = computed((): number => purchases.monthlyCommitted(monthCode) / 100)
-const monthCommitted = computed((): number => purchaseCommitted.value + decisionReserve.value)
-const monthPaid = computed((): number => purchases.monthlyPaid(monthCode) / 100)
-const monthOutstanding = computed((): number => purchases.monthlyOutstanding(monthCode) / 100)
-const limitValue = computed((): number => { const value = limitText.value.trim() === '' ? 0 : parseFloat(limitText.value); return (isNaN(value) || !isFinite(value)) ? 0 : value })
-const remaining = computed((): number => Math.max(0, limitValue.value - monthCommitted.value))
-const usagePercent = computed((): number => limitValue.value <= 0 ? 0 : Math.round(monthCommitted.value / limitValue.value * 100))
-const alertText = computed((): string => usagePercent.value >= alertValue.value ? `已触及 ${alertValue.value}% 预警线` : `距 ${alertValue.value}% 预警线还有空间`)
-function onAlert(label: string) { alertValue.value = parseInt(label.replace('%', '')) }
-function formatAmount(value: number): string { return value === Math.floor(value) ? Math.floor(value).toString() : value.toFixed(2) }
-function save() { if (limitValue.value <= 0) { showFeedback('请填写大于 0 的月预算'); return }; budget.save(limitValue.value, alertValue.value); showFeedback('月预算已保存'); backTimer = setTimeout(() => { uni.navigateBack() }, 220) }
-const safeBottom = getSafeBottomInset()
-onMounted(() => {
-  purchases.fetchPurchases()
-  wishes.fetchItems()
-  budget.refreshRemoteBudget().then(() => {
-    if (limitText.value === '') limitText.value = budget.monthlyLimit > 0 ? budget.monthlyLimit.toString() : ''
-    alertValue.value = budget.alertPercent
-  })
+const purchases = usePurchaseStore()
+
+// ====== 月份切换 ======
+
+function padMonth(m: number): string { return m < 10 ? '0' + m.toString() : m.toString() }
+const now = new Date()
+const monthCursor = ref(`${now.getFullYear()}-${padMonth(now.getMonth() + 1)}`)
+const displayMonth = computed((): string => {
+  const parts = monthCursor.value.split('-')
+  return `${parts[0]}年${parseInt(parts[1])}月`
+})
+function shiftMonth(delta: number) {
+  const parts = monthCursor.value.split('-')
+  let year = parseInt(parts[0])
+  let month = parseInt(parts[1]) + delta
+  if (month < 1) { month = 12; year -= 1 }
+  if (month > 12) { month = 1; year += 1 }
+  monthCursor.value = `${year}-${padMonth(month)}`
+}
+function prevMonth() { shiftMonth(-1) }
+function nextMonth() { shiftMonth(1) }
+
+// ====== 月度数据（复用 purchase-store 既有能力）======
+
+const records = computed((): PurchaseRecord[] => purchases.recordsForMonth(monthCursor.value))
+
+const summaryItems = computed(() => [
+  { label: '本月已付', value: formatCentsYuan(purchases.monthlyPaid(monthCursor.value)) },
+  { label: '待付尾款', value: formatCentsYuan(purchases.monthlyOutstanding(monthCursor.value)), highlight: purchases.monthlyOutstanding(monthCursor.value) > 0 },
+  { label: '订单笔数', value: `${records.value.length} 笔` },
+])
+
+const categoryRows = computed((): Array<{ label: string; value: string }> => {
+  const codes = ['JK', 'LOLITA', 'HANFU', 'OTHER']
+  const names = ['JK', 'Lolita', '汉服', '其他']
+  const rows: Array<{ label: string; value: string }> = []
+  let total = 0
+  for (let i = 0; i < codes.length; i++) {
+    let sum = 0
+    for (let j = 0; j < records.value.length; j++) {
+      if (records.value[j].category == codes[i]) sum += records.value[j].paidAmount
+    }
+    if (sum > 0) {
+      rows.push({ label: names[i], value: formatCentsYuan(sum) })
+      total += sum
+    }
+  }
+  if (total > 0) rows.push({ label: '合计', value: formatCentsYuan(total) })
+  return rows
 })
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 60}px` , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
-const fieldLabel = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '40rpx', marginBottom: '14rpx' }))
-// V3 §6.14 预算使用进度卡
-const progressCard = computed((): any => ({ padding: '28rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginTop: '8rpx' }))
-const progressHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '16rpx' }
-const progressMonth = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
-const progressUsage = computed((): any => ({ fontSize: '24rpx', fontWeight: 600, color: usagePercent.value >= alertValue.value ? brand.strong : n.value.textSecondary }))
-const progressTrack = computed((): any => ({ height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.bgTertiary, overflow: 'hidden', marginBottom: '20rpx' }))
-const progressFill = computed((): any => ({ height: '12rpx', width: `${Math.min(100, usagePercent.value)}%`, borderRadius: '6rpx', backgroundColor: usagePercent.value >= alertValue.value ? brand.strong : brand.primary }))
-const summaryItems = computed(() => [
-  { label: '已支付', value: `¥${formatAmount(monthPaid.value)}` },
-  { label: '待支付', value: `¥${formatAmount(monthOutstanding.value)}` },
-  { label: '剩余', value: `¥${formatAmount(remaining.value)}`, highlight: remaining.value < 0 },
-])
-const ruleCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'flex-start', padding: '24rpx', borderRadius: '16rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, marginTop: '24rpx' }))
-const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string, marginTop: '48rpx' }))
-const saveText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
-const ruleIcon = computed((): any => ({ width: '48rpx', height: '48rpx', borderRadius: '24rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '14rpx' }))
-const ruleTextWrap = { ...flexFill }
-const ruleText = computed((): any => ({ fontSize: '22rpx', color: n.value.text, lineHeight: '34rpx' }))
+type DayGroup = { date: string; totalText: string; items: PurchaseRecord[] }
+const visibleGroups = computed((): DayGroup[] => {
+  const map = new Map<string, PurchaseRecord[]>()
+  for (let i = 0; i < records.value.length; i++) {
+    const rec = records.value[i]
+    const date = rec.purchaseDate
+    if (date === '') continue
+    const list = map.get(date)
+    if (list == null) map.set(date, [rec])
+    else list.push(rec)
+  }
+  const dates = Array.from(map.keys())
+  dates.sort().reverse()
+  const groups: DayGroup[] = []
+  for (let i = 0; i < dates.length; i++) {
+    const group = map.get(dates[i])
+    if (group == null) continue
+    let total = 0
+    for (let j = 0; j < group.length; j++) total += group[j].paidAmount
+    groups.push({ date: dates[i], totalText: formatCentsYuan(total), items: group })
+  }
+  return groups
+})
+
+function formatDay(date: string): string {
+  const parts = date.split('-')
+  if (parts.length < 3) return date
+  const m = parseInt(parts[1])
+  const d = parseInt(parts[2])
+  return `${m}月${d}日`
+}
+function statusText(item: PurchaseRecord): string {
+  const label = PAYMENT_STATUS_LABELS[item.paymentStatus]
+  return label != null ? label as string : ''
+}
+function categoryAbbr(item: PurchaseRecord): string {
+  if (item.category == 'LOLITA') return 'L'
+  if (item.category == 'HANFU') return '汉'
+  if (item.category == 'OTHER') return '其'
+  return 'J'
+}
+function categoryDot(item: PurchaseRecord): any {
+  let bg = '#F7E7EC'
+  if (item.category == 'LOLITA') bg = '#F3F0F7'
+  if (item.category == 'HANFU') bg = '#FBF2E8'
+  if (item.category == 'OTHER') bg = '#F0E6E8'
+  return { width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: bg, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
+}
+function categoryDotText(item: PurchaseRecord): any {
+  let fg = '#D45F7E'
+  if (item.category == 'LOLITA') fg = '#9B6FAE'
+  if (item.category == 'HANFU') fg = '#C4924A'
+  if (item.category == 'OTHER') fg = '#8A8184'
+  return { fontSize: '22rpx', fontWeight: 600, color: fg }
+}
+function openDetail(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
+
+// ====== 生命周期 ======
+
+onLoad(() => { initPageTheme() })
+onShow(() => { initPageTheme(); purchases.fetchPurchases() })
+
+const safeBottom = getSafeBottomInset()
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 40}px`, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const monthBar = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '16rpx' }
+const monthArrow = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
+const monthArrowText = computed((): any => ({ fontSize: '44rpx', lineHeight: '44rpx', color: n.value.textSecondary }))
+const monthTitle = computed((): any => ({ fontSize: '32rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const summaryCard = { marginBottom: '24rpx' }
+const categoryCard = computed((): any => ({ padding: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '24rpx' }))
+const categoryTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '8rpx' }))
+const categoryRow = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', paddingTop: '10rpx', paddingBottom: '10rpx' }
+const categoryLabel = computed((): any => ({ fontSize: '26rpx', color: n.value.textSecondary }))
+const categoryValue = computed((): any => ({ fontSize: '26rpx', fontWeight: 600, color: n.value.text }))
+const feedWrap = {}
+const groupBlock = { marginBottom: '24rpx' }
+const groupHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', paddingTop: '8rpx', paddingBottom: '12rpx' }
+const groupHeaderDate = computed((): any => ({ fontSize: '24rpx', fontWeight: 600, color: n.value.textSecondary }))
+const groupHeaderTotal = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary }))
+function itemRow(item: PurchaseRecord, idx: number, count: number): any {
+  const last = idx >= count - 1
+  return { ...flexRow, alignItems: 'center', minHeight: '120rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderBottomWidth: last ? '0' : '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }
+}
+const itemCopy = { flex: 1, marginRight: '12rpx' }
+const itemName = computed((): any => ({ fontSize: '28rpx', fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+const itemMeta = computed((): any => ({ fontSize: '20rpx', color: n.value.textTertiary, marginTop: '6rpx', lines: 1, textOverflow: 'ellipsis' }))
+const itemAmountWrap = { alignItems: 'flex-end' as string, flexShrink: 0 }
+const itemAmount = computed((): any => ({ fontSize: '28rpx', fontWeight: 600, color: n.value.text }))
+const itemRemain = computed((): any => ({ fontSize: '18rpx', color: n.value.textTertiary, marginTop: '4rpx' }))
+const emptyWrap = { paddingTop: '48rpx' }
 </script>

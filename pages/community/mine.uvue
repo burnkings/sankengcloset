@@ -3,14 +3,13 @@
     <template #navbar><AppNavbar title="我的动态" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <SegmentedControl :items="segItems" :active="activeSeg" @change="onSeg" />
         <template v-if="filteredPosts.length === 0">
           <PageState icon="camera" title="还没有发布动态" message="发布后的内容会集中显示在这里" action-text="去发布" @action="goCreate" />
         </template>
         <view v-for="post in filteredPosts" :key="post.id" :style="postRow">
           <view :style="thumbWrap" @tap="previewPostImage(post.image)"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
           <view :style="bodyStyle">
-            <view :style="postHeader"><text v-if="!post.isRemote" :style="draftTag">仅本机</text><text :style="postTimeStyle">{{ postTime(post.createdAt) }}</text><text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text></view>
+            <view :style="postHeader"><text :style="postTimeStyle">{{ postTime(post.createdAt) }}</text><text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text></view>
             <text :style="captionStyle">{{ post.caption !== '' ? post.caption : '今天也认真搭配了' }}</text>
             <view :style="metaRow">
               <view :style="tagRow"><text :style="topicStyle">#{{ post.topic }}</text><text :style="categoryStyle">{{ post.category }}</text></view>
@@ -34,7 +33,6 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
-import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { showFeedback } from '@/utils/feedback'
 
@@ -43,13 +41,9 @@ const pendingDeleteId = ref('')
 const nowTs = ref(Date.now())
 let clockTimer: number | null = null
 
-// V3 §6.5 顶部「已发布 / 本地草稿」分段控制
-const segItems = ['已发布', '本地草稿']
-const activeSeg = ref('已发布')
-function onSeg(v: string) { activeSeg.value = v }
+// 仅展示已发布内容
 const filteredPosts = computed((): SavedOutfitPost[] => {
-  const remote = activeSeg.value === '已发布'
-  return library.outfitPosts.filter((item: SavedOutfitPost): boolean => item.isRemote === remote)
+  return library.outfitPosts.filter((item: SavedOutfitPost): boolean => item.isRemote)
 })
 
 function toggleLike(id: string) { library.togglePostLike(id) }
@@ -89,14 +83,12 @@ onHide(() => { stopClock() })
 onUnload(() => { stopClock() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
-// V3 §6.5 紧凑列表行：缩略图 + 标题/草稿标识/时间 + 删除；分割线分组
+// V3 §6.5 紧凑列表行：缩略图 + 标题/时间 + 删除；分割线分组
 const postRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '150rpx', paddingTop: '16rpx', paddingBottom: '16rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderRadius: CARD_RADIUS_V3, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '12rpx' }))
 const thumbWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary, marginRight: '20rpx', flexShrink: 0 }))
 const bodyStyle = { ...flexFill }
 const postHeader = { ...flexRow, alignItems: 'center', marginBottom: '8rpx' }
 const postTimeStyle = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary }))
-// 本地草稿标识：明确标「仅本机」（V3 §6.5）
-const draftTag = { height: '34rpx', paddingLeft: '12rpx', paddingRight: '12rpx', marginRight: '12rpx', borderRadius: '17rpx', backgroundColor: brand[100], alignItems: 'center', justifyContent: 'center', fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[700] }
 function deleteText(id: string) { return { fontSize: fontSize.xs, color: pendingDeleteId.value == id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 const captionStyle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
 const metaRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }

@@ -61,7 +61,7 @@
                 <text :style="sameStyleName">{{ sameStyle!.canonicalName }}</text>
                 <text :style="sameStyleBrand">{{ sameStyle!.brandName }}</text>
               </view>
-              <scroll-view scroll-x :show-scrollbar="false" :style="sameStyleScroll">
+              <scroll-view direction="horizontal" :show-scrollbar="false" :style="sameStyleScroll">
                 <view :style="sameStyleRow">
                   <view v-for="s in sameStyle!.products" :key="s.id" :style="sameStyleItem" @tap="openSameStyle(s.id)">
                     <AppImage :src="s.coverUrl" :style="sameStyleImage" mode="aspectFill" />
@@ -76,12 +76,12 @@
           <template v-if="realBuyerPosts.length > 0">
             <SectionHeader title="真实买家" />
             <view :style="buyerCard">
-              <scroll-view scroll-x :show-scrollbar="false" :style="buyerScroll">
+              <scroll-view direction="horizontal" :show-scrollbar="false" :style="buyerScroll">
                 <view :style="buyerRow">
                   <view v-for="p in realBuyerPosts" :key="p.id" :style="buyerItem" @tap="openBuyerPost(p.id)">
                     <AppImage :src="p.imageUrl" :style="buyerImage" mode="aspectFill" />
                     <text :style="buyerAuthor">{{ p.authorNickname }}</text>
-                    <text :style="buyerCaption" :lines="1">{{ p.caption !== '' ? p.caption : '上身返图' }}</text>
+                    <text :style="buyerCaption">{{ p.caption !== '' ? p.caption : '上身返图' }}</text>
                   </view>
                 </view>
               </scroll-view>

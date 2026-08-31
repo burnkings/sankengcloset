@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
@@ -21,7 +21,7 @@ import { n } from '@/theme/use-theme'
 const props = withDefaults(defineProps<{
   items?: Array<string>
   active?: string
-  variant?: string   // 'solid' | 'soft' | 'text'
+  variant?: string   // 'solid' | 'soft' | 'text' | 'ranking'
   edgeInset?: boolean
 }>(), { items: () => [], active: '', variant: 'solid', edgeInset: false })
 
@@ -29,14 +29,20 @@ const emit = defineEmits<{ change: [value: string] }>()
 function onTap(item: string) { emit('change', item) }
 
 const scrollStyle = { width: '100%', flexDirection: 'row' }
-const rowStyle = computed((): any => ({
-  ...flexRow,
-  flexShrink: 0,
-  height: '64rpx',
-  paddingLeft: props.edgeInset ? '32rpx' : '0',
-  paddingRight: props.edgeInset ? '32rpx' : '0',
-  alignItems: 'center',
-}))
+const rowStyle = computed((): any => {
+  // ranking：排行榜专用 — 固定居中排布，不横向滚动
+  if (props.variant === 'ranking') {
+    return { ...flexRow, justifyContent: 'center', width: '100%', height: '64rpx', alignItems: 'center' }
+  }
+  return {
+    ...flexRow,
+    flexShrink: 0,
+    height: '64rpx',
+    paddingLeft: props.edgeInset ? '32rpx' : '0',
+    paddingRight: props.edgeInset ? '32rpx' : '0',
+    alignItems: 'center',
+  }
+})
 function shellStyle(idx: number) { return { marginRight: idx < props.items.length - 1 ? '16rpx' : '0', flexShrink: 0 } }
 
 function chipStyle(item: string) {
@@ -44,12 +50,19 @@ function chipStyle(item: string) {
   if (props.variant === 'text') {
     return { height: '60rpx', paddingLeft: '8rpx', paddingRight: '8rpx', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }
   }
+  // ranking：激活态实心品牌主色 + 白字，一级导航视觉权重高于二级筛选
+  if (props.variant === 'ranking') {
+    return { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? brand.primary : n.value.surface, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }
+  }
   const bg = active ? n.value.surfacePink : n.value.surface
   return { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }
 }
 
 function chipText(item: string) {
   const active = item === props.active
+  if (props.variant === 'ranking') {
+    return { fontSize: v3TextStyle.body.fontSize, fontWeight: active ? 600 : 400, color: active ? baseColors.white : n.value.textSecondary }
+  }
   if (props.variant === 'text') {
     return { fontSize: v3TextStyle.body.fontSize, fontWeight: active ? 600 : 400, color: active ? brand.primary : n.value.textSecondary }
   }

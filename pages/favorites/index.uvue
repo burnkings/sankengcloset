@@ -127,7 +127,7 @@ import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 
 const activeTab = ref('商品')
-const tabs = ['商品', '穿搭', '品牌', '合集']
+const tabs = ['商品', '品牌', '合集']
 const library = useContentLibraryStore()
 const reminderStore = useReminderStore()
 const blacklist = useBlacklistStore()
@@ -148,13 +148,11 @@ function backToTop() {
 
 const emptyTitleText = computed((): string => {
   if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
-  if (activeTab.value === '穿搭') return '暂无收藏的穿搭'
   if (activeTab.value === '合集') return '还没有创建收藏合集'
   return '还没有收藏心动小裙子'
 })
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
-  if (activeTab.value === '穿搭') return '收藏的穿搭会显示在这里'
   if (activeTab.value === '合集') return '以后可以按场景整理心动内容'
   return '从新品、预约和降价中慢慢挑选'
 })
@@ -304,7 +302,6 @@ const listSections = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3
 const emptyContainer = { paddingTop: '24rpx' }
 const emptyIcon = computed((): string => {
   if (activeTab.value === '品牌') return 'heart'
-  if (activeTab.value === '穿搭') return 'heart'
   if (activeTab.value === '合集') return 'grid'
   return 'wardrobe'
 })

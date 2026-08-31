@@ -6,6 +6,7 @@ import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { fetchProductDetail } from '@/services/content/product-service'
 import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, updateWishlistStatusRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
+import { useSessionStore } from '@/stores/session-store'
 
 /**
  * ContentLibraryStore — V2.6 用户内容资产 + 圈子穿搭灵感 Gallery
@@ -35,10 +36,9 @@ const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
 const FAVORITE_ENTRIES_KEY = 'v2_library_favorite_entries'
 const WISH_IDS_KEY = 'v2_library_wish_ids'
 const FOLLOWED_BRANDS_KEY = 'v2_library_followed_brands'
-const OUTFIT_IDS_KEY = 'v2_library_outfit_ids'
 const LIKED_POST_IDS_KEY = 'v2_library_liked_post_ids'
-const OUTFIT_PREFIX = 'v2_library_outfit_'
-const MAX_LOCAL_OUTFITS = 30
+/** 模拟登录（无真实 token）本地发布的圈子动态：混入公开 Gallery 与我的发布 */
+const MOCK_POSTS_KEY = 'v26_mock_published_posts'
 
 /**
  * 收藏条目：商品/实体 ID（详情页 entityId）↔ 后端 wishlist_items.id 映射。
@@ -71,7 +71,7 @@ export class SavedOutfitPost {
   category: string = ''
   topic: string = ''
   createdAt: string = ''
-  // true = 远程已发布（listCommunityPostsRemote mine）；false = 本地草稿（outfit_ 前缀）
+  // true = 远程已发布（listCommunityPostsRemote mine）
   isRemote: boolean = false
 }
 
@@ -149,30 +149,69 @@ function writeEntries(entries: FavoriteEntry[]) {
   }
 }
 
+// ====== 模拟登录本地发布（Mock 已发布动态，混入公开 Gallery）======
 
-function outfitKey(id: string, field: string): string {
-  return `${OUTFIT_PREFIX}${id}_${field}`
+function readMockPosts(): SavedOutfitPost[] {
+  try {
+    const raw = readString(MOCK_POSTS_KEY)
+    if (raw === '') return []
+    const parsed = JSON.parse(raw) as UTSJSONObject[]
+    const posts: SavedOutfitPost[] = []
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i]
+      if (item == null) continue
+      const p = new SavedOutfitPost()
+      p.id = item['id'] != null ? item['id'] as string : ''
+      p.image = item['image'] != null ? item['image'] as string : ''
+      p.caption = item['caption'] != null ? item['caption'] as string : ''
+      p.category = item['category'] != null ? item['category'] as string : ''
+      p.topic = item['topic'] != null ? item['topic'] as string : ''
+      p.createdAt = item['createdAt'] != null ? item['createdAt'] as string : ''
+      p.isRemote = true
+      if (p.id != '') posts.push(p)
+    }
+    return posts
+  } catch (e) {
+    return []
+  }
 }
 
-function readOutfit(id: string): SavedOutfitPost {
-  const post = new SavedOutfitPost()
-  post.id = id
-  post.image = readString(outfitKey(id, 'image'))
-  post.caption = readString(outfitKey(id, 'caption'))
-  post.category = readString(outfitKey(id, 'category'))
-  post.topic = readString(outfitKey(id, 'topic'))
-  post.createdAt = readString(outfitKey(id, 'created_at'))
-  // 本地草稿（outfit_ 前缀）未发布到服务端；远程帖子在 refreshMyPosts 中标记 isRemote=true
-  post.isRemote = !id.startsWith('outfit_')
-  return post
+function writeMockPosts(posts: SavedOutfitPost[]) {
+  try {
+    const serializable: UTSJSONObject[] = []
+    for (let i = 0; i < posts.length; i++) {
+      serializable.push({
+        id: posts[i].id,
+        image: posts[i].image,
+        caption: posts[i].caption,
+        category: posts[i].category,
+        topic: posts[i].topic,
+        createdAt: posts[i].createdAt,
+      } as UTSJSONObject)
+    }
+    uni.setStorageSync(MOCK_POSTS_KEY, JSON.stringify(serializable))
+  } catch (e) {
+    // write failure is non-fatal
+  }
 }
 
-function removeOutfitStorage(id: string) {
-  uni.removeStorageSync(outfitKey(id, 'image'))
-  uni.removeStorageSync(outfitKey(id, 'caption'))
-  uni.removeStorageSync(outfitKey(id, 'category'))
-  uni.removeStorageSync(outfitKey(id, 'topic'))
-  uni.removeStorageSync(outfitKey(id, 'created_at'))
+/** 本地 Mock 已发布动态 → 公开 Gallery 展示形态 */
+function mockToPublicLook(post: SavedOutfitPost): PublicLookPost {
+  const p = new PublicLookPost()
+  p.id = post.id
+  p.imageUrl = post.image
+  p.caption = post.caption
+  p.category = post.category
+  p.topic = post.topic
+  const session = useSessionStore()
+  const nickname = session.profile.nickname !== '' ? session.profile.nickname : '我'
+  p.authorNickname = nickname
+  p.initial = nickname.length > 0 ? nickname.substring(0, 1) : '我'
+  p.likeCount = 0
+  p.liked = false
+  p.productId = ''
+  p.createdAt = post.createdAt
+  return p
 }
 
 // ====== 模块级 reactive 状态（单例）======
@@ -233,32 +272,8 @@ function reload() {
   _state.wishIds = readList(WISH_IDS_KEY)
   _state.followedBrands = readList(FOLLOWED_BRANDS_KEY)
   _state.likedPostIds = readList(LIKED_POST_IDS_KEY)
-  const ids = readList(OUTFIT_IDS_KEY)
-  // Phase 1C 只保存一条圈子；首次进入 V2.0 时无损迁移到多条内容库。
-  if (ids.length == 0) {
-    const legacyImage = readString('local_outfit_image')
-    if (legacyImage !== '') {
-      const legacyId = `outfit_legacy_${Date.now()}`
-      ids.push(legacyId)
-      uni.setStorageSync(outfitKey(legacyId, 'image'), legacyImage)
-      uni.setStorageSync(outfitKey(legacyId, 'caption'), readString('local_outfit_caption'))
-      uni.setStorageSync(outfitKey(legacyId, 'category'), readString('local_outfit_category'))
-      const legacyTopic = readString('local_outfit_topic')
-      uni.setStorageSync(outfitKey(legacyId, 'topic'), legacyTopic !== '' ? legacyTopic : '今日穿搭')
-      uni.setStorageSync(outfitKey(legacyId, 'created_at'), Date.now().toString())
-      writeList(OUTFIT_IDS_KEY, ids)
-      uni.removeStorageSync('local_outfit_image')
-      uni.removeStorageSync('local_outfit_caption')
-      uni.removeStorageSync('local_outfit_category')
-      uni.removeStorageSync('local_outfit_topic')
-    }
-  }
-  const posts: SavedOutfitPost[] = []
-  for (let i = 0; i < ids.length; i++) {
-    const post = readOutfit(ids[i])
-    if (post.image !== '') posts.push(post)
-  }
-  _state.outfitPosts = posts
+  // 我的发布：远程帖子由 refreshMyPosts 拉取；本地 Mock 已发布动态从存储恢复
+  _state.outfitPosts = readMockPosts()
   notifyChanged()
 }
 
@@ -293,15 +308,27 @@ async function refreshPublicPosts(): Promise<void> {
   } catch (e) {
     _state.publicError = e instanceof Error ? e.message : '加载失败'
   } finally {
+    // 本地 Mock 已发布动态混入公开 Gallery 顶部（先剔除旧的 Mock 帖，避免重复累积）
+    const mock = readMockPosts()
+    const mockPublic: PublicLookPost[] = []
+    for (let i = 0; i < mock.length; i++) mockPublic.push(mockToPublicLook(mock[i]))
+    const remoteOnly = _state.publicPosts.filter((post) => !post.id.startsWith('mock_'))
+    _state.publicPosts = [...mockPublic, ...remoteOnly]
     _state.publicLoading = false
     _state.publicLoadedOnce = true
   }
   notifyChanged()
 }
 
-/** 我的发布：listCommunityPostsRemote(..., true) —— 服务端帖子 + 本地草稿合并 */
+/** 我的发布：listCommunityPostsRemote(..., true) —— 服务端帖子 + 本地 Mock 已发布动态合并 */
 async function refreshMyPosts(): Promise<void> {
-  if (getCachedAccessToken() == '') return
+  const mock = readMockPosts()
+  if (getCachedAccessToken() == '') {
+    // 模拟登录：仅展示本地 Mock 已发布动态
+    _state.outfitPosts = mock
+    notifyChanged()
+    return
+  }
   try {
     const remote = await listCommunityPostsRemote('', '', '', true)
     const saved = [] as SavedOutfitPost[]
@@ -318,11 +345,10 @@ async function refreshMyPosts(): Promise<void> {
       saved.push(post)
       if (item.liked && _state.likedPostIds.indexOf(item.id) < 0) _state.likedPostIds.push(item.id)
     }
-    const local = _state.outfitPosts.filter((post) => post.id.startsWith('outfit_'))
-    _state.outfitPosts = [...saved, ...local]
+    _state.outfitPosts = [...saved, ...mock]
     notifyChanged()
   } catch (e) {
-    // Remote failure must not hide locally saved drafts or block the community page.
+    // 网络失败保留上次列表，不阻塞社区页
   }
 }
 
@@ -660,13 +686,31 @@ function hasPendingBrandFollow(ops: SyncOperation[], brandName: string): boolean
 }
 
 /**
- * 发布穿搭帖子到圈子：上传图片 → 创建远程帖子 → 刷新本地草稿列表。
+ * 发布穿搭帖子到圈子：上传图片 → 创建远程帖子（需登录）。
+ * 无真实 token（模拟登录）：本地 Mock 发布，动态混入公开 Gallery 与我的发布。
  * 收敛 share/create 页面的 uploadOutfitImageRemote + createCommunityPostRemote 直连。
- * 未登录时返回 false（由调用方回退本地草稿 saveOutfit）。
- * 注：reload() 仅重读本地存储；远程新帖由社区页 onShow → refreshMyPosts 拉取。
+ * 注：远程新帖由社区页 onShow → refreshMyPosts 拉取。
  */
 export async function publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): Promise<boolean> {
-  if (getCachedAccessToken() == '') return false
+  if (getCachedAccessToken() == '') {
+    // 模拟登录（无真实 token）：本地 Mock 发布，写入本地并立即展示
+    const post = new SavedOutfitPost()
+    post.id = `mock_${Date.now()}`
+    post.image = imagePath
+    post.caption = caption
+    post.category = category
+    post.topic = topic
+    post.createdAt = Date.now().toString()
+    post.isRemote = true
+    const posts = readMockPosts()
+    posts.unshift(post)
+    writeMockPosts(posts)
+    _state.outfitPosts = posts
+    // 混入公开 Gallery 顶部
+    _state.publicPosts = [mockToPublicLook(post), ..._state.publicPosts.filter((item) => !item.id.startsWith('mock_'))]
+    notifyChanged()
+    return true
+  }
   const mediaId = await uploadOutfitImageRemote(imagePath)
   const backendCategory = category === '混搭' ? 'MIXED' : (category === 'Lolita' ? 'LOLITA' : (category === '汉服' ? 'HANFU' : 'JK'))
   const payload = {
@@ -683,37 +727,7 @@ export async function publishOutfitRemote(imagePath: string, caption: string, ca
   return true
 }
 
-function saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): string {
-  const id = `outfit_${Date.now()}`
-  uni.setStorageSync(outfitKey(id, 'image'), image)
-  uni.setStorageSync(outfitKey(id, 'caption'), caption)
-  uni.setStorageSync(outfitKey(id, 'category'), category)
-  uni.setStorageSync(outfitKey(id, 'topic'), topic)
-  if (wardrobeIds.length > 0) uni.setStorageSync(outfitKey(id, 'wardrobe_ids'), JSON.stringify(wardrobeIds))
-  if (productId !== '') uni.setStorageSync(outfitKey(id, 'product_id'), productId)
-  uni.setStorageSync(outfitKey(id, 'created_at'), Date.now().toString())
-
-  const ids = readList(OUTFIT_IDS_KEY)
-  ids.unshift(id)
-  while (ids.length > MAX_LOCAL_OUTFITS) {
-    const removedId = ids.pop()
-    if (removedId != null) removeOutfitStorage(removedId)
-  }
-  writeList(OUTFIT_IDS_KEY, ids)
-  enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'create', `${category}|${topic}|${caption}`)
-  reload()
-  return id
-}
-
 function removeOutfit(id: string) {
-  // 本地草稿：删除本地存储；远程帖子 id 不在本地列表，跳过
-  if (id.startsWith('outfit_')) {
-    const ids = readList(OUTFIT_IDS_KEY)
-    const idx = ids.indexOf(id)
-    if (idx >= 0) ids.splice(idx, 1)
-    writeList(OUTFIT_IDS_KEY, ids)
-    removeOutfitStorage(id)
-  }
   const liked = [..._state.likedPostIds]
   const likedIdx = liked.indexOf(id)
   if (likedIdx >= 0) {
@@ -721,17 +735,20 @@ function removeOutfit(id: string) {
     _state.likedPostIds = liked
     writeList(LIKED_POST_IDS_KEY, liked)
   }
-  // 统一策略：远程帖子直接 DELETE（Authorized），失败才入队；本地草稿只入队
-  const isRemotePost = !id.startsWith('outfit_')
-  if (isRemotePost && getCachedAccessToken() != '') {
+  const mockPosts = readMockPosts()
+  const isMock = mockPosts.some((post) => post.id == id)
+  if (isMock) {
+    // 本地 Mock 帖：直接从本地存储移除
+    writeMockPosts(mockPosts.filter((post) => post.id != id))
+  } else if (getCachedAccessToken() != '') {
+    // 远程帖子直接 DELETE（Authorized），失败才入队由同步队列重放
     deleteCommunityPostRemote(id).catch(() => {
       enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
     })
-  } else {
-    enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
   }
-  // 直接过滤内存列表（不再全量 reload，避免删除远程帖子后其余远程帖子从视图消失）
+  // 直接过滤内存列表（不再全量 reload，避免删除后其余帖子从视图消失）
   _state.outfitPosts = _state.outfitPosts.filter((post) => post.id != id)
+  _state.publicPosts = _state.publicPosts.filter((post) => post.id != id)
   notifyChanged()
 }
 function isPostLiked(postId: string): boolean {
@@ -799,7 +816,6 @@ class ContentLibraryStoreHandle {
   toggleWish(entityId: string): boolean { return toggleWish(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
   toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
-  saveOutfit(image: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): string { return saveOutfit(image, caption, category, topic, wardrobeIds, productId) }
   publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): Promise<boolean> { return publishOutfitRemote(imagePath, caption, category, topic, wardrobeIds, productId) }
   removeOutfit(id: string): void { removeOutfit(id) }
   isPostLiked(postId: string): boolean { return isPostLiked(postId) }

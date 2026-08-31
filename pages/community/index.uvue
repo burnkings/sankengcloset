@@ -15,7 +15,6 @@
           <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
         </view>
         <view :style="filterBar">
-          <text :style="filterLabel">筛选</text>
           <view :style="filterSpacer" />
           <view :style="dropdownWrap">
             <view :style="dropdownButton" @tap="openTopicPicker"><text :style="dropdownText">主题 · {{ activeTopic }}</text></view>
@@ -64,7 +63,7 @@
 </template>
 
 <script setup lang="uts">
-import { baseColors } from '@/theme/tokens/colors'
+import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, FEED_GUTTER_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
@@ -137,9 +136,9 @@ const visibleLooks = computed((): PublicLookPost[] => {
   const filtered = filterByPitAndTopic(library.publicPosts)
   return filtered.filter((item) => !userBlacklist.isBlacklisted(item.authorUserId))
 })
-// 我的发布：筛选只作用于我的帖子
+// 我的发布：仅展示已发布内容，筛选只作用于我的帖子
 const visibleUserLooks = computed((): SavedOutfitPost[] => {
-  let result: SavedOutfitPost[] = library.outfitPosts
+  let result: SavedOutfitPost[] = library.outfitPosts.filter((item) => item.isRemote)
   if (activePitType.value !== '全部') {
     result = result.filter((item) => item.category === activePitType.value || (activePitType.value === '混搭' && item.category === '混搭'))
   }
@@ -264,7 +263,6 @@ const composerDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.te
 const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
 const composerButtonText = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
 const filterBar = { ...flexRow, alignItems: 'center', minHeight: '76rpx', marginTop: '16rpx', position: 'relative' as string, zIndex: 20 }
-const filterLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
 const filterSpacer = { ...flexFill }
 const dropdownWrap = { position: 'relative' as string, marginLeft: '12rpx' }
 const dropdownWrapPit = { position: 'relative' as string, marginLeft: '12rpx' }

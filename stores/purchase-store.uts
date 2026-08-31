@@ -236,6 +236,7 @@ class PurchaseStoreHandle {
   monthlyCommitted(monthCode: string): number { return monthlyCommitted(monthCode) }
   monthlyPaid(monthCode: string): number { return monthlyPaid(monthCode) }
   monthlyOutstanding(monthCode: string): number { return monthlyOutstanding(monthCode) }
+  recordsForMonth(monthCode: string): PurchaseRecord[] { return recordsForMonth(monthCode) }
   fetchPurchases(): Promise<void> { return fetchPurchases() }
   addPurchase(record: PurchaseRecord): PurchaseRecord | null { return addPurchase(record) }
   updatePurchase(id: string, data: PurchaseUpdateData): boolean { return updatePurchase(id, data) }

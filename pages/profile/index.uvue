@@ -80,7 +80,6 @@ import { useContentLibraryStore } from '@/stores/content-library-store'
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
-import { useBudgetStore } from '@/stores/budget-store'
 import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
@@ -91,7 +90,6 @@ const library = useContentLibraryStore()
 const purchases = usePurchaseStore()
 const reminders = useReminderStore()
 const wardrobe = useWardrobeStore()
-const budget = useBudgetStore()
 const session = useSessionStore()
 const preferences = usePreferencesStore()
 const blacklist = useBlacklistStore()
@@ -154,7 +152,6 @@ function reloadProfileData() {
   library.reload()
   library.refreshMyPosts()
   library.refreshRemoteBrands()
-  budget.refreshRemoteBudget()
   preferences.refreshRemotePreferences()
   purchases.fetchPurchases()
   reminders.fetchItems()
@@ -193,7 +190,7 @@ const gridItems = computed(() => [
   mkItem('favorites', 'heart', '收藏', ''),
   mkItem('orders', 'order', '购买记录', ''),
   mkItem('reminders', 'reminder', '提醒', ''),
-  mkItem('budget', 'budget', '预算', ''),
+  mkItem('budget', 'budget', '消费日志', ''),
 ])
 
 const GRID_GAP = '16rpx'
