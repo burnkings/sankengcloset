@@ -28,6 +28,8 @@ function loadAll(): Reminder[] {
       r.isAllDay = obj['isAllDay'] != null ? obj['isAllDay'] as boolean : false
       r.relatedPurchaseId = obj['relatedPurchaseId'] != null ? obj['relatedPurchaseId'] as string : ''
       r.relatedWishId = obj['relatedWishId'] != null ? obj['relatedWishId'] as string : ''
+      r.productId = obj['productId'] != null ? obj['productId'] as string : ''
+      r.relatedReleaseId = obj['relatedReleaseId'] != null ? obj['relatedReleaseId'] as string : ''
       r.note = obj['note'] != null ? obj['note'] as string : ''
       r.status = obj['status'] != null ? obj['status'] as string : 'PENDING'
       r.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
@@ -88,6 +90,8 @@ export function update(id: string, data: ReminderUpdateData): boolean {
   r.isAllDay = data.isAllDay
   if (data.relatedPurchaseId != '') r.relatedPurchaseId = data.relatedPurchaseId
   if (data.relatedWishId != '') r.relatedWishId = data.relatedWishId
+  if (data.productId != '') r.productId = data.productId
+  if (data.relatedReleaseId != '') r.relatedReleaseId = data.relatedReleaseId
   if (data.note != '') r.note = data.note
   if (data.status != '') r.status = data.status
   if (data.wardrobeBindings != null && data.wardrobeBindings.length > 0) r.wardrobeBindings = data.wardrobeBindings

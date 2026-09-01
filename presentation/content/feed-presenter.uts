@@ -7,6 +7,8 @@
  */
 
 import { brand, accent, semantic, jkColors, lolitaColors, hanfuColors } from '@/theme/tokens/colors'
+import { ReleaseEvent } from '@/domain/content/release-event'
+import { formatPriceCents } from '@/utils/format'
 
 // ====== FeedType 展示 ======
 
@@ -81,11 +83,101 @@ export const ProductStatusLabels: UTSJSONObject = {
   ENDED: '已下架',
 } as UTSJSONObject
 
+/**
+ * 发售状态主标签（Phase 1.1-A）：基于真实 currentRelease 推导，禁止 badgeText 猜测。
+ * 优先级：尾款期 > 再贩 > 抽选 > 现货 > 新品(首发) > 定金 > 预约 > saleStatus 兜底。
+ * 无 Release 或无法判断返回空串（UI 不伪造状态）。
+ */
+export function deriveReleaseStatusText(release: ReleaseEvent | null): string {
+  if (release == null) return ''
+  const t = release.releaseType
+  const sale = release.saleStatus
+  // 尾款期：有尾款金额且尾款截止时间在未来
+  if (release.finalPaymentAmount > 0 && release.balanceDueAt !== '') {
+    const due = new Date(release.balanceDueAt).getTime()
+    if (!isNaN(due) && due > Date.now()) return '尾款'
+  }
+  if (release.isRerelease || t === 'rerelease') return '再贩'
+  if (t === 'lottery') return '抽选'
+  if (t === 'spot') return '现货'
+  if (t === 'first_release') return '新品'
+  if (release.depositAmount > 0) return '定金'
+  if (t === 'reservation') return '预约'
+  if (sale === 'ON_SALE') return '开售'
+  if (sale === 'PRE_ORDER') return '预售'
+  if (sale === 'UPCOMING') return '预告'
+  if (sale === 'SOLD_OUT') return '售罄'
+  if (sale === 'ENDED') return '已结束'
+  return ''
+}
+
 export function getProductStatusColor(status: string): string {
   if (status === 'UPCOMING') return accent[500]
   if (status === 'ON_SALE') return semantic.success
   if (status === 'PRE_ORDER') return semantic.warning
   return '#9CA3AF'
+}
+
+/** 销售状态 → StatusChip 颜色（商品卡/详情页共用） */
+export function getSaleStatusChipStatus(status: string): string {
+  if (status === 'ON_SALE') return 'positive'
+  if (status === 'PRE_ORDER') return 'pending'
+  if (status === 'UPCOMING') return 'initial'
+  if (status === 'SOLD_OUT') return 'neutral'
+  if (status === 'ENDED') return 'neutral'
+  return 'neutral'
+}
+
+// ====== Product V2 价格摘要（price_type 语义；数据驱动，禁止猜测） ======
+
+export const PRICE_TYPE_FULL = 'FULL'
+export const PRICE_TYPE_DEPOSIT = 'DEPOSIT'
+export const PRICE_TYPE_BALANCE = 'BALANCE'
+export const PRICE_TYPE_INTENTION = 'INTENTION'
+export const PRICE_TYPE_UNKNOWN = 'UNKNOWN'
+
+/** 坑向展示名（三坑类型：JK/LOLITA/HANFU/OTHER） */
+export function getPitTypeLabel(pitType: string): string {
+  if (pitType === 'JK') return 'JK'
+  if (pitType === 'LOLITA') return 'Lolita'
+  if (pitType === 'HANFU') return '汉服'
+  if (pitType === 'OTHER') return '其他'
+  return pitType
+}
+
+/**
+ * 按 price_type 生成价格摘要（商品卡 / 详情页共用）：
+ * FULL      → 「¥368」
+ * DEPOSIT   → 「定金 ¥100」；存在全款 → 「定金 ¥100 · 全款 ¥368」
+ * BALANCE   → 「尾款 ¥268」
+ * INTENTION → 「意向金 ¥1」（「意向金1元抵10元」不得显示成普通售价 ¥1）
+ * UNKNOWN   → ''（不猜测价格语义，调用方隐藏价格行）
+ * 金额 0 视为缺失：该段不输出，避免「定金 ¥0」类伪数据。
+ */
+export function formatPriceSummaryByType(
+  priceType: string,
+  priceCents: number,
+  fullPriceCents: number,
+  depositCents: number,
+  balanceCents: number,
+): string {
+  if (priceType === PRICE_TYPE_FULL) {
+    return priceCents > 0 ? formatPriceCents(priceCents) : ''
+  }
+  if (priceType === PRICE_TYPE_DEPOSIT) {
+    const deposit = depositCents > 0 ? depositCents : priceCents
+    if (deposit <= 0) return ''
+    const base = `定金 ${formatPriceCents(deposit)}`
+    return fullPriceCents > 0 ? `${base} · 全款 ${formatPriceCents(fullPriceCents)}` : base
+  }
+  if (priceType === PRICE_TYPE_BALANCE) {
+    const balance = balanceCents > 0 ? balanceCents : priceCents
+    return balance > 0 ? `尾款 ${formatPriceCents(balance)}` : ''
+  }
+  if (priceType === PRICE_TYPE_INTENTION) {
+    return priceCents > 0 ? `意向金 ${formatPriceCents(priceCents)}` : ''
+  }
+  return '' // UNKNOWN：不猜测价格语义
 }
 
 // ====== StockStatus 展示 ======

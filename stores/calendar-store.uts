@@ -1,0 +1,57 @@
+/**
+ * CalendarStore — 发售日历状态管理
+ * Page → Store → Service（页面禁止直接访问 services）
+ * 数据源：GET /api/v1/calendar（真实发售事件，非 Feed 过滤）
+ */
+import { reactive } from 'vue'
+import { fetchCalendarMonth, CalendarEvent } from '@/services/content/calendar-service'
+
+type CalendarState = {
+  events: CalendarEvent[]
+  loading: boolean
+  error: string
+}
+
+const _state = reactive<CalendarState>({
+  events: [] as CalendarEvent[],
+  loading: false,
+  error: '',
+})
+
+/** 已加载月份缓存 key（YYYY-M），避免同月重复请求 */
+let _loadedKey = ''
+
+async function loadMonth(year: number, month: number): Promise<void> {
+  const key = `${year}-${month}`
+  if (_loadedKey === key && _state.events.length > 0) return
+  _state.loading = true
+  _state.error = ''
+  try {
+    const events = await fetchCalendarMonth(year, month)
+    _state.events = events
+    _loadedKey = key
+  } catch (err) {
+    _state.error = err instanceof Error ? err.message : '加载失败'
+  } finally {
+    _state.loading = false
+  }
+}
+
+function eventsFor(dateKey: string): CalendarEvent[] {
+  if (dateKey === '') return []
+  return _state.events.filter((e) => e.dateKey == dateKey)
+}
+
+class CalendarStoreHandle {
+  get events(): CalendarEvent[] { return _state.events }
+  get loading(): boolean { return _state.loading }
+  get error(): string { return _state.error }
+  loadMonth(year: number, month: number): Promise<void> { return loadMonth(year, month) }
+  eventsFor(dateKey: string): CalendarEvent[] { return eventsFor(dateKey) }
+}
+
+let _handle: CalendarStoreHandle | null = null
+export function useCalendarStore(): CalendarStoreHandle {
+  if (_handle == null) _handle = new CalendarStoreHandle()
+  return _handle!
+}

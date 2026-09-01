@@ -145,6 +145,8 @@ export function readPendingOperations(): SyncOperation[] { const ids = readIds()
 /**
  * 收藏（favorite）操作重放：直接作用于 /api/v1/wishlist 真实业务端点。
  * - create/upsert：POST 创建条目（status 必填 'WISH'，productId 关联商品）。
+ * - update：按 entityId 定位 wishlist 条目后 PATCH 透传 status（不硬编码、不 POST，避免重复条目）。
+ *   entityId 两种可能：wishlist itemId（已登录直更失败入队）或 productId（未登录入队）。
  * - delete：按 productId 查服务端条目后 DELETE（幂等：不存在视为已删除）。
  */
 async function replayFavorite(op: SyncOperation): Promise<number> {
@@ -166,6 +168,36 @@ async function replayFavorite(op: SyncOperation): Promise<number> {
         }
       }
       return 1
+    }
+    if (op.action == 'update') {
+      // 状态更新重放：只 PATCH，绝不 POST 创建，避免重复 wishlist 条目
+      const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
+      const status = body['status'] != null ? body['status'] as string : ''
+      if (status == '') return 0
+      const items = await listWishlistRemote()
+      // 场景 1：entityId 即 wishlist itemId（已登录直更失败入队）→ 直接 PATCH 该条目
+      for (let i = 0; i < items.length; i++) {
+        const raw = items[i]
+        if (raw['id'] != null && raw['id'] as string == op.entityId) {
+          await apiPatchAuthorized('/api/v1/wishlist/' + encodeQuery(op.entityId), { status } as UTSJSONObject)
+          return 1
+        }
+      }
+      // 场景 2：entityId 为 productId（未登录入队）→ 按商品定位服务端条目后 PATCH
+      const targetProduct = body['productId'] != null ? body['productId'] as string : op.entityId
+      if (targetProduct != '') {
+        for (let i = 0; i < items.length; i++) {
+          const raw = items[i]
+          if (raw['productId'] != null && raw['productId'] as string == targetProduct) {
+            const itemId = raw['id'] != null ? raw['id'] as string : ''
+            if (itemId == '') return 0
+            await apiPatchAuthorized('/api/v1/wishlist/' + encodeQuery(itemId), { status } as UTSJSONObject)
+            return 1
+          }
+        }
+      }
+      // 服务端尚无对应条目：保留队列重试（前置 upsert 重放后即可命中；不 POST 创建）
+      return 0
     }
     const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
     const productId = body['productId'] != null ? body['productId'] as string : op.entityId

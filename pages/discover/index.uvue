@@ -77,7 +77,9 @@ import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
-import { FEED_EDITORIAL, FEED_BRAND_POST, FEED_RELEASE_EVENT, FEED_OUTFIT, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
+import { useCalendarStore } from '@/stores/calendar-store'
+import { CalendarEvent } from '@/services/content/calendar-service'
+import { FEED_EDITORIAL, FEED_BRAND_POST, FEED_OUTFIT, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -103,14 +105,6 @@ class BrandItem {
   name: string = ''
   initial: string = ''
   meta: string = ''
-}
-class CalendarEvent {
-  id: string = ''
-  day: string = ''
-  title: string = ''
-  brand: string = ''
-  tag: string = ''
-  dateKey: string = ''
 }
 class CalendarCell {
   day: number = 0
@@ -141,14 +135,6 @@ function openBrand(item: BrandItem) { uni.navigateTo({ url: `/pages/brand/detail
 const pageHeight = getWindowHeight()
 const feedStore = useHomeFeedStore()
 
-function extractDay(iso: string): string {
-  if (iso.length < 10) return '--'
-  return iso.substring(8, 10)
-}
-function extractDateKey(iso: string): string {
-  if (iso.length < 10) return ''
-  return iso.substring(0, 10)
-}
 function brandInitialOf(name: string): string {
   if (name == '') return '#'
   return name.substring(0, 1)
@@ -176,17 +162,10 @@ const brands = computed((): BrandItem[] => {
     return b
   })
 })
+const calendarStore = useCalendarStore()
+// 发售日历：真实数据源（GET /api/v1/calendar，见 calendar-store），黑名单品牌过滤
 const calendar = computed((): CalendarEvent[] => {
-  return feedStore.allItems.filter((item) => item.feedType === FEED_RELEASE_EVENT && !blacklist.isBlacklisted(item.brandName)).map((item) => {
-    const c = new CalendarEvent()
-    c.id = item.id
-    c.day = extractDay(item.eventStartAt)
-    c.title = item.title
-    c.brand = item.brandName
-    c.tag = item.badgeText !== '' ? item.badgeText : item.subtitle
-    c.dateKey = extractDateKey(item.eventStartAt)
-    return c
-  })
+  return calendarStore.events.filter((e) => !blacklist.isBlacklisted(e.brand))
 })
 
 const now = new Date()
@@ -216,10 +195,12 @@ const calendarGrid = computed((): CalendarCell[] => {
 function prevMonth() {
   if (calMonth.value === 1) { calMonth.value = 12; calYear.value -= 1 }
   else calMonth.value -= 1
+  calendarStore.loadMonth(calYear.value, calMonth.value)
 }
 function nextMonth() {
   if (calMonth.value === 12) { calMonth.value = 1; calYear.value += 1 }
   else calMonth.value += 1
+  calendarStore.loadMonth(calYear.value, calMonth.value)
 }
 
 // 发售日历日程化：点日期看当日发售，可一键加提醒
@@ -302,6 +283,7 @@ const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fon
 const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
 onLoad(() => { initPageTheme() })
 onMounted(() => {
+  calendarStore.loadMonth(calYear.value, calMonth.value)
   if (feedStore.state === 'idle' || feedStore.state === 'error') feedStore.loadFirstPage()
 })
 onPageShow(() => { initPageTheme(); library.reload() })

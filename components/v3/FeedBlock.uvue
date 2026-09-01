@@ -1,7 +1,7 @@
 <template>
   <view>
     <view v-if="full != null && full.feedType === 'release_event'" class="feed-single-card" @tap="emit('tap', full)">
-      <ReleaseCard :title="full.title" :brand="full.brandName" :image="full.coverUrl" :overlay-text="formatRelativeTime(full.eventStartAt)" @tap="emit('tap', full)" @remind="emit('tap', full)" @view="emit('tap', full)" />
+      <ReleaseCard :title="full.title" :brand="full.brandName" :image="full.coverUrl" :overlay-text="formatRelativeTime(full.eventStartAt)" @tap="emit('tap', full)" @remind="emit('remind', full)" @view="emit('tap', full)" />
     </view>
     <view v-else-if="full != null && full.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="emit('tap', full)">
       <view :style="imgWrap45">
@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   tap: [item: FeedItem]
+  remind: [item: FeedItem]
 }>()
 
 function feedLabel(ft: string): string { return getFeedTypeLabel(ft) }

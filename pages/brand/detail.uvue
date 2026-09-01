@@ -25,9 +25,10 @@
                 :image="item.coverUrl"
                 :brand="item.brandName"
                 :title="item.title"
-                :price-text="formatPrice(item.price)"
-                :badge-text="item.badgeText"
-                :deadline-text="formatDeadline(item.eventEndAt)"
+                :type-text="pitTypeLabel(item)"
+                :status-text="saleStatusText(item)"
+                :status-color="saleStatusColor(item)"
+                :price-text="priceSummaryText(item)"
                 :image-height="feedImageHeight(item)"
                 :saved="library.isFavorite(item.entityId)"
                 @tap="openProduct(item)"
@@ -41,9 +42,10 @@
                 :image="item.coverUrl"
                 :brand="item.brandName"
                 :title="item.title"
-                :price-text="formatPrice(item.price)"
-                :badge-text="item.badgeText"
-                :deadline-text="formatDeadline(item.eventEndAt)"
+                :type-text="pitTypeLabel(item)"
+                :status-text="saleStatusText(item)"
+                :status-color="saleStatusColor(item)"
+                :price-text="priceSummaryText(item)"
                 :image-height="feedImageHeight(item)"
                 :saved="library.isFavorite(item.entityId)"
                 @tap="openProduct(item)"
@@ -60,10 +62,11 @@
 <script setup lang="uts">
 import { Brand } from '@/domain/content/brand'
 import { FeedItem } from '@/domain/content/feed-item'
-import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
+import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useBrandStore } from '@/stores/brand-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
+import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -101,6 +104,22 @@ function toggleBlacklistBrand(name: string) {
 }
 function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
 function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
+// ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
+function priceSummaryText(item: FeedItem): string {
+  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+function pitTypeLabel(item: FeedItem): string {
+  const pit = item.pitType !== '' ? item.pitType : item.category
+  return getPitTypeLabel(pit)
+}
+function saleStatusText(item: FeedItem): string {
+  if (item.saleStatus === '') return ''
+  const label = ProductStatusLabels[item.saleStatus]
+  return label != null ? label as string : ''
+}
+function saleStatusColor(item: FeedItem): string {
+  return getSaleStatusChipStatus(item.saleStatus)
+}
 const productLeft = computed((): FeedItem[] => {
   const left: FeedItem[] = []
   for (let i = 0; i < products.value.length; i++) if (i % 2 == 0) left.push(products.value[i])

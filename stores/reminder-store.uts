@@ -145,6 +145,8 @@ function mapRemoteReminder(raw: UTSJSONObject): Reminder {
   item.isAllDay = raw['isAllDay'] != null ? (raw['isAllDay'] as boolean) : false
   item.relatedPurchaseId = raw['relatedPurchaseId'] != null ? raw['relatedPurchaseId'] as string : ''
   item.relatedWishId = raw['relatedWishId'] != null ? raw['relatedWishId'] as string : ''
+  item.productId = raw['productId'] != null ? raw['productId'] as string : ''
+  item.relatedReleaseId = raw['relatedReleaseId'] != null ? raw['relatedReleaseId'] as string : ''
   item.note = raw['note'] != null ? raw['note'] as string : ''
   item.status = raw['status'] != null ? raw['status'] as string : 'PENDING'
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
@@ -206,6 +208,8 @@ function updateItem(id: string, data: ReminderUpdateData): boolean {
       if (data.note != '') existing.note = data.note
       if (data.relatedPurchaseId != '') existing.relatedPurchaseId = data.relatedPurchaseId
       if (data.relatedWishId != '') existing.relatedWishId = data.relatedWishId
+      if (data.productId != '') existing.productId = data.productId
+      if (data.relatedReleaseId != '') existing.relatedReleaseId = data.relatedReleaseId
       if (data.status != '') existing.status = data.status
       existing.wardrobeBindings = data.wardrobeBindings
       existing.updatedAt = new Date().toISOString()
@@ -322,6 +326,34 @@ function syncPurchaseReminders(purchase: PurchaseRecord): void {
   }
 }
 
+/**
+ * 商品一键提醒（Phase 1.1-C Favorite → Release → Reminder 闭环）：
+ * - 去重键 = productId + relatedReleaseId + type（未删除），已存在返回 null 不重复创建
+ * - 统一走 addItem 链路：本地 repo + 离线入队 + 远程 /me/reminders + 本地通知调度
+ * - remindDate 为空（无有效提醒时间）不创建，禁止伪造时间
+ */
+function createProductReminder(productId: string, relatedReleaseId: string, type: string, title: string, remindDate: string, note: string): Reminder | null {
+  if (productId === '' || remindDate === '') return null
+  const existing = activeItems().find((r) =>
+    r.productId == productId && r.relatedReleaseId == relatedReleaseId && r.type == type && !r.isDeleted)
+  if (existing != null) return null
+  const item = new Reminder()
+  item.title = title
+  item.type = type
+  item.remindDate = remindDate
+  item.note = note
+  item.productId = productId
+  item.relatedReleaseId = relatedReleaseId
+  item.status = STATUS_PENDING
+  return addItem(item)
+}
+
+/** 某商品的所有未删除提醒（收藏页展示提醒状态；productId 为空返回空数组） */
+function remindersForProduct(productId: string): Reminder[] {
+  if (productId === '') return [] as Reminder[]
+  return activeItems().filter((r) => r.productId == productId)
+}
+
 function swapItems(id1: string, id2: string) {
   const idx1 = _state.items.findIndex((r) => r.id == id1)
   const idx2 = _state.items.findIndex((r) => r.id == id2)
@@ -396,6 +428,8 @@ class ReminderStoreHandle {
   setSort(sort: string): void { setSort(sort) }
   getById(id: string): Reminder | null { return getById(id) }
   syncPurchaseReminders(purchase: PurchaseRecord): void { syncPurchaseReminders(purchase) }
+  createProductReminder(productId: string, relatedReleaseId: string, type: string, title: string, remindDate: string, note: string): Reminder | null { return createProductReminder(productId, relatedReleaseId, type, title, remindDate, note) }
+  remindersForProduct(productId: string): Reminder[] { return remindersForProduct(productId) }
   swapItems(id1: string, id2: string): void { swapItems(id1, id2) }
   autoMarkOverdue(): void { autoMarkOverdue() }
 }

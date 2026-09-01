@@ -125,6 +125,10 @@ export class Reminder {
   isAllDay: boolean = false
   relatedPurchaseId: string = ''
   relatedWishId: string = ''
+  // Phase 1.1-C：商品锚 + 批次锚（Favorite → Release → Reminder 闭环）
+  // relatedWishId 是旧 /me/wishes 体系字段，保留兼容但不再是当前 Favorite 主锚点
+  productId: string = ''
+  relatedReleaseId: string = ''
   note: string = ''
   status: string = 'PENDING' // PENDING / DONE / MISSED
   isDeleted: boolean = false
@@ -142,6 +146,8 @@ export class ReminderUpdateData {
   isAllDay: boolean = false
   relatedPurchaseId: string = ''
   relatedWishId: string = ''
+  productId: string = ''
+  relatedReleaseId: string = ''
   note: string = ''
   status: string = ''
   wardrobeBindings: string[] = []

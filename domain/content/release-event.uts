@@ -41,4 +41,13 @@ export class ReleaseEvent {
   shopUrl: string = ''
   createdAt: string = ''
   updatedAt: string = ''
+
+  // ====== 发售批次字段（Phase 1.1-A：后端 Product.currentRelease 映射，非第二套模型） ======
+  releaseType: string = 'unknown'    // first_release / rerelease / reservation / spot / lottery / unknown
+  saleStatus: string = ''            // UPCOMING / ON_SALE / PRE_ORDER / SOLD_OUT / ENDED
+  lifecycleStatus: string = 'unknown' // upcoming / active / ended / sold_out / unknown
+  isRerelease: boolean = false
+  fullPrice: number = 0              // 全价（分）
+  balanceDueAt: string = ''          // 尾款截止（ISO 8601）
+  shipAt: string = ''                // 预计发货（ISO 8601）
 }

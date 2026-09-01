@@ -1,0 +1,70 @@
+/**
+ * CalendarService — 发售日历服务
+ * GET /api/v1/calendar?month=YYYY-MM&limit=N
+ * 后端数据源：product_releases（发售事件）+ sale_events（定金/尾款等销售事件），真实数据非 mock。
+ */
+import { apiGet, encodeQuery } from '@/services/platform/api-client'
+
+/** 日历事件展示 DTO（页面渲染 + 提醒跳转所需字段） */
+export class CalendarEvent {
+  id: string = ''
+  day: string = ''          // 日（DD）
+  title: string = ''
+  brand: string = ''        // 品牌名
+  tag: string = ''          // 事件类型中文标签
+  dateKey: string = ''      // YYYY-MM-DD
+  eventType: string = ''
+  startAt: string = ''      // ISO 8601
+  endAt: string = ''
+  productId: string = ''    // 关联商品（可跳商品详情）
+  status: string = ''
+}
+
+/** release_type / sale_event 类型 → 中文标签 */
+function eventTypeLabel(t: string): string {
+  if (t === 'first_release') return '首发'
+  if (t === 'rerelease') return '再贩'
+  if (t === 'reservation') return '预约'
+  if (t === 'spot') return '现货'
+  if (t === 'lottery') return '抽选'
+  if (t === 'deposit') return '定金'
+  if (t === 'balance' || t === 'final_payment') return '尾款'
+  if (t === 'sale' || t === 'release') return '开售'
+  return t
+}
+
+function mapEvent(raw: UTSJSONObject): CalendarEvent {
+  const e = new CalendarEvent()
+  e.id = raw['id'] != null ? raw['id'] as string : ''
+  e.title = raw['title'] != null ? raw['title'] as string : ''
+  e.brand = raw['brandName'] != null ? raw['brandName'] as string : ''
+  e.eventType = raw['eventType'] != null ? raw['eventType'] as string : ''
+  e.status = raw['status'] != null ? raw['status'] as string : ''
+  e.productId = raw['productId'] != null ? raw['productId'] as string : ''
+  e.endAt = raw['endAt'] != null ? raw['endAt'] as string : ''
+  const startAt = raw['startAt'] != null ? raw['startAt'] as string : ''
+  e.startAt = startAt
+  if (startAt.length >= 10) {
+    e.dateKey = startAt.substring(0, 10)
+    e.day = startAt.substring(8, 10)
+  }
+  e.tag = eventTypeLabel(e.eventType)
+  return e
+}
+
+/**
+ * 拉取某月发售日历。月份切换时按需调用，结果缓存于 CalendarStore。
+ */
+export async function fetchCalendarMonth(year: number, month: number): Promise<CalendarEvent[]> {
+  const key = `${year}-${String(month).padStart(2, '0')}`
+  const response = await apiGet('/api/v1/calendar?month=' + encodeQuery(key))
+  const rawItems = response.data
+  const result: CalendarEvent[] = []
+  if (rawItems != null && Array.isArray(rawItems)) {
+    for (let i = 0; i < rawItems.length; i++) {
+      const evt = mapEvent(rawItems[i] as UTSJSONObject)
+      if (evt.dateKey != '') result.push(evt)
+    }
+  }
+  return result
+}

@@ -1,5 +1,20 @@
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { ReleaseEvent } from '@/domain/content/release-event'
+import { ProductVariant } from '@/domain/content/product-variant'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
+
+/** Phase 2.3-A：商品关联社区内容（「真实买家」模块条目，最小字段） */
+export class ProductCommunityPost {
+  id: string = ''
+  authorNickname: string = ''
+  imageUrl: string = ''
+  caption: string = ''
+  category: string = ''
+  topic: string = ''
+  likeCount: number = 0
+  createdAt: string = ''
+  productId: string = ''
+}
 
 export class ProductDetailModel {
   item: FeedItem = new FeedItem()
@@ -7,6 +22,31 @@ export class ProductDetailModel {
   description: string = ''
   shopUrl: string = ''
   requestId: string = ''
+  /** 当前有效发售批次（后端 Product.currentRelease → 复用 ReleaseEvent Domain，非第二套模型） */
+  currentRelease: ReleaseEvent | null = null
+  /** 所属款式 id（Phase 2.1；未归并商品为空串，详情页不显示同款式模块） */
+  styleId: string = ''
+  // ====== Product V2 展示字段（Raw → Normalize → Product；前端只消费 Product 层） ======
+  /** 价格语义：FULL/DEPOSIT/BALANCE/INTENTION/UNKNOWN（缺失保持 UNKNOWN，展示层不猜测） */
+  priceType: string = 'UNKNOWN'
+  /** 定金（分） */
+  depositCents: number = 0
+  /** 尾款（分） */
+  balanceCents: number = 0
+  /** 现货价/全款（分，= item.price） */
+  fullPriceCents: number = 0
+  /** 三坑类型（JK/LOLITA/HANFU/OTHER，= item.category） */
+  pitType: string = ''
+  /** 细分类目（格裙/衬衫/JSK/OP/襦裙/马面…） */
+  subCategory: string = ''
+  /** 可选颜色（Product V2 colors） */
+  colorTags: string[] = []
+  /** 材质标签（Product V2 material_summary 数据源） */
+  materialTags: string[] = []
+  /** 特点标签（Product V2 feature_tags） */
+  featureTags: string[] = []
+  /** 规格变体（多款式商品；空数组 = 单款式/无数据，不渲染款式价格表） */
+  variants: ProductVariant[] = []
 }
 
 function statusLabel(status: string): string {
@@ -19,6 +59,34 @@ function statusLabel(status: string): string {
 
 function addUniqueImage(images: string[], url: string) {
   if (url !== '' && images.indexOf(url) < 0) images.push(url)
+}
+
+/**
+ * 后端 currentRelease（ProductRelease DTO）→ ReleaseEvent 映射。
+ * 字段名对齐后端 camelCase：releaseName/releaseType/saleStatus/lifecycleStatus/
+ * isRerelease/depositCents/balanceCents/fullPriceCents/startAt/endAt/balanceDueAt/shipAt。
+ * 无 release 返回 null（UI 不伪造状态、不显示 0）。
+ */
+function mapCurrentRelease(raw: UTSJSONObject | null, productId: string, brandId: string): ReleaseEvent | null {
+  if (raw == null) return null
+  const release = new ReleaseEvent()
+  release.id = raw['id'] != null ? raw['id'] as string : ''
+  release.productId = productId
+  release.brandId = brandId
+  release.title = raw['releaseName'] != null ? raw['releaseName'] as string : ''
+  release.eventType = raw['releaseType'] != null ? raw['releaseType'] as string : 'unknown'
+  release.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
+  release.lifecycleStatus = raw['lifecycleStatus'] != null ? raw['lifecycleStatus'] as string : 'unknown'
+  release.status = release.lifecycleStatus
+  release.isRerelease = raw['isRerelease'] == true
+  release.depositAmount = raw['depositCents'] != null ? raw['depositCents'] as number : 0
+  release.finalPaymentAmount = raw['balanceCents'] != null ? raw['balanceCents'] as number : 0
+  release.fullPrice = raw['fullPriceCents'] != null ? raw['fullPriceCents'] as number : 0
+  release.startAt = raw['startAt'] != null ? raw['startAt'] as string : ''
+  release.endAt = raw['endAt'] != null ? raw['endAt'] as string : ''
+  release.balanceDueAt = raw['balanceDueAt'] != null ? raw['balanceDueAt'] as string : ''
+  release.shipAt = raw['shipAt'] != null ? raw['shipAt'] as string : ''
+  return release
 }
 
 function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailModel {
@@ -38,6 +106,15 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
   item.sourceLabel = '服务端'
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  // ====== Product V2 展示字段透传（priceType 缺失保持 UNKNOWN，展示层不猜测） ======
+  item.priceType = raw['priceType'] != null ? raw['priceType'] as string : 'UNKNOWN'
+  item.depositCents = raw['depositCents'] != null ? raw['depositCents'] as number : 0
+  item.balanceCents = raw['balanceCents'] != null ? raw['balanceCents'] as number : 0
+  item.saleStatus = raw['status'] != null ? raw['status'] as string : ''
+  item.pitType = raw['category'] != null ? raw['category'] as string : ''
+  item.subCategory = raw['subCategory'] != null ? raw['subCategory'] as string : ''
+  item.colorTags = parseStringArray(raw['colorTags'])
+  item.materialTags = parseStringArray(raw['materialTags'])
 
   const images = raw['images'] as any[]
   if (images != null) {
@@ -46,16 +123,90 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   addUniqueImage(result.images, item.coverUrl)
   if (result.images.length > 1) item.secondaryCoverUrl = result.images[1]
 
+  // 真实发售批次：currentRelease（存在时 eventEndAt 取 endAt，供截止时间展示）
+  const currentRelease = mapCurrentRelease(raw['currentRelease'] as UTSJSONObject | null, item.id, item.brandId)
+  result.currentRelease = currentRelease
+  if (currentRelease != null && currentRelease.endAt !== '') item.eventEndAt = currentRelease.endAt
+
   result.item = item
   result.description = raw['description'] != null ? raw['description'] as string : ''
   result.shopUrl = raw['shopUrl'] != null ? raw['shopUrl'] as string : ''
+  result.styleId = raw['styleId'] != null ? raw['styleId'] as string : ''
+  // ====== Product V2 展示字段 ======
+  result.priceType = item.priceType
+  result.depositCents = item.depositCents
+  result.balanceCents = item.balanceCents
+  result.fullPriceCents = item.price
+  result.pitType = item.pitType
+  result.subCategory = item.subCategory
+  result.colorTags = item.colorTags
+  result.materialTags = item.materialTags
+  result.featureTags = parseStringArray(raw['featureTags'])
+  result.variants = parseVariants(raw['variants'])
   result.requestId = requestId
   return result
 }
 
-export async function fetchProductDetail(id: string): Promise<ProductDetailModel | null> {
+/** 安全解析 string[]（缺失/非数组返回空数组，不伪造数据） */
+function parseStringArray(raw: any): string[] {
+  const result: string[] = []
+  if (raw == null || !Array.isArray(raw)) return result
+  for (let i = 0; i < raw.length; i++) {
+    const v = raw[i]
+    if (v != null) result.push(v as string)
+  }
+  return result
+}
+
+/** 解析规格变体数组（product_variants 行；缺失/空返回空数组，详情页不渲染款式模块） */
+function parseVariants(raw: any): ProductVariant[] {
+  const result: ProductVariant[] = []
+  if (raw == null || !Array.isArray(raw)) return result
+  for (let i = 0; i < raw.length; i++) {
+    const r = raw[i] as UTSJSONObject
+    if (r == null) continue
+    const v = new ProductVariant()
+    v.id = r['id'] != null ? r['id'] as string : ''
+    v.productId = r['productId'] != null ? r['productId'] as string : ''
+    v.name = r['name'] != null ? r['name'] as string : ''
+    v.colorName = r['colorName'] != null ? r['colorName'] as string : ''
+    v.sizeName = r['sizeName'] != null ? r['sizeName'] as string : ''
+    v.skuCode = r['skuCode'] != null ? r['skuCode'] as string : ''
+    v.price = r['priceCents'] != null ? r['priceCents'] as number : 0
+    v.stockStatus = r['stockStatus'] != null ? r['stockStatus'] as string : 'IN_STOCK'
+    result.push(v)
+  }
+  return result
+}
+
+export async function fetchProductDetail(id: string, releaseId: string = ''): Promise<ProductDetailModel | null> {
   if (id === '') return null
-  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}`)
+  // releaseId 非空：后端优先返回该批次 currentRelease（不存在则回退最新一条）
+  const query = releaseId !== '' ? `?releaseId=${encodeQuery(releaseId)}` : ''
+  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}${query}`)
   if (response.data == null) return null
   return mapRemoteProduct(response.data as UTSJSONObject, response.requestId)
+}
+
+/** Phase 2.3-A：商品关联社区内容（「真实买家」模块；后端默认 4 条，游客可读） */
+export async function fetchProductCommunity(id: string): Promise<ProductCommunityPost[]> {
+  if (id === '') return []
+  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}/community`)
+  const values = response.data as any[] | null
+  const result = [] as ProductCommunityPost[]
+  if (values != null) for (let i = 0; i < values.length; i++) {
+    const raw = values[i] as UTSJSONObject
+    const post = new ProductCommunityPost()
+    post.id = raw['id'] != null ? raw['id'] as string : ''
+    post.authorNickname = raw['authorNickname'] != null ? raw['authorNickname'] as string : '同好'
+    post.imageUrl = raw['imageUrl'] != null ? raw['imageUrl'] as string : ''
+    post.caption = raw['caption'] != null ? raw['caption'] as string : ''
+    post.category = raw['category'] != null ? raw['category'] as string : ''
+    post.topic = raw['topic'] != null ? raw['topic'] as string : ''
+    post.likeCount = raw['likeCount'] != null ? raw['likeCount'] as number : 0
+    post.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+    post.productId = raw['productId'] != null ? raw['productId'] as string : ''
+    result.push(post)
+  }
+  return result
 }

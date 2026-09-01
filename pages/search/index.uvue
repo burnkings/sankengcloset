@@ -60,11 +60,12 @@
                     :image="item.coverUrl"
                     :brand="item.brandName"
                     :title="item.title"
-                    :price-text="priceText(item.price)"
-                    :badge-text="item.badgeText"
-                    :deadline-text="deadlineText(item.eventEndAt)"
+                    :type-text="pitTypeLabel(item)"
+                    :status-text="saleStatusText(item)"
+                    :status-color="saleStatusColor(item)"
+                    :price-text="priceSummaryText(item)"
                     :image-height="feedImageHeight(item)"
-                    :saved="library.isFavorite(item.entityId)"
+                    :saved="item.saved"
                     @tap="onResultTap(item)"
                     @toggle-save="onToggleSave(item)"
                   />
@@ -76,11 +77,12 @@
                     :image="item.coverUrl"
                     :brand="item.brandName"
                     :title="item.title"
-                    :price-text="priceText(item.price)"
-                    :badge-text="item.badgeText"
-                    :deadline-text="deadlineText(item.eventEndAt)"
+                    :type-text="pitTypeLabel(item)"
+                    :status-text="saleStatusText(item)"
+                    :status-color="saleStatusColor(item)"
+                    :price-text="priceSummaryText(item)"
                     :image-height="feedImageHeight(item)"
-                    :saved="library.isFavorite(item.entityId)"
+                    :saved="item.saved"
                     @tap="onResultTap(item)"
                     @toggle-save="onToggleSave(item)"
                   />
@@ -104,9 +106,10 @@
 
 <script setup lang="uts">
 import { FeedItem } from '@/domain/content/feed-item'
-import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
+import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSearchStore } from '@/stores/search-store'
+import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -124,8 +127,22 @@ import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { SearchResult } from '@/services/content/search-service'
 
-function priceText(cents: number): string { return formatPrice(cents) }
-function deadlineText(iso: string): string { return formatDeadline(iso) }
+// ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
+function priceSummaryText(item: FeedItem): string {
+  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+function pitTypeLabel(item: FeedItem): string {
+  const pit = item.pitType !== '' ? item.pitType : item.category
+  return getPitTypeLabel(pit)
+}
+function saleStatusText(item: FeedItem): string {
+  if (item.saleStatus === '') return ''
+  const label = ProductStatusLabels[item.saleStatus]
+  return label != null ? label as string : ''
+}
+function saleStatusColor(item: FeedItem): string {
+  return getSaleStatusChipStatus(item.saleStatus)
+}
 
 const library = useContentLibraryStore()
 const searchStore = useSearchStore()
@@ -295,6 +312,12 @@ function onResultTap(item: FeedItem) {
   uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
 }
 function onToggleSave(item: FeedItem) {
+  // 同步翻转服务端 saved（乐观更新，刷新后以服务端权威值为准）
+  const next = [...results.value]
+  for (let i = 0; i < next.length; i++) {
+    if (next[i].id == item.id) { next[i].saved = !next[i].saved; break }
+  }
+  results.value = next
   library.toggleFavorite(item.entityId, item.title)
 }
 const resultLeft = computed((): FeedItem[] => {

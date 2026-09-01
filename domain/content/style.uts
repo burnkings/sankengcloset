@@ -1,0 +1,27 @@
+/**
+ * Style — 三坑款式（Phase 2.1 Style Entity MVP）
+ * Brand → Style → Product → Release 数据链
+ * Style ≠ Product：一个款式可对应多个商品（黑/酒红/再售版本），发售批次由 Release 负责
+ */
+
+export class StyleItem {
+  id: string = ''
+  title: string = ''
+  coverUrl: string = ''
+  price: number = 0           // 分
+  saleStatus: string = ''
+  brandName: string = ''
+}
+
+export class StyleInfo {
+  id: string = ''
+  brandId: string = ''
+  brandName: string = ''
+  canonicalName: string = ''
+  category: string = ''
+  subCategory: string = ''
+  styleTags: string[] = []
+  description: string = ''
+  productCount: number = 0
+  products: StyleItem[] = []
+}
