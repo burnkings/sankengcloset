@@ -17,13 +17,22 @@
 
         <view class="page-canvas" :style="pageWrap">
           <view :style="summaryCard">
-              <view :style="priceRow"><text :style="priceText">{{ formatMoney(item!.price) }}</text><text v-if="item!.originalPrice > item!.price" :style="oldPrice">{{ formatMoney(item!.originalPrice) }}</text></view>
+              <view :style="priceRow">
+                <text v-if="priceSummaryText !== ''" :style="priceText">{{ priceSummaryText }}</text>
+                <text v-else :style="priceFallbackText">价格待定</text>
+                <text v-if="item!.originalPrice > item!.price && priceSummaryText !== ''" :style="oldPrice">{{ formatMoney(item!.originalPrice) }}</text>
+              </view>
             <text :style="titleText">{{ item!.title }}</text>
             <view :style="brandRow">
               <text :style="brandText">{{ item!.brandName }}</text>
+              <view v-if="pitTypeLabel !== ''" :style="pitChip"><text :style="pitChipText">{{ pitTypeLabel }}</text></view>
+              <view v-if="subCategory !== ''" :style="subChip"><text :style="subChipText">{{ subCategory }}</text></view>
               <view :style="blacklistBtn" @tap="onToggleBlacklist">
                 <text :style="blacklistBtnText">{{ blacklist.isBlacklisted(item!.brandName) ? '已屏蔽·恢复' : '屏蔽品牌' }}</text>
               </view>
+            </view>
+            <view v-if="featureTags.length > 0" :style="featureRow">
+              <view v-for="tag in featureTags" :key="tag" :style="featureChip"><text :style="featureChipText">{{ tag }}</text></view>
             </view>
             <view v-if="blacklist.isBlacklisted(item!.brandName)" :style="blockedBanner">
               <text :style="blockedBannerText">该品牌已被你屏蔽，首页、搜索与收藏中将不再展示。可点上方「已屏蔽·恢复」取消。</text>
@@ -43,15 +52,54 @@
             </view>
           </view>
 
-          <template v-if="release !== null">
-            <SectionHeader title="发售信息" />
+          <template v-if="release !== null || spotPriceVisible">
+            <SectionHeader title="购买信息" />
             <view :style="releaseCard">
-              <view v-if="release!.title !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ release!.title }}</text></view>
-              <view v-if="releaseStartText !== ''" :style="releaseRow"><text :style="releaseLabel">发售时间</text><text :style="releaseValue">{{ releaseStartText }}</text></view>
-              <view v-if="release!.depositAmount > 0" :style="releaseRow"><text :style="releaseLabel">定金</text><text :style="releaseValue">{{ formatMoney(release!.depositAmount) }}</text></view>
-              <view v-if="release!.finalPaymentAmount > 0" :style="releaseRow"><text :style="releaseLabel">尾款</text><text :style="releaseValue">{{ formatMoney(release!.finalPaymentAmount) }}</text></view>
-              <view v-if="release!.fullPrice > 0" :style="releaseRow"><text :style="releaseLabel">全价</text><text :style="releaseValue">{{ formatMoney(release!.fullPrice) }}</text></view>
+              <view v-if="releaseStatusText !== ''" :style="releaseRow"><text :style="releaseLabel">当前状态</text><text :style="releaseValue">{{ releaseStatusText }}</text></view>
+              <view v-if="spotPriceVisible" :style="releaseRow"><text :style="releaseLabel">现货价格</text><text :style="releaseValue">{{ formatMoney(spotPriceCents) }}</text></view>
+              <view v-if="release !== null && release!.title !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ release!.title }}</text></view>
+              <view v-if="releaseStartText !== ''" :style="releaseRow"><text :style="releaseLabel">预售时间</text><text :style="releaseValue">{{ releaseStartText }}</text></view>
+              <view v-if="shipDateText !== ''" :style="releaseRow"><text :style="releaseLabel">出货时间</text><text :style="releaseValue">{{ shipDateText }}</text></view>
+              <view v-if="release !== null && release!.depositAmount > 0" :style="releaseRow"><text :style="releaseLabel">定金</text><text :style="releaseValue">{{ formatMoney(release!.depositAmount) }}</text></view>
+              <view v-if="release !== null && release!.finalPaymentAmount > 0" :style="releaseRow"><text :style="releaseLabel">尾款</text><text :style="releaseValue">{{ formatMoney(release!.finalPaymentAmount) }}</text></view>
+              <view v-if="release !== null && release!.fullPrice > 0" :style="releaseRow"><text :style="releaseLabel">全款</text><text :style="releaseValue">{{ formatMoney(release!.fullPrice) }}</text></view>
             </view>
+          </template>
+
+          <template v-if="colorTags.length > 0 || sizeOptions.length > 0">
+            <SectionHeader title="规格" />
+            <view :style="specCard">
+              <view v-if="colorTags.length > 0" :style="specRow">
+                <text :style="specLabel">可选颜色</text>
+                <view :style="specChips">
+                  <view v-for="c in colorTags" :key="c" :style="specChip"><text :style="specChipText">{{ c }}</text></view>
+                </view>
+              </view>
+              <view v-if="sizeOptions.length > 0" :style="specRow">
+                <text :style="specLabel">可选尺码</text>
+                <view :style="specChips">
+                  <view v-for="s in sizeOptions" :key="s" :style="specChip"><text :style="specChipText">{{ s }}</text></view>
+                </view>
+              </view>
+            </view>
+          </template>
+
+          <template v-if="variants.length > 0">
+            <SectionHeader title="款式价格" />
+            <view :style="variantCard">
+              <view v-for="v in variants" :key="v.id" :style="variantRow">
+                <view :style="variantInfo">
+                  <text :style="variantName">{{ v.name !== '' ? v.name : variantFallbackName(v) }}</text>
+                  <text :style="variantSpec">{{ variantSpecText(v) }}</text>
+                </view>
+                <text :style="variantPrice">{{ v.price > 0 ? formatMoney(v.price) : '价格待定' }}</text>
+              </view>
+            </view>
+          </template>
+
+          <template v-if="materialSummary !== ''">
+            <SectionHeader title="材质" />
+            <view :style="detailCard"><text :style="detailText">{{ materialSummary }}</text></view>
           </template>
 
           <template v-if="sameStyle !== null && sameStyle.products.length > 0">
@@ -61,7 +109,7 @@
                 <text :style="sameStyleName">{{ sameStyle!.canonicalName }}</text>
                 <text :style="sameStyleBrand">{{ sameStyle!.brandName }}</text>
               </view>
-              <scroll-view direction="horizontal" :show-scrollbar="false" :style="sameStyleScroll">
+              <scroll-view scroll-x :show-scrollbar="false" :style="sameStyleScroll">
                 <view :style="sameStyleRow">
                   <view v-for="s in sameStyle!.products" :key="s.id" :style="sameStyleItem" @tap="openSameStyle(s.id)">
                     <AppImage :src="s.coverUrl" :style="sameStyleImage" mode="aspectFill" />
@@ -76,12 +124,12 @@
           <template v-if="realBuyerPosts.length > 0">
             <SectionHeader title="真实买家" />
             <view :style="buyerCard">
-              <scroll-view direction="horizontal" :show-scrollbar="false" :style="buyerScroll">
+              <scroll-view scroll-x :show-scrollbar="false" :style="buyerScroll">
                 <view :style="buyerRow">
                   <view v-for="p in realBuyerPosts" :key="p.id" :style="buyerItem" @tap="openBuyerPost(p.id)">
                     <AppImage :src="p.imageUrl" :style="buyerImage" mode="aspectFill" />
                     <text :style="buyerAuthor">{{ p.authorNickname }}</text>
-                    <text :style="buyerCaption">{{ p.caption !== '' ? p.caption : '上身返图' }}</text>
+                    <text :style="buyerCaption" :lines="1">{{ p.caption !== '' ? p.caption : '上身返图' }}</text>
                   </view>
                 </view>
               </scroll-view>
@@ -116,7 +164,8 @@ import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { StyleInfo } from '@/domain/content/style'
-import { deriveReleaseStatusText } from '@/presentation/content/feed-presenter'
+import { ProductVariant } from '@/domain/content/product-variant'
+import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel, PRICE_TYPE_FULL } from '@/presentation/content/feed-presenter'
 import { fetchStyle } from '@/services/content/style-service'
 import { fetchProductCommunity, ProductCommunityPost } from '@/services/content/product-service'
 import { useProductDetailStore } from '@/stores/product-detail-store'
@@ -159,7 +208,56 @@ const compatibilityNames = computed((): string => compatibility.value.matchedIte
 // 真实发售批次（后端 currentRelease → ReleaseEvent）：发售状态/时间/金额的唯一事实源，禁止 badgeText 猜测
 const currentRelease = ref(null) as Ref<ReleaseEvent | null>
 const release = computed((): ReleaseEvent | null => currentRelease.value)
-const releaseStatusText = computed((): string => deriveReleaseStatusText(currentRelease.value))
+const currentImageIndex = ref(0)
+// Phase 2.1 同款式：商品绑定 styleId 时加载款式信息（未归并商品保持 null，模块不显示）
+const sameStyle = ref(null) as Ref<StyleInfo | null>
+// Phase 2.3-A 真实买家：商品关联社区返图（空数组 = 模块不显示；失败静默不阻塞详情）
+const realBuyerPosts = ref([]) as Ref<ProductCommunityPost[]>
+// ====== Product V2 展示字段（Raw → Normalize → Product；详情页只消费 Product 层） ======
+const priceType = ref('UNKNOWN')
+const depositCents = ref(0)
+const balanceCents = ref(0)
+const pitType = ref('')
+const subCategory = ref('')
+const colorTags = ref([]) as Ref<string[]>
+const materialTags = ref([]) as Ref<string[]>
+const featureTags = ref([]) as Ref<string[]>
+const variants = ref([]) as Ref<ProductVariant[]>
+
+/** 价格摘要（price_type 语义，与商品卡一致）：FULL「¥368」/ DEPOSIT「定金 ¥100 · 全款 ¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空 */
+const priceSummaryText = computed((): string => {
+  if (item.value === null) return ''
+  const full = currentRelease.value != null && currentRelease.value!.fullPrice > 0 ? currentRelease.value!.fullPrice : item.value!.fullPriceCents
+  return formatPriceSummaryByType(priceType.value, item.value!.price, full, depositCents.value, balanceCents.value)
+})
+/** 现货价格（分）：release 全价 > 商品当前价（FULL 语义），否则 0（无数据显示，不伪造） */
+const spotPriceCents = computed((): number => {
+  if (item.value === null) return 0
+  if (currentRelease.value != null && currentRelease.value!.fullPrice > 0) return currentRelease.value!.fullPrice
+  return priceType.value === PRICE_TYPE_FULL && item.value!.price > 0 ? item.value!.price : 0
+})
+/** 三坑类型展示名 */
+const pitTypeLabel = computed((): string => getPitTypeLabel(pitType.value))
+/** 可选尺码：款式变体提取去重（variants 无数据则不显示尺码模块） */
+const sizeOptions = computed((): string[] => {
+  const sizes: string[] = []
+  for (let i = 0; i < variants.value.length; i++) {
+    const s = variants.value[i].sizeName
+    if (s !== '' && sizes.indexOf(s) < 0) sizes.push(s)
+  }
+  return sizes
+})
+/** 材质摘要（只展示 material_summary，不搬淘宝详情页） */
+const materialSummary = computed((): string => {
+  if (materialTags.value.length === 0) return ''
+  return materialTags.value.join('、')
+})
+/** 出货时间（release.shipAt；无数据不显示） */
+const shipDateText = computed((): string => {
+  const r = currentRelease.value
+  return r != null ? dateOnly(r.shipAt) : ''
+})
+/** 预售/发售时间区间（release.startAt ~ endAt） */
 const releaseStartText = computed((): string => {
   const r = currentRelease.value
   if (r == null) return ''
@@ -170,11 +268,7 @@ const releaseStartText = computed((): string => {
   if (end === '') return start
   return `${start} ~ ${end}`
 })
-const currentImageIndex = ref(0)
-// Phase 2.1 同款式：商品绑定 styleId 时加载款式信息（未归并商品保持 null，模块不显示）
-const sameStyle = ref(null) as Ref<StyleInfo | null>
-// Phase 2.3-A 真实买家：商品关联社区返图（空数组 = 模块不显示；失败静默不阻塞详情）
-const realBuyerPosts = ref([]) as Ref<ProductCommunityPost[]>
+const releaseStatusText = computed((): string => deriveReleaseStatusText(currentRelease.value))
 function formatMoney(cents: number): string { return formatPrice(cents) }
   const detailImages = ref<string[]>([])
 
@@ -279,6 +373,16 @@ async function loadDetail() {
     description.value = result.description
     shopUrl.value = result.shopUrl
     currentRelease.value = result.currentRelease
+    // ====== Product V2 展示字段赋值 ======
+    priceType.value = result.priceType
+    depositCents.value = result.depositCents
+    balanceCents.value = result.balanceCents
+    pitType.value = result.pitType
+    subCategory.value = result.subCategory
+    colorTags.value = result.colorTags
+    materialTags.value = result.materialTags
+    featureTags.value = result.featureTags
+    variants.value = result.variants
     // 同款式：仅当商品已归并（styleId 非空）时加载；失败静默（不阻塞详情）
     sameStyle.value = null
     if (result.styleId !== '') {

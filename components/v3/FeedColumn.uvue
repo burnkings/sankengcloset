@@ -10,7 +10,7 @@
           </view>
         </view>
       </view>
-      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :price-text="formatPrice(item.price)" :badge-text="item.badgeText" :deadline-text="formatDeadline(item.eventEndAt)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
+      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
     </view>
   </view>
 </template>
@@ -19,10 +19,11 @@
 import AppImage from '@/components/base/AppImage.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
-import { formatPrice, formatDeadline, feedImageHeight } from '@/stores/home-feed-store'
+import { feedImageHeight } from '@/stores/home-feed-store'
 import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 
 const props = withDefaults(defineProps<{
   items: FeedItem[]
@@ -32,6 +33,31 @@ const emit = defineEmits<{
   tap: [item: FeedItem]
   toggleSave: [item: FeedItem]
 }>()
+
+// ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
+
+/** 价格摘要：FULL「¥368」/ DEPOSIT「定金 ¥100 · 全款 ¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空 */
+function priceSummaryText(item: FeedItem): string {
+  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+
+/** 三坑类型标签（JK / Lolita / 汉服 / 其他） */
+function pitTypeLabel(item: FeedItem): string {
+  const pit = item.pitType !== '' ? item.pitType : item.category
+  return getPitTypeLabel(pit)
+}
+
+/** 销售状态文案（在售/预售/售罄…；无状态不显示，不伪造） */
+function saleStatusText(item: FeedItem): string {
+  if (item.saleStatus === '') return ''
+  const label = ProductStatusLabels[item.saleStatus]
+  return label != null ? label as string : ''
+}
+
+/** 销售状态 → chip 颜色 */
+function saleStatusColor(item: FeedItem): string {
+  return getSaleStatusChipStatus(item.saleStatus)
+}
 
 // 列内样式与首页一致（V3 token 化，机械迁移不改数值）
 const outfitFlowCard = { width: '100%', borderRadius: CARD_RADIUS_V3, overflow: 'hidden' }

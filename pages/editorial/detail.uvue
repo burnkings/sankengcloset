@@ -24,8 +24,10 @@
                 :image="item.coverUrl"
                 :brand="item.brandName"
                 :title="item.title"
-                :price-text="formatPrice(item.price)"
-                :badge-text="item.badgeText"
+                :type-text="pitTypeLabel(item)"
+                :status-text="saleStatusText(item)"
+                :status-color="saleStatusColor(item)"
+                :price-text="priceSummaryText(item)"
                 @tap="onProductTap(item.entityId)"
               />
           </view>
@@ -38,6 +40,7 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
+import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { fontSize } from '@/theme/tokens/typography'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { flexRow } from '@/theme/layout/flex'
@@ -56,11 +59,21 @@ const pageCategory = ref('')
 const heroImage = ref('')
   const filteredItems = ref<FeedItem[]>([])
 
-function formatPrice(cents: number): string {
-  if (cents <= 0) return ''
-  const yuan = cents / 100
-  if (yuan === Math.floor(yuan)) return `¥${Math.floor(yuan)}`
-  return `¥${yuan.toFixed(2)}`
+// ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
+function priceSummaryText(item: FeedItem): string {
+  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+function pitTypeLabel(item: FeedItem): string {
+  const pit = item.pitType !== '' ? item.pitType : item.category
+  return getPitTypeLabel(pit)
+}
+function saleStatusText(item: FeedItem): string {
+  if (item.saleStatus === '') return ''
+  const label = ProductStatusLabels[item.saleStatus]
+  return label != null ? label as string : ''
+}
+function saleStatusColor(item: FeedItem): string {
+  return getSaleStatusChipStatus(item.saleStatus)
 }
 
 function onProductTap(entityId: string) {

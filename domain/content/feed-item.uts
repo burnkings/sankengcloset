@@ -41,7 +41,14 @@ export class FeedItem {
 
   // ====== 业务字段（Phase 1.1-B：后端 ContentFeedItem 完整透传，UI 暂不强制展示） ======
   pitType: string = ''          // 主要品类标签（与 category 同值，保留后端语义）
+  subCategory: string = ''      // 细分类目（格裙/衬衫/JSK/OP/襦裙/马面…）
   priceSummary: string = ''     // 价格摘要 e.g. "¥368.00"
+  priceType: string = 'UNKNOWN' // 价格语义（Product V2）：FULL/DEPOSIT/BALANCE/INTENTION/UNKNOWN，展示层按此生成摘要，禁止猜测
+  depositCents: number = 0      // 定金（分）
+  balanceCents: number = 0      // 尾款（分）
+  fullPriceCents: number = 0    // 全款（分，来源 product_releases.full_price_cents；DEPOSIT 摘要「定金 ¥X · 全款 ¥Y」用）
+  colorTags: string[] = []      // 可选颜色（Product V2 colors）
+  materialTags: string[] = []   // 材质标签（Product V2 material_summary 数据源）
   saleStatus: string = ''       // UPCOMING / ON_SALE / PRE_ORDER / SOLD_OUT / ENDED
   releaseType: string = ''      // first_release / rerelease / reservation / spot / lottery / unknown
   releaseTypeName: string = ''  // 首发 / 再贩 / 预约 / 现货 / 抽选 / 未知

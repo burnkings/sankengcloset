@@ -8,6 +8,7 @@
 
 import { brand, accent, semantic, jkColors, lolitaColors, hanfuColors } from '@/theme/tokens/colors'
 import { ReleaseEvent } from '@/domain/content/release-event'
+import { formatPriceCents } from '@/utils/format'
 
 // ====== FeedType 展示 ======
 
@@ -115,6 +116,68 @@ export function getProductStatusColor(status: string): string {
   if (status === 'ON_SALE') return semantic.success
   if (status === 'PRE_ORDER') return semantic.warning
   return '#9CA3AF'
+}
+
+/** 销售状态 → StatusChip 颜色（商品卡/详情页共用） */
+export function getSaleStatusChipStatus(status: string): string {
+  if (status === 'ON_SALE') return 'positive'
+  if (status === 'PRE_ORDER') return 'pending'
+  if (status === 'UPCOMING') return 'initial'
+  if (status === 'SOLD_OUT') return 'neutral'
+  if (status === 'ENDED') return 'neutral'
+  return 'neutral'
+}
+
+// ====== Product V2 价格摘要（price_type 语义；数据驱动，禁止猜测） ======
+
+export const PRICE_TYPE_FULL = 'FULL'
+export const PRICE_TYPE_DEPOSIT = 'DEPOSIT'
+export const PRICE_TYPE_BALANCE = 'BALANCE'
+export const PRICE_TYPE_INTENTION = 'INTENTION'
+export const PRICE_TYPE_UNKNOWN = 'UNKNOWN'
+
+/** 坑向展示名（三坑类型：JK/LOLITA/HANFU/OTHER） */
+export function getPitTypeLabel(pitType: string): string {
+  if (pitType === 'JK') return 'JK'
+  if (pitType === 'LOLITA') return 'Lolita'
+  if (pitType === 'HANFU') return '汉服'
+  if (pitType === 'OTHER') return '其他'
+  return pitType
+}
+
+/**
+ * 按 price_type 生成价格摘要（商品卡 / 详情页共用）：
+ * FULL      → 「¥368」
+ * DEPOSIT   → 「定金 ¥100」；存在全款 → 「定金 ¥100 · 全款 ¥368」
+ * BALANCE   → 「尾款 ¥268」
+ * INTENTION → 「意向金 ¥1」（「意向金1元抵10元」不得显示成普通售价 ¥1）
+ * UNKNOWN   → ''（不猜测价格语义，调用方隐藏价格行）
+ * 金额 0 视为缺失：该段不输出，避免「定金 ¥0」类伪数据。
+ */
+export function formatPriceSummaryByType(
+  priceType: string,
+  priceCents: number,
+  fullPriceCents: number,
+  depositCents: number,
+  balanceCents: number,
+): string {
+  if (priceType === PRICE_TYPE_FULL) {
+    return priceCents > 0 ? formatPriceCents(priceCents) : ''
+  }
+  if (priceType === PRICE_TYPE_DEPOSIT) {
+    const deposit = depositCents > 0 ? depositCents : priceCents
+    if (deposit <= 0) return ''
+    const base = `定金 ${formatPriceCents(deposit)}`
+    return fullPriceCents > 0 ? `${base} · 全款 ${formatPriceCents(fullPriceCents)}` : base
+  }
+  if (priceType === PRICE_TYPE_BALANCE) {
+    const balance = balanceCents > 0 ? balanceCents : priceCents
+    return balance > 0 ? `尾款 ${formatPriceCents(balance)}` : ''
+  }
+  if (priceType === PRICE_TYPE_INTENTION) {
+    return priceCents > 0 ? `意向金 ${formatPriceCents(priceCents)}` : ''
+  }
+  return '' // UNKNOWN：不猜测价格语义
 }
 
 // ====== StockStatus 展示 ======
