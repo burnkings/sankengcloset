@@ -10,7 +10,6 @@
         <view :style="rankingRow">
           <view :style="rankingCard('hot')" @tap="openRanking('hot')"><text :style="rankingTitle">热榜</text><text :style="rankingDesc">大家都在关注</text></view>
           <view :style="rankingCard('new')" @tap="openRanking('new')"><text :style="rankingTitle">上新榜</text><text :style="rankingDesc">新款值得蹲</text></view>
-          <view :style="rankingCard('risk')" @tap="openRanking('risk')"><text :style="rankingTitle">避雷榜</text><text :style="rankingDesc">买前先看坑</text></view>
         </view>
 
         <SectionHeader title="精选专题" action-text="查看更多" />
@@ -247,11 +246,11 @@ const topics = computed((): TopicItem[] => {
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const searchBox = computed((): any => ({ width: '686rpx', height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3, backgroundColor: n.value.inputFill, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
 const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
-// 榜单入口三卡
-const rankingRow = { ...flexRow, flexDirection: 'row' as string, justifyContent: 'space-between' }
+// 榜单入口双卡（热榜/上新榜，等宽均分 + 24rpx 间距）
+const rankingRow = { ...flexRow, flexDirection: 'row' as string }
 function rankingCard(variant: string): any {
-  const bg = variant === 'hot' ? '#F7E7EC' : (variant === 'new' ? '#ECF1F5' : '#FBF2E8')
-  return { width: '218rpx', height: '112rpx', borderRadius: '20rpx', backgroundColor: bg, padding: '20rpx', justifyContent: 'center', flexDirection: 'column' as string }
+  const bg = variant === 'hot' ? '#F7E7EC' : '#ECF1F5'
+  return { flex: 1, height: '112rpx', borderRadius: '20rpx', backgroundColor: bg, padding: '20rpx', justifyContent: 'center', flexDirection: 'column' as string, marginRight: variant === 'hot' ? '24rpx' : '0' }
 }
 const rankingTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#262223' }
 const rankingDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))

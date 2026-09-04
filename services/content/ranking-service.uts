@@ -3,7 +3,7 @@
  * 当前为纯 Mock 数据（后端暂无 /api/v1/ranking 接口）。
  * 后端就绪后实现 fetchRankingRemote 即可，页面调用签名不变。
  */
-import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW, RANKING_TAB_RISK } from '@/domain/ranking/ranking-item'
+import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW } from '@/domain/ranking/ranking-item'
 
 function makeItem(rank: number, entityId: string, title: string, brandName: string, coverUrl: string, priceCents: number, category: string): RankingItem {
   const item = new RankingItem()
@@ -61,32 +61,10 @@ function newMock(): RankingItem[] {
   return list
 }
 
-function riskMock(): RankingItem[] {
-  const list: RankingItem[] = []
-  const rows = [
-    ['p3001', '旧版复刻格裙', '某工作室', '46800', 'JK', 'high', ['再贩价低于首发 15%', '近 30 天降价 20%']],
-    ['p3002', '棉纱连衣裙', '某品牌', '29800', 'Lolita', 'high', ['超过预计发货时间 30 天未发货']],
-    ['p3003', '提花马面', '某汉服店', '36800', '汉服', 'medium', ['版权争议标记（申诉中）']],
-    ['p3004', '亮面格裙', '某代购', '32800', 'JK', 'medium', ['批量质量翻车标记']],
-    ['p3005', '绒面斗篷', '某店铺', '58800', 'Lolita', 'high', ['当前价高于原价 1.5 倍']],
-    ['p3006', '棉麻短衫', '某店', '18800', '汉服', 'medium', ['内容质量分低于 40']],
-  ]
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    const item = makeItem(i + 1, row[0], row[1], row[2], '', parseInt(row[3]), row[4])
-    item.riskLevel = row[5]
-    item.riskPoints = row[6] as string[]
-    item.traceable = true
-    list.push(item)
-  }
-  return list
-}
-
-/** 加载榜单（Mock）。tab: 'hot' | 'new' | 'risk' */
+/** 加载榜单（Mock）。tab: 'hot' | 'new' */
 export function loadRanking(tab: string): RankingItem[] {
   if (tab == RANKING_TAB_HOT) return hotMock()
   if (tab == RANKING_TAB_NEW) return newMock()
-  if (tab == RANKING_TAB_RISK) return riskMock()
   return hotMock()
 }
 

@@ -1,4 +1,4 @@
-/** ranking-item — 榜单条目模型（热榜/上新榜/避雷榜共用） */
+/** ranking-item — 榜单条目模型（热榜/上新榜共用） */
 
 export class RankingItem {
   rank: number = 0
@@ -15,12 +15,7 @@ export class RankingItem {
   releaseTypeName: string = ''   // 首发 / 再贩 / 现货
   daysAgo: number = 0            // 「X 天前上新」
   reservationCount: number = 0   // 「X 人蹲预约」
-  // 避雷榜
-  riskLevel: string = ''         // 'high' | 'medium'
-  riskPoints: string[] = []      // 风险点标签（漏发/货不对板/工期拖延…）
-  traceable: boolean = false     // 「风险依据可追溯」
 }
 
 export const RANKING_TAB_HOT = 'hot'
 export const RANKING_TAB_NEW = 'new'
-export const RANKING_TAB_RISK = 'risk'

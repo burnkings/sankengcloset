@@ -5,8 +5,6 @@
       <view :style="rankBadge(rankStyle)"><text :style="rankText(rankStyle)">{{ item.rank }}</text></view>
       <view :style="imageWrap">
         <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-        <view v-if="item.riskLevel === 'high' || item.riskLevel === 'medium'" :style="riskMask" />
-        <view v-if="item.riskLevel === 'high' || item.riskLevel === 'medium'" :style="riskBadge"><text :style="riskBadgeText">风险提示</text></view>
       </view>
     </view>
 
@@ -39,14 +37,6 @@
         </view>
       </template>
 
-      <!-- 避雷榜 -->
-      <template v-else-if="variant === 'risk'">
-        <view :style="tagRow">
-          <view :style="riskLevelTag"><text :style="riskLevelText">{{ riskLevelLabel }}</text></view>
-          <view v-for="(point, idx) in item.riskPoints" :key="idx" :style="riskPointTag"><text :style="riskPointText">{{ point }}</text></view>
-          <text :style="traceText">{{ item.traceable ? '风险依据可追溯' : '' }}</text>
-        </view>
-      </template>
     </view>
   </view>
 </template>
@@ -58,11 +48,11 @@ import { formatPriceCents } from '@/utils/format'
 import { brand, semantic, baseColors } from '@/theme/tokens/colors'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { n, isDark } from '@/theme/use-theme'
+import { n } from '@/theme/use-theme'
 
 const props = withDefaults(defineProps<{
   item: RankingItem
-  variant: string   // 'hot' | 'new' | 'risk'
+  variant: string   // 'hot' | 'new'
 }>(), { item: new RankingItem(), variant: 'hot' })
 
 const emit = defineEmits<{ tap: [] }>()
@@ -79,7 +69,6 @@ function rankBadgeBg(style: string): string {
   if (style === 'bronze') return 'rgba(184,115,51,0.16)'
   return n.value.bgSecondary
 }
-const riskLevelLabel = computed((): string => props.item.riskLevel === 'high' ? '高风险' : '中风险')
 const priceText = computed((): string => formatPriceCents(props.item.priceCents))
 
 function rankColor(style: string): string {
@@ -104,9 +93,6 @@ const leftWrap = { ...flexRow, alignItems: 'center', marginRight: '24rpx' }
 const rankBadge = (style: string): any => ({ width: '56rpx', height: '56rpx', borderRadius: '28rpx', alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', backgroundColor: rankBadgeBg(style) })
 const rankText = (style: string): any => ({ fontSize: style === 'gold' ? '40rpx' : style === 'normal' ? '28rpx' : '36rpx', fontWeight: style === 'gold' ? 700 : style === 'normal' ? 500 : 600, color: rankColor(style) })
 const imageWrap = computed((): any => ({ width: '120rpx', height: '120rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, position: 'relative' as string }))
-const riskMask = { position: 'absolute' as string, top: '0', left: '0', right: '0', bottom: '0', backgroundColor: 'rgba(197,83,91,0.15)' }
-const riskBadge = { position: 'absolute' as string, top: '8rpx', left: '8rpx', height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: semantic.error }
-const riskBadgeText = { fontSize: '20rpx', fontWeight: 600, color: baseColors.white }
 const infoWrap = { flex: 1 }
 const titleRow = { ...flexRow, alignItems: 'center' }
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis', flex: 1 }))
@@ -124,11 +110,6 @@ const newTagText = { fontSize: '20rpx', fontWeight: 600, color: baseColors.white
 const releaseTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
 const releaseTagText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary }))
 const metaText = computed((): any => ({ fontSize: '20rpx', color: n.value.textTertiary, marginLeft: '12rpx' }))
-const riskLevelTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: props.item.riskLevel === 'high' ? semantic.error : semantic.warning, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
-const riskLevelText = { fontSize: '20rpx', fontWeight: 600, color: baseColors.white }
-const riskPointTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: isDark.value ? 'rgba(197,83,91,0.20)' : '#FDECEA', alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginTop: '4rpx' }))
-const riskPointText = computed((): any => ({ fontSize: '20rpx', color: isDark.value ? '#E17880' : (semantic.error as string) }))
-const traceText = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary, marginLeft: '12rpx' }))
 </script>
 
 <style>
