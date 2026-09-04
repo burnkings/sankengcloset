@@ -1,7 +1,6 @@
 import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-operation'
 import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
-import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized } from '@/services/platform/api-client'
-import { encodeQuery } from '@/services/platform/api-client'
+import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized, apiErrorStatus, encodeQuery } from '@/services/platform/api-client'
 import { listWishlistRemote, followBrandRemote, unfollowBrandRemote, setCommunityPostLikeRemote, deleteCommunityPostRemote, saveBudgetRemote } from '@/services/user-data/user-data-service'
 
 const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
@@ -98,6 +97,29 @@ function dropOperation(op: SyncOperation, reason: string) {
     return
   }
   removeOperation(op.opId)
+}
+
+/**
+ * 重放错误分类（以后端实际幂等契约为准，客户端不伪造成功）：
+ * - 401：Authorized 请求内部已单飞刷新并重试一次；仍 401 = 会话失效 → 抛出，
+ *   由 flushRemote 中止整次冲刷且不消耗队列（保留至重新登录后再次 flush）。
+ * - 网络层(0)/429/5xx：瞬时失败 → 保留队列（return 0），下次 flush 再试；不消耗重试计数，
+ *   避免「离线多次启动 app」把可恢复操作误淘汰。上限由 7 天 TTL 预清扫兜底。
+ * - 409 × create/upsert/import：幂等成功（后端 /me/* 资产以客户端 id 落库，同 id 已存在
+ *   即返回冲突 → 重放收敛为「已存在」，绝不产生重复实体）。
+ * - 404 × delete：幂等成功（目标已不存在，删除语义天然幂等）。
+ * - 其余 4xx：不可重试（校验/权限等确定性拒绝）→ 立即存档降级（reason 带 http_<status>），
+ *   不再无限重试，也不清空队列伪造成功。
+ */
+function replayErrorResult(op: SyncOperation, error: any): number {
+  const status = apiErrorStatus(error)
+  if (status == 401) throw error
+  if (status == 0 || status == 429 || status >= 500) return 0
+  const isCreate = op.action == 'create' || op.action == 'upsert' || op.action == 'import'
+  if (status == 409 && isCreate) return 1
+  if (status == 404 && op.action == 'delete') return 1
+  dropOperation(op, 'http_' + status.toString())
+  return 2
 }
 
 /** 读取存档（供未来版本从存档恢复重入队）。 */
@@ -206,7 +228,9 @@ async function replayFavorite(op: SyncOperation): Promise<number> {
     await apiPostAuthorized('/api/v1/wishlist', { title, status: 'WISH', productId } as UTSJSONObject)
     return 1
   } catch (e) {
-    return 0
+    // 服务端 wishlist 以 user+productId 唯一收敛（重复 POST 返回既有条目），
+    // 重放分类：409/404-delete 幂等成功、4xx 存档、网络/5xx 保留重试、401 中止
+    return replayErrorResult(op, e)
   }
 }
 
@@ -239,7 +263,8 @@ async function replayOperation(op: SyncOperation): Promise<number> {
       await deleteCommunityPostRemote(op.entityId)
       return 1
     } catch (e) {
-      return 0
+      // 远程帖子删除 404=已不存在 → 幂等成功；其余按统一分类处理
+      return replayErrorResult(op, e)
     }
   }
   let path = ''
@@ -260,13 +285,14 @@ async function replayOperation(op: SyncOperation): Promise<number> {
       await apiDeleteAuthorized(path + '/' + encodeQuery(op.entityId))
       return 1
     }
-    // update / 状态动作：PATCH 部分字段
+    // update / 状态动作：PATCH 部分字段（队列 payload 通常为同步后的完整实体 JSON）
     const payload = safePayload(op.payload)
     const body = payload != '' ? JSON.parse(payload) as UTSJSONObject : {} as UTSJSONObject
     await apiPatchAuthorized(path + '/' + encodeQuery(op.entityId), body)
     return 1
   } catch (e) {
-    return 0
+    // 统一错误分类（409 create 幂等 / delete 404 幂等 / 4xx 存档 / 网络+5xx 保留 / 401 中止）
+    return replayErrorResult(op, e)
   }
 }
 
@@ -279,7 +305,8 @@ async function replayBrandFollow(op: SyncOperation): Promise<number> {
     else await followBrandRemote(brandName)
     return 1
   } catch (e) {
-    return 0
+    // 取关 404=已未关注 → 幂等成功；品牌不存在等 4xx → 存档降级
+    return replayErrorResult(op, e)
   }
 }
 
@@ -292,7 +319,7 @@ async function replayPostLike(op: SyncOperation): Promise<number> {
     await setCommunityPostLikeRemote(postId, wanted)
     return 1
   } catch (e) {
-    return 0
+    return replayErrorResult(op, e)
   }
 }
 
@@ -305,13 +332,30 @@ async function replayBudget(op: SyncOperation): Promise<number> {
     await saveBudgetRemote(body)
     return 1
   } catch (e) {
-    return 0
+    return replayErrorResult(op, e)
   }
 }
 
+/** 网络可达性（仅 'none' 视为离线；unknown/失败按可达处理，交由请求超时兜底） */
+function isNetworkAvailable(): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    try {
+      uni.getNetworkType({
+        success: (res) => { resolve(res.networkType != 'none') },
+        fail: () => { resolve(true) },
+      })
+    } catch (e) {
+      resolve(true)
+    }
+  })
+}
+
 /**
- * 冲刷队列：逐条重放真实 CRUD；成功移除，失败保留并标记 SYNC_FAILED。
- * 返回成功条数。
+ * 冲刷队列：逐条重放真实 CRUD；结果分类见 replayErrorResult：
+ * - 成功/幂等成功(1) → 移除；存档(2) → 已由重放内部 dropOperation，直接移除。
+ * - 瞬时失败(0) → 标记 SYNC_FAILED 保留队列（不消耗重试计数：离线多次启动不会误淘汰，
+ *   由 7 天 TTL 预清扫兜底）。
+ * - 401 会话失效 → 先持久化「已成功项移除、其余保留」的队列状态，再抛出中止整次冲刷。
  */
 async function flushRemote(ids: string[]): Promise<number> {
   if (getAccessToken() === '') throw new Error('请先登录远程体验账号')
@@ -319,7 +363,17 @@ async function flushRemote(ids: string[]): Promise<number> {
   let acceptedCount = 0
   for (let i = 0; i < ids.length; i++) {
     const op = readOperation(ids[i])
-    const result = await replayOperation(op)
+    let result = 0
+    try {
+      result = await replayOperation(op)
+    } catch (e) {
+      // 401（刷新后仍失败）：保留本 op 与未处理 op，已成功移除的保持移除，中止本次冲刷
+      if (apiErrorStatus(e) != 401) throw e
+      remaining.push(ids[i])
+      for (let j = i + 1; j < ids.length; j++) remaining.push(ids[j])
+      writeIds(remaining)
+      throw e
+    }
     if (result == 1) {
       removeOperation(ids[i])
       acceptedCount++
@@ -327,12 +381,7 @@ async function flushRemote(ids: string[]): Promise<number> {
       // dropped：已由 replayOperation 内部存档，直接移除，不计入成功条数
       removeOperation(ids[i])
     } else {
-      op.retryCount += 1
-      // 重试超限或超期：移入存档，不再永久保留
-      if (shouldDrop(op)) {
-        dropOperation(op, op.retryCount >= MAX_RETRY ? 'max_retry' : 'ttl_expired')
-        continue
-      }
+      // 瞬时失败（网络/5xx/429）：保留队列重试，不消耗 retryCount（离线多次启动不误淘汰）
       op.status = SYNC_FAILED
       writeOperation(op)
       remaining.push(ids[i])
@@ -343,14 +392,23 @@ async function flushRemote(ids: string[]): Promise<number> {
   return acceptedCount
 }
 
+/**
+ * 冲刷本地队列（恢复联网 / 登录后 / onAppShow 调用）。
+ * R0 修复：remote 模式此前被 `!config.mockOnline` 误阻断（mockOnline 固定为 false），
+ * 离线期间入队的操作永远无法重放。现在 remote 模式仅以「已登录」为前提：
+ * - 未登录 → 返回 0 保留队列（登录成功后再 flush）。
+ * - 网络不可达（'none'）→ 返回 0 保留队列（onNetworkStatusChange 恢复联网后再 flush）。
+ * - 可达且已登录 → 逐条重放真实 /api/v1/me/* CRUD。
+ */
 export async function flushLocalOperations(): Promise<number> {
   const config = getRuntimeConfig()
   let ids = readIds()
   if (ids.length === 0) return 0
-  // 环境未就绪（未登录远程 / 离线模拟）：直接返回，不消耗 retryCount、不标记失败，保留队列
+  // 远程模式未登录：保留队列，不消耗任何计数
   if (config.mode === DATA_MODE_REMOTE && getAccessToken() === '') return 0
-  if (!config.mockOnline) return 0
-  // 预清扫：App 长期离线从未触发 flush 时，先淘汰超期/重试超限操作（移入存档），避免一次性全量重读
+  // 网络不可达（飞行模式/断网）：安静返回 0 保留队列
+  if (!(await isNetworkAvailable())) return 0
+  // 预清扫：长期离线从未触发 flush 时，先淘汰超期/重试超限操作（移入存档），避免一次性全量重读
   const swept: string[] = []
   for (let i = 0; i < ids.length; i++) {
     const op = readOperation(ids[i])
@@ -359,22 +417,7 @@ export async function flushLocalOperations(): Promise<number> {
   }
   if (swept.length !== ids.length) { ids = swept; writeIds(ids) }
   if (ids.length === 0) return 0
-  try {
-    if (config.mode === DATA_MODE_REMOTE) return await flushRemote(ids)
-    await new Promise<void>((resolve) => { setTimeout(() => { resolve() }, config.mockLatencyMs) })
-    for (let i = 0; i < ids.length; i++) removeOperation(ids[i]); writeIds([]); try { uni.setStorageSync('v21_sync_last_success_at', Date.now().toString()) } catch (e) {}; return ids.length
-  } catch (e) {
-    const remaining: string[] = []
-    for (let i = 0; i < ids.length; i++) {
-      const op = readOperation(ids[i])
-      op.retryCount += 1
-      if (shouldDrop(op)) { dropOperation(op, op.retryCount >= MAX_RETRY ? 'max_retry' : 'ttl_expired'); continue }
-      op.status = SYNC_FAILED
-      writeOperation(op)
-      remaining.push(ids[i])
-    }
-    writeIds(remaining)
-    throw e
-  }
+  // 远程模式（当前唯一运行模式）：真实重放；401 中止时队列状态已由 flushRemote 持久化
+  return await flushRemote(ids)
 }
 export function getLastSyncAt(): string { return readString('v21_sync_last_success_at') }

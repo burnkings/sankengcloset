@@ -83,18 +83,19 @@ export function update(id: string, data: ReminderUpdateData): boolean {
   const idx = items.findIndex((r) => r.id == id)
   if (idx < 0) return false
   const r = items[idx]
-  if (data.title != '') r.title = data.title
-  if (data.type != '') r.type = data.type
-  if (data.remindDate != '') r.remindDate = data.remindDate
-  if (data.remindTime != '') r.remindTime = data.remindTime
-  r.isAllDay = data.isAllDay
-  if (data.relatedPurchaseId != '') r.relatedPurchaseId = data.relatedPurchaseId
-  if (data.relatedWishId != '') r.relatedWishId = data.relatedWishId
-  if (data.productId != '') r.productId = data.productId
-  if (data.relatedReleaseId != '') r.relatedReleaseId = data.relatedReleaseId
-  if (data.note != '') r.note = data.note
-  if (data.status != '') r.status = data.status
-  if (data.wardrobeBindings != null && data.wardrobeBindings.length > 0) r.wardrobeBindings = data.wardrobeBindings
+  // R0 清空语义：null=未提供（跳过）；''/[]=显式清空（覆盖为空），note/date/time/productId/releaseId/wardrobeBindings 均可清空
+  if (data.title != null) r.title = data.title
+  if (data.type != null) r.type = data.type
+  if (data.remindDate != null) r.remindDate = data.remindDate
+  if (data.remindTime != null) r.remindTime = data.remindTime
+  if (data.isAllDay != null) r.isAllDay = data.isAllDay
+  if (data.relatedPurchaseId != null) r.relatedPurchaseId = data.relatedPurchaseId
+  if (data.relatedWishId != null) r.relatedWishId = data.relatedWishId
+  if (data.productId != null) r.productId = data.productId
+  if (data.relatedReleaseId != null) r.relatedReleaseId = data.relatedReleaseId
+  if (data.note != null) r.note = data.note
+  if (data.status != null) r.status = data.status
+  if (data.wardrobeBindings != null) r.wardrobeBindings = data.wardrobeBindings
   r.updatedAt = new Date().toISOString()
   saveAll(items)
   return true

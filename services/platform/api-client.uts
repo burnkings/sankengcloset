@@ -15,6 +15,15 @@ class ApiRequestError extends Error {
   }
 }
 
+/**
+ * 提取请求错误的状态码：HTTP 错误返回 statusCode；网络层失败（无响应）返回 0。
+ * 供同步队列重放分类使用：0/5xx=瞬时重试，4xx=不可重试，401=会话失效。
+ */
+export function apiErrorStatus(error: any): number {
+  if (error instanceof ApiRequestError) return error.statusCode
+  return 0
+}
+
 const FALLBACK_API_BASE = 'https://api.sankengcloset.icu'
 
 function endpoint(path: string): string {

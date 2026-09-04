@@ -78,10 +78,34 @@ for (const dir of ['pages', 'components/v3']) {
 }
 
 // ---------- 3. pages.json 路由与 TabBar 图标检查 ----------
+/** JSONC → JSON：剥离 // 行注释（感知字符串与转义，避免误删路径内 //） */
+function stripJsonComments(src) {
+  let out = ''
+  let inString = false
+  let escaped = false
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i]
+    if (inString) {
+      out += ch
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') { inString = true; out += ch; continue }
+    if (ch === '/' && src[i + 1] === '/') {
+      while (i < src.length && src[i] !== '\n') i++
+      out += '\n'
+      continue
+    }
+    out += ch
+  }
+  return out
+}
 let pagesJson
 try {
   let raw = fs.readFileSync('pages.json', 'utf8')
-  raw = raw.replace(/\/\/ #if.*/g, '').replace(/\/\/ #endif/g, '')
+  raw = stripJsonComments(raw).replace(/\/\/ #if.*/g, '').replace(/\/\/ #endif/g, '')
   pagesJson = JSON.parse(raw)
 } catch (e) {
   fail(`pages.json 解析失败: ${e.message}`)

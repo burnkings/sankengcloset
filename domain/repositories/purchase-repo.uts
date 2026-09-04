@@ -97,12 +97,17 @@ export function linkWardrobe(id: string, wardrobeId: string): boolean {
 
 export function softDelete(id: string): boolean {
   const records = loadAll()
-  const record = records.find((item) => item.id == id)
-  if (record == null) return false
-  record.isDeleted = true
-  record.updatedAt = new Date().toISOString()
+  const r = records.find((record) => record.id == id)
+  if (r == null) return false
+  r.isDeleted = true
+  r.updatedAt = new Date().toISOString()
   saveAll(records)
   return true
+}
+
+/** 整表持久化（远端拉取成功后写入本地缓存快照，保证离线可编辑/删除、队列可重放） */
+export function persist(records: PurchaseRecord[]) {
+  saveAll(records)
 }
 
 export function initMockData() {

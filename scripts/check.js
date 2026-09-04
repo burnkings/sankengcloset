@@ -15,6 +15,7 @@ const path = require('node:path')
 
 const steps = [
   { name: 'runtime contract', script: 'scripts/check-v24-remote-runtime.js' },
+  { name: 'r0 sync & reminder consistency contract', script: 'scripts/check-r0-sync-consistency.js' },
   { name: 'android static', script: 'scripts/check-v25-android-beta.js' },
   { name: 'source gates (v2 refs / theme reactivity / pages.json)', script: 'scripts/check-source-gates.js' },
 ]

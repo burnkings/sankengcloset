@@ -137,18 +137,24 @@ export class Reminder {
   wardrobeBindings: string[] = []
 }
 
-/** 更新数据 */
+/**
+ * 更新数据（R0 清空语义）：
+ * - null = 未提供：不覆盖对应字段（repo/store 合并时跳过）。
+ * - '' / [] = 显式清空：note / remindDate / remindTime / productId / relatedReleaseId /
+ *   wardrobeBindings 均支持清空，不再「只在非空时覆盖」。
+ * - isAllDay 同理由 boolean | null 表达（null = 保持原值），修复此前未传即被重置为 false 的问题。
+ */
 export class ReminderUpdateData {
-  title: string = ''
-  type: string = ''
-  remindDate: string = ''
-  remindTime: string = ''
-  isAllDay: boolean = false
-  relatedPurchaseId: string = ''
-  relatedWishId: string = ''
-  productId: string = ''
-  relatedReleaseId: string = ''
-  note: string = ''
-  status: string = ''
-  wardrobeBindings: string[] = []
+  title: string | null = null
+  type: string | null = null
+  remindDate: string | null = null
+  remindTime: string | null = null
+  isAllDay: boolean | null = null
+  relatedPurchaseId: string | null = null
+  relatedWishId: string | null = null
+  productId: string | null = null
+  relatedReleaseId: string | null = null
+  note: string | null = null
+  status: string | null = null
+  wardrobeBindings: string[] | null = null
 }

@@ -3,24 +3,34 @@
  * 4 个 store（wardrobe/purchase/wishlist/reminder）的 12+ 处重复「有 token 直写远程、失败入队；
  * 无 token 直接入队」收敛为单次调用。
  *
- * 行为等价：有 token → remoteCall() 失败才 enqueue；无 token → 直接 enqueue。
- * 返回 opId；入队失败（storage 写满等）返回 ''，调用方应感知本地持久化失败。
+ * R0 语义（与 reminder-store 等保持一致）：
+ * - 有 token → remoteCall() 成功返回 ''（不入队，杜绝「入队+直写」双路径造成的重放重复实体）；
+ *   失败（网络/5xx/4xx/401 刷新失败）→ 入队，由 syncNow 按错误分类重放（4xx 存档、5xx 重试、401 中止）。
+ * - 无 token → 直接入队（离线/内测 Mock 会话），登录成功后由 session-store flush 重放。
+ * - create 类操作的入队 payload 必须携带调用方生成的稳定 id（repo.add 时生成），
+ *   后端 /me/* 资产以该 id 落库：重复回放 POST 命中 409 = 已存在 → 幂等成功，不产生重复实体。
+ *
+ * 返回 Promise<string>：'' = 已直写远端成功；opId = 已入队；入队失败（storage 写满等）返回 ''，
+ * 调用方按需感知本地持久化失败（当前调用方均为 fire-and-forget，失败时记录仍在本地 repo）。
  */
 import { ApiResponse } from '@/services/platform/api-client'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 
-export function syncWriteBack(
+export async function syncWriteBack(
   entityType: string,
   entityId: string,
   action: string,
   payload: string,
   remoteCall: () => Promise<ApiResponse>,
-): string {
+): Promise<string> {
   if (getCachedAccessToken() != '') {
-    return remoteCall().then(() => '').catch(() => {
+    try {
+      await remoteCall()
+      return ''
+    } catch (e) {
       return enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
-    })
+    }
   } else {
     return enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
   }
