@@ -1,0 +1,280 @@
+/**
+ * 统一演示数据目录。
+ *
+ * 设计目标：
+ * - 远端接口优先；接口不可达或没有内容时由各 Service 显式回退到这里。
+ * - ID、字段和图片稳定，后续可按同一 DTO 逐条替换为真实数据。
+ * - 所有卡片标记“演示数据”，不把 Mock 冒充为运营真实指标。
+ */
+import {
+  FeedItem,
+  FEED_PRODUCT,
+  FEED_RELEASE_EVENT,
+  FEED_BRAND_POST,
+  FEED_OUTFIT,
+  FEED_EDITORIAL,
+  FEED_AI_RECOMMENDATION,
+} from '@/domain/content/feed-item'
+import { Brand } from '@/domain/content/brand'
+import { RankingItem } from '@/domain/ranking/ranking-item'
+
+export const MOCK_SOURCE_LABEL = '演示数据'
+
+export class MockCatalogProduct {
+  id: string = ''
+  title: string = ''
+  brandId: string = ''
+  brandName: string = ''
+  category: string = ''
+  subCategory: string = ''
+  priceCents: number = 0
+  originalPriceCents: number = 0
+  priceType: string = 'FULL'
+  depositCents: number = 0
+  balanceCents: number = 0
+  status: string = 'ON_SALE'
+  releaseType: string = 'spot'
+  coverUrl: string = ''
+  secondaryCoverUrl: string = ''
+  description: string = ''
+  shopUrl: string = ''
+  colorTags: string[] = []
+  materialTags: string[] = []
+  featureTags: string[] = []
+}
+
+function product(
+  id: string,
+  title: string,
+  brandId: string,
+  brandName: string,
+  category: string,
+  subCategory: string,
+  priceCents: number,
+  originalPriceCents: number,
+  status: string,
+  releaseType: string,
+  imageIndex: number,
+): MockCatalogProduct {
+  const item = new MockCatalogProduct()
+  item.id = id
+  item.title = title
+  item.brandId = brandId
+  item.brandName = brandName
+  item.category = category
+  item.subCategory = subCategory
+  item.priceCents = priceCents
+  item.originalPriceCents = originalPriceCents
+  item.status = status
+  item.releaseType = releaseType
+  item.coverUrl = '/static/demo/prod-0' + imageIndex.toString() + '.png'
+  item.secondaryCoverUrl = '/static/demo/prod-editorial-0' + (((imageIndex - 1) % 3) + 1).toString() + '.jpg'
+  item.description = title + '演示商品。展示价格、发售、收藏、提醒和购买记录完整流程；实际信息以后端数据为准。'
+  item.shopUrl = 'https://www.sankengcloset.icu'
+  item.colorTags = category == 'JK' ? ['绀色', '格纹'] : category == 'LOLITA' ? ['奶油白', '雾粉'] : ['黛青', '米白']
+  item.materialTags = category == 'HANFU' ? ['提花', '雪纺'] : ['棉混纺', '里布']
+  item.featureTags = status == 'PRE_ORDER' ? ['预约', '可设提醒'] : ['日常', '现货']
+  if (status == 'PRE_ORDER') {
+    item.priceType = 'DEPOSIT'
+    item.depositCents = Math.max(1000, Math.floor(priceCents * 0.25))
+    item.balanceCents = priceCents - item.depositCents
+  }
+  return item
+}
+
+export function listMockProducts(): MockCatalogProduct[] {
+  return [
+    product('prd_jk_navy_45', '深蓝格裙 45cm', 'br_rabbit', '兔缝缝', 'JK', '格裙', 12800, 16800, 'ON_SALE', 'spot', 1),
+    product('prd_lolita_moon', '月光曲 JSK', 'br_starcat', '星辰猫', 'LOLITA', 'JSK', 36800, 39800, 'PRE_ORDER', 'reservation', 2),
+    product('prd_hanfu_song', '宋制旋裙套装', 'br_flower', '花笺', 'HANFU', '旋裙', 25800, 0, 'UPCOMING', 'first_release', 3),
+    product('mock_jk_sakura', '樱吹雪关西襟套装', 'br_withpuji', 'With Puji', 'JK', '水手服', 19800, 22800, 'PRE_ORDER', 'reservation', 4),
+    product('mock_lolita_garden', '秘密花园 OP', 'br_midsummer', '仲夏物语', 'LOLITA', 'OP', 29800, 38800, 'ON_SALE', 'spot', 5),
+    product('mock_hanfu_mamian', '烟青织金马面裙', 'br_flower', '花笺', 'HANFU', '马面裙', 32800, 35800, 'PRE_ORDER', 'rerelease', 6),
+  ]
+}
+
+export function findMockProduct(id: string): MockCatalogProduct | null {
+  const items = listMockProducts()
+  for (let i = 0; i < items.length; i++) if (items[i].id == id) return items[i]
+  return null
+}
+
+function categoryLabel(code: string): string {
+  if (code == 'LOLITA') return 'Lolita'
+  if (code == 'HANFU') return '汉服'
+  return code
+}
+
+function statusBadge(status: string): string {
+  if (status == 'PRE_ORDER') return '预约'
+  if (status == 'UPCOMING') return '新品'
+  if (status == 'SOLD_OUT') return '售罄'
+  return '现货'
+}
+
+function futureIso(days: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date.toISOString()
+}
+
+export function mockDateAfter(days: number): string { return futureIso(days) }
+
+function productFeed(p: MockCatalogProduct, index: number): FeedItem {
+  const item = new FeedItem()
+  item.id = 'mock_feed_' + p.id
+  item.entityId = p.id
+  item.feedType = FEED_PRODUCT
+  item.title = p.title
+  item.subtitle = p.brandName
+  item.coverUrl = p.coverUrl
+  item.secondaryCoverUrl = p.secondaryCoverUrl
+  item.brandId = p.brandId
+  item.brandName = p.brandName
+  item.category = p.category
+  item.pitType = p.category
+  item.subCategory = p.subCategory
+  item.price = p.priceCents
+  item.originalPrice = p.originalPriceCents
+  item.fullPriceCents = p.priceCents
+  item.priceType = p.priceType
+  item.depositCents = p.depositCents
+  item.balanceCents = p.balanceCents
+  item.saleStatus = p.status
+  item.releaseType = p.releaseType
+  item.releaseTypeName = p.releaseType == 'rerelease' ? '再贩' : p.releaseType == 'reservation' ? '预约' : p.releaseType == 'spot' ? '现货' : '首发'
+  item.badgeText = statusBadge(p.status)
+  item.sourceLabel = MOCK_SOURCE_LABEL
+  item.rankingScore = 100 - index
+  item.finalScore = 100 - index
+  item.feedReason = index < 2 ? '本周人气演示' : '按坑向匹配演示'
+  item.colorTags = p.colorTags
+  item.materialTags = p.materialTags
+  item.tags = [categoryLabel(p.category), p.subCategory]
+  item.createdAt = futureIso(-index)
+  item.publishedAt = item.createdAt
+  if (p.status == 'PRE_ORDER' || p.status == 'UPCOMING') {
+    item.eventStartAt = futureIso(index + 1)
+    item.eventEndAt = futureIso(index + 8)
+  }
+  return item
+}
+
+function releaseFeed(p: MockCatalogProduct, index: number): FeedItem {
+  const item = productFeed(p, index)
+  item.id = 'mock_release_' + p.id
+  item.feedType = FEED_RELEASE_EVENT
+  item.title = p.brandName + ' · ' + p.title + (p.status == 'PRE_ORDER' ? ' 预约进行中' : ' 发售提醒')
+  item.coverUrl = index % 2 == 0 ? '/static/demo/event-01.png' : '/static/demo/event-02.png'
+  item.badgeText = p.status == 'PRE_ORDER' ? '预约' : '发售'
+  item.eventStartAt = futureIso(index + 1)
+  item.eventEndAt = futureIso(index + 6)
+  return item
+}
+
+function contentFeed(type: string, id: string, title: string, subtitle: string, image: string, category: string, brandName: string = ''): FeedItem {
+  const item = new FeedItem()
+  item.id = 'mock_' + id
+  item.entityId = id
+  item.feedType = type
+  item.title = title
+  item.subtitle = subtitle
+  item.coverUrl = image
+  item.category = category
+  item.pitType = category
+  item.brandName = brandName
+  item.sourceLabel = MOCK_SOURCE_LABEL
+  item.badgeText = type == FEED_OUTFIT ? '穿搭' : type == FEED_EDITORIAL ? '专题' : type == FEED_AI_RECOMMENDATION ? '搭配建议' : '品牌动态'
+  item.createdAt = futureIso(-1)
+  return item
+}
+
+export function listMockFeed(): FeedItem[] {
+  const products = listMockProducts()
+  const items: FeedItem[] = []
+  items.push(productFeed(products[0], 0))
+  items.push(productFeed(products[1], 1))
+  items.push(releaseFeed(products[1], 0))
+  items.push(contentFeed(FEED_EDITORIAL, 'editorial_autumn', '初秋三坑通勤选款', '从版型、预算和复穿率开始挑', '/static/demo/prod-editorial-01.jpg', 'JK'))
+  items.push(productFeed(products[2], 2))
+  items.push(contentFeed(FEED_OUTFIT, 'outfit_sweet_jk', '甜系 JK 一衣多搭', '衬衫、格裙与针织外套的三种组合', '/static/demo/outfit-01.png', 'JK'))
+  items.push(productFeed(products[3], 3))
+  items.push(contentFeed(FEED_BRAND_POST, 'brand_story_starcat', '星辰猫秋季系列预告', '关注后可及时查看发售变化', '/static/demo/event-01.png', 'LOLITA', '星辰猫'))
+  items.push(productFeed(products[4], 4))
+  items.push(contentFeed(FEED_AI_RECOMMENDATION, 'ai_wardrobe_match', '根据衣橱补齐一套秋日茶会穿搭', '演示建议 · 最终选择由你确认', '/static/demo/outfit-02.png', 'LOLITA'))
+  items.push(releaseFeed(products[5], 1))
+  items.push(productFeed(products[5], 5))
+  items.push(contentFeed(FEED_EDITORIAL, 'editorial_hanfu', '汉服日常化入门清单', '先从可通勤的形制和配色开始', '/static/demo/prod-editorial-03.jpg', 'HANFU'))
+  return items
+}
+
+export function filterMockFeed(channel: string, category: string, keyword: string = ''): FeedItem[] {
+  let items = listMockFeed()
+  if (channel == '上新') items = items.filter((item) => item.badgeText == '新品' || item.feedType == FEED_EDITORIAL)
+  else if (channel == '预约') items = items.filter((item) => item.saleStatus == 'PRE_ORDER' || item.badgeText == '预约')
+  else if (channel == '现货') items = items.filter((item) => item.saleStatus == 'ON_SALE')
+  if (category != '' && category != '全部') {
+    const code = category == 'Lolita' ? 'LOLITA' : category == '汉服' ? 'HANFU' : category
+    items = items.filter((item) => item.category == code)
+  }
+  const q = keyword.trim().toLowerCase()
+  if (q != '') {
+    items = items.filter((item) => (item.title + ' ' + item.subtitle + ' ' + item.brandName + ' ' + item.subCategory).toLowerCase().indexOf(q) >= 0)
+  }
+  return items
+}
+
+export function listMockBrands(): Brand[] {
+  const rows = [
+    ['br_rabbit', '兔缝缝', 'Rabbit Tailor', 'JK', '以制服格裙与水手服为主的演示品牌'],
+    ['br_starcat', '星辰猫', 'Star Cat', 'LOLITA', '甜系与古典 Lolita 演示品牌'],
+    ['br_flower', '花笺', 'Floral Letter', 'HANFU', '日常汉服与传统纹样演示品牌'],
+    ['br_withpuji', 'With Puji', 'With Puji', 'JK', '经典制服与原创格纹演示品牌'],
+    ['br_midsummer', '仲夏物语', 'Midsummer Tale', 'LOLITA', '田园与茶会主题演示品牌'],
+  ]
+  const result: Brand[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const brand = new Brand()
+    brand.id = row[0]
+    brand.name = row[1]
+    brand.nameEn = row[2]
+    brand.category = row[3]
+    brand.description = row[4]
+    brand.followerCount = 1280 - i * 173
+    brand.officialUrl = 'https://www.sankengcloset.icu'
+    result.push(brand)
+  }
+  return result
+}
+
+export function findMockBrand(idOrName: string): Brand | null {
+  const brands = listMockBrands()
+  for (let i = 0; i < brands.length; i++) if (brands[i].id == idOrName || brands[i].name == idOrName) return brands[i]
+  return null
+}
+
+export function listMockRanking(tab: string): RankingItem[] {
+  const products = listMockProducts()
+  const result: RankingItem[] = []
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i]
+    const item = new RankingItem()
+    item.rank = i + 1
+    item.entityId = p.id
+    item.title = p.title
+    item.brandName = p.brandName
+    item.coverUrl = p.coverUrl
+    item.priceCents = p.priceCents
+    item.category = categoryLabel(p.category)
+    item.favoriteCount = 1260 - i * 147
+    item.releaseTypeName = p.releaseType == 'rerelease' ? '再贩' : p.releaseType == 'spot' ? '现货' : '首发'
+    item.daysAgo = i + 1
+    item.reservationCount = 380 - i * 43
+    result.push(item)
+  }
+  if (tab == 'new') result.reverse()
+  for (let i = 0; i < result.length; i++) result[i].rank = i + 1
+  return result
+}
+

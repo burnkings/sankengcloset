@@ -192,6 +192,7 @@ async function fetchItems() {
       repo.persist(restored)
     } else {
       if (seq !== _fetchSeq) return
+      repo.initMockData()
       _state.items = repo.getAll()
     }
   } catch (err) {

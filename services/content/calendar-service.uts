@@ -4,6 +4,7 @@
  * 后端数据源：product_releases（发售事件）+ sale_events（定金/尾款等销售事件），真实数据非 mock。
  */
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
+import { listMockProducts, mockDateAfter } from '@/services/mock/mock-catalog'
 
 /** 日历事件展示 DTO（页面渲染 + 提醒跳转所需字段） */
 export class CalendarEvent {
@@ -57,14 +58,35 @@ function mapEvent(raw: UTSJSONObject): CalendarEvent {
  */
 export async function fetchCalendarMonth(year: number, month: number): Promise<CalendarEvent[]> {
   const key = `${year}-${String(month).padStart(2, '0')}`
-  const response = await apiGet('/api/v1/calendar?month=' + encodeQuery(key))
-  const rawItems = response.data
   const result: CalendarEvent[] = []
-  if (rawItems != null && Array.isArray(rawItems)) {
-    for (let i = 0; i < rawItems.length; i++) {
-      const evt = mapEvent(rawItems[i] as UTSJSONObject)
-      if (evt.dateKey != '') result.push(evt)
+  try {
+    const response = await apiGet('/api/v1/calendar?month=' + encodeQuery(key))
+    const rawItems = response.data
+    if (rawItems != null && Array.isArray(rawItems)) {
+      for (let i = 0; i < rawItems.length; i++) {
+        const evt = mapEvent(rawItems[i] as UTSJSONObject)
+        if (evt.dateKey != '') result.push(evt)
+      }
     }
+    if (result.length > 0) return result
+  } catch (e) {}
+  const products = listMockProducts()
+  for (let i = 0; i < products.length && i < 5; i++) {
+    const p = products[i]
+    const startAt = mockDateAfter(i * 3 + 1)
+    const evt = new CalendarEvent()
+    evt.id = 'mock_calendar_' + p.id
+    evt.productId = p.id
+    evt.title = p.title
+    evt.brand = p.brandName
+    evt.eventType = p.releaseType
+    evt.tag = p.releaseType == 'rerelease' ? '再贩' : p.releaseType == 'reservation' ? '预约' : p.releaseType == 'spot' ? '现货' : '首发'
+    evt.startAt = startAt
+    evt.endAt = mockDateAfter(i * 3 + 5)
+    evt.dateKey = startAt.substring(0, 10)
+    evt.day = startAt.substring(8, 10)
+    evt.status = '演示数据'
+    result.push(evt)
   }
   return result
 }

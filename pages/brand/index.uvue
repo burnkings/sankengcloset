@@ -4,7 +4,7 @@
       <view v-if="loading" :style="emptyWrap"><FeedSkeleton /></view>
 
       <view v-else-if="brands.length === 0" :style="emptyWrap">
-        <PageState icon="grid" title="暂无品牌" message="品牌数据接入中，敬请期待" />
+        <PageState icon="grid" title="暂无品牌" message="暂时没有可展示的品牌，请稍后重试" />
       </view>
 
       <view v-else :style="brandGrid">

@@ -1,11 +1,21 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 import { mapFeedItem } from '@/services/content/feed-service'
+import { filterMockFeed } from '@/services/mock/mock-catalog'
 
 export class SearchResult {
   items: FeedItem[] = []
   nextCursor: string = ''
   hasMore: boolean = false
+}
+
+export class SearchFilters {
+  category: string = ''
+  saleStatus: string = ''
+  releaseStatus: string = ''
+  brandId: string = ''
+  minPrice: number = 0
+  maxPrice: number = 0
 }
 
 /**
@@ -14,22 +24,44 @@ export class SearchResult {
  * 返回字段与 feed 相同（id/feedType/entityId/title/coverUrl/price 等），
  * 复用 feed-service 的 mapFeedItem 做 DTO 映射。
  */
-export async function searchProducts(keyword: string, cursor: string = ''): Promise<SearchResult> {
+export async function searchProducts(keyword: string, cursor: string = '', filters: SearchFilters | null = null): Promise<SearchResult> {
   const q = keyword.trim()
   const result = new SearchResult()
   if (q === '') return result
   // 只传用户输入的关键词与分页游标；limit 由后端默认 20，cursor 空不传
   let path = '/api/v1/search?q=' + encodeQuery(q)
   if (cursor != '') path += '&cursor=' + encodeQuery(cursor)
-  const response = await apiGet(path)
-  const rawItems = response.data
-  if (rawItems != null && Array.isArray(rawItems)) {
-    for (let i = 0; i < rawItems.length; i++) {
-      result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
-    }
+  if (filters != null) {
+    if (filters.category !== '') path += '&category=' + encodeQuery(filters.category)
+    if (filters.saleStatus !== '') path += '&saleStatus=' + encodeQuery(filters.saleStatus)
+    if (filters.releaseStatus !== '') path += '&releaseStatus=' + encodeQuery(filters.releaseStatus)
+    if (filters.brandId !== '') path += '&brandId=' + encodeQuery(filters.brandId)
+    if (filters.minPrice > 0) path += '&minPrice=' + filters.minPrice
+    if (filters.maxPrice > 0) path += '&maxPrice=' + filters.maxPrice
   }
-  const page = response.page as UTSJSONObject | null
-  result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
-  result.hasMore = page != null && page['hasMore'] == true
+  try {
+    const response = await apiGet(path)
+    const rawItems = response.data
+    if (rawItems != null && Array.isArray(rawItems)) {
+      for (let i = 0; i < rawItems.length; i++) {
+        result.items.push(mapFeedItem(rawItems[i] as UTSJSONObject))
+      }
+    }
+    const page = response.page as UTSJSONObject | null
+    result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
+    result.hasMore = page != null && page['hasMore'] == true
+    if (cursor != '' || result.items.length > 0) return result
+  } catch (e) {
+    if (cursor != '') return result
+  }
+  result.items = filterMockFeed('推荐', '全部', q).filter((item) => item.feedType == 'product')
+  // 没有精确命中时提供完整演示商品，保证搜索页可继续体验筛选与详情链路。
+  if (result.items.length == 0) result.items = filterMockFeed('推荐', '全部').filter((item) => item.feedType == 'product')
+  if (filters != null) {
+    if (filters.category !== '') result.items = result.items.filter((item) => item.category === filters.category)
+    if (filters.saleStatus !== '') result.items = result.items.filter((item) => item.saleStatus === filters.saleStatus)
+    if (filters.minPrice > 0) result.items = result.items.filter((item) => item.price >= filters.minPrice)
+    if (filters.maxPrice > 0) result.items = result.items.filter((item) => item.price <= filters.maxPrice)
+  }
   return result
 }

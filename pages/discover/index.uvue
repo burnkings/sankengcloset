@@ -64,7 +64,7 @@
         </AppDialog>
 
         <SectionHeader title="趋势话题" />
-        <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic.name)">
+        <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic)">
           <text :style="topicName"># {{ topic.name }}</text><text :style="topicMeta">{{ topic.meta }}</text><AppIcon name="chevron-right" :size="30" />
         </view>
       </view>
@@ -85,7 +85,8 @@ import { useBlacklistStore } from '@/stores/blacklist-store'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { useCalendarStore } from '@/stores/calendar-store'
 import { CalendarEvent } from '@/services/content/calendar-service'
-import { FEED_EDITORIAL, FEED_BRAND_POST, FEED_OUTFIT, FEED_AI_RECOMMENDATION } from '@/domain/content/feed-item'
+import { FEED_EDITORIAL, FEED_BRAND_POST } from '@/domain/content/feed-item'
+import { TrendTopic, fetchTrendTopics } from '@/services/content/trend-service'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -117,16 +118,21 @@ class CalendarCell {
   dateKey: string = ''
   events: CalendarEvent[] = []
 }
-class TopicItem {
-  id: string = ''
-  name: string = ''
-  meta: string = ''
-}
-
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openRanking(tab: string) { uni.navigateTo({ url: `/pages/ranking/index?tab=${tab}` }) }
 function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
-function openTopic(topic: string) { uni.setStorageSync('community_topic', topic); openPrimaryTab('/pages/community/index') }
+function openTopic(topic: TrendTopic) {
+  if (topic.targetType === 'product') {
+    uni.navigateTo({ url: `/pages/product/detail?id=${topic.targetId}` })
+    return
+  }
+  if (topic.targetType === 'brand') {
+    uni.navigateTo({ url: `/pages/brand/detail?id=${topic.targetId}&name=${encodeURIComponent(topic.name)}` })
+    return
+  }
+  uni.setStorageSync('community_topic', topic.targetId !== '' ? topic.targetId : topic.name)
+  openPrimaryTab('/pages/community/index')
+}
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
 function toggleBrand(brandName: string) {
@@ -233,15 +239,7 @@ function onAddReleaseReminder(evt: CalendarEvent) {
   showDayRelease.value = false
   uni.navigateTo({ url: `/pages/reminder/edit?title=${title}&date=${date}&type=RELEASE` })
 }
-const topics = computed((): TopicItem[] => {
-  return feedStore.allItems.filter((item) => item.feedType === FEED_AI_RECOMMENDATION || item.feedType === FEED_OUTFIT).map((item) => {
-    const t = new TopicItem()
-    t.id = item.id
-    t.name = item.title
-    t.meta = item.sourceLabel !== '' ? item.sourceLabel : item.subtitle
-    return t
-  })
-})
+const topics = ref<TrendTopic[]>([])
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const searchBox = computed((): any => ({ width: '686rpx', height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3, backgroundColor: n.value.inputFill, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
@@ -300,8 +298,8 @@ onLoad(() => { initPageTheme() })
 onMounted(() => {
   calendarStore.loadMonth(calYear.value, calMonth.value)
   if (feedStore.state === 'idle' || feedStore.state === 'error') feedStore.loadFirstPage()
+  fetchTrendTopics().then((items) => { topics.value = items })
 })
 onPageShow(() => { initPageTheme(); library.reload() })
 </script>
-
 

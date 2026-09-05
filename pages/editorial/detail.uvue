@@ -52,12 +52,13 @@ import AppImage from '@/components/base/AppImage.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import { filterMockFeed } from '@/services/mock/mock-catalog'
 
 const pageTitle = ref('')
 const pageDesc = ref('')
 const pageCategory = ref('')
 const heroImage = ref('')
-  const filteredItems = ref<FeedItem[]>([])
+const filteredItems = ref<FeedItem[]>([])
 
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
@@ -101,9 +102,11 @@ onLoad((query) => {
     pageDesc.value = '编辑团队为你精心挑选的专题内容'
   }
 
-  // Filter products by category — 后续将接入远程 API 获取专题商品
-  // 当前阶段先展示空态，由 PageState 兜底
-  filteredItems.value = []
+  // 后端尚无专题实体端点：统一演示目录保证专题→商品详情链路可完整体验。
+  // 后续专题 API 上线后只替换此数据源，页面契约保持不变。
+  filteredItems.value = filterMockFeed('推荐', pageCategory.value == '' ? '全部' : pageCategory.value)
+    .filter((item) => item.feedType == 'product')
+  if (heroImage.value == '') heroImage.value = '/static/demo/prod-editorial-01.jpg'
 })
 
 // ====== Styles ======
@@ -120,5 +123,4 @@ const productGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_
 function productShell(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, marginRight: idx % 2 === 0 ? COLUMN_GAP_V3 : '0' } }
 const emptyWrap = { paddingTop: '48rpx', alignItems: 'center' }
 </script>
-
 

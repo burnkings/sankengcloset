@@ -3,6 +3,23 @@
     <template #navbar><AppNavbar title="消费日志" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
+        <view :style="budgetCard">
+          <view :style="budgetHeader">
+            <view :style="budgetCopy">
+              <text :style="budgetTitle">月度预算</text>
+              <text :style="budgetDesc">{{ budgetDescription }}</text>
+            </view>
+            <text :style="budgetAction" @tap="toggleBudgetEditor">{{ showBudgetEditor ? '收起' : (budget.isConfigured ? '调整' : '设置') }}</text>
+          </view>
+          <view v-if="budget.isConfigured" :style="progressTrack"><view :style="progressBar" /></view>
+          <view v-if="showBudgetEditor" :style="budgetEditor">
+            <AppInput v-model="budgetLimitInput" placeholder="每月预算（元）" type="digit" />
+            <text :style="budgetEditorHint">消费达到预算 {{ alertPercent }}% 时提示</text>
+            <SegmentedControl :items="alertOptions" :active="alertLabel" @change="onAlertChange" />
+            <view :style="budgetSave" @tap="saveBudget"><text :style="budgetSaveText">保存预算</text></view>
+          </view>
+        </view>
+
         <!-- 月份切换器：可查看任意历史月份 -->
         <view :style="monthBar">
           <view :style="monthArrow" @tap="prevMonth"><text :style="monthArrowText">‹</text></view>
@@ -58,6 +75,7 @@
 
 <script setup lang="uts">
 import { usePurchaseStore } from '@/stores/purchase-store'
+import { useBudgetStore } from '@/stores/budget-store'
 import { PurchaseRecord, PAYMENT_STATUS_LABELS } from '@/domain/purchase-record'
 import { formatCentsYuan } from '@/utils/format'
 import { fontWeight } from '@/theme/tokens/typography'
@@ -68,16 +86,51 @@ import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
+import AppInput from '@/components/base/AppInput.uvue'
+import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import { brand, baseColors } from '@/theme/tokens/colors'
+import { showFeedback } from '@/utils/feedback'
+import { parseMoneyYuan } from '@/utils/money'
 
 const purchases = usePurchaseStore()
+const budget = useBudgetStore()
 
 // ====== 月份切换 ======
 
 function padMonth(m: number): string { return m < 10 ? '0' + m.toString() : m.toString() }
 const now = new Date()
 const monthCursor = ref(`${now.getFullYear()}-${padMonth(now.getMonth() + 1)}`)
+const showBudgetEditor = ref(false)
+const budgetLimitInput = ref('')
+const alertPercent = ref(80)
+const alertOptions = ['70%', '80%', '90%', '100%']
+const alertLabel = computed((): string => alertPercent.value.toString() + '%')
+
+const currentMonthPaid = computed((): number => purchases.monthlyPaid(monthCursor.value))
+const budgetRatio = computed((): number => budget.monthlyLimit > 0 ? Math.min(100, Math.round(currentMonthPaid.value * 100 / budget.monthlyLimit)) : 0)
+const budgetDescription = computed((): string => {
+  if (!budget.isConfigured) return '设定上限后，这里会显示本月使用进度'
+  const remain = Math.max(0, budget.monthlyLimit - currentMonthPaid.value)
+  return `已用 ${budgetRatio.value}% · 剩余 ${formatCentsYuan(remain)}`
+})
+function yuanInput(cents: number): string { return cents <= 0 ? '' : (cents / 100).toString() }
+function toggleBudgetEditor() {
+  showBudgetEditor.value = !showBudgetEditor.value
+  if (showBudgetEditor.value) {
+    budgetLimitInput.value = yuanInput(budget.monthlyLimit)
+    alertPercent.value = budget.alertPercent
+  }
+}
+function onAlertChange(label: string) { alertPercent.value = parseInt(label) }
+function saveBudget() {
+  const cents = parseMoneyYuan(budgetLimitInput.value)
+  if (cents <= 0) { showFeedback('请输入有效的月度预算'); return }
+  budget.save(cents, alertPercent.value)
+  showBudgetEditor.value = false
+  showFeedback('月度预算已保存')
+}
 const displayMonth = computed((): string => {
   const parts = monthCursor.value.split('-')
   return `${parts[0]}年${parseInt(parts[1])}月`
@@ -182,10 +235,22 @@ function openDetail(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?
 // ====== 生命周期 ======
 
 onLoad(() => { initPageTheme() })
-onShow(() => { initPageTheme(); purchases.fetchPurchases() })
+onShow(() => { initPageTheme(); purchases.fetchPurchases(); budget.refreshRemoteBudget() })
 
 const safeBottom = getSafeBottomInset()
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 40}px`, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const budgetCard = computed((): any => ({ padding: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '24rpx' }))
+const budgetHeader = { ...flexRow, alignItems: 'center' }
+const budgetCopy = { flex: 1 }
+const budgetTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const budgetDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
+const budgetAction = { fontSize: '24rpx', fontWeight: 600, color: brand[600] }
+const progressTrack = computed((): any => ({ height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.bgSecondary, marginTop: '20rpx', overflow: 'hidden' }))
+const progressBar = computed((): any => ({ width: budgetRatio.value.toString() + '%', height: '12rpx', borderRadius: '6rpx', backgroundColor: budgetRatio.value >= budget.alertPercent ? '#E8956A' : brand[500] }))
+const budgetEditor = { marginTop: '20rpx' }
+const budgetEditorHint = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '16rpx', marginBottom: '12rpx' }))
+const budgetSave = { height: '72rpx', borderRadius: '16rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
+const budgetSaveText = { fontSize: '26rpx', fontWeight: 600, color: baseColors.white }
 const monthBar = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '16rpx' }
 const monthArrow = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const monthArrowText = computed((): any => ({ fontSize: '44rpx', lineHeight: '44rpx', color: n.value.textSecondary }))

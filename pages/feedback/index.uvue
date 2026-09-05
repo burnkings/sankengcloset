@@ -101,7 +101,7 @@ function previewImage(idx: number) {
   }
 }
 
-function onSubmit() {
+async function onSubmit() {
   if (submitting.value) return
   if (activeType.value === '') { showFeedback('请选择反馈类型'); return }
   if (content.value.trim() === '') { showFeedback('请填写反馈内容'); return }
@@ -113,7 +113,7 @@ function onSubmit() {
   record.images = [...images.value]
   record.createdAt = Date.now().toString()
   record.contact = contact.value.trim()
-  const opId = submitFeedbackRemote(record)
+  const opId = await submitFeedbackRemote(record)
   submitting.value = false
   if (opId === '') { showFeedback('提交失败，请重试'); return }
   showFeedback('反馈已提交，感谢你的建议')

@@ -46,6 +46,14 @@
         </view>
 
         <view v-else>
+          <scroll-view direction="horizontal" :style="filterScroll">
+            <view :style="filterRow">
+              <view :style="filterChip(activeCategory !== '')" @tap="pickCategory"><text :style="filterChipText(activeCategory !== '')">{{ categoryLabel }}</text></view>
+              <view :style="filterChip(activeSaleStatus !== '')" @tap="pickSaleStatus"><text :style="filterChipText(activeSaleStatus !== '')">{{ saleStatusLabel }}</text></view>
+              <view :style="filterChip(minPrice > 0 || maxPrice > 0)" @tap="pickPrice"><text :style="filterChipText(minPrice > 0 || maxPrice > 0)">{{ priceLabel }}</text></view>
+              <view v-if="hasActiveFilters" :style="clearFilter" @tap="clearFilters"><text :style="clearFilterText">清除筛选</text></view>
+            </view>
+          </scroll-view>
           <view v-if="searching && results.length === 0" :style="emptyWrap">
             <FeedSkeleton />
           </view>
@@ -125,7 +133,7 @@ import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
-import { SearchResult } from '@/services/content/search-service'
+import { SearchFilters, SearchResult } from '@/services/content/search-service'
 
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
@@ -172,8 +180,65 @@ const searchError = ref('')
 const nextCursor = ref('')
 const hasMore = ref(true)
 const isLoadingMore = ref(false)
+const activeCategory = ref('')
+const activeSaleStatus = ref('')
+const minPrice = ref(0)
+const maxPrice = ref(0)
 let searchTimer: number | null = null
 let searchSequence = 0
+
+function currentFilters(): SearchFilters {
+  const filters = new SearchFilters()
+  filters.category = activeCategory.value
+  filters.saleStatus = activeSaleStatus.value
+  filters.minPrice = minPrice.value
+  filters.maxPrice = maxPrice.value
+  return filters
+}
+const hasActiveFilters = computed((): boolean => activeCategory.value !== '' || activeSaleStatus.value !== '' || minPrice.value > 0 || maxPrice.value > 0)
+const categoryLabel = computed((): string => activeCategory.value === '' ? '全部坑向' : activeCategory.value === 'LOLITA' ? 'Lolita' : activeCategory.value === 'HANFU' ? '汉服' : activeCategory.value)
+const saleStatusLabel = computed((): string => {
+  if (activeSaleStatus.value === 'ON_SALE') return '现货在售'
+  if (activeSaleStatus.value === 'PRE_ORDER') return '预约中'
+  if (activeSaleStatus.value === 'UPCOMING') return '即将发售'
+  if (activeSaleStatus.value === 'SOLD_OUT') return '已售罄'
+  return '全部状态'
+})
+const priceLabel = computed((): string => {
+  if (minPrice.value === 0 && maxPrice.value === 0) return '全部价格'
+  if (minPrice.value === 0) return `¥${Math.floor(maxPrice.value / 100)} 以下`
+  if (maxPrice.value === 0) return `¥${Math.floor(minPrice.value / 100)} 以上`
+  return `¥${Math.floor(minPrice.value / 100)}–${Math.floor(maxPrice.value / 100)}`
+})
+
+function rerunWithFilters() { if (keyword.value.trim() !== '') runSearch(keyword.value) }
+function pickCategory() {
+  const labels = ['全部坑向', 'JK', 'Lolita', '汉服', '其他']
+  const values = ['', 'JK', 'LOLITA', 'HANFU', 'OTHER']
+  uni.showActionSheet({ itemList: labels, success: (res) => { activeCategory.value = values[res.tapIndex]; rerunWithFilters() } })
+}
+function pickSaleStatus() {
+  const labels = ['全部状态', '现货在售', '预约中', '即将发售', '已售罄']
+  const values = ['', 'ON_SALE', 'PRE_ORDER', 'UPCOMING', 'SOLD_OUT']
+  uni.showActionSheet({ itemList: labels, success: (res) => { activeSaleStatus.value = values[res.tapIndex]; rerunWithFilters() } })
+}
+function pickPrice() {
+  const labels = ['全部价格', '¥300 以下', '¥300–600', '¥600 以上']
+  uni.showActionSheet({ itemList: labels, success: (res) => {
+    if (res.tapIndex === 0) { minPrice.value = 0; maxPrice.value = 0 }
+    else if (res.tapIndex === 1) { minPrice.value = 0; maxPrice.value = 30000 }
+    else if (res.tapIndex === 2) { minPrice.value = 30000; maxPrice.value = 60000 }
+    else { minPrice.value = 60000; maxPrice.value = 0 }
+    rerunWithFilters()
+  } })
+}
+function clearFilters() {
+  activeCategory.value = ''
+  activeSaleStatus.value = ''
+  minPrice.value = 0
+  maxPrice.value = 0
+  rerunWithFilters()
+}
 
 // 最近搜索：只展示用户真实搜索记录；首次进入为空。
 function loadRecent(): string[] {
@@ -213,7 +278,7 @@ function runSearch(q: string) {
   searchError.value = ''
   nextCursor.value = ''
   hasMore.value = true
-  searchStore.requestSearchPage(normalized)
+  searchStore.requestSearchPage(normalized, '', currentFilters())
     .then((res: SearchResult) => {
       // 用户继续输入后，旧请求不得覆盖新关键词的状态。
       if (requestSequence != searchSequence) return
@@ -236,7 +301,7 @@ function loadMore() {
   if (normalized === '' || isLoadingMore.value || !hasMore.value || searching.value) return
   isLoadingMore.value = true
   const requestSequence = searchSequence
-  searchStore.requestSearchPage(normalized, nextCursor.value)
+  searchStore.requestSearchPage(normalized, nextCursor.value, currentFilters())
     .then((res: SearchResult) => {
       if (requestSequence != searchSequence) return
       results.value = [...results.value, ...res.items]
@@ -354,6 +419,12 @@ onMounted(() => {
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const plainSections = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const filterScroll = { width: '750rpx', marginBottom: '18rpx' }
+const filterRow = { ...flexRow, width: '940rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+function filterChip(active: boolean): any { return { height: '56rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '28rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? brand[500] : n.value.bgSecondary, marginRight: '12rpx' } }
+function filterChipText(active: boolean): any { return { fontSize: fontSize.xs, color: active ? '#FFFFFF' : n.value.textSecondary } }
+const clearFilter = { height: '56rpx', paddingLeft: '12rpx', paddingRight: '12rpx', alignItems: 'center', justifyContent: 'center' }
+const clearFilterText = { fontSize: fontSize.xs, color: brand[600] }
 // 自定义搜索导航栏：返回 64rpx + 输入框 flex:1 + 取消（不再用 AppNavbar 左右各 180rpx 三栏）
 const statusBarH = getStatusBarHeight()
 const searchNavStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg, boxShadow: shadow.navbar }))

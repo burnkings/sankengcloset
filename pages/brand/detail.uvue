@@ -15,7 +15,7 @@
         </view>
 
         <view v-if="products.length === 0" :style="emptyWrap">
-          <PageState icon="grid" title="暂无商品" message="品牌商品接入中，敬请期待" />
+          <PageState icon="grid" title="暂无商品" message="该品牌目前没有可展示的商品" />
         </view>
 
         <view v-else :style="productColumns">

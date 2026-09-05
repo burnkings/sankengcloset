@@ -1,7 +1,7 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { createRequestId } from '@/domain/platform/api-contract'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
-import { getRuntimeConfig } from '@/config/runtime'
+import { filterMockFeed } from '@/services/mock/mock-catalog'
 
 export class FeedPage {
   items: FeedItem[] = []
@@ -127,7 +127,24 @@ async function fetchRemoteFeed(cursor: string, channel: string, category: string
 }
 
 export async function fetchFeedPage(cursor: string, channel: string = '推荐', category: string = '全部', categories: string = ''): Promise<FeedPage> {
-  return await fetchRemoteFeed(cursor, channel, category, categories)
+  try {
+    const remote = await fetchRemoteFeed(cursor, channel, category, categories)
+    // 首屏无内容时启用稳定演示数据；分页空页保持真实结束语义。
+    if (cursor != '' || remote.items.length > 0) return remote
+  } catch (e) {
+    if (cursor != '') return new FeedPage()
+  }
+  const fallback = new FeedPage()
+  fallback.requestId = createRequestId()
+  let items = filterMockFeed(channel, category)
+  if (categories != '') {
+    const allowed = categories.split(',')
+    items = items.filter((item) => allowed.indexOf(item.category) >= 0)
+  }
+  fallback.items = items
+  fallback.hasMore = false
+  fallback.nextCursor = ''
+  return fallback
 }
 
 /**

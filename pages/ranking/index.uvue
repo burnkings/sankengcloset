@@ -12,9 +12,6 @@
           <view :style="filterGroup">
             <view v-for="opt in categories" :key="opt" :style="filterChip(opt, activeCategory === opt)" @tap="onFilterTap(opt)"><text :style="filterChipText(opt, activeCategory === opt)">{{ opt }}</text></view>
           </view>
-          <view v-if="activeTab === '热榜'" :style="filterGroup">
-            <view v-for="opt in hotPeriods" :key="opt" :style="filterChip(opt, activePeriod === opt)" @tap="onFilterTap(opt)"><text :style="filterChipText(opt, activePeriod === opt)">{{ opt }}</text></view>
-          </view>
         </view>
       </view>
 
@@ -22,7 +19,8 @@
       <scroll-view :style="listScroll" direction="vertical">
         <view :style="listWrap">
           <RankingCard v-for="item in visibleItems" :key="item.entityId" :item="item" :variant="activeTabCode" @tap="openProduct(item)" />
-          <PageState v-if="visibleItems.length === 0" icon="info" title="暂无榜单数据" message="筛选条件下暂无内容" />
+          <PageState v-if="loading" icon="info" title="榜单加载中" message="正在整理近期关注与上新" />
+          <PageState v-else-if="visibleItems.length === 0" icon="info" title="暂无榜单数据" message="筛选条件下暂无内容" action-text="重新加载" @action="reloadData" />
           <view :style="bottomSpacer" />
         </view>
       </scroll-view>
@@ -36,7 +34,7 @@ import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import RankingCard from '@/components/v3/RankingCard.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW } from '@/domain/ranking/ranking-item'
-import { loadRanking } from '@/services/content/ranking-service'
+import { fetchRankingRemote } from '@/services/content/ranking-service'
 import { PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
@@ -46,8 +44,8 @@ import { brand, baseColors } from '@/theme/tokens/colors'
 const tabItems = ['热榜', '上新榜']
 const activeTab = ref('热榜')
 const activeCategory = ref('全部')
-const activePeriod = ref('7天')
 const rankingData = ref<RankingItem[]>([])
+const loading = ref(false)
 
 onLoad((options) => {
   initPageTheme()
@@ -65,22 +63,22 @@ const activeTabCode = computed((): string => {
 
 // 二级筛选项（分类组全榜通用；周期组仅热榜展示，上新榜固定展示不提供周期切换）
 const categories = ['全部', 'JK', 'Lolita', '汉服']
-const hotPeriods = ['7天', '30天']
 
 function onTabChange(tab: string) {
   activeTab.value = tab
   activeCategory.value = '全部'
-  activePeriod.value = '7天'
   reloadData()
 }
 
 function onFilterTap(opt: string) {
   if (categories.indexOf(opt) >= 0) { activeCategory.value = opt; return }
-  if (hotPeriods.indexOf(opt) >= 0) { activePeriod.value = opt; return }
 }
 
-function reloadData() {
-  rankingData.value = loadRanking(activeTabCode.value)
+async function reloadData() {
+  if (loading.value) return
+  loading.value = true
+  try { rankingData.value = await fetchRankingRemote(activeTabCode.value) }
+  finally { loading.value = false }
 }
 
 const visibleItems = computed((): RankingItem[] => {
@@ -101,7 +99,7 @@ const tabBar = { marginBottom: '16rpx' }
 const filterBar = { ...flexRow, alignItems: 'center', marginBottom: '16rpx', flexWrap: 'wrap' as string }
 const filterChipsWrap = { ...flexRow, flexWrap: 'wrap' as string, flex: 1 }
 const filterGroup = { ...flexRow, flexWrap: 'wrap' as string, marginRight: '12rpx' }
-// active 由模板表达式直接传入（activeCategory/activePeriod），避免函数内部读 ref 的依赖追踪不确定
+// active 由模板表达式直接传入，避免函数内部读 ref 的依赖追踪不确定
 function filterChip(opt: string, active: boolean): any {
   return { height: '48rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '24rpx', backgroundColor: active ? (brand[500] as string) : (isDark.value ? '#2B2628' : '#EDE8E9'), alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }
 }

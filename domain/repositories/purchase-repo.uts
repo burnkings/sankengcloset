@@ -1,7 +1,7 @@
 /** PurchaseRepo — 外部购买进度的本地数据仓库。 */
 
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
-import { getRuntimeConfig } from '@/config/runtime'
+import { isLocalMockSession } from '@/config/runtime'
 
 const STORAGE_KEY = 'purchase_records'
 
@@ -29,6 +29,8 @@ function loadAll(): PurchaseRecord[] {
       r.deadline = obj['deadline'] != null ? obj['deadline'] as string : ''
       r.arrivalDate = obj['arrivalDate'] != null ? obj['arrivalDate'] as string : ''
       r.wishId = obj['wishId'] != null ? obj['wishId'] as string : ''
+      r.productId = obj['productId'] != null ? obj['productId'] as string : ''
+      r.releaseId = obj['releaseId'] != null ? obj['releaseId'] as string : ''
       r.wardrobeId = obj['wardrobeId'] != null ? obj['wardrobeId'] as string : ''
       r.note = obj['note'] != null ? obj['note'] as string : ''
       r.isFavorite = obj['isFavorite'] != null ? obj['isFavorite'] as boolean : false
@@ -111,7 +113,7 @@ export function persist(records: PurchaseRecord[]) {
 }
 
 export function initMockData() {
-  if (!getRuntimeConfig().mockOnline) return
+  if (!isLocalMockSession()) return
   if (loadAll().length > 0) return
   const now = new Date().toISOString()
   const records: PurchaseRecord[] = []
@@ -121,9 +123,9 @@ export function initMockData() {
     r.remainingAmount = Math.max(0, total - paid); r.paymentStatus = status; r.deadline = deadline; r.createdAt = now; r.updatedAt = now
     return r
   }
-  records.push(sample('p1', '深蓝格裙 45cm', '兔缝缝', 12800, 12800, 'COMPLETED', ''))
-  records.push(sample('p2', '甜系草莓柄 SK', 'Alice兔', 68000, 20000, 'DEPOSIT_PAID', '2026-08-15'))
-  records.push(sample('p3', '哥特十字架 JSK', 'BABY', 158000, 0, 'PRE_ORDER', '2026-10-01'))
-  records.push(sample('p4', '宋制旋裙套装', '重回汉唐', 32000, 10000, 'BALANCE_PENDING', '2026-07-20'))
+  records.push(sample('demo_purchase_1', '深蓝格裙 45cm', '兔缝缝', 12800, 12800, 'COMPLETED', ''))
+  records.push(sample('demo_purchase_2', '甜系草莓柄 SK', 'Alice兔', 68000, 20000, 'DEPOSIT_PAID', '2026-10-15'))
+  records.push(sample('demo_purchase_3', '哥特十字架 JSK', 'BABY', 158000, 0, 'PRE_ORDER', '2026-12-01'))
+  records.push(sample('demo_purchase_4', '宋制旋裙套装', '重回汉唐', 32000, 10000, 'BALANCE_PENDING', '2026-11-20'))
   saveAll(records)
 }

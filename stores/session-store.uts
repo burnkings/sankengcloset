@@ -184,6 +184,17 @@ function clearError() {
   _state.errorMessage = ''
 }
 
+function updateLocalProfile(nickname: string, avatarUrl: string): boolean {
+  const name = nickname.trim()
+  if (!isLoggedIn() || name == '') return false
+  try {
+    uni.setStorageSync(NICKNAME_KEY, name)
+    uni.setStorageSync(AVATAR_KEY, avatarUrl)
+    reload()
+    return true
+  } catch (e) { return false }
+}
+
 // 初始化副作用（保留）
 reload()
 
@@ -202,6 +213,7 @@ class SessionStoreHandle {
   loginMock(): Promise<boolean> { return loginMock() }
   logout(): void { logout() }
   clearError(): void { clearError() }
+  updateLocalProfile(nickname: string, avatarUrl: string): boolean { return updateLocalProfile(nickname, avatarUrl) }
 }
 
 let _handle: SessionStoreHandle | null = null

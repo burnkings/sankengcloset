@@ -41,6 +41,8 @@ export class PurchaseRecord {
   // 预计到货日与来源关系让订单成为履约中心，而不是孤立账本。
   arrivalDate: string = ''
   wishId: string = ''
+  productId: string = ''
+  releaseId: string = ''
   wardrobeId: string = ''
   note: string = ''
   isFavorite: boolean = false

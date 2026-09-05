@@ -1,5 +1,5 @@
 import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
-import { getRuntimeConfig } from '@/config/runtime'
+import { isLocalMockSession } from '@/config/runtime'
 
 const STORAGE_KEY = 'wardrobe_items'
 
@@ -83,13 +83,13 @@ export function toggleFavorite(id: string): boolean {
   item.isFavorite = !item.isFavorite; item.updatedAt = new Date().toISOString(); saveAll(items); return true
 }
 export function initMockData() {
-  if (!getRuntimeConfig().mockOnline) return
+  if (!isLocalMockSession()) return
   if (loadAll().length > 0) return
   const now = new Date().toISOString(); const items: WardrobeItem[] = []
   function sample(id: string, name: string, category: string, brand: string, price: number): WardrobeItem {
     const item = new WardrobeItem(); item.id = id; item.name = name; item.category = category; item.brand = brand; item.purchasePrice = price; item.createdAt = now; item.updatedAt = now; return item
   }
-  items.push(sample('1', '深蓝格裙 45cm', 'JK', '兔缝缝', 128)); items.push(sample('2', '白无本水手服', 'JK', '月野house', 89))
-  items.push(sample('3', '甜系草莓柄 SK', 'LOLITA', 'Alice兔', 680)); items.push(sample('4', '哥特十字架 JSK', 'LOLITA', 'BABY', 1580))
-  items.push(sample('5', '宋制旋裙套装', 'HANFU', '重回汉唐', 320)); items.push(sample('6', '明制马面裙', 'HANFU', '汉尚华莲', 450)); saveAll(items)
+  items.push(sample('demo_wardrobe_1', '深蓝格裙 45cm', 'JK', '兔缝缝', 128)); items.push(sample('demo_wardrobe_2', '白无本水手服', 'JK', '月野house', 89))
+  items.push(sample('demo_wardrobe_3', '甜系草莓柄 SK', 'LOLITA', 'Alice兔', 680)); items.push(sample('demo_wardrobe_4', '哥特十字架 JSK', 'LOLITA', 'BABY', 1580))
+  items.push(sample('demo_wardrobe_5', '宋制旋裙套装', 'HANFU', '重回汉唐', 320)); items.push(sample('demo_wardrobe_6', '明制马面裙', 'HANFU', '汉尚华莲', 450)); saveAll(items)
 }

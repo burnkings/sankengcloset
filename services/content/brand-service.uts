@@ -1,6 +1,7 @@
 import { Brand } from '@/domain/content/brand'
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
+import { findMockBrand, listMockBrands, listMockProducts } from '@/services/mock/mock-catalog'
 
 /**
  * BrandService — 品牌目录
@@ -51,9 +52,9 @@ export async function listBrands(): Promise<Brand[]> {
     const raw = response.data as any[]
     const result: Brand[] = []
     if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapBrand(raw[i] as UTSJSONObject))
-    return result
+    return result.length > 0 ? result : listMockBrands()
   } catch (e) {
-    return []
+    return listMockBrands()
   }
 }
 
@@ -61,10 +62,10 @@ export async function fetchBrandDetail(id: string): Promise<Brand | null> {
   if (id === '') return null
   try {
     const response = await apiGet('/api/v1/brands/' + encodeQuery(id))
-    if (response.data == null) return null
+    if (response.data == null) return findMockBrand(id)
     return mapBrand(response.data as UTSJSONObject)
   } catch (e) {
-    return null
+    return findMockBrand(id)
   }
 }
 
@@ -75,8 +76,27 @@ export async function listBrandProducts(brandId: string): Promise<FeedItem[]> {
     const raw = response.data as any[]
     const result: FeedItem[] = []
     if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapBrandProduct(raw[i] as UTSJSONObject))
-    return result
+    if (result.length > 0) return result
   } catch (e) {
-    return []
+    // fallback below
   }
+  const rows = listMockProducts()
+  const result: FeedItem[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const p = rows[i]
+    if (p.brandId != brandId && p.brandName != brandId) continue
+    result.push(mapBrandProduct({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      brandId: p.brandId,
+      brandName: p.brandName,
+      category: p.category,
+      priceCents: p.priceCents,
+      originalPriceCents: p.originalPriceCents,
+      badgeText: p.status == 'PRE_ORDER' ? '预约' : '现货',
+      coverUrl: p.coverUrl,
+    } as UTSJSONObject))
+  }
+  return result
 }

@@ -1,0 +1,76 @@
+import { apiGet, encodeQuery } from '@/services/platform/api-client'
+
+export class TrendTopic {
+  id: string = ''
+  name: string = ''
+  meta: string = ''
+  targetType: string = 'topic'
+  targetId: string = ''
+}
+
+function fallbackTopics(): TrendTopic[] {
+  const rows = [
+    ['trend_jk', '秋季制服上新', '演示趋势 · 本月热度上升', 'topic', '秋季制服'],
+    ['trend_lolita', '月夜系 Lolita', '演示趋势 · 收藏增长', 'topic', '月夜系 Lolita'],
+    ['trend_hanfu', '宋制日常穿搭', '演示趋势 · 社区讨论增加', 'topic', '宋制日常穿搭'],
+  ]
+  const result: TrendTopic[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const topic = new TrendTopic()
+    topic.id = rows[i][0]
+    topic.name = rows[i][1]
+    topic.meta = rows[i][2]
+    topic.targetType = rows[i][3]
+    topic.targetId = rows[i][4]
+    result.push(topic)
+  }
+  return result
+}
+
+function signedPercent(value: number): string {
+  if (value > 0) return `+${value.toFixed(1)}%`
+  return `${value.toFixed(1)}%`
+}
+
+export async function fetchTrendTopics(period: string = '30d'): Promise<TrendTopic[]> {
+  try {
+    const response = await apiGet('/api/v1/trends?period=' + encodeQuery(period))
+    const data = response.data as UTSJSONObject | null
+    if (data != null) {
+      const result: TrendTopic[] = []
+      const brands = data['brandTrends'] as any[] | null
+      if (brands != null && Array.isArray(brands)) {
+        for (let i = 0; i < brands.length && result.length < 3; i++) {
+          const raw = brands[i] as UTSJSONObject
+          const topic = new TrendTopic()
+          topic.id = raw['brandId'] != null ? raw['brandId'] as string : `brand_trend_${i}`
+          topic.name = raw['brandName'] != null ? raw['brandName'] as string : '品牌趋势'
+          const change = raw['priceChangePercent'] != null ? raw['priceChangePercent'] as number : 0
+          const count = raw['newProductCount'] != null ? raw['newProductCount'] as number : 0
+          topic.meta = count > 0 ? `${period} · ${count} 款上新` : `${period} · 价格 ${signedPercent(change)}`
+          topic.targetType = 'brand'
+          topic.targetId = topic.id
+          result.push(topic)
+        }
+      }
+      const products = data['productTrends'] as any[] | null
+      if (products != null && Array.isArray(products)) {
+        for (let i = 0; i < products.length && result.length < 5; i++) {
+          const raw = products[i] as UTSJSONObject
+          const topic = new TrendTopic()
+          topic.id = raw['productId'] != null ? raw['productId'] as string : `product_trend_${i}`
+          topic.name = raw['productName'] != null ? raw['productName'] as string : '商品趋势'
+          const heat = raw['feedScoreChange'] != null ? raw['feedScoreChange'] as number : 0
+          topic.meta = heat > 0 ? `${period} · 热度 +${heat.toFixed(0)}` : `${period} · 状态有更新`
+          topic.targetType = 'product'
+          topic.targetId = topic.id
+          result.push(topic)
+        }
+      }
+      if (result.length > 0) return result
+    }
+  } catch (e) {
+    // 远端不可用时继续展示可交互的演示趋势。
+  }
+  return fallbackTopics()
+}

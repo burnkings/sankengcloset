@@ -5,7 +5,7 @@
       <template #default>
       <view class="page-canvas" :style="pageWrap">
 
-        <view :style="profileCard" @tap="session.isLoggedIn ? undefined : goLogin()">
+        <view :style="profileCard" @tap="session.isLoggedIn ? onEdit() : openLoginOptions()">
           <view :style="avatarWrap">
             <text v-if="session.isLoggedIn" :style="avatarText">SK</text>
             <AppIcon v-else name="profile" :size="44" />
@@ -18,7 +18,7 @@
             <text v-if="session.isLoggedIn" :style="userIdText">{{ session.isMock ? 'Mock 内测 · 数据保存在本机' : 'ID: ' + session.profile.userId }}</text>
             <text v-else :style="guestDesc">同步收藏、圈子、衣橱与提醒</text>
           </view>
-          <view v-if="!session.isLoggedIn" :style="loginButton"><text :style="loginText">模拟登录</text></view>
+          <view v-if="!session.isLoggedIn" :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
 
         <SectionHeader title="我的工具" />
@@ -45,7 +45,7 @@
           <view :style="settingShell(3, 9)" @tap="goPage('/pages/preferences/blacklist')"><ListRow icon="close" title="屏蔽品牌" :value="blacklistCountText" /></view>
           <view :style="settingShell(4, 9)" @tap="onHelpTap"><ListRow icon="help-circle" title="帮助与反馈" /></view>
           <view :style="settingShell(5, 9)" @tap="onClearCacheTap"><ListRow icon="database" title="清理缓存" :value="cacheSizeText" /></view>
-          <view :style="settingShell(6, 9)" @tap="goPage('/pages/about/index')"><ListRow icon="info" title="关于三坑绮橱" value="V2.5" /></view>
+          <view :style="settingShell(6, 9)" @tap="goPage('/pages/about/index')"><ListRow icon="info" title="关于三坑绮橱" :value="APP_VERSION" /></view>
           <view v-if="session.isLoggedIn" :style="settingShell(7, 9)" @tap="logout"><ListRow icon="logout" title="退出登录" /></view>
           <view :style="settingShell(8, 9)" />
         </ListGroup>
@@ -84,6 +84,7 @@ import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
+import { APP_VERSION } from '@/config/app-version'
 
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
@@ -101,11 +102,30 @@ const preferenceSummary = computed((): string => {
 })
 const themeLabel = computed((): string => getThemeLabel())
 
-function onEdit() { showFeedback('功能开发中') }
-function goLogin() {
+function onEdit() { goPage('/pages/profile/edit') }
+function loginMock() {
   session.loginMock().then((ok) => {
-    if (ok) { session.reload(); showFeedback('已进入 Mock 内测账号') }
+    if (ok) {
+      session.reload()
+      library.reload()
+      purchases.fetchPurchases()
+      reminders.fetchItems()
+      wardrobe.fetchItems()
+      showFeedback('已进入本机演示账号')
+    }
     else if (session.errorMessage !== '') showFeedback(session.errorMessage)
+  })
+}
+function loginWechat() {
+  session.loginWithWechat().then((ok) => {
+    if (ok) { session.reload(); showFeedback('微信登录成功') }
+    else showFeedback(session.errorMessage !== '' ? session.errorMessage : '微信登录失败')
+  })
+}
+function openLoginOptions() {
+  uni.showActionSheet({
+    itemList: ['微信登录', '本机演示账号'],
+    success: (res) => { if (res.tapIndex == 0) loginWechat(); else loginMock() },
   })
 }
 function logout() { session.logout(); showFeedback('已退出，设备数据仍保留') }
@@ -186,12 +206,13 @@ function mkItem(id: string, icon: string, label: string, value: string): GridIte
   return g
 }
 const gridItems = computed(() => [
-  mkItem('wardrobe', 'wardrobe', '衣橱', ''),
-  mkItem('favorites', 'heart', '收藏', ''),
-  mkItem('orders', 'order', '购买记录', ''),
-  mkItem('reminders', 'reminder', '提醒', ''),
-  mkItem('budget', 'budget', '消费日志', ''),
+  mkItem('wardrobe', 'wardrobe', '衣橱', wardrobe.items.length.toString() + ' 件'),
+  mkItem('favorites', 'heart', '收藏', library.favoriteCount.toString() + ' 件'),
+  mkItem('orders', 'order', '购买记录', purchases.itemCount.toString() + ' 笔'),
+  mkItem('reminders', 'reminder', '提醒', reminders.itemCount.toString() + ' 条'),
+  mkItem('budget', 'budget', '消费日志', formatAmount(purchases.totalSpent)),
 ])
+function formatAmount(cents: number): string { return cents <= 0 ? '¥0' : '¥' + (cents / 100).toFixed(0) }
 
 const GRID_GAP = '16rpx'
 const GRID_WIDTH = '212rpx'
