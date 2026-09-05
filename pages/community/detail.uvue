@@ -85,7 +85,7 @@ function reportPost() {
   if (post.value == null) return
   uni.showActionSheet({ itemList: ['举报不适当内容'], success: async () => {
     const ok = await submitCommunityReport(post.value!.id)
-    showFeedback(ok ? '举报已记录，当前由演示审核队列处理' : '举报记录失败，请重试')
+    showFeedback(ok ? '举报已记录，我们会尽快处理' : '举报记录失败，请重试')
   } })
 }
 

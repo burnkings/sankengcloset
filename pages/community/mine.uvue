@@ -6,15 +6,11 @@
         <template v-if="filteredPosts.length === 0">
           <PageState icon="camera" title="还没有发布动态" message="发布后的内容会集中显示在这里" action-text="去发布" @action="goCreate" />
         </template>
-        <view v-for="post in filteredPosts" :key="post.id" :style="postRow">
-          <view :style="thumbWrap" @tap="previewPostImage(post.image)"><AppImage :src="post.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
-          <view :style="bodyStyle">
-            <view :style="postHeader"><text :style="postTimeStyle">{{ postTime(post.createdAt) }}</text><text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text></view>
-            <text :style="captionStyle">{{ post.caption !== '' ? post.caption : '今天也认真搭配了' }}</text>
-            <view :style="metaRow">
-              <view :style="tagRow"><text :style="topicStyle">#{{ post.topic }}</text><text :style="categoryStyle">{{ post.category }}</text></view>
-              <view :style="likeAction" @tap="toggleLike(post.id)"><AppIcon name="heart" :size="34" :active="library.isPostLiked(post.id)" /><text :style="likeText(post.id)">{{ library.isPostLiked(post.id) ? 1 : 0 }}</text></view>
-            </view>
+        <view v-for="post in filteredPosts" :key="post.id" :style="postShell">
+          <PostCard :image="post.image" :caption="post.caption !== '' ? post.caption : '今天也认真搭配了'" :author="'我'" :avatar-text="'我'" :time-text="postTime(post.createdAt)" :like-count="library.isPostLiked(post.id) ? 1 : 0" :liked="library.isPostLiked(post.id)" :product-id="post.productId" @tap="previewPostImage(post.image)" @toggle-like="toggleLike(post.id)" @product="openProduct(post.productId)" @more="deletePost(post.id)" />
+          <view :style="metaRow">
+            <view :style="tagRow"><text :style="topicStyle">#{{ post.topic !== '' ? post.topic : '日常分享' }}</text><text :style="categoryStyle">{{ post.category }}</text><text v-if="post.wardrobeIds.length > 0" :style="categoryStyle">已关联 {{ post.wardrobeIds.length }} 件衣物</text></view>
+            <text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text>
           </view>
         </view>
       </view>
@@ -25,15 +21,14 @@
 <script setup lang="uts">
 import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
 import { brand } from '@/theme/tokens/colors'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { fontSize } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
-import AppIcon from '@/components/base/AppIcon.uvue'
-import AppImage from '@/components/base/AppImage.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import PostCard from '@/components/v3/PostCard.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 const library = useContentLibraryStore()
@@ -48,6 +43,7 @@ const filteredPosts = computed((): SavedOutfitPost[] => {
 
 function toggleLike(id: string) { library.togglePostLike(id) }
 function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
+function openProduct(id: string) { if (id !== '') uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(id)}` }) }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function deletePost(id: string) {
   if (pendingDeleteId.value != id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
@@ -84,17 +80,10 @@ onUnload(() => { stopClock() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 // V3 §6.5 紧凑列表行：缩略图 + 标题/时间 + 删除；分割线分组
-const postRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '150rpx', paddingTop: '16rpx', paddingBottom: '16rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderRadius: CARD_RADIUS_V3, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '12rpx' }))
-const thumbWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary, marginRight: '20rpx', flexShrink: 0 }))
-const bodyStyle = { ...flexFill }
-const postHeader = { ...flexRow, alignItems: 'center', marginBottom: '8rpx' }
-const postTimeStyle = computed((): any => ({ ...flexFill, fontSize: fontSize.xs, color: n.value.textTertiary }))
+const postShell = { marginBottom: '20rpx' }
 function deleteText(id: string) { return { fontSize: fontSize.xs, color: pendingDeleteId.value == id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
-const captionStyle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '40rpx' }))
-const metaRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
+const metaRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '64rpx', paddingLeft: '12rpx', paddingRight: '12rpx', backgroundColor: n.value.surface }))
 const tagRow = { ...flexFill, ...flexRow, alignItems: 'center' }
 const topicStyle = { fontSize: fontSize.xs, color: brand[600] }
 const categoryStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '16rpx' }))
-const likeAction = { ...flexRow, alignItems: 'center', minWidth: '80rpx', height: '56rpx', justifyContent: 'flex-end' }
-function likeText(id: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: library.isPostLiked(id) ? brand[600] : n.value.textTertiary, marginLeft: '6rpx' } }
 </script>

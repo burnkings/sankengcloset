@@ -8,8 +8,8 @@
 
         <SectionHeader title="榜单排行" action-text="查看全部" @action="openRanking('hot')" />
         <view :style="rankingRow">
-          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><text :style="rankingTitle">热榜</text><text :style="rankingDesc">大家都在关注</text></view>
-          <view :style="rankingCard('new')" @tap="openRanking('new')"><text :style="rankingTitle">上新榜</text><text :style="rankingDesc">新款值得蹲</text></view>
+          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><text :style="rankingTitle">热榜</text></view>
+          <view :style="rankingCard('new')" @tap="openRanking('new')"><text :style="rankingTitle">上新榜</text></view>
         </view>
 
         <SectionHeader title="精选专题" action-text="查看更多" />
@@ -50,23 +50,18 @@
           </view>
         </view>
 
-        <AppDialog :visible="showDayRelease" :title="selectedDayTitle" @cancel="showDayRelease = false">
+        <BottomSheet :visible="showDayRelease" :title="selectedDayTitle" @close="showDayRelease = false">
           <view v-if="selectedDayEvents.length === 0" :style="dayEmptyWrap">
             <text :style="dayEmptyText">当日暂无发售</text>
           </view>
-          <view v-for="evt in selectedDayEvents" :key="evt.id" :style="dayEventRow" @tap="onAddReleaseReminder(evt)">
+          <view v-for="evt in selectedDayEvents" :key="evt.id" :style="dayEventRow" @tap="onReleaseProduct(evt)">
             <view :style="dayEventCopy">
               <text :style="dayEventTitle">{{ evt.title }}</text>
               <text :style="dayEventMeta">{{ evt.brand !== '' ? evt.brand : evt.tag }}</text>
             </view>
-            <view :style="dayEventAction"><AppIcon name="reminder" :size="28" :active="true" /><text :style="dayEventActionText">提醒</text></view>
+            <view :style="dayEventAction" @tap.stop="onAddReleaseReminder(evt)"><AppIcon name="reminder" :size="28" :active="true" /><text :style="dayEventActionText">设置提醒</text></view>
           </view>
-        </AppDialog>
-
-        <SectionHeader title="趋势话题" />
-        <view v-for="(topic, idx) in topics" :key="topic.id" :style="topicRow(idx)" @tap="openTopic(topic)">
-          <text :style="topicName"># {{ topic.name }}</text><text :style="topicMeta">{{ topic.meta }}</text><AppIcon name="chevron-right" :size="30" />
-        </view>
+        </BottomSheet>
       </view>
     </template>
   </MainLayout>
@@ -77,25 +72,21 @@
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, LIST_ROW_HEIGHT, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
-import { openPrimaryTab } from '@/utils/tab-navigation'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { useCalendarStore } from '@/stores/calendar-store'
 import { CalendarEvent } from '@/services/content/calendar-service'
 import { FEED_EDITORIAL, FEED_BRAND_POST } from '@/domain/content/feed-item'
-import { TrendTopic, fetchTrendTopics } from '@/services/content/trend-service'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
-import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
-import ListGroup from '@/components/v3/ListGroup.uvue'
-import AppDialog from '@/components/base/AppDialog.uvue'
+import BottomSheet from '@/components/v3/BottomSheet.uvue'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
 // #endif
@@ -120,19 +111,6 @@ class CalendarCell {
 }
 function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openRanking(tab: string) { uni.navigateTo({ url: `/pages/ranking/index?tab=${tab}` }) }
-function search(keyword: string) { uni.setStorageSync('pending_search_keyword', keyword); uni.navigateTo({ url: '/pages/search/index' }) }
-function openTopic(topic: TrendTopic) {
-  if (topic.targetType === 'product') {
-    uni.navigateTo({ url: `/pages/product/detail?id=${topic.targetId}` })
-    return
-  }
-  if (topic.targetType === 'brand') {
-    uni.navigateTo({ url: `/pages/brand/detail?id=${topic.targetId}&name=${encodeURIComponent(topic.name)}` })
-    return
-  }
-  uni.setStorageSync('community_topic', topic.targetId !== '' ? topic.targetId : topic.name)
-  openPrimaryTab('/pages/community/index')
-}
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
 function toggleBrand(brandName: string) {
@@ -165,15 +143,22 @@ const features = computed((): FeatureItem[] => {
   })
 })
 const brands = computed((): BrandItem[] => {
-  return feedStore.allItems.filter((item) => item.feedType === FEED_BRAND_POST && !blacklist.isBlacklisted(item.brandName !== '' ? item.brandName : item.title)).map((item) => {
-    const b = new BrandItem()
+  const result: BrandItem[] = []
+  const seen: string[] = []
+  const source = feedStore.allItems.filter((item) => item.feedType === FEED_BRAND_POST && !blacklist.isBlacklisted(item.brandName !== '' ? item.brandName : item.title))
+  for (let i = 0; i < source.length && result.length < 4; i++) {
+    const item = source[i]
     const name = item.brandName !== '' ? item.brandName : item.title
+    if (name === '' || seen.indexOf(name) >= 0) continue
+    seen.push(name)
+    const b = new BrandItem()
     b.id = item.brandId !== '' ? item.brandId : name
     b.name = name
     b.initial = brandInitialOf(name)
-    b.meta = item.sourceLabel
-    return b
-  })
+    b.meta = '精选品牌'
+    result.push(b)
+  }
+  return result
 })
 const calendarStore = useCalendarStore()
 // 发售日历：真实数据源（GET /api/v1/calendar，见 calendar-store），黑名单品牌过滤
@@ -233,13 +218,26 @@ function onCellTap(cell: CalendarCell) {
   selectedDayKey.value = cell.dateKey
   showDayRelease.value = true
 }
+function onReleaseProduct(evt: CalendarEvent) {
+  if (evt.productId !== '') {
+    showDayRelease.value = false
+    uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(evt.productId)}` })
+    return
+  }
+  showFeedback('该发售暂未关联商品详情')
+}
+function calendarReminderType(evt: CalendarEvent): string {
+  return evt.eventType === 'reservation' || evt.eventType === 'lottery' ? 'WISH' : 'RELEASE'
+}
 function onAddReleaseReminder(evt: CalendarEvent) {
   const title = encodeURIComponent(evt.title)
   const date = evt.dateKey
   showDayRelease.value = false
-  uni.navigateTo({ url: `/pages/reminder/edit?title=${title}&date=${date}&type=RELEASE` })
+  const type = calendarReminderType(evt)
+  const releaseId = encodeURIComponent(evt.id)
+  const productId = encodeURIComponent(evt.productId)
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${title}&date=${date}&type=${type}&productId=${productId}&releaseId=${releaseId}` })
 }
-const topics = ref<TrendTopic[]>([])
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const searchBox = computed((): any => ({ width: '686rpx', height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3, backgroundColor: n.value.inputFill, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
@@ -251,7 +249,6 @@ function rankingCard(variant: string): any {
   return { flex: 1, height: '112rpx', borderRadius: '20rpx', backgroundColor: bg, padding: '20rpx', justifyContent: 'center', flexDirection: 'column' as string, marginRight: variant === 'hot' ? '24rpx' : '0' }
 }
 const rankingTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#262223' }
-const rankingDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 const featureScroll = { width: '718rpx', marginRight: '-32rpx' }
 const featureRow = { ...flexRow, width: '1060rpx' }
 function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS_V3, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.value.length - 1 ? '20rpx' : '0' } }
@@ -291,15 +288,10 @@ const dayEventTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: 
 const dayEventMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const dayEventAction = { flexDirection: 'row' as string, alignItems: 'center', flexShrink: 0, marginLeft: '12rpx' }
 const dayEventActionText = computed((): any => ({ fontSize: fontSize.xs, color: brand[600] as string, marginLeft: '6rpx' }))
-function topicRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '96rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginBottom: idx < topics.value.length - 1 ? '12rpx' : '0' } }
-const topicName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const topicMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '10rpx' }))
 onLoad(() => { initPageTheme() })
 onMounted(() => {
   calendarStore.loadMonth(calYear.value, calMonth.value)
   if (feedStore.state === 'idle' || feedStore.state === 'error') feedStore.loadFirstPage()
-  fetchTrendTopics().then((items) => { topics.value = items })
 })
 onPageShow(() => { initPageTheme(); library.reload() })
 </script>
-

@@ -36,8 +36,8 @@
                   @toggle-save="onToggleSave(item)"
                 />
                 <view :style="statusRow" @tap.stop="openStatusPicker(item)">
-                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
                   <text :style="statusHintText">待购状态</text>
+                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
                 </view>
                 <view :style="releaseRow">
                   <text :style="releaseStatusTextStyle">{{ favoriteReleaseText(item) }}</text>
@@ -61,8 +61,8 @@
                   @toggle-save="onToggleSave(item)"
                 />
                 <view :style="statusRow" @tap.stop="openStatusPicker(item)">
-                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
                   <text :style="statusHintText">待购状态</text>
+                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
                 </view>
                 <view :style="releaseRow">
                   <text :style="releaseStatusTextStyle">{{ favoriteReleaseText(item) }}</text>
@@ -86,17 +86,8 @@
           </view>
         </view>
 
-        <view v-else-if="activeTab === '穿搭' && likedLooks.length > 0" :style="likedLookList">
+        <view v-else-if="activeTab === '动态' && likedLooks.length > 0" :style="likedLookList">
           <PostCard v-for="look in likedLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption" :author="look.authorNickname" :avatar-text="look.initial" :time-text="'已收藏'" :like-count="look.likeCount" :liked="true" :product-id="look.productId" @tap="openLook(look.id)" @toggle-like="unlikeLook(look.id)" @more="openLook(look.id)" @product="openLookProduct(look.productId)" />
-        </view>
-
-        <view v-else-if="activeTab === '合集' && smartCollections.length > 0" :style="collectionList">
-          <view v-for="group in smartCollections" :key="group.status" :style="collectionCard">
-            <view :style="collectionHeader"><text :style="collectionTitle">{{ group.label }}</text><text :style="collectionCount">{{ group.items.length }} 件</text></view>
-            <view v-for="(item, idx) in group.items" :key="item.id" :style="collectionItem(idx, group.items.length)" @tap="openProduct(item)">
-              <text :style="collectionItemTitle">{{ item.title }}</text><text :style="collectionItemBrand">{{ item.brandName }}</text><AppIcon name="chevron-right" :size="28" />
-            </view>
-          </view>
         </view>
 
         <view v-else :style="emptyContainer">
@@ -122,6 +113,7 @@ import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore, FAVORITE_STATUS_LABELS } from '@/stores/content-library-store'
+import { useBrandStore } from '@/stores/brand-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { useBlacklistStore } from '@/stores/blacklist-store'
@@ -143,32 +135,13 @@ import PageState from '@/components/v3/PageState.uvue'
 import PostCard from '@/components/v3/PostCard.uvue'
 
 const activeTab = ref('商品')
-const tabs = ['商品', '穿搭', '品牌', '合集']
+const tabs = ['商品', '动态', '品牌']
 const library = useContentLibraryStore()
+const brandStore = useBrandStore()
 const reminderStore = useReminderStore()
 const blacklist = useBlacklistStore()
 
-class SmartCollection {
-  status: string = ''
-  label: string = ''
-  items: FeedItem[] = []
-}
 const likedLooks = computed(() => library.publicPosts.filter((post) => library.isPostLiked(post.id) && !blacklist.isBlacklisted(post.authorNickname)))
-const smartCollections = computed((): SmartCollection[] => {
-  const statuses = ['WANT', 'WAIT_RELEASE', 'WAIT_PRICE', 'PURCHASED', 'WISH']
-  const result: SmartCollection[] = []
-  for (let i = 0; i < statuses.length; i++) {
-    const items = visibleFavoriteProducts.value.filter((item) => library.favoriteStatusOf(item.entityId) === statuses[i])
-    if (items.length === 0) continue
-    const group = new SmartCollection()
-    group.status = statuses[i]
-    const label = FAVORITE_STATUS_LABELS[statuses[i]]
-    group.label = label != null ? label as string : '收藏'
-    group.items = items
-    result.push(group)
-  }
-  return result
-})
 function openLook(id: string) { uni.navigateTo({ url: `/pages/community/detail?id=${id}` }) }
 function openLookProduct(id: string) { if (id !== '') uni.navigateTo({ url: `/pages/product/detail?id=${id}` }) }
 function unlikeLook(id: string) { library.togglePostLike(id) }
@@ -189,14 +162,12 @@ function backToTop() {
 
 const emptyTitleText = computed((): string => {
   if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
-  if (activeTab.value === '穿搭') return '暂无收藏的穿搭'
-  if (activeTab.value === '合集') return '还没有创建收藏合集'
+  if (activeTab.value === '动态') return '暂无收藏的动态'
   return '还没有收藏心动小裙子'
 })
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
-  if (activeTab.value === '穿搭') return '收藏的穿搭会显示在这里'
-  if (activeTab.value === '合集') return '合集会按待购状态自动整理'
+  if (activeTab.value === '动态') return '收藏的动态会显示在这里'
   return '从新品、预约和降价中慢慢挑选'
 })
 
@@ -323,7 +294,7 @@ function onSelectStatus(status: string) {
 function favoriteStatusLabel(item: FeedItem): string {
   const status = library.favoriteStatusOf(item.entityId)
   const label = FAVORITE_STATUS_LABELS[status]
-  return label != null ? label as string : '收藏'
+  return label != null ? label as string : '已收藏'
 }
 function statusOptionText(value: string): any {
   const active = statusPickerCurrent.value == value
@@ -346,9 +317,11 @@ const productRight = computed((): FeedItem[] => {
   }
   return right
 })
-function openBrand(brandName: string) {
-  uni.setStorageSync('pending_search_keyword', brandName)
-  uni.navigateTo({ url: '/pages/search/index' })
+async function openBrand(brandName: string) {
+  const list = await brandStore.fetchBrands()
+  const matched = list.find((item) => item.name === brandName)
+  const id = matched != null ? matched.id : brandName
+  uni.navigateTo({ url: `/pages/brand/detail?id=${encodeURIComponent(id)}&name=${encodeURIComponent(brandName)}` })
 }
 function reloadFavorites() { library.refreshFavorites() }
 function clearInvalidFavorites() { library.removeInvalidFavorites(); showFeedback('已清除失效收藏') }
@@ -370,8 +343,7 @@ const listSections = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3
 const emptyContainer = { paddingTop: '24rpx' }
 const emptyIcon = computed((): string => {
   if (activeTab.value === '品牌') return 'heart'
-  if (activeTab.value === '穿搭') return 'heart'
-  if (activeTab.value === '合集') return 'grid'
+  if (activeTab.value === '动态') return 'heart'
   return 'wardrobe'
 })
 // 商品双列错落瀑布流：左右两列独立堆叠（与首页/搜索一致）
@@ -380,7 +352,7 @@ const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirect
 const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
 // 待购状态行（收藏决策池）
 const statusRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'center', marginTop: '8rpx', marginBottom: '20rpx', paddingTop: '10rpx', paddingBottom: '10rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
-const statusLabelText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500], marginRight: '8rpx' }))
+const statusLabelText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500], marginLeft: '8rpx' }))
 const statusHintText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
 // 发售状态 + 提醒入口行（Phase 1.1-C）
 const releaseRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx', marginBottom: '20rpx', paddingTop: '10rpx', paddingBottom: '10rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
@@ -398,12 +370,4 @@ const partialErrorWrap = { ...flexRow, alignItems: 'center', justifyContent: 'ce
 const partialErrorText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const partialErrorAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600], marginLeft: '16rpx' }))
 const likedLookList = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
-const collectionList = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
-const collectionCard = computed((): any => ({ borderRadius: '20rpx', backgroundColor: n.value.surface, paddingLeft: '24rpx', paddingRight: '24rpx', marginBottom: '18rpx' }))
-const collectionHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', minHeight: '84rpx' }
-const collectionTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const collectionCount = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
-function collectionItem(idx: number, total: number): any { return { ...flexRow, alignItems: 'center', minHeight: '82rpx', borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider } }
-const collectionItemTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
-const collectionItemBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '8rpx' }))
 </script>

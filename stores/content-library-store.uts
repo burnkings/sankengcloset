@@ -57,7 +57,7 @@ export class FavoriteEntry {
 
 /** 收藏决策状态机（与后端 WishlistStatus 一致；展示标签） */
 export const FAVORITE_STATUS_LABELS = {
-  WISH: '收藏',
+  WISH: '已收藏',
   WANT: '想买',
   WATCHING: '观望',
   WAIT_RELEASE: '等待开售',
@@ -71,6 +71,8 @@ export class SavedOutfitPost {
   caption: string = ''
   category: string = ''
   topic: string = ''
+  productId: string = ''
+  wardrobeIds: string[] = []
   createdAt: string = ''
   // true = 远程已发布（listCommunityPostsRemote mine）
   isRemote: boolean = false
@@ -167,6 +169,8 @@ function readMockPosts(): SavedOutfitPost[] {
       p.caption = item['caption'] != null ? item['caption'] as string : ''
       p.category = item['category'] != null ? item['category'] as string : ''
       p.topic = item['topic'] != null ? item['topic'] as string : ''
+      p.productId = item['productId'] != null ? item['productId'] as string : ''
+      p.wardrobeIds = item['wardrobeIds'] != null ? item['wardrobeIds'] as string[] : []
       p.createdAt = item['createdAt'] != null ? item['createdAt'] as string : ''
       p.isRemote = true
       if (p.id != '') posts.push(p)
@@ -187,6 +191,8 @@ function writeMockPosts(posts: SavedOutfitPost[]) {
         caption: posts[i].caption,
         category: posts[i].category,
         topic: posts[i].topic,
+        productId: posts[i].productId,
+        wardrobeIds: posts[i].wardrobeIds,
         createdAt: posts[i].createdAt,
       } as UTSJSONObject)
     }
@@ -210,7 +216,7 @@ function mockToPublicLook(post: SavedOutfitPost): PublicLookPost {
   p.initial = nickname.length > 0 ? nickname.substring(0, 1) : '我'
   p.likeCount = 0
   p.liked = false
-  p.productId = ''
+  p.productId = post.productId
   p.createdAt = post.createdAt
   return p
 }
@@ -326,9 +332,9 @@ function reload() {
 
 function defaultPublicLooks(): PublicLookPost[] {
   const rows = [
-    ['mock_look_jk', '/static/demo/outfit-01.png', '通勤也能穿的清爽 JK 搭配（演示内容）', 'JK', '通勤三坑', '小樱', 'prd_jk_navy_45'],
-    ['mock_look_lolita', '/static/demo/outfit-02.png', '月夜茶会搭配记录（演示内容）', 'Lolita', '茶会搭配', '栗子', 'prd_lolita_moon'],
-    ['mock_look_hanfu', '/static/demo/outfit-editorial-01.jpg', '宋制日常穿搭分享（演示内容）', '汉服', '今日穿搭', '云间', 'prd_hanfu_song'],
+    ['mock_look_jk', '/static/demo/outfit-01.png', '通勤也能穿的清爽 JK 搭配', 'JK', '通勤三坑', '小樱', 'prd_jk_navy_45'],
+    ['mock_look_lolita', '/static/demo/outfit-02.png', '月夜茶会搭配记录', 'Lolita', '茶会搭配', '栗子', 'prd_lolita_moon'],
+    ['mock_look_hanfu', '/static/demo/outfit-editorial-01.jpg', '宋制日常穿搭分享', '汉服', '今日穿搭', '云间', 'prd_hanfu_song'],
   ]
   const posts: PublicLookPost[] = []
   for (let i = 0; i < rows.length; i++) {
@@ -425,6 +431,7 @@ async function refreshMyPosts(): Promise<void> {
       post.caption = item.caption
       post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : item.category
       post.topic = item.topic
+      post.productId = item.productId
       post.createdAt = item.createdAt
       post.isRemote = true
       saved.push(post)
@@ -791,6 +798,8 @@ export async function publishOutfitRemote(imagePath: string, caption: string, ca
     post.caption = caption
     post.category = category
     post.topic = topic
+    post.productId = productId
+    post.wardrobeIds = [...wardrobeIds]
     post.createdAt = Date.now().toString()
     post.isRemote = true
     const posts = readMockPosts()

@@ -27,6 +27,14 @@
         </view>
       </template>
 
+      <!-- 收藏榜 -->
+      <template v-else-if="variant === 'favorite'">
+        <view :style="tagRow">
+          <view :style="categoryTag"><text :style="categoryTagText">{{ item.category }}</text></view>
+          <text :style="hotText">近周期新增 {{ item.favoriteGrowth }} 次收藏</text>
+        </view>
+      </template>
+
       <!-- 上新榜 -->
       <template v-else-if="variant === 'new'">
         <view :style="tagRow">

@@ -1,14 +1,14 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout @scrolltolower="loadMorePublic">
-      <template #navbar><PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
+      <template #navbar><PageHeader title="动态" action-text="发布" @action="goCreate" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view v-if="viewMode === 'mine'" :style="mineTitleWrap">
           <text :style="mineTitle">我的发布</text>
         </view>
         <view v-if="viewMode !== 'mine'">
-        <text :style="introText">穿搭灵感 Gallery · 内测中，看同好如何搭配，也分享你的今日造型</text>
+        <text :style="introText">穿搭灵感流，看同好如何搭配，也分享你的今日造型</text>
         <view :style="composerCard" @tap="goCreate">
           <view :style="composerIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
@@ -59,7 +59,7 @@
     </template>
   </MainLayout>
 
-  <AppDialog :visible="showBlacklistDialog" title="拉黑该作者" message="拉黑后不再看到 TA 的动态，确定拉黑吗？" confirm-text="拉黑" :show-cancel="true" cancel-text="取消" @confirm="confirmBlacklist" @cancel="showBlacklistDialog = false" />
+  <AppDialog :visible="showBlacklistDialog" title="屏蔽该作者" message="屏蔽后不再看到 TA 的动态，确定屏蔽吗？" confirm-text="屏蔽" :show-cancel="true" cancel-text="取消" @confirm="confirmBlacklist" @cancel="showBlacklistDialog = false" />
   <AppDialog :visible="showReportDialog" title="举报这条动态" message="举报后我们会尽快处理，感谢你的反馈。" confirm-text="举报" :show-cancel="true" cancel-text="取消" @confirm="confirmReport" @cancel="showReportDialog = false" />
 </view>
 </template>
@@ -101,7 +101,7 @@ let pendingLook: PublicLookPost | null = null
 function onMoreTap(look: PublicLookPost) {
   pendingLook = look
   uni.showActionSheet({
-    itemList: ['拉黑该作者', '举报这条动态'],
+    itemList: ['屏蔽该作者', '举报这条动态'],
     success: (res) => {
       if (pendingLook == null) return
       if (res.tapIndex === 0) showBlacklistDialog.value = true
@@ -115,14 +115,14 @@ function confirmBlacklist() {
   if (pendingLook == null) return
   const uid = pendingLook.authorUserId
   userBlacklist.toggleBlacklist(uid)
-  showFeedback('已拉黑该用户，其动态将不再显示')
+  showFeedback('已屏蔽该用户，其动态将不再显示')
 }
 
 async function confirmReport() {
   showReportDialog.value = false
   if (pendingLook == null) return
   const ok = await submitCommunityReport(pendingLook.id)
-  showFeedback(ok ? '举报已记录，当前由演示审核队列处理' : '举报记录失败，请重试')
+  showFeedback(ok ? '举报已记录，我们会尽快处理' : '举报记录失败，请重试')
 }
 
 // 公开 Gallery：仅筛选作用于公开帖子

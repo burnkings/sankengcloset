@@ -220,7 +220,7 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
   release.id = 'mock_release_' + mock.id
   release.productId = mock.id
   release.brandId = mock.brandId
-  release.title = mock.title + '演示批次'
+  release.title = mock.title + '发售批次'
   release.eventType = mock.releaseType
   release.releaseType = mock.releaseType
   release.saleStatus = mock.status
@@ -280,9 +280,9 @@ export async function fetchProductCommunity(id: string): Promise<ProductCommunit
       post.id = 'mock_buyer_' + id + '_' + i.toString()
       post.authorNickname = i == 0 ? '栗子同学' : '小鹿茶会'
       post.imageUrl = i == 0 ? '/static/demo/outfit-01.png' : '/static/demo/outfit-02.png'
-      post.caption = i == 0 ? '演示返图：日常搭配很轻松，尺码信息以实际商品为准。' : '演示返图：换一件内搭就是另一套感觉。'
+      post.caption = i == 0 ? '日常搭配很轻松，尺码信息以实际商品为准。' : '换一件内搭就是另一套感觉。'
       post.category = findMockProduct(id)!.category
-      post.topic = '演示穿搭'
+      post.topic = '日常穿搭'
       post.likeCount = i == 0 ? 38 : 21
       post.createdAt = mockDateAfter(-i - 1)
       post.productId = id

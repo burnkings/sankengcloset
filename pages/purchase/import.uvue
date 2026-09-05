@@ -127,7 +127,7 @@ async function startRecognition() {
   // Mock 内测 / 游客：没有真实账号与模型配置，绝不伪造 OCR 成功，明确引导手动补全
   if (!session.isLoggedIn || session.isMock) {
     errorMessage.value = session.isMock
-      ? 'Mock 内测未接入订单识别服务：请直接点击「手动补全」录入订单。'
+      ? '当前暂未接入订单识别服务：请直接点击「手动补全」录入订单。'
       : '请先登录真实账号再识别订单，或直接点击「手动补全」录入。'
     return
   }

@@ -17,15 +17,16 @@ function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
   const category = raw['category'] != null ? raw['category'] as string : ''
   item.category = category == 'LOLITA' ? 'Lolita' : category == 'HANFU' ? '汉服' : category
   item.favoriteCount = raw['favoriteCount'] != null ? raw['favoriteCount'] as number : 0
+  item.favoriteGrowth = raw['favoriteGrowth'] != null ? raw['favoriteGrowth'] as number : item.favoriteCount
   item.releaseTypeName = raw['releaseTypeName'] != null ? raw['releaseTypeName'] as string : ''
   item.daysAgo = raw['daysAgo'] != null ? raw['daysAgo'] as number : 0
   item.reservationCount = raw['reservationCount'] != null ? raw['reservationCount'] as number : 0
   return item
 }
 
-export async function fetchRankingRemote(tab: string): Promise<RankingItem[]> {
+export async function fetchRankingRemote(tab: string, period: string = '7d'): Promise<RankingItem[]> {
   try {
-    const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab))
+    const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab) + '&period=' + encodeQuery(period))
     const raw = response.data as any[] | null
     const result: RankingItem[] = []
     if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapRemoteRanking(raw[i] as UTSJSONObject))

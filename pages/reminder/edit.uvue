@@ -28,9 +28,9 @@
             </view>
           </FormSection>
 
-          <FormSection title="关联衣橱单品">
+          <FormSection title="关联衣物">
             <view :style="wardrobeBtnRow" @tap="openWardrobePicker">
-              <text :style="wardrobeBtnText">{{ form.wardrobeBindings.length > 0 ? '已选 ' + form.wardrobeBindings.length + ' 件' : '选择衣橱单品' }}</text>
+              <text :style="wardrobeBtnText">{{ form.wardrobeBindings.length > 0 ? '已选 ' + form.wardrobeBindings.length + ' 件' : '选择衣物（可选）' }}</text>
               <AppIcon name="chevron-right" :size="28" />
             </view>
             <view v-if="form.wardrobeBindings.length > 0" :style="wardrobeTagsWrap">
@@ -167,6 +167,8 @@ const showWardrobePicker = ref(false)
 const showDatePicker = ref(false)
 const relatedPurchaseId = ref('')
 const relatedWishId = ref('')
+const relatedProductId = ref('')
+const relatedReleaseId = ref('')
 const tempSelected = ref<string[]>([])
 const dateTimePickerVal = ref([0, 0, 0, 0, 0])
 const tempMonthDay = ref('')
@@ -352,6 +354,8 @@ function onSaveTap() {
     data.wardrobeBindings = form.value.wardrobeBindings
     data.relatedPurchaseId = relatedPurchaseId.value
     data.relatedWishId = relatedWishId.value
+    data.productId = relatedProductId.value
+    data.relatedReleaseId = relatedReleaseId.value
     if (!store.updateItem(editId.value, data)) { saving.value = false; showFeedback('保存失败，请重试'); return }
   } else {
     const item = new Reminder()
@@ -365,6 +369,8 @@ function onSaveTap() {
     item.wardrobeBindings = form.value.wardrobeBindings
     item.relatedPurchaseId = relatedPurchaseId.value
     item.relatedWishId = relatedWishId.value
+    item.productId = relatedProductId.value
+    item.relatedReleaseId = relatedReleaseId.value
     if (store.addItem(item) === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
   }
   showFeedback(isEdit.value ? '修改已保存' : '创建成功')
@@ -410,6 +416,8 @@ onLoad((options) => {
         form.value.wardrobeBindings = [...item.wardrobeBindings]
         relatedPurchaseId.value = item.relatedPurchaseId
         relatedWishId.value = item.relatedWishId
+        relatedProductId.value = item.productId
+        relatedReleaseId.value = item.relatedReleaseId
         initialFormSnapshot = { ...form.value }
       }
       return
@@ -421,6 +429,8 @@ onLoad((options) => {
     form.value.note = options['note'] != null ? safeParam(options['note'] as string) : ''
     relatedPurchaseId.value = options['purchaseId'] != null ? options['purchaseId'] as string : ''
     relatedWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
+    relatedProductId.value = options['productId'] != null ? safeParam(options['productId'] as string) : ''
+    relatedReleaseId.value = options['releaseId'] != null ? safeParam(options['releaseId'] as string) : ''
     if (form.value.remindTime === '') form.value.remindTime = getDefaultTime()
     initialFormSnapshot = { ...form.value }
   }

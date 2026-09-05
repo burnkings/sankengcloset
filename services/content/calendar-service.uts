@@ -85,7 +85,7 @@ export async function fetchCalendarMonth(year: number, month: number): Promise<C
     evt.endAt = mockDateAfter(i * 3 + 5)
     evt.dateKey = startAt.substring(0, 10)
     evt.day = startAt.substring(8, 10)
-    evt.status = '演示数据'
+    evt.status = '已收录'
     result.push(evt)
   }
   return result
