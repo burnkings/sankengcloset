@@ -68,10 +68,10 @@
   <AppDialog :visible="showDeleteDialog" title="确认删除" message="删除后无法恢复，请谨慎操作" confirm-text="删除" :show-cancel="true" cancel-text="取消" @confirm="deleteItem" @cancel="showDeleteDialog = false" />
   <AppDialog :visible="showLeaveDialog" title="确认离开" message="内容尚未保存，确定离开吗？" confirm-text="离开" :show-cancel="true" cancel-text="取消" @confirm="handleLeave" @cancel="showLeaveDialog = false" />
 
-  <AppDialog :visible="showWardrobePicker" title="选择衣橱单品" @confirm="confirmWardrobe" @cancel="showWardrobePicker = false">
+  <AppDialog :visible="showWardrobePicker" title="选择关联衣物" @confirm="confirmWardrobe" @cancel="showWardrobePicker = false">
     <view :style="wardrobePickerWrap">
       <view v-if="wardrobeStore.sortedItems.length === 0" :style="wardrobeEmptyWrap">
-        <text :style="wardrobeEmptyText">暂无衣橱单品</text>
+        <text :style="wardrobeEmptyText">暂无可关联衣物</text>
       </view>
       <scroll-view v-else :style="wardrobePickerScroll">
         <view :style="wardrobeGrid">
