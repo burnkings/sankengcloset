@@ -112,6 +112,8 @@ type FormState = {
 }
 const form = ref<FormState>({ name: '', brand: '', shopName: '', category: 'JK', totalAmountStr: '', depositAmountStr: '', paidAmountStr: '', paymentStatus: 'PRE_ORDER', purchaseDate: '', deadline: '', arrivalDate: '', note: '' })
 const sourceWishId = ref('')
+const sourceProductId = ref('')
+const sourceReleaseId = ref('')
 const sourceImportTaskId = ref('')
 const isAiDraft = ref(false)
 
@@ -185,6 +187,8 @@ function save() {
     record.deadline = form.value.deadline.trim()
     record.arrivalDate = form.value.arrivalDate.trim()
     record.wishId = sourceWishId.value
+    record.productId = sourceProductId.value
+    record.releaseId = sourceReleaseId.value
     record.note = form.value.note.trim()
     const added = store.addPurchase(record)
     if (added === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
@@ -226,6 +230,8 @@ onLoad((options) => {
     form.value.shopName = options['shopName'] != null ? safeParam(options['shopName'] as string) : ''
     form.value.category = options['category'] != null ? (options['category'] as string) : 'JK'
     sourceWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
+    sourceProductId.value = options['productId'] != null ? safeParam(options['productId'] as string) : ''
+    sourceReleaseId.value = options['releaseId'] != null ? safeParam(options['releaseId'] as string) : ''
     sourceImportTaskId.value = options['importTaskId'] != null ? safeParam(options['importTaskId'] as string) : ''
     isAiDraft.value = options['fromAiImport'] != null && (options['fromAiImport'] as string) === '1'
     form.value.totalAmountStr = options['amount'] != null ? safeParam(options['amount'] as string) : ''

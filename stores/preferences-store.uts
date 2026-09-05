@@ -191,6 +191,12 @@ function togglePitType(type: string) {
   notifyChanged()
 }
 
+function setPriceRange(value: string) {
+  _state.preferences.priceRange = value
+  savePreferences()
+  notifyChanged()
+}
+
 function resetPreferences() {
   const defaults = new PreferencesData()
   // preserve followed brands on reset
@@ -211,6 +217,7 @@ class PreferencesStoreHandle {
   savePreferences(): void { savePreferences() }
   setPitTypes(types: string[]): void { setPitTypes(types) }
   togglePitType(type: string): void { togglePitType(type) }
+  setPriceRange(value: string): void { setPriceRange(value) }
   resetPreferences(): void { resetPreferences() }
   refreshRemotePreferences(): Promise<void> { return refreshRemotePreferences() }
   computeScore(item: FeedItem): number { return computeScore(item) }

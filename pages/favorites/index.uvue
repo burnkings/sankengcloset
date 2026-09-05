@@ -76,13 +76,26 @@
         <view v-else-if="activeTab === '品牌' && library.followedBrands.length > 0" :style="contentTop">
           <view :style="listSections">
             <ListGroup>
-              <view v-for="(brandName, idx) in library.followedBrands" :key="brandName" :style="brandRow(idx)">
+              <view v-for="(brandName, idx) in library.followedBrands" :key="brandName" :style="brandRow(idx)" @tap="openBrand(brandName)">
                 <view :style="brandAvatar"><text :style="brandInitial">{{ brandName.substring(0, 1) }}</text></view>
                 <text :style="brandNameText">{{ brandName }}</text>
                 <text :style="followedText">已关注</text>
                 <AppIcon name="chevron-right" :size="30" />
               </view>
             </ListGroup>
+          </view>
+        </view>
+
+        <view v-else-if="activeTab === '穿搭' && likedLooks.length > 0" :style="likedLookList">
+          <PostCard v-for="look in likedLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption" :author="look.authorNickname" :avatar-text="look.initial" :time-text="'已收藏'" :like-count="look.likeCount" :liked="true" :product-id="look.productId" @tap="openLook(look.id)" @toggle-like="unlikeLook(look.id)" @more="openLook(look.id)" @product="openLookProduct(look.productId)" />
+        </view>
+
+        <view v-else-if="activeTab === '合集' && smartCollections.length > 0" :style="collectionList">
+          <view v-for="group in smartCollections" :key="group.status" :style="collectionCard">
+            <view :style="collectionHeader"><text :style="collectionTitle">{{ group.label }}</text><text :style="collectionCount">{{ group.items.length }} 件</text></view>
+            <view v-for="(item, idx) in group.items" :key="item.id" :style="collectionItem(idx, group.items.length)" @tap="openProduct(item)">
+              <text :style="collectionItemTitle">{{ item.title }}</text><text :style="collectionItemBrand">{{ item.brandName }}</text><AppIcon name="chevron-right" :size="28" />
+            </view>
           </view>
         </view>
 
@@ -127,12 +140,38 @@ import AppDialog from '@/components/base/AppDialog.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import PostCard from '@/components/v3/PostCard.uvue'
 
 const activeTab = ref('商品')
 const tabs = ['商品', '穿搭', '品牌', '合集']
 const library = useContentLibraryStore()
 const reminderStore = useReminderStore()
 const blacklist = useBlacklistStore()
+
+class SmartCollection {
+  status: string = ''
+  label: string = ''
+  items: FeedItem[] = []
+}
+const likedLooks = computed(() => library.publicPosts.filter((post) => library.isPostLiked(post.id) && !blacklist.isBlacklisted(post.authorNickname)))
+const smartCollections = computed((): SmartCollection[] => {
+  const statuses = ['WANT', 'WAIT_RELEASE', 'WAIT_PRICE', 'PURCHASED', 'WISH']
+  const result: SmartCollection[] = []
+  for (let i = 0; i < statuses.length; i++) {
+    const items = visibleFavoriteProducts.value.filter((item) => library.favoriteStatusOf(item.entityId) === statuses[i])
+    if (items.length === 0) continue
+    const group = new SmartCollection()
+    group.status = statuses[i]
+    const label = FAVORITE_STATUS_LABELS[statuses[i]]
+    group.label = label != null ? label as string : '收藏'
+    group.items = items
+    result.push(group)
+  }
+  return result
+})
+function openLook(id: string) { uni.navigateTo({ url: `/pages/community/detail?id=${id}` }) }
+function openLookProduct(id: string) { if (id !== '') uni.navigateTo({ url: `/pages/product/detail?id=${id}` }) }
+function unlikeLook(id: string) { library.togglePostLike(id) }
 
 // 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
 const scrollTop = ref(0)
@@ -157,7 +196,7 @@ const emptyTitleText = computed((): string => {
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
   if (activeTab.value === '穿搭') return '收藏的穿搭会显示在这里'
-  if (activeTab.value === '合集') return '以后可以按场景整理心动内容'
+  if (activeTab.value === '合集') return '合集会按待购状态自动整理'
   return '从新品、预约和降价中慢慢挑选'
 })
 
@@ -268,8 +307,18 @@ function openStatusPicker(item: FeedItem) {
 }
 function onSelectStatus(status: string) {
   if (statusPickerEntityId === '') return
+  const productId = statusPickerEntityId
+  const product = library.favoriteProducts.find((item) => item.entityId == productId)
+  const entry = library.favoriteEntryOf(productId)
   library.updateFavoriteStatus(statusPickerEntityId, status)
   showStatusPicker.value = false
+  if (status == 'PURCHASED' && product != null) {
+    const amount = product.price > 0 ? (product.price / 100).toString() : ''
+    const category = product.category == 'LOLITA' ? 'LOLITA' : product.category == 'HANFU' ? 'HANFU' : 'JK'
+    const wishId = entry != null && entry.itemId != '' ? entry.itemId : productId
+    const releaseId = entry != null ? entry.releaseId : ''
+    uni.navigateTo({ url: `/pages/purchase/edit?name=${encodeURIComponent(product.title)}&brand=${encodeURIComponent(product.brandName)}&amount=${amount}&category=${category}&wishId=${encodeURIComponent(wishId)}&productId=${encodeURIComponent(productId)}&releaseId=${encodeURIComponent(releaseId)}` })
+  }
 }
 function favoriteStatusLabel(item: FeedItem): string {
   const status = library.favoriteStatusOf(item.entityId)
@@ -311,6 +360,7 @@ onPageShow(() => {
   library.reload()
   const now = Date.now()
   if (now - lastFavoritesFetchAt >= 30000) { lastFavoritesFetchAt = now; library.refreshFavorites() }
+  library.refreshPublicPosts()
 })
 
 const tabsTopSpacer = { height: PAGE_HEADER_CONTENT_GAP }
@@ -347,6 +397,13 @@ const followedText = computed((): any => ({ fontSize: fontSize.xs, color: n.valu
 const partialErrorWrap = { ...flexRow, alignItems: 'center', justifyContent: 'center', paddingTop: '16rpx', paddingBottom: '16rpx' }
 const partialErrorText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const partialErrorAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600], marginLeft: '16rpx' }))
+const likedLookList = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const collectionList = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const collectionCard = computed((): any => ({ borderRadius: '20rpx', backgroundColor: n.value.surface, paddingLeft: '24rpx', paddingRight: '24rpx', marginBottom: '18rpx' }))
+const collectionHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', minHeight: '84rpx' }
+const collectionTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const collectionCount = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+function collectionItem(idx: number, total: number): any { return { ...flexRow, alignItems: 'center', minHeight: '82rpx', borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.divider } }
+const collectionItemTitle = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+const collectionItemBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '8rpx' }))
 </script>
-
-

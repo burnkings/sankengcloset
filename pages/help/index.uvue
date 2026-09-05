@@ -3,15 +3,15 @@
     <view :style="contentWrap">
       <text :style="groupTitle">常见问题</text>
       <ListGroup>
-        <view :style="shell(0, 4)" @tap="onFaqTap"><ListRow title="如何修改坑向偏好？" /></view>
-        <view :style="shell(1, 4)" @tap="onFaqTap"><ListRow title="收藏的商品在哪里查看？" /></view>
-        <view :style="shell(2, 4)" @tap="onFaqTap"><ListRow title="如何清理本地缓存？" /></view>
-        <view :style="shell(3, 4)" @tap="onFaqTap"><ListRow title="如何发布穿搭动态？" /></view>
+        <view v-for="(item, idx) in faqItems" :key="item.title" :style="shell(idx, faqItems.length)" @tap="toggleFaq(idx)">
+          <ListRow :title="item.title" :value="expandedFaq === idx ? '收起' : ''" />
+          <text v-if="expandedFaq === idx" :style="faqAnswer">{{ item.answer }}</text>
+        </view>
       </ListGroup>
 
       <text :style="groupTitle">联系我们</text>
       <ListGroup>
-        <view :style="shell(0, 2)"><ListRow title="客服邮箱" value="建设中" :show-arrow="false" /></view>
+        <view :style="shell(0, 2)" @tap="copyEmail"><ListRow title="客服邮箱" value="service@sankengcloset.icu" /></view>
         <view :style="shell(1, 2)" @tap="onFeedbackTap"><ListRow title="意见反馈" /></view>
       </ListGroup>
 
@@ -29,6 +29,19 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 
+class FaqItem {
+  title: string = ''
+  answer: string = ''
+}
+function faq(title: string, answer: string): FaqItem { const item = new FaqItem(); item.title = title; item.answer = answer; return item }
+const faqItems: FaqItem[] = [
+  faq('如何修改坑向偏好？', '进入「我的 → 内容偏好」，可选择 JK、Lolita、汉服等坑向，也可设置价格区间。首页推荐和搜索会使用这些设置。'),
+  faq('收藏的商品在哪里查看？', '底部进入「收藏」，商品可设置想买、等待开售、等待尾款或已购买；「合集」会按这些状态自动整理。'),
+  faq('如何清理本地缓存？', '进入「我的 → 清理缓存」。该操作只清理图片和临时数据，不会删除衣橱、购买记录或提醒。'),
+  faq('如何发布穿搭动态？', '进入「圈子」，点击右上角「发布」，选择图片、坑向和话题后提交。真实账号会上传到服务端，演示账号保存在本机。'),
+]
+const expandedFaq = ref(-1)
+
 onLoad(() => { initPageTheme() })
 
 function shell(idx: number, total: number) {
@@ -38,10 +51,12 @@ function shell(idx: number, total: number) {
     borderBottomColor: n.value.divider,
   }
 }
-function onFaqTap() { showFeedback('功能开发中，敬请期待') }
+function toggleFaq(idx: number) { expandedFaq.value = expandedFaq.value === idx ? -1 : idx }
+function copyEmail() { uni.setClipboardData({ data: 'service@sankengcloset.icu', success: () => showFeedback('客服邮箱已复制') }) }
 function onFeedbackTap() { uni.navigateTo({ url: '/pages/feedback/index' }) }
 
 const contentWrap = { paddingTop: '8rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
 const groupTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '8rpx', marginTop: '24rpx', marginBottom: '12rpx' }))
 const copyright = computed((): any => ({ textAlign: 'center', fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '28rpx' }))
+const faqAnswer = computed((): any => ({ fontSize: fontSize.xs, lineHeight: '38rpx', color: n.value.textSecondary, paddingLeft: '28rpx', paddingRight: '28rpx', paddingBottom: '22rpx' }))
 </script>

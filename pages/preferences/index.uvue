@@ -9,6 +9,13 @@
             <text :style="pitText(item)">{{ item }}</text>
           </view>
         </view>
+        <text :style="sectionTitle">价格偏好</text>
+        <text :style="hintText">用于减少明显超出预算的推荐，不会隐藏你的主动搜索结果</text>
+        <view :style="priceRow">
+          <view v-for="item in priceItems" :key="item.value" :style="priceChip(item.value)" @tap="setPrice(item.value)">
+            <text :style="priceText(item.value)">{{ item.label }}</text>
+          </view>
+        </view>
         <view :style="resetRow" @tap="onReset"><text :style="resetText">重置默认</text></view>
       </view>
     </template>
@@ -28,6 +35,9 @@ import { usePreferencesStore } from '@/stores/preferences-store'
 
 const prefs = usePreferencesStore()
 const pitItems = ['JK', 'Lolita', '汉服']
+class PriceOption { label: string = ''; value: string = '' }
+function priceOption(label: string, value: string): PriceOption { const item = new PriceOption(); item.label = label; item.value = value; return item }
+const priceItems = [priceOption('不限', 'all'), priceOption('¥300 内', '0-300'), priceOption('¥300–600', '300-600'), priceOption('¥600+', '600+')]
 
 function isPitSelected(name: string): boolean {
   const values = prefs.preferences.pitTypes
@@ -35,6 +45,7 @@ function isPitSelected(name: string): boolean {
   return false
 }
 function togglePit(name: string) { prefs.togglePitType(name) }
+function setPrice(value: string) { prefs.setPriceRange(value) }
 function onReset() { prefs.resetPreferences(); showFeedback('已重置') }
 
 onLoad(() => { initPageTheme() })
@@ -42,6 +53,13 @@ onLoad(() => { initPageTheme() })
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const hintText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginBottom: '24rpx', lineHeight: '38rpx' }))
 const pitRow = { ...flexRow, marginBottom: '32rpx' }
+const sectionTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '8rpx' }))
+const priceRow = { ...flexRow, flexWrap: 'wrap' as string, marginBottom: '24rpx' }
+function priceChip(value: string): any {
+  const selected = prefs.preferences.priceRange == value
+  return { height: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: selected ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: selected ? 'transparent' : n.value.border, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '12rpx' }
+}
+function priceText(value: string): any { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: prefs.preferences.priceRange == value ? brand.primary : n.value.textSecondary } }
 // V3 §5.7 多选胶囊：选中品牌浅底+深色文字
 function pitChip(idx: number, item: string) {
   const selected = isPitSelected(item)

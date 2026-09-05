@@ -74,6 +74,8 @@ function mapRemotePurchase(raw: UTSJSONObject): PurchaseRecord {
   item.deadline = readStr(raw, 'deadline')
   item.arrivalDate = readStr(raw, 'arrivalDate')
   item.wishId = readStr(raw, 'wishId')
+  item.productId = readStr(raw, 'productId')
+  item.releaseId = readStr(raw, 'releaseId')
   item.wardrobeId = readStr(raw, 'wardrobeId')
   item.note = readStr(raw, 'note')
   item.isFavorite = readBool(raw, 'isFavorite')
@@ -107,6 +109,8 @@ function toRemotePayload(record: PurchaseRecord): UTSJSONObject {
     deadline: record.deadline,
     arrivalDate: record.arrivalDate,
     wishId: record.wishId,
+    productId: record.productId,
+    releaseId: record.releaseId,
     wardrobeId: record.wardrobeId,
     note: record.note,
     isFavorite: record.isFavorite,

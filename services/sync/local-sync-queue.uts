@@ -1,7 +1,7 @@
 import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-operation'
 import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
 import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized, apiErrorStatus, encodeQuery } from '@/services/platform/api-client'
-import { listWishlistRemote, followBrandRemote, unfollowBrandRemote, setCommunityPostLikeRemote, deleteCommunityPostRemote, saveBudgetRemote } from '@/services/user-data/user-data-service'
+import { listWishlistRemote, followBrandRemote, unfollowBrandRemote, setCommunityPostLikeRemote, deleteCommunityPostRemote, saveBudgetRemote, markNotificationReadRemote } from '@/services/user-data/user-data-service'
 
 const QUEUE_IDS_KEY = 'v21_sync_queue_ids'
 const PREFIX = 'v21_sync_op_'
@@ -16,7 +16,7 @@ const MAX_RETRY = 3
 const TTL_MS = 7 * 24 * 3600 * 1000
 /** 真正无自动重放端点的实体：本地已乐观更新、后端无对应 CRUD，直接存档降级。
  * 注意：brand_follow/post_like/budget/outfit(远程删除) 均有真实直写端点，在 replayOperation 中重放，不入本列表。 */
-const NON_REPLAYABLE = ['wish', 'notification_read', 'ai_import_confirmation']
+const NON_REPLAYABLE = ['wish', 'ai_import_confirmation']
 
 function readString(key: string): string {
   try { const value = uni.getStorageSync(key); return value == null ? '' : value as string } catch (e) { return '' }
@@ -253,6 +253,12 @@ async function replayOperation(op: SyncOperation): Promise<number> {
   if (op.entityType == 'brand_follow') return await replayBrandFollow(op)
   if (op.entityType == 'post_like') return await replayPostLike(op)
   if (op.entityType == 'budget') return await replayBudget(op)
+  if (op.entityType == 'notification_read') {
+    try {
+      await markNotificationReadRemote(op.entityId)
+      return 1
+    } catch (e) { return replayErrorResult(op, e) }
+  }
   if (op.entityType == 'outfit') {
     // 本地草稿（outfit_ 前缀）无远程端点 → 存档降级；远程帖子删除 → 真实 DELETE
     if (op.entityId.startsWith('outfit_') || op.action != 'delete') {

@@ -4,6 +4,7 @@ export const DATA_MODE_REMOTE = 'remote'
 
 const ACCESS_TOKEN_KEY = 'v24_session_access_token'
 const REFRESH_TOKEN_KEY = 'v24_session_refresh_token'
+const SESSION_MODE_KEY = 'v26_session_mode'
 
 // ====== 启动缓存（避免多次 getStorageSync 串行） ======
 
@@ -121,6 +122,7 @@ export function getCachedRefreshToken(): string {
 
 export function getAccessToken(): string { return getCachedAccessToken() }
 export function getRefreshToken(): string { return getCachedRefreshToken() }
+export function isLocalMockSession(): boolean { return readString(SESSION_MODE_KEY) === 'mock' }
 
 export function saveSessionTokens(accessToken: string, refreshToken: string) {
   const tc = new TokenCache()

@@ -2,6 +2,7 @@ import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { ProductVariant } from '@/domain/content/product-variant'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
+import { findMockProduct, mockDateAfter, MOCK_SOURCE_LABEL } from '@/services/mock/mock-catalog'
 
 /** Phase 2.3-A：商品关联社区内容（「真实买家」模块条目，最小字段） */
 export class ProductCommunityPost {
@@ -183,30 +184,110 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
   if (id === '') return null
   // releaseId 非空：后端优先返回该批次 currentRelease（不存在则回退最新一条）
   const query = releaseId !== '' ? `?releaseId=${encodeQuery(releaseId)}` : ''
-  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}${query}`)
-  if (response.data == null) return null
-  return mapRemoteProduct(response.data as UTSJSONObject, response.requestId)
+  try {
+    const response = await apiGet(`/api/v1/products/${encodeQuery(id)}${query}`)
+    if (response.data != null) return mapRemoteProduct(response.data as UTSJSONObject, response.requestId)
+  } catch (e) {}
+  const mock = findMockProduct(id)
+  if (mock == null) return null
+  const result = new ProductDetailModel()
+  const item = new FeedItem()
+  item.id = mock.id
+  item.entityId = mock.id
+  item.feedType = FEED_PRODUCT
+  item.title = mock.title
+  item.subtitle = mock.description
+  item.brandId = mock.brandId
+  item.brandName = mock.brandName
+  item.category = mock.category
+  item.pitType = mock.category
+  item.subCategory = mock.subCategory
+  item.price = mock.priceCents
+  item.originalPrice = mock.originalPriceCents
+  item.fullPriceCents = mock.priceCents
+  item.priceType = mock.priceType
+  item.depositCents = mock.depositCents
+  item.balanceCents = mock.balanceCents
+  item.saleStatus = mock.status
+  item.releaseType = mock.releaseType
+  item.badgeText = statusLabel(mock.status)
+  item.coverUrl = mock.coverUrl
+  item.secondaryCoverUrl = mock.secondaryCoverUrl
+  item.sourceLabel = MOCK_SOURCE_LABEL
+  item.colorTags = mock.colorTags
+  item.materialTags = mock.materialTags
+  const release = new ReleaseEvent()
+  release.id = 'mock_release_' + mock.id
+  release.productId = mock.id
+  release.brandId = mock.brandId
+  release.title = mock.title + '演示批次'
+  release.eventType = mock.releaseType
+  release.releaseType = mock.releaseType
+  release.saleStatus = mock.status
+  release.lifecycleStatus = mock.status == 'ON_SALE' ? 'active' : 'upcoming'
+  release.status = release.lifecycleStatus
+  release.depositAmount = mock.depositCents
+  release.finalPaymentAmount = mock.balanceCents
+  release.fullPrice = mock.priceCents
+  release.startAt = mockDateAfter(2)
+  release.endAt = mockDateAfter(9)
+  release.balanceDueAt = mock.status == 'PRE_ORDER' ? mockDateAfter(30) : ''
+  release.shipAt = mockDateAfter(60)
+  result.item = item
+  result.images = [mock.coverUrl, mock.secondaryCoverUrl]
+  result.description = mock.description
+  result.shopUrl = mock.shopUrl
+  result.currentRelease = release
+  result.priceType = mock.priceType
+  result.depositCents = mock.depositCents
+  result.balanceCents = mock.balanceCents
+  result.fullPriceCents = mock.priceCents
+  result.pitType = mock.category
+  result.subCategory = mock.subCategory
+  result.colorTags = mock.colorTags
+  result.materialTags = mock.materialTags
+  result.featureTags = mock.featureTags
+  result.requestId = 'mock_' + Date.now().toString()
+  return result
 }
 
 /** Phase 2.3-A：商品关联社区内容（「真实买家」模块；后端默认 4 条，游客可读） */
 export async function fetchProductCommunity(id: string): Promise<ProductCommunityPost[]> {
   if (id === '') return []
-  const response = await apiGet(`/api/v1/products/${encodeQuery(id)}/community`)
-  const values = response.data as any[] | null
   const result = [] as ProductCommunityPost[]
-  if (values != null) for (let i = 0; i < values.length; i++) {
-    const raw = values[i] as UTSJSONObject
-    const post = new ProductCommunityPost()
-    post.id = raw['id'] != null ? raw['id'] as string : ''
-    post.authorNickname = raw['authorNickname'] != null ? raw['authorNickname'] as string : '同好'
-    post.imageUrl = raw['imageUrl'] != null ? raw['imageUrl'] as string : ''
-    post.caption = raw['caption'] != null ? raw['caption'] as string : ''
-    post.category = raw['category'] != null ? raw['category'] as string : ''
-    post.topic = raw['topic'] != null ? raw['topic'] as string : ''
-    post.likeCount = raw['likeCount'] != null ? raw['likeCount'] as number : 0
-    post.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
-    post.productId = raw['productId'] != null ? raw['productId'] as string : ''
-    result.push(post)
+  try {
+    const response = await apiGet(`/api/v1/products/${encodeQuery(id)}/community`)
+    const values = response.data as any[] | null
+    if (values != null) for (let i = 0; i < values.length; i++) {
+      const raw = values[i] as UTSJSONObject
+      const post = new ProductCommunityPost()
+      post.id = raw['id'] != null ? raw['id'] as string : ''
+      post.authorNickname = raw['authorNickname'] != null ? raw['authorNickname'] as string : '同好'
+      post.imageUrl = raw['imageUrl'] != null ? raw['imageUrl'] as string : ''
+      post.caption = raw['caption'] != null ? raw['caption'] as string : ''
+      post.category = raw['category'] != null ? raw['category'] as string : ''
+      post.topic = raw['topic'] != null ? raw['topic'] as string : ''
+      post.likeCount = raw['likeCount'] != null ? raw['likeCount'] as number : 0
+      post.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+      post.productId = raw['productId'] != null ? raw['productId'] as string : ''
+      result.push(post)
+    }
+    if (result.length > 0) return result
+  } catch (e) {}
+  if (findMockProduct(id) != null) {
+    for (let i = 0; i < 2; i++) {
+      const post = new ProductCommunityPost()
+      post.id = 'mock_buyer_' + id + '_' + i.toString()
+      post.authorNickname = i == 0 ? '栗子同学' : '小鹿茶会'
+      post.imageUrl = i == 0 ? '/static/demo/outfit-01.png' : '/static/demo/outfit-02.png'
+      post.caption = i == 0 ? '演示返图：日常搭配很轻松，尺码信息以实际商品为准。' : '演示返图：换一件内搭就是另一套感觉。'
+      post.category = findMockProduct(id)!.category
+      post.topic = '演示穿搭'
+      post.likeCount = i == 0 ? 38 : 21
+      post.createdAt = mockDateAfter(-i - 1)
+      post.productId = id
+      result.push(post)
+    }
   }
   return result
 }

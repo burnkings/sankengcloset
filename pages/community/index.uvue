@@ -1,6 +1,6 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
-    <MainLayout>
+    <MainLayout @scrolltolower="loadMorePublic">
       <template #navbar><PageHeader title="圈子" action-text="发布" @action="goCreate" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
@@ -40,6 +40,8 @@
         <view v-if="viewMode !== 'mine' && visibleLooks.length > 0" :style="postList">
           <PostCard v-for="look in visibleLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :avatar-text="look.initial" :time-text="postTime(look.createdAt)" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" :product-id="look.productId" @tap="onLookTap(look)" @toggle-like="togglePublicLike(look.id)" @more="onMoreTap(look)" @product="openLinkedProduct(look.productId)" />
         </view>
+        <text v-if="viewMode !== 'mine' && library.publicLoadingMore" :style="loadMoreText">正在加载更多…</text>
+        <text v-else-if="viewMode !== 'mine' && library.publicLoadedOnce && visibleLooks.length > 0 && !library.publicHasMore" :style="loadMoreText">已经到底了</text>
 
         <!-- 我的发布 -->
         <view v-if="viewMode === 'mine'">
@@ -80,6 +82,7 @@ import { useContentLibraryStore, SavedOutfitPost, PublicLookPost } from '@/store
 import { useCommunityBlacklistStore } from '@/stores/community-blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
+import { submitCommunityReport } from '@/services/user-data/community-report-service'
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
@@ -115,10 +118,11 @@ function confirmBlacklist() {
   showFeedback('已拉黑该用户，其动态将不再显示')
 }
 
-function confirmReport() {
+async function confirmReport() {
   showReportDialog.value = false
-  // 举报本地仅记录日志；后端就绪后走 reportCommunityPostRemote 扩展点
-  showFeedback('举报已提交，感谢你的反馈')
+  if (pendingLook == null) return
+  const ok = await submitCommunityReport(pendingLook.id)
+  showFeedback(ok ? '举报已记录，当前由演示审核队列处理' : '举报记录失败，请重试')
 }
 
 // 公开 Gallery：仅筛选作用于公开帖子
@@ -158,8 +162,7 @@ function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
 // Phase 2.3-A：帖子 tap —— 有商品关联时跳商品详情，否则保持原行为（预览大图）
 function onLookTap(look: PublicLookPost) {
-  if (look.productId !== '') { openLinkedProduct(look.productId); return }
-  previewPostImage(look.imageUrl)
+  uni.navigateTo({ url: `/pages/community/detail?id=${look.id}` })
 }
 // Phase 2.3-A：商品关联入口 → Product Detail
 function openLinkedProduct(productId: string) {
@@ -167,6 +170,7 @@ function openLinkedProduct(productId: string) {
   uni.navigateTo({ url: `/pages/product/detail?id=${productId}` })
 }
 function reloadPublic() { library.refreshPublicPosts() }
+function loadMorePublic() { if (viewMode.value !== 'mine') library.loadMorePublicPosts() }
 // 公开帖点赞：作用于公开实体
 function togglePublicLike(id: string) {
   library.togglePostLike(id)
@@ -276,4 +280,5 @@ const lookShell = { width: PRODUCT_CARD_WIDTH_V3, marginRight: COLUMN_GAP_V3 }
 const postList = { paddingLeft: '8rpx', paddingRight: '8rpx' }
 // 三态使用 V3 PageState / FeedSkeleton（无本地样式）
 const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '96rpx', paddingBottom: '96rpx' }
+const loadMoreText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', paddingTop: '22rpx', paddingBottom: '22rpx' }))
 </script>

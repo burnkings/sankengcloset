@@ -36,6 +36,7 @@ import { n, initPageTheme } from '@/theme/use-theme'
 import { notificationAuthorized, openNotificationSetting } from '@/utils/notify'
 
 const NOTIFY_ENABLED_KEY = 'v2_notify_enabled'
+const NOTIFY_CATEGORY_KEY = 'v26_notify_categories'
 const pushEnabled = ref(true)
 function loadPushEnabled() {
   try {
@@ -45,6 +46,24 @@ function loadPushEnabled() {
 }
 function savePushEnabled() {
   try { uni.setStorageSync(NOTIFY_ENABLED_KEY, pushEnabled.value ? '1' : '0') } catch (e) {}
+}
+function loadCategorySettings() {
+  try {
+    const raw = uni.getStorageSync(NOTIFY_CATEGORY_KEY) as string
+    if (raw === '') return
+    const values = JSON.parse(raw) as UTSJSONObject
+    for (let i = 0; i < categoryItems.value.length; i++) {
+      const saved = values[categoryItems.value[i].key]
+      if (saved != null) categoryItems.value[i].enabled = saved == true
+    }
+  } catch (e) {}
+}
+function saveCategorySettings() {
+  try {
+    const values = {} as UTSJSONObject
+    for (let i = 0; i < categoryItems.value.length; i++) values[categoryItems.value[i].key] = categoryItems.value[i].enabled
+    uni.setStorageSync(NOTIFY_CATEGORY_KEY, JSON.stringify(values))
+  } catch (e) {}
 }
 function onTogglePush() {
   pushEnabled.value = !pushEnabled.value
@@ -84,9 +103,10 @@ function toggleCategory(key: string) {
   for (let i = 0; i < categoryItems.value.length; i++) {
     if (categoryItems.value[i].key === key) { categoryItems.value[i].enabled = !categoryItems.value[i].enabled; break }
   }
+  saveCategorySettings()
 }
 
-onLoad(() => { initPageTheme(); loadPushEnabled() })
+onLoad(() => { initPageTheme(); loadPushEnabled(); loadCategorySettings() })
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const rowGap = { height: '12rpx' }

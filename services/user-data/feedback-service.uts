@@ -1,15 +1,15 @@
 /**
  * feedback-service — 意见反馈提交
- * 后端暂无反馈接口，当前为 Mock（本地 storage 记录）。
- * 后端就绪后实现 submitFeedbackRemote 即可，页面调用签名不变。
+ * 远端优先提交 POST /api/v1/feedback；网络失败时保存在本机待用户后续查证。
  */
 import { FeedbackRecord } from '@/domain/user/feedback-record'
+import { apiPost } from '@/services/platform/api-client'
 
 const STORAGE_KEY = 'v2_feedback_records'
 const MAX_RECORDS = 50
 
-/** 提交反馈（Mock：写入本地 storage，返回 opId/记录 id；失败返回空串） */
-export function submitFeedbackRemote(record: FeedbackRecord): string {
+/** 保存反馈本地副本，作为远端不可用时的可靠降级。 */
+function persistLocal(record: FeedbackRecord): string {
   if (record.content.trim() === '') return ''
   try {
     const raw = uni.getStorageSync(STORAGE_KEY) as string
@@ -39,5 +39,27 @@ export function submitFeedbackRemote(record: FeedbackRecord): string {
     return record.id
   } catch (e) {
     return ''
+  }
+}
+
+export async function submitFeedbackRemote(record: FeedbackRecord): Promise<string> {
+  if (record.content.trim() === '') return ''
+  try {
+    // 临时相册路径不能被服务端访问；远端图片上传协议就绪前只提交结构化文字，
+    // 本地副本仍保留截图，避免把不可用路径冒充成云端附件。
+    const response = await apiPost('/api/v1/feedback', {
+      id: record.id,
+      type: record.type,
+      content: record.content,
+      contact: record.contact,
+      images: [] as string[],
+      createdAt: record.createdAt,
+    } as UTSJSONObject)
+    const data = response.data != null ? response.data as UTSJSONObject : null
+    const id = data != null && data['id'] != null ? data['id'] as string : record.id
+    persistLocal(record)
+    return id
+  } catch (e) {
+    return persistLocal(record)
   }
 }

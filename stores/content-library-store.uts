@@ -1,12 +1,13 @@
 import { reactive } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId, readPendingOperations } from '@/services/sync/local-sync-queue'
 import { SyncOperation } from '@/domain/sync/sync-operation'
-import { getCachedAccessToken } from '@/config/runtime'
+import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { fetchProductDetail } from '@/services/content/product-service'
-import { deleteCommunityPostRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, updateWishlistStatusRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
+import { CommunityPostRemote, deleteCommunityPostRemote, listCommunityPostPageRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote, listWishlistRemote, addWishlistRemote, deleteWishlistRemote, updateWishlistStatusRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
 import { useSessionStore } from '@/stores/session-store'
+import { showFeedback } from '@/utils/feedback'
 
 /**
  * ContentLibraryStore — V2.6 用户内容资产 + 圈子穿搭灵感 Gallery
@@ -234,6 +235,9 @@ type ContentLibraryState = {
   publicLoading: boolean
   publicError: string
   publicLoadedOnce: boolean
+  publicNextCursor: string
+  publicHasMore: boolean
+  publicLoadingMore: boolean
 }
 
 const _state = reactive<ContentLibraryState>({
@@ -253,7 +257,28 @@ const _state = reactive<ContentLibraryState>({
   publicLoading: false,
   publicError: '',
   publicLoadedOnce: false,
+  publicNextCursor: '',
+  publicHasMore: false,
+  publicLoadingMore: false,
 })
+
+function remoteToPublicLook(item: CommunityPostRemote): PublicLookPost {
+  const post = new PublicLookPost()
+  post.id = item.id
+  post.imageUrl = item.imageUrl
+  post.caption = item.caption
+  post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : 'JK'
+  post.topic = item.topic
+  post.authorUserId = item.authorUserId
+  post.authorNickname = item.authorNickname !== '' ? item.authorNickname : '同好'
+  post.likeCount = item.likeCount
+  post.liked = item.liked
+  post.productId = item.productId
+  post.createdAt = item.createdAt
+  const nick = post.authorNickname
+  post.initial = nick.length > 0 ? nick.substring(0, 1) : '同'
+  return post
+}
 
 function favoriteCount(): number { return _state.favoriteIds.length }
 function wishCount(): number { return _state.wishIds.length }
@@ -266,15 +291,62 @@ function notifyChanged() {}
 // ====== 模块级 action ======
 
 function reload() {
-  const entries = readEntries()
+  let entries = readEntries()
+  if (isLocalMockSession() && entries.length === 0) {
+    const demoRows = [
+      ['prd_jk_navy_45', '深蓝格裙 45cm', 'WAIT_RELEASE'],
+      ['prd_lolita_moon', '月夜蔷薇 JSK', 'WANT'],
+      ['prd_hanfu_song', '宋制旋裙套装', 'WISH'],
+    ]
+    const seeded: FavoriteEntry[] = []
+    for (let i = 0; i < demoRows.length; i++) {
+      const entry = new FavoriteEntry()
+      entry.productId = demoRows[i][0]
+      entry.title = demoRows[i][1]
+      entry.status = demoRows[i][2]
+      seeded.push(entry)
+    }
+    writeEntries(seeded)
+    entries = seeded
+  }
   _state.favoriteEntries = entries
   syncFavoriteIds()
   _state.wishIds = readList(WISH_IDS_KEY)
-  _state.followedBrands = readList(FOLLOWED_BRANDS_KEY)
+  let followed = readList(FOLLOWED_BRANDS_KEY)
+  if (isLocalMockSession() && followed.length === 0) {
+    followed = ['兔缝缝', '月夜花园']
+    writeList(FOLLOWED_BRANDS_KEY, followed)
+  }
+  _state.followedBrands = followed
   _state.likedPostIds = readList(LIKED_POST_IDS_KEY)
   // 我的发布：远程帖子由 refreshMyPosts 拉取；本地 Mock 已发布动态从存储恢复
   _state.outfitPosts = readMockPosts()
   notifyChanged()
+}
+
+function defaultPublicLooks(): PublicLookPost[] {
+  const rows = [
+    ['mock_look_jk', '/static/demo/outfit-01.png', '通勤也能穿的清爽 JK 搭配（演示内容）', 'JK', '通勤三坑', '小樱', 'prd_jk_navy_45'],
+    ['mock_look_lolita', '/static/demo/outfit-02.png', '月夜茶会搭配记录（演示内容）', 'Lolita', '茶会搭配', '栗子', 'prd_lolita_moon'],
+    ['mock_look_hanfu', '/static/demo/outfit-editorial-01.jpg', '宋制日常穿搭分享（演示内容）', '汉服', '今日穿搭', '云间', 'prd_hanfu_song'],
+  ]
+  const posts: PublicLookPost[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const post = new PublicLookPost()
+    post.id = rows[i][0]
+    post.imageUrl = rows[i][1]
+    post.caption = rows[i][2]
+    post.category = rows[i][3]
+    post.topic = rows[i][4]
+    post.authorUserId = `mock_author_${i}`
+    post.authorNickname = rows[i][5]
+    post.initial = rows[i][5].substring(0, 1)
+    post.productId = rows[i][6]
+    post.likeCount = 12 + i * 9
+    post.createdAt = new Date(Date.now() - (i + 1) * 3600000).toISOString()
+    posts.push(post)
+  }
+  return posts
 }
 
 /** 公开穿搭灵感 Gallery：listCommunityPostsRemote(..., false) */
@@ -283,41 +355,54 @@ async function refreshPublicPosts(): Promise<void> {
   if (!_state.publicLoadedOnce) _state.publicLoading = true
   _state.publicError = ''
   try {
-    const remote = await listCommunityPostsRemote('', '', '', false)
+    const remote = await listCommunityPostPageRemote('', '', '', false)
     const posts: PublicLookPost[] = []
-    for (let i = 0; i < remote.length; i++) {
-      const item = remote[i]
-      const post = new PublicLookPost()
-      post.id = item.id
-      post.imageUrl = item.imageUrl
-      post.caption = item.caption
-      post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : 'JK'
-      post.topic = item.topic
-      post.authorUserId = item.authorUserId
-      post.authorNickname = item.authorNickname !== '' ? item.authorNickname : '同好'
-      post.likeCount = item.likeCount
-      post.liked = item.liked
-      post.productId = item.productId
-      post.createdAt = item.createdAt
-      const nick = post.authorNickname
-      post.initial = nick.length > 0 ? nick.substring(0, 1) : '同'
+    for (let i = 0; i < remote.items.length; i++) {
+      const item = remote.items[i]
+      const post = remoteToPublicLook(item)
       posts.push(post)
       if (item.liked && _state.likedPostIds.indexOf(item.id) < 0) _state.likedPostIds.push(item.id)
     }
-    _state.publicPosts = posts
+    _state.publicPosts = posts.length > 0 ? posts : defaultPublicLooks()
+    _state.publicNextCursor = remote.nextCursor
+    _state.publicHasMore = remote.hasMore
   } catch (e) {
-    _state.publicError = e instanceof Error ? e.message : '加载失败'
+    _state.publicPosts = defaultPublicLooks()
+    _state.publicError = ''
   } finally {
-    // 本地 Mock 已发布动态混入公开 Gallery 顶部（先剔除旧的 Mock 帖，避免重复累积）
+    // 本机发布动态混入公开 Gallery 顶部；仅按本机帖子 ID 去重，保留统一演示目录帖子。
     const mock = readMockPosts()
     const mockPublic: PublicLookPost[] = []
-    for (let i = 0; i < mock.length; i++) mockPublic.push(mockToPublicLook(mock[i]))
-    const remoteOnly = _state.publicPosts.filter((post) => !post.id.startsWith('mock_'))
+    const localIds: string[] = []
+    for (let i = 0; i < mock.length; i++) { mockPublic.push(mockToPublicLook(mock[i])); localIds.push(mock[i].id) }
+    const remoteOnly = _state.publicPosts.filter((post) => localIds.indexOf(post.id) < 0)
     _state.publicPosts = [...mockPublic, ...remoteOnly]
     _state.publicLoading = false
     _state.publicLoadedOnce = true
   }
   notifyChanged()
+}
+
+async function loadMorePublicPosts(): Promise<void> {
+  if (_state.publicLoadingMore || !_state.publicHasMore || _state.publicNextCursor === '') return
+  _state.publicLoadingMore = true
+  try {
+    const remote = await listCommunityPostPageRemote(_state.publicNextCursor, '', '', false)
+    const existing = [..._state.publicPosts]
+    for (let i = 0; i < remote.items.length; i++) {
+      const item = remote.items[i]
+      if (existing.some((post) => post.id === item.id)) continue
+      existing.push(remoteToPublicLook(item))
+      if (item.liked && _state.likedPostIds.indexOf(item.id) < 0) _state.likedPostIds.push(item.id)
+    }
+    _state.publicPosts = existing
+    _state.publicNextCursor = remote.nextCursor
+    _state.publicHasMore = remote.hasMore
+  } catch (e) {
+    showFeedback('加载更多失败，请稍后重试')
+  } finally {
+    _state.publicLoadingMore = false
+  }
 }
 
 /** 我的发布：listCommunityPostsRemote(..., true) —— 服务端帖子 + 本地 Mock 已发布动态合并 */
@@ -476,6 +561,12 @@ function favoriteStatusOf(entityId: string): string {
     if (entries[i].productId == entityId) return entries[i].status
   }
   return ''
+}
+
+function favoriteEntryOf(entityId: string): FavoriteEntry | null {
+  const entries = _state.favoriteEntries
+  for (let i = 0; i < entries.length; i++) if (entries[i].productId == entityId) return entries[i]
+  return null
 }
 
 /** 登录态拉取服务端收藏：服务端快照 ∪ 本地未同步条目合并（多端冲突保护），未登录保留本地缓存 */
@@ -707,7 +798,7 @@ export async function publishOutfitRemote(imagePath: string, caption: string, ca
     writeMockPosts(posts)
     _state.outfitPosts = posts
     // 混入公开 Gallery 顶部
-    _state.publicPosts = [mockToPublicLook(post), ..._state.publicPosts.filter((item) => !item.id.startsWith('mock_'))]
+    _state.publicPosts = [mockToPublicLook(post), ..._state.publicPosts.filter((item) => item.id != post.id)]
     notifyChanged()
     return true
   }
@@ -795,6 +886,8 @@ class ContentLibraryStoreHandle {
   get publicLoading(): boolean { return _state.publicLoading }
   get publicError(): string { return _state.publicError }
   get publicLoadedOnce(): boolean { return _state.publicLoadedOnce }
+  get publicHasMore(): boolean { return _state.publicHasMore }
+  get publicLoadingMore(): boolean { return _state.publicLoadingMore }
   get favoriteCount(): number { return favoriteCount() }
   get followedBrandCount(): number { return followedBrandCount() }
   get outfitCount(): number { return outfitCount() }
@@ -802,6 +895,7 @@ class ContentLibraryStoreHandle {
   get wishCount(): number { return wishCount() }
   reload(): void { reload() }
   refreshPublicPosts(): Promise<void> { return refreshPublicPosts() }
+  loadMorePublicPosts(): Promise<void> { return loadMorePublicPosts() }
   refreshMyPosts(): Promise<void> { return refreshMyPosts() }
   refreshRemoteBrands(): Promise<void> { return refreshRemoteBrands() }
   refreshRemoteFavorites(): Promise<void> { return refreshRemoteFavorites() }
@@ -811,6 +905,7 @@ class ContentLibraryStoreHandle {
   toggleFavorite(entityId: string, title: string = '', releaseId: string = ''): boolean { return toggleFavorite(entityId, title, releaseId) }
   favoriteReleaseOf(entityId: string): ReleaseEvent | null { return favoriteReleaseOf(entityId) }
   favoriteStatusOf(entityId: string): string { return favoriteStatusOf(entityId) }
+  favoriteEntryOf(entityId: string): FavoriteEntry | null { return favoriteEntryOf(entityId) }
   updateFavoriteStatus(entityId: string, status: string): boolean { return updateFavoriteStatus(entityId, status) }
   isWished(entityId: string): boolean { return isWished(entityId) }
   toggleWish(entityId: string): boolean { return toggleWish(entityId) }

@@ -1,0 +1,20 @@
+const COMMUNITY_REPORTS_KEY = 'v26_community_reports'
+
+export async function submitCommunityReport(postId: string, reason: string = '不适当内容'): Promise<boolean> {
+  if (postId === '') return false
+  try {
+    const raw = uni.getStorageSync(COMMUNITY_REPORTS_KEY) as string
+    const reports = raw !== '' ? JSON.parse(raw) as UTSJSONObject[] : [] as UTSJSONObject[]
+    reports.unshift({
+      id: `report_${Date.now()}`,
+      postId,
+      reason,
+      status: 'PENDING_MOCK_REVIEW',
+      createdAt: new Date().toISOString(),
+    } as UTSJSONObject)
+    uni.setStorageSync(COMMUNITY_REPORTS_KEY, JSON.stringify(reports))
+    return true
+  } catch (e) {
+    return false
+  }
+}

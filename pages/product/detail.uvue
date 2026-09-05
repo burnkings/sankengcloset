@@ -325,6 +325,11 @@ function onToggleBlacklist() {
 
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录官方购买地址'); return }
+  // #ifdef APP
+  plus.runtime.openURL(shopUrl.value)
+  return
+  // #endif
+  // 小程序/H5 无统一外部浏览器能力，复制链接作为可靠降级。
   uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('官方地址已复制，可在浏览器打开') } })
 }
 
@@ -357,7 +362,8 @@ function createPurchase() {
   const category = item.value!.category === 'LOLITA' ? 'LOLITA' : (item.value!.category === 'HANFU' ? 'HANFU' : 'JK')
   const deadline = r != null && r.balanceDueAt !== '' ? dateOnly(r.balanceDueAt)
     : (r != null && r.endAt !== '' ? dateOnly(r.endAt) : dateOnly(item.value!.eventEndAt))
-  uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${deadline}` })
+  const releaseId = r != null ? r.id : ''
+  uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${deadline}&productId=${encoded(item.value!.entityId)}&releaseId=${encoded(releaseId)}` })
 }
 
 async function loadDetail() {

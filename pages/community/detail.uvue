@@ -1,0 +1,103 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="穿搭详情" show-back /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <view v-if="loading" :style="stateWrap"><FeedSkeleton /></view>
+        <PageState v-else-if="errorMessage !== ''" icon="info" title="动态加载失败" :message="errorMessage" action-text="重新加载" @action="loadPost" />
+        <PostCard v-else-if="post != null" :image="post!.imageUrl" :caption="post!.caption" :author="post!.authorNickname" :avatar-text="post!.initial" :time-text="displayTime" :like-count="post!.likeCount" :liked="library.isPostLiked(post!.id)" :product-id="post!.productId" @tap="previewImage" @toggle-like="toggleLike" @more="reportPost" @product="openProduct" />
+        <view v-if="post != null" :style="metaCard">
+          <text :style="metaTitle">内容信息</text>
+          <text :style="metaText">坑向：{{ post!.category !== '' ? post!.category : '未分类' }}</text>
+          <text :style="metaText">话题：{{ post!.topic !== '' ? post!.topic : '日常分享' }}</text>
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { PublicLookPost, useContentLibraryStore } from '@/stores/content-library-store'
+import { fetchCommunityPostRemote } from '@/services/user-data/user-data-service'
+import { submitCommunityReport } from '@/services/user-data/community-report-service'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import PostCard from '@/components/v3/PostCard.uvue'
+import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
+
+const library = useContentLibraryStore()
+const postId = ref('')
+const post = ref<PublicLookPost | null>(null)
+const loading = ref(false)
+const errorMessage = ref('')
+
+function fromRemote(raw: any): PublicLookPost {
+  const result = new PublicLookPost()
+  result.id = raw.id
+  result.imageUrl = raw.imageUrl
+  result.caption = raw.caption
+  result.category = raw.category == 'LOLITA' ? 'Lolita' : raw.category == 'HANFU' ? '汉服' : raw.category == 'MIXED' ? '混搭' : raw.category
+  result.topic = raw.topic
+  result.authorUserId = raw.authorUserId
+  result.authorNickname = raw.authorNickname !== '' ? raw.authorNickname : '同好'
+  result.initial = result.authorNickname.length > 0 ? result.authorNickname.substring(0, 1) : '同'
+  result.likeCount = raw.likeCount
+  result.liked = raw.liked
+  result.productId = raw.productId
+  result.createdAt = raw.createdAt
+  return result
+}
+
+async function loadPost() {
+  if (postId.value === '') return
+  loading.value = true
+  errorMessage.value = ''
+  try {
+    post.value = fromRemote(await fetchCommunityPostRemote(postId.value))
+  } catch (e) {
+    const cached = library.publicPosts.find((item) => item.id === postId.value)
+    if (cached != null) post.value = cached
+    else errorMessage.value = e instanceof Error ? e.message : '动态不存在或已删除'
+  } finally {
+    loading.value = false
+  }
+}
+
+const displayTime = computed((): string => {
+  if (post.value == null || post.value!.createdAt === '') return '刚刚'
+  const value = new Date(post.value!.createdAt)
+  if (isNaN(value.getTime())) return '刚刚'
+  return `${value.getFullYear()}-${value.getMonth() + 1}-${value.getDate()}`
+})
+function previewImage() { if (post.value != null && post.value!.imageUrl !== '') uni.previewImage({ current: post.value!.imageUrl, urls: [post.value!.imageUrl] }) }
+function toggleLike() {
+  if (post.value == null) return
+  const liked = library.togglePostLike(post.value!.id)
+  post.value!.likeCount = Math.max(0, post.value!.likeCount + (liked ? 1 : -1))
+}
+function openProduct() { if (post.value != null && post.value!.productId !== '') uni.navigateTo({ url: `/pages/product/detail?id=${post.value!.productId}` }) }
+function reportPost() {
+  if (post.value == null) return
+  uni.showActionSheet({ itemList: ['举报不适当内容'], success: async () => {
+    const ok = await submitCommunityReport(post.value!.id)
+    showFeedback(ok ? '举报已记录，当前由演示审核队列处理' : '举报记录失败，请重试')
+  } })
+}
+
+onLoad((query) => {
+  initPageTheme()
+  if (query != null && query['id'] != null) postId.value = query['id'] as string
+  loadPost()
+})
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const stateWrap = { paddingTop: '80rpx' }
+const metaCard = computed((): any => ({ padding: '24rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginTop: '4rpx' }))
+const metaTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const metaText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '10rpx' }))
+</script>

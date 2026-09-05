@@ -25,6 +25,12 @@ export class CommunityPostRemote {
   updatedAt: string = ''
 }
 
+export class CommunityPostPageRemote {
+  items: CommunityPostRemote[] = []
+  nextCursor: string = ''
+  hasMore: boolean = false
+}
+
 export function mapCommunityPost(raw: UTSJSONObject): CommunityPostRemote {
   const post = new CommunityPostRemote()
   post.id = asString(raw['id'])
@@ -59,6 +65,8 @@ export function listPurchasesRemote(): Promise<UTSJSONObject[]> { return listAss
 export function listRemindersRemote(): Promise<UTSJSONObject[]> { return listAsset('reminders') }
 export function listWishesRemote(): Promise<UTSJSONObject[]> { return listAsset('wishes') }
 export function listNotificationsRemote(): Promise<UTSJSONObject[]> { return listAsset('notifications') }
+export function generateNotificationsRemote() { return apiPostAuthorized('/api/v1/me/notifications:generate', {} as UTSJSONObject) }
+export function markNotificationReadRemote(id: string) { return patchAssetRemote('notifications', id, { read: true } as UTSJSONObject) }
 
 export function createAssetRemote(path: string, payload: UTSJSONObject) { return apiPostAuthorized('/api/v1/me/' + path, payload) }
 export function patchAssetRemote(path: string, id: string, payload: UTSJSONObject) { return apiPatchAuthorized('/api/v1/me/' + path + '/' + encodeQuery(id), payload) }
@@ -76,7 +84,7 @@ export async function loadPreferencesRemote(): Promise<UTSJSONObject> {
 }
 export function savePreferencesRemote(payload: UTSJSONObject) { return apiPutAuthorized('/api/v1/me/preferences', payload) }
 
-export async function listCommunityPostsRemote(cursor: string = '', category: string = '', topic: string = '', mine: boolean = false): Promise<CommunityPostRemote[]> {
+export async function listCommunityPostPageRemote(cursor: string = '', category: string = '', topic: string = '', mine: boolean = false): Promise<CommunityPostPageRemote> {
   const root = mine ? '/api/v1/me/community/posts' : '/api/v1/community/posts'
   // 只传有值的参数：cursor 空不传、category/topic 空不传；limit 由后端默认 20
   let path = root
@@ -87,12 +95,27 @@ export async function listCommunityPostsRemote(cursor: string = '', category: st
   // 公开帖子允许匿名读取；我的发布必须认证（401 自动刷新重试）
   const response = mine ? await apiGetAuthorized(path) : await apiGet(path)
   const values = response.data as any[] | null
-  const result = [] as CommunityPostRemote[]
+  const result = new CommunityPostPageRemote()
   if (values != null) for (let i = 0; i < values.length; i++) {
     const value = asObject(values[i])
-    if (value != null) result.push(mapCommunityPost(value))
+    if (value != null) result.items.push(mapCommunityPost(value))
   }
+  const page = asObject(response.page)
+  result.nextCursor = page != null ? asString(page['nextCursor']) : ''
+  result.hasMore = page != null && asBoolean(page['hasMore'])
   return result
+}
+
+export async function listCommunityPostsRemote(cursor: string = '', category: string = '', topic: string = '', mine: boolean = false): Promise<CommunityPostRemote[]> {
+  const page = await listCommunityPostPageRemote(cursor, category, topic, mine)
+  return page.items
+}
+
+export async function fetchCommunityPostRemote(id: string): Promise<CommunityPostRemote> {
+  const response = await apiGet('/api/v1/community/posts/' + encodeQuery(id))
+  const data = asObject(response.data)
+  if (data == null) throw new Error('动态不存在')
+  return mapCommunityPost(data)
 }
 
 export function setCommunityPostLikeRemote(id: string, liked: boolean) {

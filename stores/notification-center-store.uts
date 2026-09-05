@@ -1,6 +1,8 @@
 import { reactive } from 'vue'
 import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+import { getCachedAccessToken } from '@/config/runtime'
+import { generateNotificationsRemote, listNotificationsRemote, markNotificationReadRemote } from '@/services/user-data/user-data-service'
 
 const READ_IDS_KEY = 'v21_notification_read_ids'
 
@@ -48,8 +50,8 @@ function mockNotifications(): AppNotification[] {
   const system = new AppNotification()
   system.id = 'notice_system_01'
   system.type = NOTICE_SYSTEM
-  system.title = 'V2.1 后端就绪体验已开启'
-  system.body = '账号、通知与同步目前使用本地 Mock，不代表云端已经保存。'
+  system.title = '演示通知已开启'
+  system.body = '当前展示演示消息；登录真实账号后会优先读取云端通知。'
   system.createdAt = (now - 24 * 3600000).toString()
   system.actionTarget = '/pages/preferences/index'
   items.push(system)
@@ -61,11 +63,15 @@ function mockNotifications(): AppNotification[] {
 type NotificationCenterState = {
   items: AppNotification[]
   activeType: string
+  loading: boolean
+  error: string
 }
 
 const _state = reactive<NotificationCenterState>({
   items: [] as AppNotification[],
   activeType: 'all',
+  loading: false,
+  error: '',
 })
 
 function unreadCount(): number { return _state.items.filter((item) => !item.read).length }
@@ -83,6 +89,38 @@ function reload() {
   notifyChanged()
 }
 
+function mapRemote(raw: UTSJSONObject): AppNotification {
+  const item = new AppNotification()
+  item.id = raw['id'] != null ? raw['id'] as string : ''
+  item.type = raw['type'] != null ? raw['type'] as string : NOTICE_SYSTEM
+  item.title = raw['title'] != null ? raw['title'] as string : ''
+  item.body = raw['body'] != null ? raw['body'] as string : ''
+  item.actionTarget = raw['actionTarget'] != null ? raw['actionTarget'] as string : ''
+  item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+  item.read = raw['read'] == true
+  return item
+}
+
+async function refreshRemote(): Promise<void> {
+  if (getCachedAccessToken() == '') { reload(); return }
+  _state.loading = true
+  _state.error = ''
+  try {
+    await generateNotificationsRemote()
+    const raw = await listNotificationsRemote()
+    const result: AppNotification[] = []
+    for (let i = 0; i < raw.length; i++) result.push(mapRemote(raw[i]))
+    if (result.length > 0) _state.items = result
+    else reload()
+  } catch (e) {
+    _state.error = e instanceof Error ? e.message : '通知加载失败'
+    reload()
+  } finally {
+    _state.loading = false
+    notifyChanged()
+  }
+}
+
 function persistReadState() {
   try {
     uni.setStorageSync(READ_IDS_KEY, _state.items.filter((item) => item.read).map((item) => item.id).join(','))
@@ -98,7 +136,11 @@ function markRead(id: string) {
     }
   }
   persistReadState()
-  if (changed) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}')
+  if (changed) {
+    if (getCachedAccessToken() != '') {
+      markNotificationReadRemote(id).catch(() => enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}'))
+    } else enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}')
+  }
   if (changed) notifyChanged()
 }
 
@@ -106,7 +148,14 @@ function markAllRead() {
   const hadUnread = unreadCount() > 0
   for (let i = 0; i < _state.items.length; i++) _state.items[i].read = true
   persistReadState()
-  if (hadUnread) enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', 'all', 'upsert', '{"readAll":true}')
+  if (hadUnread) {
+    for (let i = 0; i < _state.items.length; i++) {
+      const id = _state.items[i].id
+      if (getCachedAccessToken() != '') {
+        markNotificationReadRemote(id).catch(() => enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}'))
+      } else enqueueLocalOperation(getCurrentSyncUserId(), 'notification_read', id, 'upsert', '{"read":true}')
+    }
+  }
   if (hadUnread) notifyChanged()
 }
 
@@ -124,7 +173,10 @@ class NotificationCenterStoreHandle {
   get activeType(): string { return _state.activeType }
   get visibleItems(): AppNotification[] { return visibleItems() }
   get unreadCount(): number { return unreadCount() }
+  get loading(): boolean { return _state.loading }
+  get error(): string { return _state.error }
   reload(): void { reload() }
+  refreshRemote(): Promise<void> { return refreshRemote() }
   markRead(id: string): void { markRead(id) }
   markAllRead(): void { markAllRead() }
   setType(type: string): void { setType(type) }

@@ -3,7 +3,7 @@
  */
 
 import { WishItem, WishUpdateData } from '@/domain/wish-item'
-import { getRuntimeConfig } from '@/config/runtime'
+import { isLocalMockSession } from '@/config/runtime'
 
 const STORAGE_KEY = 'wishlist_items'
 /** 早期调试版种入的模板数据 id，读取时过滤，避免存量污染 */
@@ -193,18 +193,18 @@ export function deleteMany(ids: string[]): number {
 }
 
 export function initMockData() {
-  if (!getRuntimeConfig().mockOnline) return
+  if (!isLocalMockSession()) return
   const existing = loadAll()
   if (existing.length > 0) return
 
   const now = new Date().toISOString()
   const mockData: WishItem[] = [
-    (() => { const w = new WishItem(); w.id = 'w1'; w.name = '草莓柄甜系 SK'; w.brand = 'Alice兔'; w.estimatedPrice = 680; w.priority = 'HIGH'; w.status = 'WISH'; w.source = 'MANUAL'; w.isFavorite = true; w.note = '看到博主种草了'; w.createdAt = now; w.updatedAt = now; return w })(),
-    (() => { const w = new WishItem(); w.id = 'w2'; w.name = '深蓝格裙 45cm'; w.brand = '中牌'; w.estimatedPrice = 128; w.priority = 'MEDIUM'; w.status = 'WATCHING'; w.source = 'MANUAL'; w.note = '等开预约'; w.createdAt = now; w.updatedAt = now; return w })(),
-    (() => { const w = new WishItem(); w.id = 'w3'; w.name = '宋制旋裙套装'; w.brand = '重回汉唐'; w.estimatedPrice = 320; w.priority = 'HIGH'; w.status = 'DECIDED'; w.source = 'MANUAL'; w.isFavorite = true; w.note = '夏天穿'; w.createdAt = now; w.updatedAt = now; return w })(),
-    (() => { const w = new WishItem(); w.id = 'w4'; w.name = '哥特十字架 JSK'; w.brand = 'BABY'; w.estimatedPrice = 1580; w.priority = 'LOW'; w.status = 'WISH'; w.source = 'MANUAL'; w.note = '太贵了观望'; w.createdAt = now; w.updatedAt = now; return w })(),
-    (() => { const w = new WishItem(); w.id = 'w5'; w.name = '明制马面裙'; w.brand = '汉尚华莲'; w.estimatedPrice = 450; w.priority = 'MEDIUM'; w.status = 'PAUSED'; w.source = 'MANUAL'; w.note = '暂时搁置'; w.createdAt = now; w.updatedAt = now; return w })(),
-    (() => { const w = new WishItem(); w.id = 'w6'; w.name = '蕾丝 KC 发饰'; w.brand = '表面咒语'; w.estimatedPrice = 68; w.priority = 'HIGH'; w.status = 'WISH'; w.source = 'MANUAL'; w.note = ''; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'demo_wish_1'; w.name = '草莓柄甜系 SK'; w.brand = 'Alice兔'; w.estimatedPrice = 680; w.priority = 'HIGH'; w.status = 'WISH'; w.source = 'MANUAL'; w.isFavorite = true; w.note = '看到博主种草了'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'demo_wish_2'; w.name = '深蓝格裙 45cm'; w.brand = '中牌'; w.estimatedPrice = 128; w.priority = 'MEDIUM'; w.status = 'WATCHING'; w.source = 'MANUAL'; w.note = '等开预约'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'demo_wish_3'; w.name = '宋制旋裙套装'; w.brand = '重回汉唐'; w.estimatedPrice = 320; w.priority = 'HIGH'; w.status = 'DECIDED'; w.source = 'MANUAL'; w.isFavorite = true; w.note = '夏天穿'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'demo_wish_4'; w.name = '哥特十字架 JSK'; w.brand = 'BABY'; w.estimatedPrice = 1580; w.priority = 'LOW'; w.status = 'WISH'; w.source = 'MANUAL'; w.note = '太贵了观望'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'demo_wish_5'; w.name = '明制马面裙'; w.brand = '汉尚华莲'; w.estimatedPrice = 450; w.priority = 'MEDIUM'; w.status = 'PAUSED'; w.source = 'MANUAL'; w.note = '暂时搁置'; w.createdAt = now; w.updatedAt = now; return w })(),
+    (() => { const w = new WishItem(); w.id = 'demo_wish_6'; w.name = '蕾丝 KC 发饰'; w.brand = '表面咒语'; w.estimatedPrice = 68; w.priority = 'HIGH'; w.status = 'WISH'; w.source = 'MANUAL'; w.note = ''; w.createdAt = now; w.updatedAt = now; return w })(),
   ]
   saveAll(mockData)
 }

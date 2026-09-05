@@ -4,8 +4,11 @@
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="filterWrap"><FilterChips :items="filterLabels" :active="activeLabel" @change="onFilter" /></view>
-        <template v-if="notices.visibleItems.length === 0">
-          <PageState icon="notification" title="当前没有这类通知" />
+        <template v-if="notices.loading">
+          <PageState icon="notification" title="通知加载中" />
+        </template>
+        <template v-else-if="notices.visibleItems.length === 0">
+          <PageState icon="notification" title="当前没有这类通知" action-text="重新加载" @action="reloadNotices" />
         </template>
         <view v-for="notice in visibleNotices" :key="notice.id" :style="noticeRow(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
           <view :style="noticeIcon(notice.type)"><AppIcon :name="noticeVisual(notice.type).icon" :size="40" :active="noticeVisual(notice.type).active" /></view>
@@ -45,6 +48,7 @@ const filterLabels = ['全部', '发售', '降价', '互动', '系统']
 const dismissedIds = ref<string[]>([])
 const visibleNotices = computed((): AppNotification[] => notices.visibleItems.filter((n: AppNotification) => dismissedIds.value.indexOf(n.id) < 0))
 function dismissNotice(id: string) { dismissedIds.value = [...dismissedIds.value, id] }
+function reloadNotices() { notices.refreshRemote() }
 
 class NoticeVisual {
   icon: string = ''
@@ -77,7 +81,8 @@ function noticeVisual(type: string): NoticeVisual {
   return v
 }
 function formatTime(value: string): string {
-  const time = parseInt(value)
+  let time = parseInt(value)
+  if (isNaN(time)) time = new Date(value).getTime()
   if (isNaN(time)) return ''
   const diff = Math.max(0, Date.now() - time)
   const hour = Math.floor(diff / 3600000)
@@ -86,7 +91,7 @@ function formatTime(value: string): string {
   return `${Math.floor(hour / 24)} 天前`
 }
 onLoad(() => { initPageTheme() })
-onPageShow(() => { initPageTheme(); notices.reload() })
+onPageShow(() => { initPageTheme(); notices.reload(); notices.refreshRemote() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const filterWrap = { marginBottom: '20rpx' }

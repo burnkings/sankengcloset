@@ -3,7 +3,7 @@
  */
 
 import { Reminder, ReminderUpdateData } from '@/domain/reminder'
-import { getRuntimeConfig } from '@/config/runtime'
+import { isLocalMockSession } from '@/config/runtime'
 import { localToday, localDateShifted } from '@/utils/date'
 
 const STORAGE_KEY = 'reminder_items'
@@ -126,7 +126,7 @@ export function markDone(id: string): boolean {
 }
 
 export function initMockData() {
-  if (!getRuntimeConfig().mockOnline) return
+  if (!isLocalMockSession()) return
   const existing = loadAll()
   if (existing.length > 0) return
 
@@ -138,11 +138,11 @@ export function initMockData() {
   const nowStr = now.toISOString()
 
   const mockData: Reminder[] = [
-    (() => { const r = new Reminder(); r.id = 'r1'; r.title = '草莓柄 SK 到货'; r.type = 'ARRIVAL'; r.remindDate = today; r.remindTime = '10:00'; r.note = '快递预计今天到'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
-    (() => { const r = new Reminder(); r.id = 'r2'; r.title = '宋制套装尾款'; r.type = 'BALANCE'; r.remindDate = tomorrow; r.remindTime = '20:00'; r.note = '尾款 ¥220'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
-    (() => { const r = new Reminder(); r.id = 'r3'; r.title = '中牌新品发售'; r.type = 'RELEASE'; r.remindDate = nextWeek; r.remindTime = '12:00'; r.note = '新款格裙预约开始'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
-    (() => { const r = new Reminder(); r.id = 'r4'; r.title = '整理衣橱'; r.type = 'CUSTOM'; r.remindDate = nextWeek; r.remindTime = ''; r.note = '换季整理'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
-    (() => { const r = new Reminder(); r.id = 'r5'; r.title = '已到货确认'; r.type = 'ARRIVAL'; r.remindDate = yesterday; r.remindTime = '10:00'; r.note = '已签收'; r.status = 'DONE'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'demo_reminder_1'; r.title = '草莓柄 SK 到货'; r.type = 'ARRIVAL'; r.remindDate = today; r.remindTime = '10:00'; r.note = '快递预计今天到'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'demo_reminder_2'; r.title = '宋制套装尾款'; r.type = 'BALANCE'; r.remindDate = tomorrow; r.remindTime = '20:00'; r.note = '尾款 ¥220'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'demo_reminder_3'; r.title = '中牌新品发售'; r.type = 'RELEASE'; r.remindDate = nextWeek; r.remindTime = '12:00'; r.note = '新款格裙预约开始'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'demo_reminder_4'; r.title = '整理衣橱'; r.type = 'CUSTOM'; r.remindDate = nextWeek; r.remindTime = ''; r.note = '换季整理'; r.status = 'PENDING'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
+    (() => { const r = new Reminder(); r.id = 'demo_reminder_5'; r.title = '已到货确认'; r.type = 'ARRIVAL'; r.remindDate = yesterday; r.remindTime = '10:00'; r.note = '已签收'; r.status = 'DONE'; r.createdAt = nowStr; r.updatedAt = nowStr; return r })(),
   ]
   saveAll(mockData)
 }

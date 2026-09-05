@@ -88,6 +88,9 @@
       </AppCard>
 
       <view :style="actionSection">
+        <view v-if="record.value != null && record.value.productId !== ''" :style="actionBtnSecondary" @tap="onViewProduct">
+          <text :style="actionBtnSecondaryText">查看来源商品</text>
+        </view>
         <view :style="actionBtn" @tap="onSetReminder">
           <text :style="actionBtnText">设置尾款提醒</text>
         </view>
@@ -179,6 +182,11 @@ function onAddToWardrobe() {
 function onViewWardrobeItem() {
   const id = record.value != null ? record.value.wardrobeId : ''
   if (id !== '') uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` })
+}
+function onViewProduct() {
+  if (record.value == null || record.value!.productId == '') return
+  const release = record.value!.releaseId != '' ? '&releaseId=' + encodeURIComponent(record.value!.releaseId) : ''
+  uni.navigateTo({ url: '/pages/product/detail?id=' + encodeURIComponent(record.value!.productId) + release })
 }
 
 function onConfirmDelete() {

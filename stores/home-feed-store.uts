@@ -94,6 +94,15 @@ function isBrandBlocked(brandName: string): boolean {
   return blacklist.isBlacklisted(brandName)
 }
 
+function fitsPricePreference(item: FeedItem): boolean {
+  if (item.feedType != FEED_PRODUCT || item.price <= 0) return true
+  const range = prefs.preferences.priceRange
+  if (range == '0-300') return item.price <= 30000
+  if (range == '300-600') return item.price >= 30000 && item.price <= 60000
+  if (range == '600+') return item.price >= 60000
+  return true
+}
+
 /**
  * 偏好坑向 → 后端 categories 参数（逗号分隔，如 "LOLITA,HANFU"）
  * 空数组 = 不限分类 → 返回 ''（不传参，后端不过滤）
@@ -118,7 +127,7 @@ function isLoading(): boolean { return _state.state == 'loading' }
  * 频道切换时 Store 已按频道重新请求，这里仅做轻量过滤兜底。
  */
 function displayItems(): FeedItem[] {
-  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName))
+  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
 }
 
 function isEmpty(): boolean {
@@ -137,7 +146,7 @@ function isCardEligible(item: FeedItem): boolean {
  */
 function masonryBlocks(): MasonryBlock[] {
   const blocks: MasonryBlock[] = []
-  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName))
+  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
   let i = 0
   while (i < channelItems.length) {
     const item = channelItems[i]

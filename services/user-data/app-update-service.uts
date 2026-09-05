@@ -1,9 +1,9 @@
 /**
  * app-update-service — 版本检查
- * 后端暂无版本检查接口，当前为 Mock（当前版本即最新）。
- * 后端就绪后实现 fetchRemote 逻辑即可，页面调用签名不变。
+ * 远端 GET /api/v1/app/version；失败时安全回退为当前版本。
  */
 import { APP_VERSION } from '@/config/app-version'
+import { apiGet } from '@/services/platform/api-client'
 
 export class AppVersionInfo {
   latestVersion: string = ''
@@ -12,12 +12,20 @@ export class AppVersionInfo {
   releaseNote: string = ''
 }
 
-/** 检查最新版本（Mock：无更新）。后端接口就绪后改为请求版本检查 API。 */
+/** 检查最新版本；后端不可达时回退当前版本，不误报更新。 */
 export async function checkUpdateRemote(): Promise<AppVersionInfo> {
   const info = new AppVersionInfo()
+  try {
+    const response = await apiGet('/api/v1/app/version')
+    const data = response.data != null ? response.data as UTSJSONObject : null
+    if (data != null) {
+      info.latestVersion = data['latestVersion'] != null ? data['latestVersion'] as string : APP_VERSION
+      info.hasUpdate = data['hasUpdate'] == true
+      info.updateUrl = data['updateUrl'] != null ? data['updateUrl'] as string : ''
+      info.releaseNote = data['releaseNote'] != null ? data['releaseNote'] as string : ''
+      return info
+    }
+  } catch (e) {}
   info.latestVersion = APP_VERSION
-  info.hasUpdate = false
-  info.updateUrl = ''
-  info.releaseNote = ''
   return info
 }
