@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar title="发布圈子动态" :show-back="true" /></template>
+    <template #navbar><AppNavbar title="发布动态" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view :style="photoCard" @tap="choosePhoto">
@@ -35,7 +35,7 @@
           </view>
         </FormSection>
 
-        <FormSection title="关联商品（可选）">
+        <FormSection title="关联商品与衣物（可选）">
           <view v-if="selectedProductId === ''" :style="productBtnRow" @tap="openProductPicker">
             <text :style="productBtnText">搜索并选择发布的商品</text>
             <AppIcon name="search" :size="28" />
@@ -49,6 +49,13 @@
             </view>
             <view :style="productCardRemoveWrap" @tap.stop="removeProduct"><AppIcon name="close" :size="24" /></view>
           </view>
+          <view :style="wardrobeLinkRow" @tap="openWardrobePicker">
+            <view :style="wardrobeLinkCopy"><text :style="wardrobeLinkTitle">{{ selectedWardrobeIds.length > 0 ? '已关联 ' + selectedWardrobeIds.length + ' 件衣物' : '关联我的衣物' }}</text><text :style="wardrobeLinkDesc">可同时关联穿搭中实际穿着的衣物</text></view>
+            <AppIcon name="chevron-right" :size="28" />
+          </view>
+          <view v-if="selectedWardrobeIds.length > 0" :style="wardrobeTagsWrap">
+            <view v-for="id in selectedWardrobeIds" :key="id" :style="wardrobeTag"><text :style="wardrobeTagText">{{ wardrobeName(id) }}</text><view :style="wardrobeTagRemove" @tap.stop="removeWardrobe(id)"><AppIcon name="close" :size="22" /></view></view>
+          </view>
         </FormSection>
 
         <text :style="privacyNote">{{ privacyNoteText }}</text>
@@ -57,7 +64,7 @@
   </MainLayout>
   <BottomActionBar>
     <view :style="publishButton" @tap="publishLook">
-      <text :style="publishText">发布到圈子</text>
+      <text :style="publishText">发布动态</text>
     </view>
   </BottomActionBar>
 
@@ -88,6 +95,20 @@
       </scroll-view>
     </view>
   </AppDialog>
+
+  <AppDialog :visible="showWardrobePicker" title="选择关联衣物" @confirm="confirmWardrobe" @cancel="showWardrobePicker = false">
+    <scroll-view :style="wardrobePickerScroll" direction="vertical">
+      <view v-if="wardrobeStore.sortedItems.length === 0" :style="productEmptyWrap"><text :style="productEmptyText">衣橱还没有可关联的衣物</text></view>
+      <view v-else :style="wardrobePickerGrid">
+        <view v-for="wd in wardrobeStore.sortedItems" :key="wd.id" :style="wardrobePickerItem(wd.id)" @tap="toggleWardrobe(wd.id)">
+          <image v-if="wd.coverImage !== ''" :src="wd.coverImage" :style="wardrobePickerImage" mode="aspectFill" />
+          <view v-else :style="wardrobePickerPlaceholder"><AppIcon name="shirt" :size="28" :active="true" /></view>
+          <view :style="wardrobePickerCopy"><text :style="wardrobePickerName">{{ wd.name }}</text><text :style="wardrobePickerMeta">{{ wardrobeCategory(wd.category) }}</text></view>
+          <AppIcon v-if="tempWardrobeIds.indexOf(wd.id) >= 0" name="check" :size="26" :active="true" />
+        </view>
+      </view>
+    </scroll-view>
+  </AppDialog>
 </template>
 
 <script setup lang="uts">
@@ -108,6 +129,7 @@ import FormSection from '@/components/v3/FormSection.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 import { showFeedback } from '@/utils/feedback'
 import { useContentLibraryStore } from '@/stores/content-library-store'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useSessionStore } from '@/stores/session-store'
 import { searchProducts } from '@/services/content/search-service'
 import { FeedItem } from '@/domain/content/feed-item'
@@ -119,6 +141,7 @@ const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服', '混搭']
 const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
 const library = useContentLibraryStore()
+const wardrobeStore = useWardrobeStore()
 const session = useSessionStore()
 const publishing = ref(false)
 // 发布后延迟跳转的定时器：页面卸载时清理，避免残留
@@ -134,6 +157,9 @@ const selectedProductId = ref('')
 const selectedProductName = ref('')
 const selectedProductBrand = ref('')
 const selectedProductCover = ref('')
+const selectedWardrobeIds = ref<string[]>([])
+const tempWardrobeIds = ref<string[]>([])
+const showWardrobePicker = ref(false)
 function openProductPicker() {
   productKeyword.value = ''
   productResults.value = []
@@ -173,6 +199,33 @@ function removeProduct() {
   selectedProductBrand.value = ''
   selectedProductCover.value = ''
 }
+function openWardrobePicker() {
+  tempWardrobeIds.value = [...selectedWardrobeIds.value]
+  wardrobeStore.fetchItems()
+  showWardrobePicker.value = true
+}
+function toggleWardrobe(id: string) {
+  const idx = tempWardrobeIds.value.indexOf(id)
+  if (idx >= 0) { const next = [...tempWardrobeIds.value]; next.splice(idx, 1); tempWardrobeIds.value = next }
+  else tempWardrobeIds.value = [...tempWardrobeIds.value, id]
+}
+function confirmWardrobe() {
+  selectedWardrobeIds.value = [...tempWardrobeIds.value]
+  showWardrobePicker.value = false
+}
+function removeWardrobe(id: string) {
+  selectedWardrobeIds.value = selectedWardrobeIds.value.filter((item) => item !== id)
+}
+function wardrobeName(id: string): string {
+  const item = wardrobeStore.getById(id)
+  return item != null ? item.name : '衣物'
+}
+function wardrobeCategory(category: string): string {
+  if (category === 'LOLITA') return 'Lolita'
+  if (category === 'HANFU') return '汉服'
+  if (category === 'JK') return 'JK制服'
+  return '其他'
+}
 
 function choosePhoto() {
   uni.chooseImage({
@@ -198,14 +251,14 @@ function publishLook() {
   publishing.value = true
   const publishRemote = async () => {
     try {
-      const ok = await library.publishOutfitRemote(selectedImage.value, caption.value, category.value, topic.value, [], selectedProductId.value)
+      const ok = await library.publishOutfitRemote(selectedImage.value, caption.value, category.value, topic.value, selectedWardrobeIds.value, selectedProductId.value)
       if (!ok) {
         publishing.value = false
         showFeedback('发布失败，请重试')
         return
       }
       publishing.value = false
-      showFeedback('已发布到圈子')
+      showFeedback('动态已发布')
       backTimer = setTimeout(() => { openPrimaryTab('/pages/community/index') }, 180)
     } catch (e) {
       publishing.value = false
@@ -216,11 +269,11 @@ function publishLook() {
 }
 
 // 隐私提示随登录态变化：模拟登录/正式登录均可发布，未登录不产生任何内容
-// 圈子 Gallery 为内测功能：商品/系列/衣橱关联、举报与审核尚未上线，不做公开社区承诺
+// 动态流支持商品与衣物关联；正式账号发布后进入公开动态流。
 const privacyNoteText = computed((): string => {
   return session.isLoggedIn
-    ? '圈子 Gallery 内测中：发布后将展示在穿搭灵感流，供同好浏览与点赞。'
-    : '当前未登录：无法发布，请先登录后再分享穿搭。'
+    ? '发布后会展示在动态流，供同好浏览与点赞。'
+    : '当前未登录：无法发布，请先登录后再分享。'
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
@@ -268,4 +321,20 @@ const productResultInfo = { flex: 1, marginLeft: '16rpx', marginRight: '12rpx' }
 const productResultTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lines: 1 }))
 const productResultBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', lines: 1 }))
 const productResultCheck = computed((): any => ({ width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const wardrobeLinkRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', minHeight: '88rpx', marginTop: '12rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
+const wardrobeLinkCopy = { flex: 1 }
+const wardrobeLinkTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text }))
+const wardrobeLinkDesc = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+const wardrobeTagsWrap = { flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '12rpx' }
+const wardrobeTag = computed((): any => ({ flexDirection: 'row', alignItems: 'center', height: '48rpx', paddingLeft: '16rpx', paddingRight: '8rpx', borderRadius: '24rpx', backgroundColor: n.value.surfacePink, marginRight: '8rpx', marginBottom: '8rpx' }))
+const wardrobeTagText = computed((): any => ({ fontSize: fontSize.xs, color: brand.primary }))
+const wardrobeTagRemove = { width: '36rpx', height: '36rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '4rpx' }
+const wardrobePickerScroll = { maxHeight: '560rpx' }
+const wardrobePickerGrid = { flexDirection: 'column' as string }
+function wardrobePickerItem(id: string): any { return { flexDirection: 'row', alignItems: 'center', minHeight: '96rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.border, opacity: tempWardrobeIds.value.indexOf(id) >= 0 ? 1 : 0.86 } }
+const wardrobePickerImage = { width: '72rpx', height: '72rpx', borderRadius: '10rpx', flexShrink: 0 }
+const wardrobePickerPlaceholder = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '10rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const wardrobePickerCopy = { flex: 1, marginLeft: '14rpx', marginRight: '12rpx' }
+const wardrobePickerName = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lines: 1 }))
+const wardrobePickerMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 </script>

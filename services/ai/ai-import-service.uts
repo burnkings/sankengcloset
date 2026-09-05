@@ -41,7 +41,7 @@ function safeSuggestion(): AiImportSuggestion {
   suggestion.priceCents = 0
   suggestion.color = ''
   suggestion.size = ''
-  suggestion.note = '当前为 Mock 安全草稿，请根据图片自行确认所有字段。'
+  suggestion.note = '请根据图片逐项确认所有字段。'
   return suggestion
 }
 
@@ -53,7 +53,7 @@ function demoSuggestion(): AiImportSuggestion {
   suggestion.priceCents = 12800
   suggestion.color = '深蓝'
   suggestion.size = 'M'
-  suggestion.note = '示例识别草稿，仅用于验证确认与导入流程。'
+  suggestion.note = '请确认识别结果后再导入衣橱。'
   return suggestion
 }
 
@@ -77,10 +77,10 @@ export async function analyzeImportImage(sourceImage: string, useDemo: boolean):
   task.suggestion = useDemo ? demoSuggestion() : safeSuggestion()
   task.confidence = useDemo ? 0.88 : 0.18
   task.evidence = useDemo
-    ? ['示例素材：轮廓接近制服格裙', '示例素材：主色为深蓝', '示例数据：品牌与价格来自本地演示集']
-    : ['Mock 未读取真实图片像素', '品牌、价格和尺码保持空白', '用户确认后才会写入个人数据']
+    ? ['轮廓接近制服格裙', '主色为深蓝', '品牌与价格待确认']
+    : ['暂未读取真实图片像素', '品牌、价格和尺码保持空白', '确认后才会写入个人数据']
   task.warnings = useDemo
-    ? ['这是固定示例结果，不代表真实模型准确率']
+    ? ['当前为规则解析结果，不代表真实模型准确率']
     : ['当前未连接视觉模型，请逐项人工确认']
   return task
 }

@@ -11,6 +11,7 @@ export class RankingItem {
 
   // 热榜
   favoriteCount: number = 0      // 「X 人关注」
+  favoriteGrowth: number = 0     // 收藏榜「近周期新增收藏」
   // 上新榜
   releaseTypeName: string = ''   // 首发 / 再贩 / 现货
   daysAgo: number = 0            // 「X 天前上新」
@@ -19,3 +20,4 @@ export class RankingItem {
 
 export const RANKING_TAB_HOT = 'hot'
 export const RANKING_TAB_NEW = 'new'
+export const RANKING_TAB_FAVORITE = 'favorite'

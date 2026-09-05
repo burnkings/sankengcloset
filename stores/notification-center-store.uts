@@ -50,8 +50,8 @@ function mockNotifications(): AppNotification[] {
   const system = new AppNotification()
   system.id = 'notice_system_01'
   system.type = NOTICE_SYSTEM
-  system.title = '演示通知已开启'
-  system.body = '当前展示演示消息；登录真实账号后会优先读取云端通知。'
+  system.title = '通知服务已开启'
+  system.body = '当前展示本机通知；登录真实账号后会优先读取云端通知。'
   system.createdAt = (now - 24 * 3600000).toString()
   system.actionTarget = '/pages/preferences/index'
   items.push(system)

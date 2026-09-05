@@ -10,21 +10,20 @@
           <!-- V3 §6.12 SummaryStrip：只显示总件数和当前筛选数 -->
           <view :style="summaryWrap">
             <SummaryStrip :items="summaryItems" />
-            <view v-if="catChips.length > 0" :style="catChipWrap">
-              <view v-for="chip in catChips" :key="chip.label" :style="catChipStyle()">
-                <text :style="catChipText">{{ chip.label }} {{ chip.count }}</text>
+            <view :style="categoryFilterRow">
+              <view v-for="chip in categoryFilterOptions" :key="chip.value" :style="categoryFilterStyle(chip.value)" @tap="onFilter(chip.value)">
+                <text :style="categoryFilterLabel(chip.value)">{{ chip.label }}</text>
+                <text :style="categoryFilterCount(chip.count)">{{ chip.count }}</text>
               </view>
             </view>
           </view>
 
           <view :style="actionRow">
-            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">{{ sortLabel }}</text></view>
+            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">排序 · {{ sortLabel }}</text></view>
             <view :style="quickFilters">
               <view :style="quickChip(unwornOnly)" @tap="toggleUnwornOnly"><text :style="quickChipText(unwornOnly)">仅看未穿</text></view>
             </view>
           </view>
-
-          <FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
           <FeedSkeleton v-if="store.loading" />
 
@@ -94,7 +93,6 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
-import FilterChips from '@/components/v3/FilterChips.uvue'
 import StatusChip from '@/components/v3/StatusChip.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
@@ -107,7 +105,11 @@ const store = useWardrobeStore()
 const searchValue = ref('')
 const activeFilter = ref('全部')
 const unwornOnly = ref(false)
-const filters = ['全部', 'JK制服', 'Lolita', '汉服', '其他']
+class CategoryFilterOption {
+  label: string = ''
+  value: string = ''
+  count: number = 0
+}
 
 // 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
 const scrollTop = ref(0)
@@ -210,23 +212,22 @@ const summaryItems = computed(() => [
   { label: '衣橱共', value: `${store.itemCount} 件` },
   { label: '总投入', value: `¥${totalSpentYuan.value}` },
 ])
-// 坑向胶囊：每个坑向独立小标签，避免单行拼接换行挤压
-const catChips = computed((): { label: string; count: number }[] => {
+const categoryFilterOptions = computed((): CategoryFilterOption[] => {
   const counts = store.categoryCounts
-  const list: { label: string; count: number }[] = []
-  const jk = counts['JK'] as number
-  const lol = counts['LOLITA'] as number
-  const han = counts['HANFU'] as number
-  if (jk != null && jk > 0) list.push({ label: 'JK', count: jk })
-  if (lol != null && lol > 0) list.push({ label: 'Lolita', count: lol })
-  if (han != null && han > 0) list.push({ label: '汉服', count: han })
+  const list: CategoryFilterOption[] = []
+  const all = new CategoryFilterOption(); all.label = '全部'; all.value = '全部'; all.count = store.itemCount; list.push(all)
+  const jk = new CategoryFilterOption(); jk.label = 'JK制服'; jk.value = 'JK制服'; jk.count = counts['JK'] as number; list.push(jk)
+  const lol = new CategoryFilterOption(); lol.label = 'Lolita'; lol.value = 'Lolita'; lol.count = counts['LOLITA'] as number; list.push(lol)
+  const han = new CategoryFilterOption(); han.label = '汉服'; han.value = '汉服'; han.count = counts['HANFU'] as number; list.push(han)
   return list
 })
-const catChipWrap = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '12rpx' }
-function catChipStyle(): any {
-  return { height: '44rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }
+const categoryFilterRow = { ...flexRow, flexDirection: 'row', marginTop: '16rpx' }
+function categoryFilterStyle(value: string): any {
+  const active = activeFilter.value === value
+  return { flex: 1, height: '72rpx', alignItems: 'center', justifyContent: 'center', borderRadius: '16rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginRight: value === '汉服' ? '0' : '8rpx' }
 }
-const catChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, color: brand.primary }))
+function categoryFilterLabel(value: string): any { return { fontSize: '22rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? brand.primary : n.value.textSecondary } }
+function categoryFilterCount(count: number): any { return { fontSize: '20rpx', color: n.value.textTertiary, marginLeft: '4rpx' } }
 
 const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '16rpx', marginBottom: '16rpx' }
 const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))

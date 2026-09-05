@@ -239,7 +239,7 @@
       },
       {
         "pagePath": "pages/community/index",
-        "text": "圈子",
+        "text": "动态",
         "iconPath": "static/tabbar/tab-community.png",
         "selectedIconPath": "static/tabbar/tab-community-active.png"
       },
@@ -280,7 +280,7 @@
       },
       {
         "pagePath": "pages/community/index",
-        "text": "圈子",
+        "text": "动态",
         "iconPath": "static/tabbar/tab-community.png",
         "selectedIconPath": "static/tabbar/tab-community-active.png"
       },
