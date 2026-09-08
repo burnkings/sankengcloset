@@ -20,6 +20,7 @@ export class ProductCommunityPost {
 export class ProductDetailModel {
   catalogLines: CatalogLine[] = []
   catalogPresent: boolean = false
+  shopName: string = ''
   item: FeedItem = new FeedItem()
   images: string[] = []
   description: string = ''
@@ -63,20 +64,13 @@ function catalogLine(lines: CatalogLine[], label: string, value: string) {
   row.value = value
   lines.push(row)
 }
-function catalogPriceLabel(kind: string): string {
-  if (kind === 'INTENTION') return '意向金'
-  if (kind === 'DEPOSIT') return '定金'
-  if (kind === 'BALANCE') return '尾款'
-  if (kind === 'FULL') return '全款'
-  if (kind === 'SPOT') return '现货报价'
-  return '参考报价'
-}
 function mapCatalog(raw: UTSJSONObject, result: ProductDetailModel) {
   result.catalogPresent = true
+  result.shopName = raw['shop_name'] as string ?? ''
   catalogLine(result.catalogLines, '店铺', raw['shop_name'] as string ?? '')
   catalogLine(result.catalogLines, '系列', raw['series_name'] as string ?? '')
   const stage = raw['sale_stage'] as string ?? 'UNKNOWN'
-  let stageText = '待确认'
+  let stageText = ''
   if (stage === 'SPOT') stageText = '现货'
   if (stage === 'DEPOSIT') stageText = '定金'
   if (stage === 'BALANCE') stageText = '尾款'
@@ -86,37 +80,13 @@ function mapCatalog(raw: UTSJSONObject, result: ProductDetailModel) {
   if (stage === 'PREVIEW') stageText = '预告'
   if (stage === 'INTENTION') stageText = '意向征集'
   catalogLine(result.catalogLines, '当前状态', stageText)
-  const components = raw['components'] as UTSJSONObject[]
-  const prices = raw['prices'] as UTSJSONObject[]
-  if (components != null) for (let i = 0; i < components.length; i++) {
-    const c = components[i]
-    const options = c['options_json'] as UTSJSONObject[]
-    const values: string[] = []
-    if (options != null) for (let j = 0; j < options.length; j++) values.push(options[j]['value'] as string)
-    catalogLine(result.catalogLines, c['name'] as string, values.join(' / '))
-  }
-  if (prices != null) for (let i = 0; i < prices.length; i++) {
-    const p = prices[i]
-    let name = ''
-    if (components != null) for (let j = 0; j < components.length; j++) {
-      if (components[j]['id'] === p['component_id']) name = components[j]['name'] as string
-    }
-    const label = (name === '' ? '' : name + ' · ') + catalogPriceLabel(p['kind'] as string)
-    catalogLine(result.catalogLines, label, '¥' + ((p['amount_cents'] as number) / 100).toFixed(2) + (p['verified'] === true ? '' : '（待核实）'))
-  }
-  const releases = raw['releases'] as UTSJSONObject[]
-  if (releases != null) for (let i = 0; i < releases.length; i++) {
-    const r = releases[i]
-    const start = r['start_date'] as string ?? ''
-    const end = r['end_date'] as string ?? ''
-    if (start !== '') catalogLine(result.catalogLines, '已收录发售区间', start.substring(0, 10) + (end === '' ? '' : ' 至 ' + end.substring(0, 10)))
-    catalogLine(result.catalogLines, '发货说明', r['ship_text'] as string ?? '')
-  }
-  const unknown = raw['unassigned_options'] as UTSJSONObject[]
-  if (unknown != null && unknown.length > 0) {
-    const values: string[] = []
-    for (let i = 0; i < unknown.length; i++) values.push(unknown[i]['value'] as string)
-    catalogLine(result.catalogLines, '待确认适用部件', values.join(' / '))
+  const p = raw['presentation'] as UTSJSONObject | null
+  if (p != null) {
+    catalogLine(result.catalogLines, '款式配色', p['specText'] as string ?? '')
+    catalogLine(result.catalogLines, '尺码参考', p['sizeText'] as string ?? '')
+    catalogLine(result.catalogLines, '参考价格', p['priceText'] as string ?? '')
+    catalogLine(result.catalogLines, '发售信息', p['releaseText'] as string ?? '')
+    catalogLine(result.catalogLines, '发货说明', p['shippingText'] as string ?? '')
   }
 }
 
