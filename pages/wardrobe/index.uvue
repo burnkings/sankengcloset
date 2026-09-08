@@ -13,7 +13,6 @@
             <view :style="categoryFilterRow">
               <view v-for="chip in categoryFilterOptions" :key="chip.value" :style="categoryFilterStyle(chip.value)" @tap="onFilter(chip.value)">
                 <text :style="categoryFilterLabel(chip.value)">{{ chip.label }}</text>
-                <text :style="categoryFilterCount(chip.count)">{{ chip.count }}</text>
               </view>
             </view>
           </view>
@@ -28,7 +27,7 @@
           <FeedSkeleton v-if="store.loading" />
 
           <template v-else-if="visibleItems.length === 0">
-            <PageState icon="wardrobe" :title="hasAnyItems ? '没有匹配的单品' : '衣橱还没有单品'" :message="hasAnyItems ? '试试换个关键词或筛选条件吧' : '记录你的三坑穿搭，打造专属衣橱图鉴'" :action-text="hasAnyItems ? '' : '添加第一件单品'" @action="goAdd" />
+            <PageState icon="wardrobe" :title="hasAnyItems ? '没有匹配的单品' : '衣橱还没有单品'" :message="hasAnyItems ? '试试换个关键词或筛选条件吧' : '记录你的三坑穿搭，打造专属衣橱图鉴'" :action-text="hasAnyItems ? '清除筛选' : '添加第一件单品'" @action="onEmptyAction" />
           </template>
 
           <view v-else :style="grid">
@@ -126,6 +125,15 @@ function backToTop() {
 }
 
 function applySearch() { store.setSearch(searchValue.value) }
+function onEmptyAction() {
+  if (!hasAnyItems.value) { goAdd(); return }
+  searchValue.value = ''
+  activeFilter.value = '全部'
+  unwornOnly.value = false
+  store.setSearch('')
+  store.setCategory('')
+  store.setStatus('')
+}
 function onFilter(label: string) {
   activeFilter.value = label
   store.setCategory(label === '全部' ? '' : categoryLabelToCode(label))
@@ -229,7 +237,7 @@ function categoryFilterStyle(value: string): any {
 function categoryFilterLabel(value: string): any { return { fontSize: '22rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? brand.primary : n.value.textSecondary } }
 function categoryFilterCount(count: number): any { return { fontSize: '20rpx', color: n.value.textTertiary, marginLeft: '4rpx' } }
 
-const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '16rpx', marginBottom: '16rpx' }
+const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginTop: '16rpx', marginBottom: '16rpx' }
 const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))
 const sortBtnText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const quickFilters = { ...flexRow, flexDirection: 'row' }

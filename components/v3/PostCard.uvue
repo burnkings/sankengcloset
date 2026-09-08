@@ -66,9 +66,6 @@ const cardStyle = computed((): any => ({
   borderRadius: CARD_RADIUS_V3,
   padding: '20rpx',
   marginBottom: '20rpx',
-  borderWidth: '1rpx',
-  borderStyle: 'solid',
-  borderColor: n.value.border,
 }))
 const headerRow = { ...flexRow, alignItems: 'center' }
 const avatarWrap = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }))

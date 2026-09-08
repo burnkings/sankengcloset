@@ -39,7 +39,7 @@ export function getFeedTypeColor(feedType: string): string {
 // ====== EventType 展示 ======
 
 export const EventTypeLabels: UTSJSONObject = {
-  preview: '预览',
+  preview: '图透',
   reservation: '预约',
   deposit: '定金',
   final_payment: '尾款',

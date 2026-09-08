@@ -28,7 +28,13 @@
             </view>
           </FormSection>
 
-          <FormSection title="关联衣物">
+          <FormSection v-if="relatedProductId !== ''" title="关联商品">
+            <view :style="wardrobeBtnRow" @tap="openRelatedProduct">
+              <text :style="wardrobeBtnText">{{ relatedProductName !== '' ? relatedProductName : '查看关联商品' }}</text>
+              <AppIcon name="chevron-right" :size="28" />
+            </view>
+          </FormSection>
+          <FormSection v-if="relatedProductId === ''" title="关联我的衣物">
             <view :style="wardrobeBtnRow" @tap="openWardrobePicker">
               <text :style="wardrobeBtnText">{{ form.wardrobeBindings.length > 0 ? '已选 ' + form.wardrobeBindings.length + ' 件' : '选择衣物（可选）' }}</text>
               <AppIcon name="chevron-right" :size="28" />
@@ -124,6 +130,11 @@
 </template>
 
 <script setup lang="uts">
+import { fetchProductDetail } from '@/services/content/product-service'
+const relatedProductName = ref('')
+function openRelatedProduct() {
+  if (relatedProductId.value !== '') uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(relatedProductId.value)}` })
+}
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { Reminder, ReminderUpdateData, TYPE_COLORS } from '@/domain/reminder'
@@ -168,6 +179,14 @@ const showDatePicker = ref(false)
 const relatedPurchaseId = ref('')
 const relatedWishId = ref('')
 const relatedProductId = ref('')
+watch(relatedProductId, async (id: string) => {
+  relatedProductName.value = ''
+  if (id === '') return
+  try {
+    const product = await fetchProductDetail(id)
+    if (relatedProductId.value === id && product != null) relatedProductName.value = product.item.title
+  } catch (e) {}
+})
 const relatedReleaseId = ref('')
 const tempSelected = ref<string[]>([])
 const dateTimePickerVal = ref([0, 0, 0, 0, 0])

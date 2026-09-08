@@ -24,13 +24,17 @@ function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
   return item
 }
 
-export async function fetchRankingRemote(tab: string, period: string = '7d'): Promise<RankingItem[]> {
+export async function fetchRankingRemote(tab: string): Promise<RankingItem[]> {
   try {
-    const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab) + '&period=' + encodeQuery(period))
+    const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab === 'favorite' ? 'hot' : tab))
     const raw = response.data as any[] | null
     const result: RankingItem[] = []
     if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapRemoteRanking(raw[i] as UTSJSONObject))
-    if (result.length > 0) return result
+    if (result.length > 0) {
+      if (tab === 'favorite') result.sort((a, b) => b.favoriteCount - a.favoriteCount)
+      for (let i = 0; i < result.length; i++) result[i].rank = i + 1
+      return result
+    }
   } catch (e) {}
   return listMockRanking(tab)
 }

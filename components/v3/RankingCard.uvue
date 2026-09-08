@@ -31,14 +31,13 @@
       <template v-else-if="variant === 'favorite'">
         <view :style="tagRow">
           <view :style="categoryTag"><text :style="categoryTagText">{{ item.category }}</text></view>
-          <text :style="hotText">近周期新增 {{ item.favoriteGrowth }} 次收藏</text>
+          <text :style="hotText">已被收藏 {{ item.favoriteCount }} 次</text>
         </view>
       </template>
 
       <!-- 上新榜 -->
       <template v-else-if="variant === 'new'">
         <view :style="tagRow">
-          <view :style="newTag"><text :style="newTagText">新品</text></view>
           <view :style="releaseTag"><text :style="releaseTagText">{{ item.releaseTypeName }}</text></view>
           <text :style="metaText">{{ item.daysAgo }} 天前上新</text>
           <text :style="metaText">{{ item.reservationCount }} 人蹲预约</text>
@@ -53,14 +52,14 @@
 import AppImage from '@/components/base/AppImage.uvue'
 import { RankingItem } from '@/domain/ranking/ranking-item'
 import { formatPriceCents } from '@/utils/format'
-import { brand, semantic, baseColors } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
 
 const props = withDefaults(defineProps<{
   item: RankingItem
-  variant: string   // 'hot' | 'new'
+  variant: string   // 'hot' | 'new' | 'favorite'
 }>(), { item: new RankingItem(), variant: 'hot' })
 
 const emit = defineEmits<{ tap: [] }>()
@@ -113,8 +112,6 @@ const tagRow = { ...flexRow, alignItems: 'center', flexWrap: 'wrap' as string, m
 const categoryTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
 const categoryTagText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary }))
 const hotText = computed((): any => ({ fontSize: '22rpx', fontWeight: 600, color: brand.primary, marginLeft: '12rpx' }))
-const newTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: semantic.info, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
-const newTagText = { fontSize: '20rpx', fontWeight: 600, color: baseColors.white }
 const releaseTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
 const releaseTagText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary }))
 const metaText = computed((): any => ({ fontSize: '20rpx', color: n.value.textTertiary, marginLeft: '12rpx' }))

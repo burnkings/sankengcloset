@@ -10,7 +10,6 @@
           <PostCard :image="post.image" :caption="post.caption !== '' ? post.caption : '今天也认真搭配了'" :author="'我'" :avatar-text="'我'" :time-text="postTime(post.createdAt)" :like-count="library.isPostLiked(post.id) ? 1 : 0" :liked="library.isPostLiked(post.id)" :product-id="post.productId" @tap="previewPostImage(post.image)" @toggle-like="toggleLike(post.id)" @product="openProduct(post.productId)" @more="deletePost(post.id)" />
           <view :style="metaRow">
             <view :style="tagRow"><text :style="topicStyle">#{{ post.topic !== '' ? post.topic : '日常分享' }}</text><text :style="categoryStyle">{{ post.category }}</text><text v-if="post.wardrobeIds.length > 0" :style="categoryStyle">已关联 {{ post.wardrobeIds.length }} 件衣物</text></view>
-            <text :style="deleteText(post.id)" @tap="deletePost(post.id)">{{ pendingDeleteId == post.id ? '确认删除' : '删除' }}</text>
           </view>
         </view>
       </view>
@@ -32,7 +31,6 @@ import PostCard from '@/components/v3/PostCard.uvue'
 import { showFeedback } from '@/utils/feedback'
 
 const library = useContentLibraryStore()
-const pendingDeleteId = ref('')
 const nowTs = ref(Date.now())
 let clockTimer: number | null = null
 
@@ -46,10 +44,15 @@ function previewPostImage(url: string) { if (url != '') uni.previewImage({ curre
 function openProduct(id: string) { if (id !== '') uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(id)}` }) }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function deletePost(id: string) {
-  if (pendingDeleteId.value != id) { pendingDeleteId.value = id; showFeedback('再次点击确认删除'); return }
-  library.removeOutfit(id)
-  pendingDeleteId.value = ''
-  showFeedback('动态已删除')
+  uni.showActionSheet({ itemList: ['查看动态', '删除动态'], success: (res) => {
+    if (res.tapIndex === 0) { uni.navigateTo({ url: `/pages/community/detail?id=${encodeURIComponent(id)}` }); return }
+    if (res.tapIndex !== 1) return
+    uni.showModal({ title: '删除动态？', content: '删除后无法恢复，确定删除这条动态吗？', confirmText: '删除', cancelText: '取消', success: (answer) => {
+      if (!answer.confirm) return
+      library.removeOutfit(id)
+      showFeedback('动态已删除')
+    } })
+  } })
 }
 function postTime(createdAt: string): string {
   if (createdAt == '') return '刚刚'
@@ -81,7 +84,6 @@ onUnload(() => { stopClock() })
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 // V3 §6.5 紧凑列表行：缩略图 + 标题/时间 + 删除；分割线分组
 const postShell = { marginBottom: '20rpx' }
-function deleteText(id: string) { return { fontSize: fontSize.xs, color: pendingDeleteId.value == id ? brand[700] : n.value.textTertiary, marginLeft: '16rpx' } }
 const metaRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '64rpx', paddingLeft: '12rpx', paddingRight: '12rpx', backgroundColor: n.value.surface }))
 const tagRow = { ...flexFill, ...flexRow, alignItems: 'center' }
 const topicStyle = { fontSize: fontSize.xs, color: brand[600] }

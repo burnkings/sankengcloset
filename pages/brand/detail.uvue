@@ -8,7 +8,7 @@
           <view :style="brandAvatar"><text :style="brandAvatarText">{{ initialOf(brandName) }}</text></view>
           <view :style="brandHeaderCopy">
             <text :style="brandTitle">{{ brandName }}</text>
-            <text :style="brandDescStyle">{{ brandDescText }}</text>
+            <text v-if="brandDescText !== ''" :style="brandDescStyle">{{ brandDescText }}</text>
           </view>
           <view :style="followBtn" @tap="toggleBrand(brandName)"><text :style="followBtnText">{{ library.isFollowingBrand(brandName) ? '已关注' : '关注' }}</text></view>
           <view :style="blacklistBtn" @tap="toggleBlacklistBrand(brandName)"><text :style="blacklistBtnText">{{ blacklist.isBlacklisted(brandName) ? '已屏蔽' : '屏蔽' }}</text></view>
@@ -89,9 +89,8 @@ const loading = ref(true)
 
 const brandDescText = computed((): string => {
   const d = brandDetail.value
-  if (d != null && d.description !== '') return d.description
-  if (d != null && d.category !== '') return d.category
-  return '三坑品牌'
+  if (d != null) return d.description.trim()
+  return ''
 })
 function initialOf(name: string): string { return name == '' ? '#' : name.substring(0, 1) }
 function toggleBrand(name: string) {

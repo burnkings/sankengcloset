@@ -59,6 +59,10 @@ function reload() {
   const next = new SessionProfile()
   next.userId = readString(USER_ID_KEY)
   next.nickname = readString(NICKNAME_KEY)
+  if (_state.mode === SESSION_MODE_MOCK && next.nickname === '内测体验账号') {
+    next.nickname = '本机用户'
+    uni.setStorageSync(NICKNAME_KEY, next.nickname)
+  }
   next.avatarUrl = readString(AVATAR_KEY)
   if (next.nickname === '') next.nickname = '三坑女孩'
   _state.profile = next
@@ -86,10 +90,10 @@ async function loginMock(): Promise<boolean> {
   _state.errorMessage = ''
   try {
     clearSessionTokens()
-    persistLogin('mock_user_local', '内测体验账号', '', SESSION_MODE_MOCK)
+    persistLogin('mock_user_local', '本机用户', '', SESSION_MODE_MOCK)
     return true
   } catch (e) {
-    _state.errorMessage = e instanceof Error ? e.message : '模拟登录失败，请重试'
+    _state.errorMessage = e instanceof Error ? e.message : '进入失败，请重试'
     return false
   } finally {
     _state.loggingIn = false

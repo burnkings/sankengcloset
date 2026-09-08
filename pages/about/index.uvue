@@ -5,7 +5,7 @@
       <view :style="brandCard">
         <view :style="logoWrap"><text :style="logoText">SK</text></view>
         <text :style="appName">{{ APP_NAME }}</text>
-        <text :style="appVersion">{{ APP_VERSION }}</text>
+        <text :style="appVersion">{{ APP_DISPLAY_VERSION }}</text>
         <text :style="appSlogan">三坑文化爱好者的商品信息与发售资讯平台</text>
       </view>
 
@@ -19,7 +19,7 @@
           <ListRow title="隐私政策" />
         </view>
         <view :style="shell(2, 3)" @tap="onCheckUpdateTap">
-          <ListRow title="检查更新" :value="APP_VERSION" />
+          <ListRow title="检查更新" :value="APP_DISPLAY_VERSION" />
         </view>
       </ListGroup>
 
@@ -40,7 +40,7 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { brand } from '@/theme/tokens/colors'
 import { showFeedback } from '@/utils/feedback'
-import { APP_NAME, APP_VERSION } from '@/config/app-version'
+import { APP_NAME, APP_DISPLAY_VERSION } from '@/config/app-version'
 import { checkUpdateRemote, AppVersionInfo } from '@/services/user-data/app-update-service'
 
 const showUpdateDialog = ref(false)
@@ -67,12 +67,12 @@ async function onCheckUpdateTap() {
   try {
     const info: AppVersionInfo = await checkUpdateRemote()
     if (info.hasUpdate) {
-      updateDialogTitle.value = '发现新版本 ' + info.latestVersion
+      updateDialogTitle.value = '发现新版本 ' + info.latestVersion.split('-')[0]
       updateDialogMessage.value = info.releaseNote !== '' ? info.releaseNote : '已发布新版本，建议尽快更新。'
       pendingUpdateUrl = info.updateUrl
       showUpdateDialog.value = true
     } else {
-      showFeedback('当前已是最新版本 ' + APP_VERSION)
+      showFeedback('当前已是最新版本 ' + APP_DISPLAY_VERSION)
     }
   } catch (e) {
     showFeedback('检查更新失败，请稍后重试')

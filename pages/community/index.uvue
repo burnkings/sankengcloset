@@ -8,14 +8,12 @@
           <text :style="mineTitle">我的发布</text>
         </view>
         <view v-if="viewMode !== 'mine'">
-        <text :style="introText">穿搭灵感流，看同好如何搭配，也分享你的今日造型</text>
         <view :style="composerCard" @tap="goCreate">
           <view :style="composerIcon"><AppIcon name="camera" :size="38" :active="true" /></view>
           <view :style="composerCopy"><text :style="composerTitle">分享今天的穿搭</text><text :style="composerDesc">选择照片、坑向和话题</text></view>
           <view :style="composerButton"><text :style="composerButtonText">发布</text></view>
         </view>
         <view :style="filterBar">
-          <view :style="filterSpacer" />
           <view :style="dropdownWrap">
             <view :style="dropdownButton" @tap="openTopicPicker"><text :style="dropdownText">主题 · {{ activeTopic }}</text></view>
           </view>
@@ -33,7 +31,7 @@
           <PageState icon="info" title="灵感加载失败" :message="library.publicError" action-text="重新加载" @action="reloadPublic" />
         </view>
         <view v-else-if="viewMode !== 'mine' && visibleLooks.length === 0" :style="stateWrap">
-          <PageState icon="camera" title="还没有穿搭灵感" message="同好们还没分享，敬请期待" />
+          <PageState icon="camera" title="暂时没有匹配的动态" message="换个话题或坑向，发现更多搭配" action-text="清除筛选" @action="resetFilters" />
         </view>
 
         <!-- 公开 Gallery 帖子：单列 PostCard 动态流（头像/昵称/时间/更多菜单） -->
@@ -86,6 +84,7 @@ import { submitCommunityReport } from '@/services/user-data/community-report-ser
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
+function resetFilters() { activeTopic.value = '全部'; activePitType.value = '全部' }
 const viewMode = ref('') // '' | 'mine'
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()

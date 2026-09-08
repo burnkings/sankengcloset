@@ -3,12 +3,13 @@
     <view :style="dialogStyle" @tap.stop>
       <view v-if="title" :style="headerStyle">
         <text :style="titleStyle">{{ title }}</text>
+        <view v-if="showClose" :style="closeStyle" @tap="onCancel"><AppIcon name="close" :size="32" /></view>
       </view>
       <view :style="bodyStyle">
         <text v-if="message" :style="messageStyle">{{ message }}</text>
         <slot />
       </view>
-      <view :style="footerStyle">
+      <view v-if="showFooter" :style="footerStyle">
         <slot name="actions">
           <view v-if="showCancel" :style="footerBtn" @tap="onCancel"><text :style="cancelTextStyle">{{ cancelText }}</text></view>
           <view :style="footerBtn" @tap="onConfirm"><text :style="confirmTextStyle">{{ confirmText }}</text></view>
@@ -19,6 +20,7 @@
 </template>
 
 <script setup lang="uts">
+import AppIcon from '@/components/base/AppIcon.uvue'
 import { baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { semanticRadius } from '@/theme/tokens/radius'
@@ -35,8 +37,12 @@ const props = withDefaults(defineProps<{
   cancelText?: string
   confirmText?: string
   closeOnOverlay?: boolean
+  showFooter?: boolean
+  showClose?: boolean
 }>(), {
   visible: false,
+  showFooter: true,
+  showClose: false,
   title: '',
   message: '',
   showCancel: true,
@@ -49,6 +55,7 @@ const emit = defineEmits<{
   confirm: []
   cancel: []
 }>()
+const closeStyle = { position: 'absolute', right: '0', top: '0', width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' }
 
 
 const overlayStyle = computed((): any => ({
@@ -71,6 +78,10 @@ const dialogStyle = computed((): any => ({
 
 const headerStyle = (() => {
   const s = {}
+  s.position = 'relative'
+  s.paddingLeft = '48rpx'
+  s.paddingRight = '48rpx'
+  s.minHeight = '56rpx'
   s.marginBottom = '24rpx'
   return s
 })()

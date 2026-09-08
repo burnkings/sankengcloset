@@ -2,3 +2,5 @@
 
 export const APP_NAME = '三坑绮橱'
 export const APP_VERSION = 'V2.5.0-beta.2'
+// 构建标识保留给更新比较；界面仅展示产品版本。
+export const APP_DISPLAY_VERSION = APP_VERSION.split('-')[0]

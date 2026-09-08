@@ -364,7 +364,7 @@ function isNetworkAvailable(): Promise<boolean> {
  * - 401 会话失效 → 先持久化「已成功项移除、其余保留」的队列状态，再抛出中止整次冲刷。
  */
 async function flushRemote(ids: string[]): Promise<number> {
-  if (getAccessToken() === '') throw new Error('请先登录远程体验账号')
+  if (getAccessToken() === '') throw new Error('请先登录账号再同步')
   const remaining: string[] = []
   let acceptedCount = 0
   for (let i = 0; i < ids.length; i++) {

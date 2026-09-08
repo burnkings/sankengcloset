@@ -6,11 +6,6 @@
         <SegmentedControl :items="tabItems" :active="activeTab" variant="ranking" @change="onTabChange" />
       </view>
 
-      <!-- 二级筛选：统计周期 -->
-      <view :style="periodBar">
-        <FilterChips :items="periodOptions" :active="activePeriod" @change="onPeriodChange" />
-      </view>
-
       <!-- 三级筛选：坑向 -->
       <view :style="filterBar">
         <view :style="filterChipsWrap">
@@ -37,7 +32,6 @@
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import RankingCard from '@/components/v3/RankingCard.uvue'
-import FilterChips from '@/components/v3/FilterChips.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW, RANKING_TAB_FAVORITE } from '@/domain/ranking/ranking-item'
 import { fetchRankingRemote } from '@/services/content/ranking-service'
@@ -50,7 +44,6 @@ import { brand, baseColors } from '@/theme/tokens/colors'
 const tabItems = ['热榜', '上新榜', '收藏榜']
 const activeTab = ref('热榜')
 const activeCategory = ref('全部')
-const activePeriod = ref('近 7 天')
 const rankingData = ref<RankingItem[]>([])
 const loading = ref(false)
 
@@ -70,18 +63,11 @@ const activeTabCode = computed((): string => {
   return RANKING_TAB_HOT
 })
 
-const periodOptions = ['近 7 天', '近 30 天']
 const categories = ['全部', 'JK', 'Lolita', '汉服']
 
 function onTabChange(tab: string) {
   activeTab.value = tab
   activeCategory.value = '全部'
-  activePeriod.value = tab === '上新榜' ? '近 30 天' : '近 7 天'
-  reloadData()
-}
-
-function onPeriodChange(period: string) {
-  activePeriod.value = period
   reloadData()
 }
 
@@ -89,12 +75,15 @@ function onFilterTap(opt: string) {
   if (categories.indexOf(opt) >= 0) { activeCategory.value = opt; return }
 }
 
+let requestSequence = 0
 async function reloadData() {
-  if (loading.value) return
+  const seq = ++requestSequence
   loading.value = true
-  const period = activePeriod.value === '近 30 天' ? '30d' : '7d'
-  try { rankingData.value = await fetchRankingRemote(activeTabCode.value, period) }
-  finally { loading.value = false }
+  rankingData.value = []
+  try {
+    const items = await fetchRankingRemote(activeTabCode.value)
+    if (seq === requestSequence) rankingData.value = items
+  } finally { if (seq === requestSequence) loading.value = false }
 }
 
 const visibleItems = computed((): RankingItem[] => {
@@ -112,7 +101,6 @@ function openProduct(item: RankingItem) {
 
 const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const tabBar = { marginBottom: '16rpx' }
-const periodBar = { marginBottom: '8rpx' }
 const filterBar = { ...flexRow, alignItems: 'center', marginBottom: '16rpx', flexWrap: 'wrap' as string }
 const filterChipsWrap = { ...flexRow, flexWrap: 'wrap' as string, flex: 1 }
 const filterGroup = { ...flexRow, flexWrap: 'wrap' as string, marginRight: '12rpx' }

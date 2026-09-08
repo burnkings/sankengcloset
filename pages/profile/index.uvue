@@ -45,9 +45,8 @@
           <view :style="settingShell(3, 9)" @tap="goPage('/pages/preferences/blacklist')"><ListRow icon="close" title="屏蔽品牌" :value="blacklistCountText" /></view>
           <view :style="settingShell(4, 9)" @tap="onHelpTap"><ListRow icon="help-circle" title="帮助与反馈" /></view>
           <view :style="settingShell(5, 9)" @tap="onClearCacheTap"><ListRow icon="database" title="清理缓存" :value="cacheSizeText" /></view>
-          <view :style="settingShell(6, 9)" @tap="goPage('/pages/about/index')"><ListRow icon="info" title="关于三坑绮橱" :value="APP_VERSION" /></view>
+          <view :style="settingShell(6, 9)" @tap="goPage('/pages/about/index')"><ListRow icon="info" title="关于三坑绮橱" :value="APP_DISPLAY_VERSION" /></view>
           <view v-if="session.isLoggedIn" :style="settingShell(7, 9)" @tap="logout"><ListRow icon="logout" title="退出登录" /></view>
-          <view :style="settingShell(8, 9)" />
         </ListGroup>
 
         <view :style="bottomSpacer" />
@@ -84,7 +83,7 @@ import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
-import { APP_VERSION } from '@/config/app-version'
+import { APP_DISPLAY_VERSION } from '@/config/app-version'
 
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
@@ -111,7 +110,7 @@ function loginMock() {
       purchases.fetchPurchases()
       reminders.fetchItems()
       wardrobe.fetchItems()
-      showFeedback('已进入本机体验账号')
+      showFeedback('已切换为本机使用')
     }
     else if (session.errorMessage !== '') showFeedback(session.errorMessage)
   })
@@ -124,7 +123,7 @@ function loginWechat() {
 }
 function openLoginOptions() {
   uni.showActionSheet({
-    itemList: ['微信登录', '本机体验账号'],
+    itemList: ['微信登录', '仅在本机使用'],
     success: (res) => { if (res.tapIndex == 0) loginWechat(); else loginMock() },
   })
 }

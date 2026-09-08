@@ -275,7 +275,7 @@ export function listMockRanking(tab: string): RankingItem[] {
     result.push(item)
   }
   if (tab == 'new') result.reverse()
-  if (tab == 'favorite') result.sort((a, b) => b.favoriteGrowth - a.favoriteGrowth)
+  if (tab == 'favorite') result.sort((a, b) => b.favoriteCount - a.favoriteCount)
   for (let i = 0; i < result.length; i++) result[i].rank = i + 1
   return result
 }
