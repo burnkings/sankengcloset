@@ -18,8 +18,6 @@ export class ProductCommunityPost {
 }
 
 export class ProductDetailModel {
-  catalogLines: CatalogLine[] = []
-  catalogPresent: boolean = false
   shopName: string = ''
   item: FeedItem = new FeedItem()
   images: string[] = []
@@ -51,43 +49,6 @@ export class ProductDetailModel {
   featureTags: string[] = []
   /** 规格变体（多款式商品；空数组 = 单款式/无数据，不渲染款式价格表） */
   variants: ProductVariant[] = []
-}
-
-export class CatalogLine {
-  label: string = ''
-  value: string = ''
-}
-function catalogLine(lines: CatalogLine[], label: string, value: string) {
-  if (value === '') return
-  const row = new CatalogLine()
-  row.label = label
-  row.value = value
-  lines.push(row)
-}
-function mapCatalog(raw: UTSJSONObject, result: ProductDetailModel) {
-  result.catalogPresent = true
-  result.shopName = raw['shop_name'] as string ?? ''
-  catalogLine(result.catalogLines, '店铺', raw['shop_name'] as string ?? '')
-  catalogLine(result.catalogLines, '系列', raw['series_name'] as string ?? '')
-  const stage = raw['sale_stage'] as string ?? 'UNKNOWN'
-  let stageText = ''
-  if (stage === 'SPOT') stageText = '现货'
-  if (stage === 'DEPOSIT') stageText = '定金'
-  if (stage === 'BALANCE') stageText = '尾款'
-  if (stage === 'PREORDER') stageText = '预售'
-  if (stage === 'CLOSED') stageText = '已截团'
-  if (stage === 'SOLD_OUT') stageText = '售罄'
-  if (stage === 'PREVIEW') stageText = '预告'
-  if (stage === 'INTENTION') stageText = '意向征集'
-  catalogLine(result.catalogLines, '当前状态', stageText)
-  const p = raw['presentation'] as UTSJSONObject | null
-  if (p != null) {
-    catalogLine(result.catalogLines, '款式配色', p['specText'] as string ?? '')
-    catalogLine(result.catalogLines, '尺码参考', p['sizeText'] as string ?? '')
-    catalogLine(result.catalogLines, '参考价格', p['priceText'] as string ?? '')
-    catalogLine(result.catalogLines, '发售信息', p['releaseText'] as string ?? '')
-    catalogLine(result.catalogLines, '发货说明', p['shippingText'] as string ?? '')
-  }
 }
 
 function statusLabel(status: string): string {
@@ -184,8 +145,7 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   result.materialTags = item.materialTags
   result.featureTags = parseStringArray(raw['featureTags'])
   result.variants = parseVariants(raw['variants'])
-  const catalog = raw['catalog'] as UTSJSONObject | null
-  if (catalog != null) mapCatalog(catalog, result)
+  result.shopName = raw['shopName'] as string ?? ''
   result.requestId = requestId
   return result
 }
