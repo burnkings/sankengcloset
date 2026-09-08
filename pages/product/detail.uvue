@@ -27,7 +27,7 @@
               <text :style="brandText">{{ item!.brandName }}</text>
               <view v-if="pitTypeLabel !== ''" :style="pitChip"><text :style="pitChipText">{{ pitTypeLabel }}</text></view>
               <view v-if="subCategory !== ''" :style="subChip"><text :style="subChipText">{{ subCategory }}</text></view>
-              <view :style="blacklistBtn" @tap="onToggleBlacklist">
+              <view v-if="item!.brandName !== ''" :style="blacklistBtn" @tap="onToggleBlacklist">
                 <text :style="blacklistBtnText">{{ blacklist.isBlacklisted(item!.brandName) ? '已屏蔽·恢复' : '屏蔽品牌' }}</text>
               </view>
             </view>
@@ -39,7 +39,7 @@
             </view>
             <view :style="statusTag">
               <view :style="statusDot" />
-              <text :style="statusTagText">{{ releaseStatusText !== '' ? releaseStatusText : '官方信息' }}</text>
+              <text :style="statusTagText">{{ releaseStatusText !== '' ? releaseStatusText : '商品资料' }}</text>
             </view>
             <view v-if="compatibility.score >= 0" :style="compatibilityCard">
               <view :style="compatibilityHeader"><text :style="compatibilityTitle">与你衣橱的搭配度</text><text :style="compatibilityScore">{{ compatibility.score }}%</text></view>
@@ -52,6 +52,12 @@
             </view>
           </view>
 
+          <template v-if="catalogLines.length > 0">
+            <SectionHeader title="商品与报价" />
+            <view :style="releaseCard">
+              <view v-for="(line, index) in catalogLines" :key="index" :style="releaseRow"><text :style="releaseLabel">{{ line.label }}</text><text :style="releaseValue">{{ line.value }}</text></view>
+            </view>
+          </template>
           <template v-if="release !== null || spotPriceVisible">
             <SectionHeader title="购买信息" />
             <view :style="releaseCard">
@@ -169,6 +175,7 @@ import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel, PRI
 import { fetchStyle } from '@/services/content/style-service'
 import { fetchProductCommunity, ProductCommunityPost } from '@/services/content/product-service'
 import { useProductDetailStore } from '@/stores/product-detail-store'
+import { CatalogLine } from '@/services/content/product-service'
 import { formatPrice } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSessionStore } from '@/stores/session-store'
@@ -207,6 +214,7 @@ const compatibility = computed(() => item.value !== null ? calculateWardrobeComp
 const compatibilityNames = computed((): string => compatibility.value.matchedItems.map((entry) => entry.name).join('、'))
 // 真实发售批次（后端 currentRelease → ReleaseEvent）：发售状态/时间/金额的唯一事实源，禁止 badgeText 猜测
 const currentRelease = ref(null) as Ref<ReleaseEvent | null>
+const catalogLines = ref([]) as Ref<CatalogLine[]>
 const release = computed((): ReleaseEvent | null => currentRelease.value)
 const currentImageIndex = ref(0)
 // Phase 2.1 同款式：商品绑定 styleId 时加载款式信息（未归并商品保持 null，模块不显示）
@@ -379,6 +387,7 @@ async function loadDetail() {
     description.value = result.description
     shopUrl.value = result.shopUrl
     currentRelease.value = result.currentRelease
+    catalogLines.value = result.catalogLines
     // ====== Product V2 展示字段赋值 ======
     priceType.value = result.priceType
     depositCents.value = result.depositCents

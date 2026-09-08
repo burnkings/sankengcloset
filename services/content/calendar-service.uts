@@ -29,6 +29,9 @@ function eventTypeLabel(t: string): string {
   if (t === 'spot') return '现货'
   if (t === 'lottery') return '抽选'
   if (t === 'deposit') return '定金'
+  if (t === 'intention') return '意向征集'
+  if (t === 'preview') return '预告'
+  if (t === 'preorder') return '预售'
   if (t === 'balance' || t === 'final_payment') return '尾款'
   if (t === 'sale' || t === 'release') return '开售'
   return t
