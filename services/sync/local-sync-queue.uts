@@ -1,5 +1,5 @@
 import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-operation'
-import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
+import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken, isLocalMockSession } from '@/config/runtime'
 import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized, apiErrorStatus, encodeQuery } from '@/services/platform/api-client'
 import { listWishlistRemote, followBrandRemote, unfollowBrandRemote, setCommunityPostLikeRemote, deleteCommunityPostRemote, saveBudgetRemote, markNotificationReadRemote } from '@/services/user-data/user-data-service'
 
@@ -225,7 +225,8 @@ async function replayFavorite(op: SyncOperation): Promise<number> {
     const productId = body['productId'] != null ? body['productId'] as string : op.entityId
     const title = body['title'] != null ? body['title'] as string : productId
     if (productId == '') return 0
-    await apiPostAuthorized('/api/v1/wishlist', { title, status: 'WISH', productId } as UTSJSONObject)
+    const releaseId = body['releaseId'] != null ? body['releaseId'] as string : ''
+    await apiPostAuthorized('/api/v1/wishlist', { title, status: 'WISH', productId, ...(releaseId !== '' ? { releaseId } : {}) } as UTSJSONObject)
     return 1
   } catch (e) {
     // 服务端 wishlist 以 user+productId 唯一收敛（重复 POST 返回既有条目），
@@ -367,8 +368,15 @@ async function flushRemote(ids: string[]): Promise<number> {
   if (getAccessToken() === '') throw new Error('请先登录账号再同步')
   const remaining: string[] = []
   let acceptedCount = 0
+  const userId = getCurrentSyncUserId()
   for (let i = 0; i < ids.length; i++) {
     const op = readOperation(ids[i])
+    if (getCurrentSyncUserId() !== userId) {
+      for (let j = i; j < ids.length; j++) remaining.push(ids[j])
+      break
+    }
+    if (op.userId !== userId && op.userId !== 'guest_local') { remaining.push(ids[i]); continue }
+    if (op.userId === 'guest_local') { op.userId = userId; writeOperation(op) }
     let result = 0
     try {
       result = await replayOperation(op)
@@ -377,7 +385,7 @@ async function flushRemote(ids: string[]): Promise<number> {
       if (apiErrorStatus(e) != 401) throw e
       remaining.push(ids[i])
       for (let j = i + 1; j < ids.length; j++) remaining.push(ids[j])
-      writeIds(remaining)
+      writeIds([...remaining, ...readIds().filter((id) => ids.indexOf(id) < 0)])
       throw e
     }
     if (result == 1) {
@@ -391,9 +399,12 @@ async function flushRemote(ids: string[]): Promise<number> {
       op.status = SYNC_FAILED
       writeOperation(op)
       remaining.push(ids[i])
+      // 不越过失败的前置操作；下次从此处继续。
+      for (let j = i + 1; j < ids.length; j++) remaining.push(ids[j])
+      break
     }
   }
-  writeIds(remaining)
+  writeIds([...remaining, ...readIds().filter((id) => ids.indexOf(id) < 0)])
   if (acceptedCount > 0) { try { uni.setStorageSync('v21_sync_last_success_at', Date.now().toString()) } catch (e) {} }
   return acceptedCount
 }
@@ -406,7 +417,8 @@ async function flushRemote(ids: string[]): Promise<number> {
  * - 网络不可达（'none'）→ 返回 0 保留队列（onNetworkStatusChange 恢复联网后再 flush）。
  * - 可达且已登录 → 逐条重放真实 /api/v1/me/* CRUD。
  */
-export async function flushLocalOperations(): Promise<number> {
+async function flushOnce(): Promise<number> {
+  if (isLocalMockSession()) return 0
   const config = getRuntimeConfig()
   let ids = readIds()
   if (ids.length === 0) return 0
@@ -427,3 +439,18 @@ export async function flushLocalOperations(): Promise<number> {
   return await flushRemote(ids)
 }
 export function getLastSyncAt(): string { return readString('v21_sync_last_success_at') }
+
+let _flushPromise: Promise<number> | null = null
+export function flushLocalOperations(): Promise<number> {
+  if (_flushPromise != null) return _flushPromise!
+  _flushPromise = drainQueue().finally(() => { _flushPromise = null })
+  return _flushPromise!
+}
+
+async function drainQueue(): Promise<number> {
+  let total = 0
+  let count = await flushOnce()
+  total += count
+  while (count > 0 && readIds().length > 0) { count = await flushOnce(); total += count }
+  return total
+}

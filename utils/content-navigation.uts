@@ -1,0 +1,9 @@
+import { showFeedback } from '@/utils/feedback'
+export function productDetailUrl(id: string): string {
+  return id.trim() === '' ? '' : '/pages/product/detail?id=' + encodeURIComponent(id)
+}
+export function openProductDetail(id: string) {
+  const url = productDetailUrl(id)
+  if (url === '') { showFeedback('商品信息暂不可用'); return }
+  uni.navigateTo({ url, fail: () => { showFeedback('商品页面打开失败，请返回后重试') } })
+}

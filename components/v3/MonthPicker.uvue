@@ -1,0 +1,31 @@
+<template>
+  <AppDialog :visible="visible" title="选择月份" :show-footer="false" :show-close="true" @update:visible="close">
+    <view :style="yearRow">
+      <view :style="yearArrow" @tap="year -= 1"><text :style="yearText">‹</text></view>
+      <text :style="yearText">{{ year }} 年</text>
+      <view :style="yearArrow" @tap="year += 1"><text :style="yearText">›</text></view>
+    </view>
+    <view :style="monthGrid">
+      <view v-for="month in months" :key="month" :style="monthCell(selectedMonth(month))" @tap="selectMonth(month)"><text :style="monthText(selectedMonth(month))">{{ month }}月</text></view>
+    </view>
+  </AppDialog>
+</template>
+<script setup lang="uts">
+import AppDialog from '@/components/base/AppDialog.uvue'
+import { n } from '@/theme/use-theme'
+import { brand } from '@/theme/tokens/colors'
+const props = withDefaults(defineProps<{ visible?: boolean; value?: string }>(), { visible: false, value: '' })
+const emit = defineEmits<{ 'update:visible': [value: boolean]; change: [value: string] }>()
+const year = ref(new Date().getFullYear())
+const months = [1,2,3,4,5,6,7,8,9,10,11,12]
+watch(() => props.visible, (visible: boolean) => { if (visible) { const value = parseInt(props.value.split('-')[0]); year.value = isNaN(value) ? new Date().getFullYear() : value } })
+function selectedMonth(month: number): boolean { return props.value === year.value.toString() + '-' + (month < 10 ? '0' : '') + month.toString() }
+function selectMonth(month: number) { emit('change', year.value.toString() + '-' + (month < 10 ? '0' : '') + month.toString()); emit('update:visible', false) }
+function close(value: boolean) { emit('update:visible', value) }
+const yearRow = { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20rpx' }
+const yearArrow = { width: '72rpx', height: '72rpx', alignItems: 'center', justifyContent: 'center' }
+const yearText = computed((): any => ({ fontSize: '30rpx', color: n.value.text, fontWeight: 600 }))
+const monthGrid = { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }
+function monthCell(active: boolean): any { return { width: '30%', height: '76rpx', marginBottom: '16rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary } }
+function monthText(active: boolean): any { return { fontSize: '28rpx', color: active ? brand.primary : n.value.text, fontWeight: active ? 600 : 400 } }
+</script>

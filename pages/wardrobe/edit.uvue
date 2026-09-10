@@ -10,7 +10,7 @@
           <view v-else :style="photoEmpty"><AppIcon name="camera" :size="52" :active="true" /><text :style="photoText">添加单品照片</text></view>
         </view>
 
-        <FormSection title="基本信息">
+        <FormSection>
           <FieldLabel label="单品名称" /><AppInput v-model="form.name" placeholder="例如：深蓝格裙 45cm" :clearable="true" />
           <FieldLabel label="坑向" /><SegmentedControl :items="categories" :active="activeCategory" @change="onCategory" />
           <view :style="twoColumnRow">
@@ -147,9 +147,9 @@ function save() {
 }
 function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); backTimer = setTimeout(() => { uni.navigateBack() }, 220) } }
 function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
-onMounted(() => {
+onLoad((options) => {
   store.fetchItems()
-  const pages = getCurrentPages(); const current = pages[pages.length - 1]; const options = current.options; const id = options != null && options['id'] != null ? options['id'] as string : ''
+  const id = options != null && options['id'] != null ? options['id'] as string : ''
   if (id === '') {
     if (options != null) {
       form.value.name = options['name'] != null ? safeParam(options['name'] as string) : ''

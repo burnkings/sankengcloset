@@ -1,0 +1,24 @@
+<template>
+  <view :style="wrap">
+    <view v-if="variant === 'detail' || variant === 'post'" :style="hero" />
+    <view v-for="row in rows" :key="row" :style="rowStyle">
+      <view v-if="variant === 'list'" :style="thumbnail" />
+      <view :style="copy">
+        <view :style="lineWide" />
+        <view :style="lineShort" />
+      </view>
+    </view>
+  </view>
+</template>
+<script setup lang="uts">
+import { n } from '@/theme/use-theme'
+const props = withDefaults(defineProps<{ variant?: string }>(), { variant: 'list' })
+const rows = computed((): number[] => props.variant === 'list' ? [1,2,3] : [1,2])
+const wrap = { width: '100%', paddingTop: '16rpx', paddingBottom: '24rpx' }
+const hero = computed((): any => ({ height: props.variant === 'detail' ? '560rpx' : '360rpx', width: '100%', backgroundColor: n.value.bgTertiary, borderRadius: '16rpx', marginBottom: '20rpx' }))
+const rowStyle = { flexDirection: 'row', alignItems: 'center', padding: '20rpx', marginBottom: '16rpx' }
+const thumbnail = computed((): any => ({ width: '88rpx', height: '88rpx', borderRadius: '12rpx', backgroundColor: n.value.bgTertiary, marginRight: '20rpx' }))
+const copy = { flex: 1 }
+const lineWide = computed((): any => ({ height: '24rpx', width: '80%', borderRadius: '8rpx', backgroundColor: n.value.bgTertiary }))
+const lineShort = computed((): any => ({ height: '20rpx', width: '48%', borderRadius: '8rpx', backgroundColor: n.value.bgTertiary, marginTop: '16rpx' }))
+</script>

@@ -1,3 +1,4 @@
+import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 import { mapFeedItem } from '@/services/content/feed-service'
@@ -39,7 +40,7 @@ export async function searchProducts(keyword: string, cursor: string = '', filte
     if (filters.minPrice > 0) path += '&minPrice=' + filters.minPrice
     if (filters.maxPrice > 0) path += '&maxPrice=' + filters.maxPrice
   }
-  try {
+  if (!isLocalMockSession()) try {
     const response = await apiGet(path)
     const rawItems = response.data
     if (rawItems != null && Array.isArray(rawItems)) {
@@ -50,9 +51,9 @@ export async function searchProducts(keyword: string, cursor: string = '', filte
     const page = response.page as UTSJSONObject | null
     result.nextCursor = page != null && page['nextCursor'] != null ? page['nextCursor'] as string : ''
     result.hasMore = page != null && page['hasMore'] == true
-    if (cursor != '' || result.items.length > 0) return result
+    return result
   } catch (e) {
-    if (cursor != '') return result
+    throw e
   }
   result.items = filterMockFeed('推荐', '全部', q).filter((item) => item.feedType == 'product')
   // 没有精确命中时提供完整演示商品，保证搜索页可继续体验筛选与详情链路。

@@ -1,3 +1,4 @@
+import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { ProductVariant } from '@/domain/content/product-variant'
@@ -186,10 +187,11 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
   if (id === '') return null
   // releaseId 非空：后端优先返回该批次 currentRelease（不存在则回退最新一条）
   const query = releaseId !== '' ? `?releaseId=${encodeQuery(releaseId)}` : ''
-  try {
+  if (!isLocalMockSession()) try {
     const response = await apiGet(`/api/v1/products/${encodeQuery(id)}${query}`)
     if (response.data != null) return mapRemoteProduct(response.data as UTSJSONObject, response.requestId)
-  } catch (e) {}
+    return null
+  } catch (e) { throw e }
   const mock = findMockProduct(id)
   if (mock == null) return null
   const result = new ProductDetailModel()
@@ -257,7 +259,7 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
 export async function fetchProductCommunity(id: string): Promise<ProductCommunityPost[]> {
   if (id === '') return []
   const result = [] as ProductCommunityPost[]
-  try {
+  if (!isLocalMockSession()) try {
     const response = await apiGet(`/api/v1/products/${encodeQuery(id)}/community`)
     const values = response.data as any[] | null
     if (values != null) for (let i = 0; i < values.length; i++) {
@@ -274,8 +276,8 @@ export async function fetchProductCommunity(id: string): Promise<ProductCommunit
       post.productId = raw['productId'] != null ? raw['productId'] as string : ''
       result.push(post)
     }
-    if (result.length > 0) return result
-  } catch (e) {}
+    return result
+  } catch (e) { throw e }
   if (findMockProduct(id) != null) {
     for (let i = 0; i < 2; i++) {
       const post = new ProductCommunityPost()

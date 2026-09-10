@@ -14,6 +14,7 @@
     <view v-else :style="contentStyle">
 
       <!-- 名称 + 状态 -->
+      <view :style="sectionGap" />
       <AppCard border-type="border">
         <view :style="nameRowStyle">
           <text :style="nameTextStyle">{{ item!.name }}</text>
@@ -25,6 +26,7 @@
       </AppCard>
 
       <!-- 金额卡片 -->
+      <view :style="sectionGap" />
       <AppCard border-type="border">
         <template #header>
           <text :style="sectionTitleStyle">金额信息</text>
@@ -59,6 +61,7 @@
       </AppCard>
 
       <!-- 详情信息 -->
+      <view :style="sectionGap" />
       <AppCard border-type="border">
         <template #header>
           <text :style="sectionTitleStyle">详细信息</text>
@@ -91,7 +94,7 @@
         <view v-if="record.value != null && record.value.productId !== ''" :style="actionBtnSecondary" @tap="onViewProduct">
           <text :style="actionBtnSecondaryText">查看来源商品</text>
         </view>
-        <view :style="actionBtn" @tap="onSetReminder">
+        <view v-if="canSetBalanceReminder(record)" :style="actionBtn" @tap="onSetReminder">
           <text :style="actionBtnText">设置尾款提醒</text>
         </view>
         <view v-if="record.value != null && record.value.wardrobeId !== ''" :style="actionBtnSecondary" @tap="onViewWardrobeItem">
@@ -103,6 +106,7 @@
       </view>
 
       <!-- 备注 -->
+      <view :style="sectionGap" />
       <AppCard v-if="item!.note" border-type="border">
         <template #header>
           <text :style="sectionTitleStyle">备注</text>
@@ -132,6 +136,7 @@ import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexRowBetween, flexCenter, flexColumnCenter, flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
+import { canSetBalanceReminder, balanceReminderUrl } from '@/utils/purchase-reminder'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
@@ -166,10 +171,8 @@ function onEditTap() {
   uni.navigateTo({ url: `/pages/purchase/edit?id=${itemId.value}` })
 }
 function onSetReminder() {
-  if (item.value == null || record.value == null) return
-  const name = encodeURIComponent(item.value!.name)
-  const date = encodeURIComponent(record.value!.deadline)
-  uni.navigateTo({ url: `/pages/reminder/edit?title=${name}&date=${date}&type=BALANCE&purchaseId=${record.value.id}&wishId=${record.value.wishId}` })
+  if (!canSetBalanceReminder(record.value)) return
+  uni.navigateTo({ url: balanceReminderUrl(record.value!) })
 }
 function onAddToWardrobe() {
   if (item.value == null || record.value == null) return
@@ -197,10 +200,7 @@ function onConfirmDelete() {
 }
 
 // 页面加载时获取路由参数
-onMounted(() => {
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  const options = currentPage.options
+onLoad((options) => {
   const id = options != null && options['id'] != null ? options['id'] as string : ''
   itemId.value = id
 })
@@ -347,6 +347,7 @@ const overdueTextStyle = {
   color: semantic.error,
   fontWeight: fontWeight.medium }
 
+const sectionGap = { height: '20rpx' }
 const actionSection = { paddingTop: '16rpx', paddingBottom: '8rpx' }
 const actionBtn = computed((): any => ({ height: '80rpx', borderRadius: '40rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginBottom: '12rpx' }))
 const actionBtnText = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] as string }

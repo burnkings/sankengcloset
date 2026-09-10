@@ -1,6 +1,6 @@
 <template>
   <view :style="sectionStyle">
-    <view :style="headerStyle">
+    <view v-if="title !== ''" :style="headerStyle">
       <text :style="titleStyle">{{ title }}</text>
       <text v-if="required" :style="requiredStyle">*</text>
     </view>

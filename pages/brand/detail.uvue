@@ -1,7 +1,8 @@
 <template>
   <DetailLayout :title="brandName">
     <view :style="contentWrap">
-      <view v-if="loading" :style="emptyWrap"><FeedSkeleton /></view>
+      <view v-if="loading" :style="emptyWrap"><PageSkeleton variant="list" /></view>
+      <PageState v-else-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadBrands" />
 
       <template v-else>
         <view :style="brandHeader">
@@ -60,6 +61,7 @@
 </template>
 
 <script setup lang="uts">
+import { openProductDetail } from '@/utils/content-navigation'
 import { Brand } from '@/domain/content/brand'
 import { FeedItem } from '@/domain/content/feed-item'
 import { feedImageHeight } from '@/stores/home-feed-store'
@@ -75,7 +77,7 @@ import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
-import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 
 const library = useContentLibraryStore()
@@ -86,6 +88,7 @@ const brandName = ref('')
 const brandDetail = ref<Brand | null>(null)
 const products = ref<FeedItem[]>([])
 const loading = ref(true)
+const errorMessage = ref('')
 
 const brandDescText = computed((): string => {
   const d = brandDetail.value
@@ -101,7 +104,7 @@ function toggleBlacklistBrand(name: string) {
   const blocked = blacklist.toggleBlacklist(name)
   showFeedback(blocked ? `已屏蔽品牌：${name}` : `已恢复品牌：${name}`)
 }
-function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
+function openProduct(item: FeedItem) { openProductDetail(item.entityId) }
 function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
@@ -137,14 +140,18 @@ onLoad((query) => {
     brandName.value = query['name'] != null ? decodeURIComponent(query['name'] as string) : ''
   }
 })
-onMounted(async () => {
+async function reloadBrands() {
+  loading.value = true
+  errorMessage.value = ''
+  try {
   const detail = await brandStore.fetchDetail(brandId.value)
   brandDetail.value = detail
   if (detail != null && brandName.value === '') brandName.value = detail.name
   const list = await brandStore.fetchProducts(brandId.value)
   products.value = list
-  loading.value = false
-})
+  } catch (e) { errorMessage.value = '品牌加载失败，请重试' } finally { loading.value = false }
+}
+onMounted(() => { reloadBrands() })
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
 const emptyWrap = { paddingTop: '48rpx' }

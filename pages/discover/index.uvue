@@ -4,13 +4,12 @@
       <template #navbar><PageHeader title="发现" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view :style="searchBox" @tap="onSearch"><AppIcon name="search" :size="36" /><text :style="searchPlaceholder">搜索商品、品牌与动态</text></view>
 
         <SectionHeader title="榜单排行" action-text="查看全部" @action="openRanking('hot')" />
         <view :style="rankingRow">
-          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><AppIcon name="heart" :size="30" :active="true" /><text :style="rankingTitle">热榜</text><text :style="rankingHint">大家在看</text></view>
-          <view :style="rankingCard('new')" @tap="openRanking('new')"><AppIcon name="sparkles" :size="30" :active="true" /><text :style="rankingTitle">上新榜</text><text :style="rankingHint">最近收录</text></view>
-          <view :style="rankingCard('favorite')" @tap="openRanking('favorite')"><AppIcon name="heart" :size="30" :active="true" /><text :style="rankingTitle">收藏榜</text><text :style="rankingHint">心动收藏</text></view>
+          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><text :style="rankingTitle">热榜</text><text :style="rankingHint">大家在看</text></view>
+          <view :style="rankingCard('new')" @tap="openRanking('new')"><text :style="rankingTitle">上新榜</text><text :style="rankingHint">最近收录</text></view>
+          <view :style="rankingCard('favorite')" @tap="openRanking('favorite')"><text :style="rankingTitle">收藏榜</text><text :style="rankingHint">心动收藏</text></view>
         </view>
 
         <SectionHeader v-if="features.length > 0" title="精选专题" />
@@ -72,6 +71,7 @@
 </template>
 
 <script setup lang="uts">
+import { openProductDetail } from '@/utils/content-navigation'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -112,7 +112,6 @@ class CalendarCell {
   dateKey: string = ''
   events: CalendarEvent[] = []
 }
-function onSearch() { uni.navigateTo({ url: '/pages/search/index' }) }
 function openRanking(tab: string) { uni.navigateTo({ url: `/pages/ranking/index?tab=${tab}` }) }
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
@@ -224,7 +223,7 @@ function onCellTap(cell: CalendarCell) {
 function onReleaseProduct(evt: CalendarEvent) {
   if (evt.productId !== '') {
     showDayRelease.value = false
-    uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(evt.productId)}` })
+    openProductDetail(evt.productId)
     return
   }
   showFeedback('该发售暂未关联商品详情')
@@ -243,8 +242,6 @@ function onAddReleaseReminder(evt: CalendarEvent) {
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
-const searchBox = computed((): any => ({ width: '686rpx', height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3, backgroundColor: n.value.inputFill, ...flexRow, alignItems: 'center', paddingLeft: '24rpx', paddingRight: '24rpx' }))
-const searchPlaceholder = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, marginLeft: '14rpx' }))
 // 榜单入口双卡（热榜/上新榜，等宽均分 + 24rpx 间距）
 const rankingRow = { ...flexRow, flexDirection: 'row' as string }
 function rankingCard(variant: string): any {

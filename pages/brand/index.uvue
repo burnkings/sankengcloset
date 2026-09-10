@@ -1,7 +1,8 @@
 <template>
   <DetailLayout title="品牌目录">
     <view :style="contentWrap">
-      <view v-if="loading" :style="emptyWrap"><FeedSkeleton /></view>
+      <view v-if="loading" :style="emptyWrap"><PageSkeleton variant="list" /></view>
+      <PageState v-else-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadBrands" />
 
       <view v-else-if="brands.length === 0" :style="emptyWrap">
         <PageState icon="grid" title="暂无品牌" message="暂时没有可展示的品牌，请稍后重试" />
@@ -33,13 +34,14 @@ import { CARD_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
-import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 
 const library = useContentLibraryStore()
 const brandStore = useBrandStore()
 const brands = ref<Brand[]>([])
 const loading = ref(true)
+const errorMessage = ref('')
 
 function initialOf(name: string): string { return name == '' ? '#' : name.substring(0, 1) }
 function brandMetaOf(item: Brand): string {
@@ -54,11 +56,15 @@ function toggleBrand(name: string) {
 }
 
 onLoad(() => { initPageTheme() })
-onMounted(async () => {
+async function reloadBrands() {
+  loading.value = true
+  errorMessage.value = ''
+  try {
   const list = await brandStore.fetchBrands()
   brands.value = list
-  loading.value = false
-})
+  } catch (e) { errorMessage.value = '品牌加载失败，请重试' } finally { loading.value = false }
+}
+onMounted(() => { reloadBrands() })
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
 const emptyWrap = { paddingTop: '48rpx' }

@@ -52,6 +52,7 @@
           <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
         </view>
 
+        <view v-if="store.errorMessage !== ''" @tap="onLoadMore"><text>{{ store.errorMessage }} · 点击重试</text></view>
         <view v-if="showFeedFooter" :style="footerWrap">
           <text :style="footerTxt">{{ footerText }}</text>
         </view>
@@ -77,6 +78,7 @@
           <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
         </list-item>
 
+        <list-item v-if="store.errorMessage !== ''"><view @tap="onLoadMore"><text>{{ store.errorMessage }} · 点击重试</text></view></list-item>
         <list-item v-if="showFeedFooter">
           <view :style="footerWrap"><text :style="footerTxt">{{ footerText }}</text></view>
         </list-item>

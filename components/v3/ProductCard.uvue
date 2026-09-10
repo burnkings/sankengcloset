@@ -60,7 +60,7 @@ const imageWrap = computed((): any => ({ position: 'relative', width: '100%', he
 const imageStyle = computed((): any => ({ width: '100%', height: props.imageHeight }))
 const imageFallbackStyle = computed((): any => ({ width: '100%', height: props.imageHeight, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const fallbackTextStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }))
-const saveButtonStyle = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
+const saveButtonStyle = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }))
 const infoStyle = { paddingTop: '12rpx' }
 const brandRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', marginTop: '8rpx' }))
 const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textSecondary, flexShrink: 1 }))

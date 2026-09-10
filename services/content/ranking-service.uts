@@ -1,6 +1,7 @@
+import { isLocalMockSession } from '@/config/runtime'
 /**
  * ranking-service — 三坑榜单数据
- * 远端优先使用 GET /api/v1/ranking；无数据/不可达时回退统一演示目录。
+ * 真实模式使用 GET /api/v1/ranking；仅显式模拟登录使用演示目录。
  */
 import { RankingItem } from '@/domain/ranking/ranking-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
@@ -17,7 +18,7 @@ function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
   const category = raw['category'] != null ? raw['category'] as string : ''
   item.category = category == 'LOLITA' ? 'Lolita' : category == 'HANFU' ? '汉服' : category
   item.favoriteCount = raw['favoriteCount'] != null ? raw['favoriteCount'] as number : 0
-  item.favoriteGrowth = raw['favoriteGrowth'] != null ? raw['favoriteGrowth'] as number : item.favoriteCount
+  item.favoriteGrowth = raw['favoriteGrowth'] != null ? raw['favoriteGrowth'] as number : 0
   item.releaseTypeName = raw['releaseTypeName'] != null ? raw['releaseTypeName'] as string : ''
   item.daysAgo = raw['daysAgo'] != null ? raw['daysAgo'] as number : 0
   item.reservationCount = raw['reservationCount'] != null ? raw['reservationCount'] as number : 0
@@ -25,16 +26,10 @@ function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
 }
 
 export async function fetchRankingRemote(tab: string): Promise<RankingItem[]> {
-  try {
-    const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab === 'favorite' ? 'hot' : tab))
-    const raw = response.data as any[] | null
-    const result: RankingItem[] = []
-    if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapRemoteRanking(raw[i] as UTSJSONObject))
-    if (result.length > 0) {
-      if (tab === 'favorite') result.sort((a, b) => b.favoriteCount - a.favoriteCount)
-      for (let i = 0; i < result.length; i++) result[i].rank = i + 1
-      return result
-    }
-  } catch (e) {}
-  return listMockRanking(tab)
+  if (isLocalMockSession()) return listMockRanking(tab)
+  const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab))
+  const raw = response.data as any[] | null
+  const result: RankingItem[] = []
+  if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapRemoteRanking(raw[i] as UTSJSONObject))
+  return result
 }

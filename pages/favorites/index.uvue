@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="uts">
+import { openProductDetail } from '@/utils/content-navigation'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { showFeedback } from '@/utils/feedback'
 import { FeedItem } from '@/domain/content/feed-item'
@@ -143,7 +144,7 @@ const blacklist = useBlacklistStore()
 
 const likedLooks = computed(() => library.publicPosts.filter((post) => library.isPostLiked(post.id) && !blacklist.isBlacklisted(post.authorNickname)))
 function openLook(id: string) { uni.navigateTo({ url: `/pages/community/detail?id=${id}` }) }
-function openLookProduct(id: string) { if (id !== '') uni.navigateTo({ url: `/pages/product/detail?id=${id}` }) }
+function openLookProduct(id: string) { if (id !== '') openProductDetail(id) }
 function unlikeLook(id: string) { library.togglePostLike(id) }
 
 // 返回顶部：lastScrollTop 仅回顶用，非响应式，避免滚动每帧触发重渲染
@@ -189,7 +190,7 @@ function saleStatusColor(item: FeedItem): string {
   return getSaleStatusChipStatus(item.saleStatus)
 }
 function goDiscover() { openPrimaryTab('/pages/discover/index') }
-function openProduct(item: FeedItem) { uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` }) }
+function openProduct(item: FeedItem) { openProductDetail(item.entityId) }
 function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
 
 // ====== Phase 1.1-C：发售状态 + 一键提醒（Favorite → Release → Reminder）======
@@ -228,11 +229,11 @@ function favoriteReleaseText(item: FeedItem): string {
 /** 提醒按钮文案：已提醒 / 可开启 / 无有效提醒时间 */
 function reminderActionText(item: FeedItem): string {
   const reminders = reminderStore.remindersForProduct(item.entityId)
-  if (reminders.length > 0) return '🔔 已提醒'
+  if (reminders.length > 0) return '已提醒'
   const release = library.favoriteReleaseOf(item.entityId)
   if (release == null) return '开启提醒'
   const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
-  return date !== '' ? '🔔 开启提醒' : '开启提醒'
+  return date !== '' ? '开启提醒' : '开启提醒'
 }
 
 /** 一键开启提醒：无有效 Release 或无有效提醒时间不创建；重复（同 productId+releaseId+type）不创建 */
@@ -262,7 +263,6 @@ function createStatusOption(value: string, label: string): StatusOption {
   return o
 }
 const statusOptions: StatusOption[] = [
-  createStatusOption('WISH', '收藏'),
   createStatusOption('WANT', '想买'),
   createStatusOption('WAIT_RELEASE', '等待开售'),
   createStatusOption('WAIT_PRICE', '等待尾款'),
@@ -294,7 +294,7 @@ function onSelectStatus(status: string) {
 function favoriteStatusLabel(item: FeedItem): string {
   const status = library.favoriteStatusOf(item.entityId)
   const label = FAVORITE_STATUS_LABELS[status]
-  return label != null ? label as string : '已收藏'
+  return status === 'WISH' || status === '' ? '未设置' : (label != null ? label as string : '未设置')
 }
 function statusOptionText(value: string): any {
   const active = statusPickerCurrent.value == value
@@ -318,10 +318,12 @@ const productRight = computed((): FeedItem[] => {
   return right
 })
 async function openBrand(brandName: string) {
+  try {
   const list = await brandStore.fetchBrands()
   const matched = list.find((item) => item.name === brandName)
   const id = matched != null ? matched.id : brandName
   uni.navigateTo({ url: `/pages/brand/detail?id=${encodeURIComponent(id)}&name=${encodeURIComponent(brandName)}` })
+  } catch (e) { showFeedback('品牌加载失败，请重试') }
 }
 function reloadFavorites() { library.refreshFavorites() }
 function clearInvalidFavorites() { library.removeInvalidFavorites(); showFeedback('已清除失效收藏') }

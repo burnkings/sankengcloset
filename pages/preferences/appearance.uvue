@@ -7,7 +7,7 @@
             <text :style="rowLabel">跟随系统</text>
             <text :style="rowSubtitle">开启后根据系统设置同步切换深/浅模式</text>
           </view>
-          <AppSwitch :model-value="isSystemMode" @update:modelValue="onSystemToggle" />
+          <AppSwitch :key="isSystemMode ? 'system-on' : 'system-off'" :model-value="isSystemMode" @update:modelValue="onSystemToggle" />
         </view>
       </ListGroup>
       <view :style="rowGap" />
@@ -17,7 +17,7 @@
             <text :style="rowLabel">深色模式</text>
             <text :style="rowSubtitle">手动开启深色外观</text>
           </view>
-          <AppSwitch :model-value="isDarkMode" @update:modelValue="onDarkToggle" />
+          <AppSwitch :key="isDarkMode ? 'dark-on' : 'dark-off'" :model-value="isDarkMode" @update:modelValue="onDarkToggle" />
         </view>
       </ListGroup>
     </view>
@@ -33,8 +33,8 @@ import { flexRow } from '@/theme/layout/flex'
 import { PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
 import { n, themeMode, setThemeMode, initPageTheme } from '@/theme/use-theme'
 
-const isSystemMode = computed((): boolean => themeMode.value == 'system')
-const isDarkMode = computed((): boolean => themeMode.value == 'dark')
+const isSystemMode = computed((): boolean => n.themeMode == 'system')
+const isDarkMode = computed((): boolean => n.themeMode == 'dark')
 
 function onSystemToggle(on: boolean) {
   if (on) setThemeMode('system')

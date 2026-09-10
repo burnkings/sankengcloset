@@ -8,13 +8,14 @@
     <template #default>
       <view class="page-canvas" :style="contentWrap">
 
-          <FormSection title="基础信息">
+          <FormSection title="提醒标签">
             <view :style="typeRow">
-              <view v-for="t in typeOptions.slice(0, 4)" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
+              <view v-for="t in typeOptions.slice(0, 4)" :key="t.value" :style="typeChip(form.type === t.value)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(form.type === t.value)">{{ t.label }}</text></view>
             </view>
             <view :style="typeRow">
-              <view v-for="t in typeOptions.slice(4)" :key="t.value" :style="typeChip(t)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(t)">{{ t.label }}</text></view>
+              <view v-for="t in typeOptions.slice(4)" :key="t.value" :style="typeChip(form.type === t.value)" @tap="onTypeSelect(t.value)"><text :style="typeChipText(form.type === t.value)">{{ t.label }}</text></view>
             </view>
+            <text :style="optionalHint">补充一句提醒内容（选填）</text>
             <AppInput v-model="form.title" :placeholder="typePlaceholder" :clearable="true" />
           </FormSection>
 
@@ -47,7 +48,7 @@
             </view>
           </FormSection>
 
-          <FormSection title="补充">
+          <FormSection title="备注（选填）">
             <view :style="noteShell">
               <textarea :value="form.note" placeholder="店铺、尺码、尾款金额等备忘" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" />
             </view>
@@ -137,6 +138,10 @@ function openRelatedProduct() {
 }
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { reminderTypeFromContext } from '@/utils/reminder-context'
+import { TYPE_LABELS } from '@/domain/reminder'
+import { canSetBalanceReminder } from '@/utils/purchase-reminder'
+import { usePurchaseStore } from '@/stores/purchase-store'
 import { Reminder, ReminderUpdateData, TYPE_COLORS } from '@/domain/reminder'
 import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -306,16 +311,14 @@ function onTypeSelect(value: string) {
   if (form.value.remindTime === '') form.value.remindTime = getDefaultTime()
 }
 
-function typeChip(t: { label: string; value: string; color: string }): any {
-  const active = form.value.type === t.value
+function typeChip(active: boolean): any {
   return {
     flex: 1 as const, height: '76rpx', alignItems: 'center' as const, justifyContent: 'center' as const,
     borderRadius: '24rpx', backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary,
     marginRight: '12rpx', borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as const, borderColor: n.value.border,
   }
 }
-function typeChipText(t: { label: string; value: string; color: string }): any {
-  const active = form.value.type === t.value
+function typeChipText(active: boolean): any {
   return { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: active ? baseColors.white : n.value.text }
 }
 
@@ -358,8 +361,12 @@ function getWardrobeCat(cat: string): string {
 
 function onSaveTap() {
   if (saving.value) return
-  if (form.value.title.trim() === '') { showFeedback('请填写提醒名称'); return }
+  if (form.value.title.trim() === '') form.value.title = TYPE_LABELS[form.value.type] as string
   if (form.value.remindDate.trim() === '') { showFeedback('请选择提醒日期'); return }
+  if (form.value.type === 'BALANCE' && relatedPurchaseId.value !== '') {
+    const purchase = usePurchaseStore().getPurchaseById(relatedPurchaseId.value)
+    if (!canSetBalanceReminder(purchase)) { showFeedback('订单已结清、取消或不存在，无需尾款提醒'); return }
+  }
   saving.value = true
   if (isEdit.value) {
     const data = new ReminderUpdateData()
@@ -443,7 +450,7 @@ onLoad((options) => {
     }
     form.value.title = options['title'] != null ? safeParam(options['title'] as string) : ''
     const typeRaw = options['type'] != null ? options['type'] as string : ''
-    form.value.type = typeRaw !== '' ? typeRaw : 'CHECKIN'
+    form.value.type = reminderTypeFromContext(typeRaw, options['purchaseId'] != null ? options['purchaseId'] as string : '')
     form.value.remindDate = options['date'] != null ? safeParam(options['date'] as string) : ''
     form.value.note = options['note'] != null ? safeParam(options['note'] as string) : ''
     relatedPurchaseId.value = options['purchaseId'] != null ? options['purchaseId'] as string : ''
@@ -460,6 +467,7 @@ const backBtnStyle = { width: '64rpx', height: '88rpx', alignItems: 'center', ju
 const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const bottomSpacer = { height: '20rpx' }
 
+const optionalHint = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary, marginTop: '8rpx', marginBottom: '12rpx' }))
 const typeRow = { flexDirection: 'row', marginBottom: '12rpx' }
 
 const timeFieldRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }))

@@ -1,3 +1,4 @@
+import { reloadFavorite, refreshRemoteFavorites } from '@/stores/favorite-store'
 /** V2.6 会话 Store：内测阶段默认使用本机 Mock 会话，保留正式微信登录实现。 */
 import { reactive } from 'vue'
 import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
@@ -154,7 +155,8 @@ async function loginWithWechat(): Promise<boolean> {
     if (id === '') throw new Error('无法获取用户标识')
     persistLogin(id, displayName, avatar, SESSION_MODE_WECHAT)
     // 登录成功后冲刷本地待同步队列（离线期间的写操作补上送）
-    flushLocalOperations().catch(() => { /* 队列保留，网络恢复后再同步 */ })
+    reloadFavorite()
+    flushLocalOperations().then(() => refreshRemoteFavorites()).catch(() => { /* 队列保留，网络恢复后再同步 */ })
     return true
   } catch (e) {
     const message = e instanceof Error ? e.message : '登录失败，请重试'

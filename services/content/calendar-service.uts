@@ -1,3 +1,4 @@
+import { isLocalMockSession } from '@/config/runtime'
 /**
  * CalendarService — 发售日历服务
  * GET /api/v1/calendar?month=YYYY-MM&limit=N
@@ -62,7 +63,7 @@ function mapEvent(raw: UTSJSONObject): CalendarEvent {
 export async function fetchCalendarMonth(year: number, month: number): Promise<CalendarEvent[]> {
   const key = `${year}-${String(month).padStart(2, '0')}`
   const result: CalendarEvent[] = []
-  try {
+  if (!isLocalMockSession()) try {
     const response = await apiGet('/api/v1/calendar?month=' + encodeQuery(key))
     const rawItems = response.data
     if (rawItems != null && Array.isArray(rawItems)) {
@@ -71,8 +72,8 @@ export async function fetchCalendarMonth(year: number, month: number): Promise<C
         if (evt.dateKey != '') result.push(evt)
       }
     }
-    if (result.length > 0) return result
-  } catch (e) {}
+    return result
+  } catch (e) { throw e }
   const products = listMockProducts()
   for (let i = 0; i < products.length && i < 5; i++) {
     const p = products[i]

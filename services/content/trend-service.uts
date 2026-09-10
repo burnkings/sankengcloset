@@ -1,3 +1,4 @@
+import { isLocalMockSession } from '@/config/runtime'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 
 export class TrendTopic {
@@ -33,6 +34,7 @@ function signedPercent(value: number): string {
 }
 
 export async function fetchTrendTopics(period: string = '30d'): Promise<TrendTopic[]> {
+  if (isLocalMockSession()) return fallbackTopics()
   try {
     const response = await apiGet('/api/v1/trends?period=' + encodeQuery(period))
     const data = response.data as UTSJSONObject | null
@@ -67,10 +69,10 @@ export async function fetchTrendTopics(period: string = '30d'): Promise<TrendTop
           result.push(topic)
         }
       }
-      if (result.length > 0) return result
+      return result
     }
   } catch (e) {
-    // 远端不可用时继续展示可交互的演示趋势。
+    throw e
   }
-  return fallbackTopics()
+  return []
 }

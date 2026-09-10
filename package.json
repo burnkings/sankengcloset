@@ -9,7 +9,8 @@
     "check:runtime": "node scripts/check-v24-remote-runtime.js",
     "check:android": "node scripts/check-v25-android-beta.js",
     "check:source": "node scripts/check-source-gates.js",
-    "check": "node scripts/check.js"
+    "check": "node scripts/check.js",
+    "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "@dcloudio/uni-components": "^3.0.0-alpha-5010220260604001",

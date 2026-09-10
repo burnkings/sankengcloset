@@ -1,0 +1,12 @@
+import { PurchaseRecord } from '@/domain/purchase-record'
+export function canSetBalanceReminder(record: PurchaseRecord | null): boolean {
+  if (record == null) return false
+  if (record.paymentStatus === 'COMPLETED' || record.paymentStatus === 'CANCELLED') return false
+  return record.totalAmount > record.paidAmount
+}
+export function balanceReminderUrl(record: PurchaseRecord): string {
+  return '/pages/reminder/edit?type=BALANCE&purchaseId=' + encodeURIComponent(record.id)
+    + '&title=' + encodeURIComponent(record.name + ' 尾款') + '&date=' + encodeURIComponent(record.deadline)
+    + '&productId=' + encodeURIComponent(record.productId) + '&releaseId=' + encodeURIComponent(record.releaseId)
+    + '&wishId=' + encodeURIComponent(record.wishId)
+}
