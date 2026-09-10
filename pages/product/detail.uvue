@@ -1,7 +1,8 @@
 <template>
-  <MainLayout navbar-content-height="0rpx">
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="商品详情" :show-back="true" /></template>
     <template #default>
-      <view v-if="loading" :style="emptyWrap"><FeedSkeleton /></view>
+      <view v-if="loading" :style="emptyWrap"><PageSkeleton variant="detail" /></view>
       <view v-else-if="item !== null">
         <view :style="heroWrap">
           <swiper :style="hero" :circular="detailImages.length > 1" :indicator-dots="false" @change="onGalleryChange">
@@ -9,9 +10,6 @@
               <AppImage :src="imageUrl" width="100%" height="100%" mode="aspectFit" :lazy-load="true" />
             </swiper-item>
           </swiper>
-          <view :style="heroBack" @tap="onBack">
-            <AppIcon name="arrow-back" :size="40" />
-          </view>
           <view v-if="detailImages.length > 1" :style="imageCounter"><text :style="imageCounterText">{{ currentImageIndex + 1 }} / {{ detailImages.length }}</text></view>
         </view>
 
@@ -155,18 +153,19 @@ import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight, v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { calculateWardrobeCompatibility } from '@/services/ai/wardrobe-compatibility-service'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
-import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 
 const itemId = ref('')
@@ -210,12 +209,6 @@ const priceSummaryText = computed((): string => {
   const full = currentRelease.value != null && currentRelease.value!.fullPrice > 0 ? currentRelease.value!.fullPrice : item.value!.fullPriceCents
   return formatPriceSummaryByType(priceType.value, item.value!.price, full, depositCents.value, balanceCents.value)
 })
-/** 现货价格（分）：release 全价 > 商品当前价（FULL 语义），否则 0（无数据显示，不伪造） */
-const spotPriceCents = computed((): number => {
-  if (item.value === null) return 0
-  if (currentRelease.value != null && currentRelease.value!.fullPrice > 0) return currentRelease.value!.fullPrice
-  return priceType.value === PRICE_TYPE_FULL && item.value!.price > 0 ? item.value!.price : 0
-})
 /** 三坑类型展示名 */
 const pitTypeLabel = computed((): string => getPitTypeLabel(pitType.value))
 /** 可选尺码：款式变体提取去重（variants 无数据则不显示尺码模块） */
@@ -258,7 +251,6 @@ function formatMoney(cents: number): string { return formatPrice(cents) }
    const current = detail != null && detail['current'] != null ? detail['current'] as number : 0
    currentImageIndex.value = current
  }
-function onBack() { uni.navigateBack() }
 function previewGallery() {
   if (detailImages.value.length === 0) return
   uni.previewImage({ current: detailImages.value[currentImageIndex.value], urls: detailImages.value })
@@ -337,18 +329,6 @@ function createReminder() {
   uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${date}&note=${encoded(note)}` })
 }
 
-function createPurchase() {
-  if (item.value === null) return
-  const r = currentRelease.value
-  // 金额优先级：批次全价 > 商品当前价（有真实数据才带，不伪造）
-  const priceCents = r != null && r.fullPrice > 0 ? r.fullPrice : item.value!.price
-  const amount = priceCents > 0 ? (priceCents / 100).toString() : ''
-  const category = item.value!.category === 'LOLITA' ? 'LOLITA' : (item.value!.category === 'HANFU' ? 'HANFU' : 'JK')
-  const deadline = r != null && r.balanceDueAt !== '' ? dateOnly(r.balanceDueAt)
-    : (r != null && r.endAt !== '' ? dateOnly(r.endAt) : dateOnly(item.value!.eventEndAt))
-  const releaseId = r != null ? r.id : ''
-  uni.navigateTo({ url: `/pages/purchase/edit?name=${encoded(item.value!.title)}&brand=${encoded(item.value!.brandName)}&amount=${amount}&category=${category}&deadline=${deadline}&productId=${encoded(item.value!.entityId)}&releaseId=${encoded(releaseId)}` })
-}
 
 async function loadDetail() {
   loading.value = true
@@ -406,11 +386,10 @@ async function loadDetail() {
 let unmounted = false
 onUnload(() => { unmounted = true })
 
-onMounted(() => {
-  const pages = getCurrentPages()
-  const current = pages[pages.length - 1]
-  const options = current.options
+onLoad((options) => {
+  initPageTheme()
   itemId.value = options != null && options['id'] != null ? options['id'] as string : ''
+  if (itemId.value === '') { loading.value = false; errorMessage.value = '缺少商品信息'; return }
   loadDetail()
   wardrobe.fetchItems()
 })
@@ -419,14 +398,12 @@ const safeBottom = getSafeBottomInset()
 const pageWrap = { paddingTop: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const heroWrap = computed((): any => ({ width: '750rpx', height: '720rpx', position: 'relative' as string, backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
 const hero = { width: '750rpx', height: '720rpx' }
-const heroBack = { position: 'absolute' as string, left: '32rpx', top: '28rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: baseColors.black, alignItems: 'center', justifyContent: 'center', zIndex: (zIndex.navbar as number) + 1 }
 const imageCounter = { position: 'absolute' as string, right: '30rpx', bottom: '32rpx', minWidth: '84rpx', height: '48rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: baseColors.black }
 const imageCounterText = { fontSize: '22rpx', fontWeight: fontWeight.medium, color: baseColors.white }
 // V3 §6.10 信息区 32rpx 边距；信息卡圆角 20rpx（列表组级）
 const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
 const priceText = { fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: brand.primary }
-const oldPrice = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textDecorationLine: 'line-through', marginLeft: '10rpx', marginBottom: '4rpx' }))
 const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
 const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
 const brandRow = { flexDirection: 'row' as string, alignItems: 'center' }
@@ -476,7 +453,7 @@ const buyerCaption = computed((): any => ({ fontSize: fontSize.xs, color: n.valu
 const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 const actionSpacer = { height: `${upx2px(180) + safeBottom}px`, flexShrink: 0 }
-// 加载/失败使用 V3 FeedSkeleton / PageState
+// 加载/失败使用 V3 PageSkeleton / PageState
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 // V3 §6.10 底部固定：收藏 / 设置提醒 / 前往官方渠道（避开安全区）
 const botBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, height: '160rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '16rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'flex-start', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.border }))

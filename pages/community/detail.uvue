@@ -3,7 +3,7 @@
     <template #navbar><AppNavbar title="穿搭详情" show-back /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view v-if="loading" :style="stateWrap"><FeedSkeleton /></view>
+        <view v-if="loading" :style="stateWrap"><PageSkeleton variant="post" /></view>
         <PageState v-else-if="errorMessage !== ''" icon="info" title="动态加载失败" :message="errorMessage" action-text="重新加载" @action="loadPost" />
         <PostCard v-else-if="post != null" :image="post!.imageUrl" :caption="post!.caption" :author="post!.authorNickname" :avatar-text="post!.initial" :time-text="displayTime" :like-count="post!.likeCount" :liked="library.isPostLiked(post!.id)" :product-id="post!.productId" @tap="previewImage" @toggle-like="toggleLike" @more="reportPost" @product="openProduct" />
         <view v-if="post != null" :style="metaCard">
@@ -27,7 +27,7 @@ import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import PostCard from '@/components/v3/PostCard.uvue'
-import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 
 const library = useContentLibraryStore()

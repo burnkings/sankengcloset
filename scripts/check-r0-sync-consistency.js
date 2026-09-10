@@ -109,7 +109,7 @@ if (!DIST) {
     if (q) {
       check('错误分类器引用 apiErrorStatus', q.includes('apiErrorStatus'), '缺少 api-client 错误状态提取')
       check('重放 401 抛出（刷新已由 Authorized 内部完成）', q.includes('status == 401') && q.includes('throw'), '缺少 401 中止分支')
-      check('中止时保留未处理操作并持久化队列', q.includes('writeIds(remaining)') && q.includes('throw e'), '401 中止未保证队列一致')
+      check('中止时保留未处理操作并持久化队列', q.includes('writeIds([...remaining, ...readIds().filter((id) => ids.indexOf(id) < 0)])') && q.includes('throw e'), '401 中止未保证队列一致')
     }
     const ac = mustRead('apiclient')
     if (ac) {

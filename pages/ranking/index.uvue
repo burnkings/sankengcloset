@@ -20,6 +20,7 @@
         <view :style="listWrap">
           <RankingCard v-for="item in visibleItems" :key="item.entityId" :item="item" :variant="activeTabCode" @tap="openProduct(item)" />
           <PageState v-if="loading" icon="info" title="榜单加载中" message="正在整理近期关注与上新" />
+          <PageState v-else-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadData" />
           <PageState v-else-if="visibleItems.length === 0" icon="info" title="暂无榜单数据" message="筛选条件下暂无内容" action-text="重新加载" @action="reloadData" />
           <view :style="bottomSpacer" />
         </view>
@@ -29,6 +30,7 @@
 </template>
 
 <script setup lang="uts">
+import { openProductDetail } from '@/utils/content-navigation'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import RankingCard from '@/components/v3/RankingCard.uvue'
@@ -46,6 +48,7 @@ const activeTab = ref('热榜')
 const activeCategory = ref('全部')
 const rankingData = ref<RankingItem[]>([])
 const loading = ref(false)
+const errorMessage = ref('')
 
 onLoad((options) => {
   initPageTheme()
@@ -79,11 +82,12 @@ let requestSequence = 0
 async function reloadData() {
   const seq = ++requestSequence
   loading.value = true
+  errorMessage.value = ''
   rankingData.value = []
   try {
     const items = await fetchRankingRemote(activeTabCode.value)
     if (seq === requestSequence) rankingData.value = items
-  } finally { if (seq === requestSequence) loading.value = false }
+  } catch (e) { if (seq === requestSequence) errorMessage.value = '榜单加载失败，请重试' } finally { if (seq === requestSequence) loading.value = false }
 }
 
 const visibleItems = computed((): RankingItem[] => {
@@ -96,7 +100,7 @@ const visibleItems = computed((): RankingItem[] => {
 
 function openProduct(item: RankingItem) {
   if (item.entityId === '') return
-  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+  openProductDetail(item.entityId)
 }
 
 const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }

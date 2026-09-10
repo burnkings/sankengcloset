@@ -4,7 +4,7 @@
       <AppNavbar v-if="!selectMode" title="提醒事项" :show-back="true" />
       <AppNavbar v-else title="选择提醒" :show-back="false">
         <template #left>
-          <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
+          <view style="flex-direction: row; align-items: center;"><view style="width: 64rpx; height: 80rpx; justify-content: center;" @tap="exitSelectMode"><AppIcon name="arrow-back" :size="40" /></view><text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text></view>
         </template>
         <template #right>
           <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
@@ -22,7 +22,7 @@
 
           <FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
-          <FeedSkeleton v-if="store.loading" />
+          <PageSkeleton variant="list" v-if="store.loading && store.itemCount === 0" />
 
           <template v-else-if="store.groupedItems.length === 0">
             <PageState icon="reminder" title="暂无提醒" message="添加提醒，不再错过补款与到货" action-text="新建提醒" @action="goAdd" />
@@ -96,7 +96,7 @@ import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
 import FilterChips from '@/components/v3/FilterChips.uvue'
-import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'

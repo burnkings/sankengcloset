@@ -1,3 +1,4 @@
+import { isLocalMockSession } from '@/config/runtime'
 import { Brand } from '@/domain/content/brand'
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
@@ -47,38 +48,40 @@ export function mapBrandProduct(raw: UTSJSONObject): FeedItem {
 }
 
 export async function listBrands(): Promise<Brand[]> {
-  try {
+  if (!isLocalMockSession()) try {
     const response = await apiGet('/api/v1/brands')
     const raw = response.data as any[]
     const result: Brand[] = []
     if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapBrand(raw[i] as UTSJSONObject))
-    return result.length > 0 ? result : listMockBrands()
+    return result
   } catch (e) {
-    return listMockBrands()
+    throw e
   }
+  return listMockBrands()
 }
 
 export async function fetchBrandDetail(id: string): Promise<Brand | null> {
   if (id === '') return null
-  try {
+  if (!isLocalMockSession()) try {
     const response = await apiGet('/api/v1/brands/' + encodeQuery(id))
-    if (response.data == null) return findMockBrand(id)
+    if (response.data == null) return null
     return mapBrand(response.data as UTSJSONObject)
   } catch (e) {
-    return findMockBrand(id)
+    throw e
   }
+  return findMockBrand(id)
 }
 
 export async function listBrandProducts(brandId: string): Promise<FeedItem[]> {
   if (brandId === '') return []
-  try {
+  if (!isLocalMockSession()) try {
     const response = await apiGet('/api/v1/brands/' + encodeQuery(brandId) + '/products')
     const raw = response.data as any[]
     const result: FeedItem[] = []
     if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapBrandProduct(raw[i] as UTSJSONObject))
-    if (result.length > 0) return result
+    return result
   } catch (e) {
-    // fallback below
+    throw e
   }
   const rows = listMockProducts()
   const result: FeedItem[] = []

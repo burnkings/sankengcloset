@@ -1,0 +1,19 @@
+import { isLocalMockSession } from '@/config/runtime'
+export function readString(key: string): string {
+  try {
+    const value = uni.getStorageSync(isLocalMockSession() ? 'demo_' + key : key)
+    return value == null ? '' : value as string
+  } catch (e) {
+    return ''
+  }
+}
+
+export function readList(key: string): string[] {
+  const raw = readString(key)
+  if (raw === '') return []
+  return raw.split(',').filter((item) => item !== '')
+}
+
+export function writeList(key: string, values: string[]) {
+  uni.setStorageSync(isLocalMockSession() ? 'demo_' + key : key, values.join(','))
+}

@@ -1,0 +1,82 @@
+import { reactive } from 'vue'
+import { enqueueLocalOperation, getCurrentSyncUserId, readPendingOperations } from '@/services/sync/local-sync-queue'
+import { SyncOperation } from '@/domain/sync/sync-operation'
+import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
+
+import { followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote } from '@/services/user-data/user-data-service'
+
+import { readList, writeList } from '@/stores/content-storage'
+
+const FOLLOWED_BRANDS_KEY = 'v2_library_followed_brands'
+type State = {
+  followedBrands: string[]
+}
+export const brandState = reactive<State>({
+  followedBrands: [] as string[],
+})
+
+export function followedBrandCount(): number { return brandState.followedBrands.length }
+
+export function isFollowingBrand(brandName: string): boolean {
+  return brandState.followedBrands.indexOf(brandName) >= 0
+}
+
+export function toggleBrandFollow(brandName: string): boolean {
+  if (brandName === '') return false
+  const values = [...brandState.followedBrands]
+  const idx = values.indexOf(brandName)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(brandName)
+  brandState.followedBrands = values
+  writeList(FOLLOWED_BRANDS_KEY, values)
+  if (isLocalMockSession()) return idx < 0
+  // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
+  if (getCachedAccessToken() != '') {
+    const following = idx < 0
+    const remote = following ? followBrandRemote(brandName) : unfollowBrandRemote(brandName)
+    remote.catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
+    })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
+  }
+  return idx < 0
+}
+
+export async function refreshRemoteBrands(): Promise<void> {
+  if (getCachedAccessToken() == '' || isLocalMockSession()) return
+  try {
+    const remote = await listFollowedBrandsRemote()
+    const pending = readPendingOperations()
+    const localValues = readList(FOLLOWED_BRANDS_KEY)
+    const merged = remote.filter((brand) => !hasPendingBrandFollow(pending, brand) || localValues.indexOf(brand) >= 0)
+    // 本地队列有 pending brand_follow 的品牌：本地优先保留
+    const pendingOps = readPendingOperations()
+    const local = readList(FOLLOWED_BRANDS_KEY)
+    for (let i = 0; i < local.length; i++) {
+      const brand = local[i]
+      if (merged.indexOf(brand) >= 0) continue
+      if (hasPendingBrandFollow(pendingOps, brand)) merged.push(brand)
+    }
+    brandState.followedBrands = merged
+    writeList(FOLLOWED_BRANDS_KEY, merged)
+    } catch (e) {
+    // 离线时保留本地关注列表
+  }
+}
+
+export function hasPendingBrandFollow(ops: SyncOperation[], brandName: string): boolean {
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i].entityType == 'brand_follow' && ops[i].entityId == brandName) return true
+  }
+  return false
+}
+
+export function reloadBrand() {
+  let followed = readList(FOLLOWED_BRANDS_KEY)
+  if (isLocalMockSession() && followed.length === 0) {
+    followed = ['兔缝缝', '月夜花园']
+    writeList(FOLLOWED_BRANDS_KEY, followed)
+  }
+  brandState.followedBrands = followed
+}

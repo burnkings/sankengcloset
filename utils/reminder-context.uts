@@ -1,0 +1,5 @@
+export function reminderTypeFromContext(type: string, purchaseId: string): string {
+  const types = ['ARRIVAL', 'BALANCE', 'RELEASE', 'OUTFIT', 'PHOTO', 'ORGANIZE', 'WISH', 'CHECKIN']
+  if (types.indexOf(type) >= 0) return type
+  return purchaseId !== '' ? 'BALANCE' : 'CHECKIN'
+}

@@ -31,7 +31,7 @@
 
 <script setup lang="uts">
 import AppIcon from '@/components/base/AppIcon.uvue'
-import { brand } from '@/theme/tokens/colors'
+import { brand as brandColors } from '@/theme/tokens/colors'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { n } from '@/theme/use-theme'
 
@@ -67,7 +67,7 @@ const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 600, color: n.value.text, marginTop: '4rpx' }))
 const timeStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '6rpx' }))
 const actionRow = { flexDirection: 'row' as string, marginTop: '16rpx' }
-const primaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: brand.primary, marginRight: '16rpx' }
+const primaryBtn = { flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: brandColors.primary, marginRight: '16rpx' }
 const primaryBtnText = { fontSize: v3TextStyle.body.fontSize, fontWeight: 600, color: '#FFFFFF' }
 const secondaryBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const secondaryBtnText = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text }))

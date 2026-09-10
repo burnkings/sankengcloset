@@ -2,6 +2,7 @@
   <view :style="wrapperStyle">
     <image
       v-if="src !== ''"
+      :key="src"
       :src="src"
       :style="imgStyle"
       :mode="mode"
@@ -24,7 +25,7 @@
 </template>
 
 <script setup lang="uts">
-import { brand, neutralLight } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { semanticRadius } from '@/theme/tokens/radius'
 import { n } from '@/theme/use-theme'
 
@@ -50,6 +51,7 @@ const emit = defineEmits<{
 
 const loaded = ref(false)
 const hasError = ref(false)
+watch(() => props.src, () => { loaded.value = false; hasError.value = false })
 
 const wrapperStyle = computed((): any => ({
   width: props.width,

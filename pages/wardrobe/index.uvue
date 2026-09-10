@@ -12,7 +12,7 @@
             <SummaryStrip :items="summaryItems" />
             <view :style="categoryFilterRow">
               <view v-for="chip in categoryFilterOptions" :key="chip.value" :style="categoryFilterStyle(chip.value)" @tap="onFilter(chip.value)">
-                <text :style="categoryFilterLabel(chip.value)">{{ chip.label }}</text>
+                <text :style="categoryFilterLabel(chip.value)">{{ chip.value === '全部' ? chip.label : chip.label + '（' + chip.count + '件）' }}</text>
               </view>
             </view>
           </view>
@@ -20,11 +20,11 @@
           <view :style="actionRow">
             <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">排序 · {{ sortLabel }}</text></view>
             <view :style="quickFilters">
-              <view :style="quickChip(unwornOnly)" @tap="toggleUnwornOnly"><text :style="quickChipText(unwornOnly)">仅看未穿</text></view>
+              <view :style="quickChip(wearFilter !== '')" @tap="showWearFilter"><text :style="quickChipText(wearFilter !== '')">{{ wearFilterLabel }}</text></view>
             </view>
           </view>
 
-          <FeedSkeleton v-if="store.loading" />
+          <FeedSkeleton v-if="store.loading && store.items.length === 0" />
 
           <template v-else-if="visibleItems.length === 0">
             <PageState icon="wardrobe" :title="hasAnyItems ? '没有匹配的单品' : '衣橱还没有单品'" :message="hasAnyItems ? '试试换个关键词或筛选条件吧' : '记录你的三坑穿搭，打造专属衣橱图鉴'" :action-text="hasAnyItems ? '清除筛选' : '添加第一件单品'" @action="onEmptyAction" />
@@ -103,7 +103,9 @@ import { categoryLabelToCode } from '@/utils/category'
 const store = useWardrobeStore()
 const searchValue = ref('')
 const activeFilter = ref('全部')
-const unwornOnly = ref(false)
+const wearFilter = ref('')
+const wearFilterLabel = computed((): string => wearFilter.value === 'UNWORN' ? '仅看未穿' : wearFilter.value === 'FREQUENT' ? '仅看常穿' : '穿着筛选')
+function showWearFilter() { uni.showActionSheet({ itemList: ['全部穿着状态', '仅看未穿', '仅看常穿'], success: (res) => { wearFilter.value = res.tapIndex === 1 ? 'UNWORN' : res.tapIndex === 2 ? 'FREQUENT' : ''; store.setStatus(wearFilter.value) } }) }
 class CategoryFilterOption {
   label: string = ''
   value: string = ''
@@ -129,7 +131,7 @@ function onEmptyAction() {
   if (!hasAnyItems.value) { goAdd(); return }
   searchValue.value = ''
   activeFilter.value = '全部'
-  unwornOnly.value = false
+  wearFilter.value = ''
   store.setSearch('')
   store.setCategory('')
   store.setStatus('')
@@ -138,10 +140,7 @@ function onFilter(label: string) {
   activeFilter.value = label
   store.setCategory(label === '全部' ? '' : categoryLabelToCode(label))
 }
-function toggleUnwornOnly() {
-  unwornOnly.value = !unwornOnly.value
-  store.setStatus(unwornOnly.value ? 'UNWORN' : '')
-}
+
 const hasAnyItems = computed((): boolean => store.itemCount > 0)
 const visibleItems = computed(() => store.sortedItems)
 // 双列错落瀑布流：按索引奇偶分列，图片高度按 id 哈希 4 档错峰（与首页 feedImageHeight 一致）
@@ -235,12 +234,11 @@ function categoryFilterStyle(value: string): any {
   return { flex: 1, height: '72rpx', alignItems: 'center', justifyContent: 'center', borderRadius: '16rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginRight: value === '汉服' ? '0' : '8rpx' }
 }
 function categoryFilterLabel(value: string): any { return { fontSize: '22rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? brand.primary : n.value.textSecondary } }
-function categoryFilterCount(count: number): any { return { fontSize: '20rpx', color: n.value.textTertiary, marginLeft: '4rpx' } }
 
-const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginTop: '16rpx', marginBottom: '16rpx' }
+const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: '16rpx', marginBottom: '16rpx' }
 const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))
 const sortBtnText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
-const quickFilters = { ...flexRow, flexDirection: 'row' }
+const quickFilters = { ...flexRow, flexDirection: 'row', marginLeft: '12rpx' }
 // V3 §5.7 选中品牌浅底+深字
 function quickChip(active: boolean): any {
   return { height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginLeft: '8rpx', alignItems: 'center', justifyContent: 'center' }

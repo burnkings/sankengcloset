@@ -12,7 +12,7 @@
     <view :style="infoWrap">
       <view :style="titleRow">
         <text :style="titleStyle">{{ item.title }}</text>
-        <text v-if="item.rank === 1" :style="crown">♛</text>
+
       </view>
       <view :style="brandRow">
         <text :style="brandStyle">{{ item.brandName }}</text>
@@ -23,7 +23,7 @@
       <template v-if="variant === 'hot'">
         <view :style="tagRow">
           <view :style="categoryTag"><text :style="categoryTagText">{{ item.category }}</text></view>
-          <text :style="hotText">{{ item.favoriteCount }} 人关注</text>
+          <text :style="hotText">{{ item.favoriteCount }} 人收藏</text>
         </view>
       </template>
 
@@ -40,7 +40,6 @@
         <view :style="tagRow">
           <view :style="releaseTag"><text :style="releaseTagText">{{ item.releaseTypeName }}</text></view>
           <text :style="metaText">{{ item.daysAgo }} 天前上新</text>
-          <text :style="metaText">{{ item.reservationCount }} 人蹲预约</text>
         </view>
       </template>
 
@@ -103,7 +102,6 @@ const imageWrap = computed((): any => ({ width: '120rpx', height: '120rpx', bord
 const infoWrap = { flex: 1 }
 const titleRow = { ...flexRow, alignItems: 'center' }
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis', flex: 1 }))
-const crown = { fontSize: '28rpx', color: '#D4AF37', marginLeft: '8rpx' }
 // 品牌 + 价格同行：品牌左 flex 单行省略，价格右对齐，横向充实
 const brandRow = { ...flexRow, alignItems: 'center', marginTop: '4rpx' }
 const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, flex: 1, lines: 1, textOverflow: 'ellipsis' }))

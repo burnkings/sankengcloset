@@ -3,7 +3,7 @@
     <template #navbar>
       <AppNavbar v-if="!selectMode" title="购买记录" :show-back="true" />
       <AppNavbar v-else title="选择订单" :show-back="false">
-        <template #left><text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text></template>
+        <template #left><view style="flex-direction: row; align-items: center;"><view style="width: 64rpx; height: 80rpx; justify-content: center;" @tap="exitSelect"><AppIcon name="arrow-back" :size="40" /></view><text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text></view></template>
         <template #right><text :style="selectCancelText" @tap="exitSelect">取消</text></template>
       </AppNavbar>
     </template>
@@ -22,7 +22,7 @@
 
           <FilterChips :items="filters" :active="activeFilter" @change="onFilter" />
 
-          <FeedSkeleton v-if="store.loading" />
+          <PageSkeleton variant="list" v-if="store.loading && store.itemCount === 0" />
 
           <template v-else-if="store.displayItems.length === 0">
             <PageState icon="order" title="暂无订单记录" message="录入定金尾款订单，避免逾期" action-text="新增记录" @action="goAdd" />
@@ -87,7 +87,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
 import FilterChips from '@/components/v3/FilterChips.uvue'
 import StatusChip from '@/components/v3/StatusChip.uvue'
-import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'

@@ -1,0 +1,351 @@
+import { reactive } from 'vue'
+import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+
+import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
+
+import { CommunityPostRemote, deleteCommunityPostRemote, listCommunityPostPageRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
+import { useSessionStore } from '@/stores/session-store'
+import { showFeedback } from '@/utils/feedback'
+import { readString, readList, writeList } from '@/stores/content-storage'
+
+export class PublicLookPost {
+  id: string = ''
+  imageUrl: string = ''
+  caption: string = ''
+  category: string = ''
+  topic: string = ''
+  authorUserId: string = ''
+  authorNickname: string = ''
+  likeCount: number = 0
+  liked: boolean = false
+  /** Phase 2.3-A：关联商品 id（空 = 普通内容，卡片不显示商品入口） */
+  productId: string = ''
+  createdAt: string = ''
+  initial: string = ''
+}
+export class SavedOutfitPost {
+  id: string = ''
+  image: string = ''
+  caption: string = ''
+  category: string = ''
+  topic: string = ''
+  productId: string = ''
+  wardrobeIds: string[] = []
+  createdAt: string = ''
+  // true = 远程已发布（listCommunityPostsRemote mine）
+  isRemote: boolean = false
+}
+const LIKED_POST_IDS_KEY = 'v2_library_liked_post_ids'
+const MOCK_POSTS_KEY = 'v26_mock_published_posts'
+type State = {
+  outfitPosts: SavedOutfitPost[]
+  likedPostIds: string[]
+  publicPosts: PublicLookPost[]
+  publicLoading: boolean
+  publicError: string
+  publicLoadedOnce: boolean
+  publicNextCursor: string
+  publicHasMore: boolean
+  publicLoadingMore: boolean
+}
+export const communityState = reactive<State>({
+  outfitPosts: [] as SavedOutfitPost[],
+  likedPostIds: [] as string[],
+  publicPosts: [] as PublicLookPost[],
+  publicLoading: false,
+  publicError: '',
+  publicLoadedOnce: false,
+  publicNextCursor: '',
+  publicHasMore: false,
+  publicLoadingMore: false,
+})
+
+export function readMockPosts(): SavedOutfitPost[] {
+  try {
+    const raw = readString(MOCK_POSTS_KEY)
+    if (raw === '') return []
+    const parsed = JSON.parse(raw) as UTSJSONObject[]
+    const posts: SavedOutfitPost[] = []
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i]
+      if (item == null) continue
+      const p = new SavedOutfitPost()
+      p.id = item['id'] != null ? item['id'] as string : ''
+      p.image = item['image'] != null ? item['image'] as string : ''
+      p.caption = item['caption'] != null ? item['caption'] as string : ''
+      p.category = item['category'] != null ? item['category'] as string : ''
+      p.topic = item['topic'] != null ? item['topic'] as string : ''
+      p.productId = item['productId'] != null ? item['productId'] as string : ''
+      p.wardrobeIds = item['wardrobeIds'] != null ? item['wardrobeIds'] as string[] : []
+      p.createdAt = item['createdAt'] != null ? item['createdAt'] as string : ''
+      p.isRemote = true
+      if (p.id != '') posts.push(p)
+    }
+    return posts
+  } catch (e) {
+    return []
+  }
+}
+
+export function writeMockPosts(posts: SavedOutfitPost[]) {
+  try {
+    const serializable: UTSJSONObject[] = []
+    for (let i = 0; i < posts.length; i++) {
+      serializable.push({
+        id: posts[i].id,
+        image: posts[i].image,
+        caption: posts[i].caption,
+        category: posts[i].category,
+        topic: posts[i].topic,
+        productId: posts[i].productId,
+        wardrobeIds: posts[i].wardrobeIds,
+        createdAt: posts[i].createdAt,
+      } as UTSJSONObject)
+    }
+    uni.setStorageSync(MOCK_POSTS_KEY, JSON.stringify(serializable))
+  } catch (e) {
+    // write failure is non-fatal
+  }
+}
+
+export function mockToPublicLook(post: SavedOutfitPost): PublicLookPost {
+  const p = new PublicLookPost()
+  p.id = post.id
+  p.imageUrl = post.image
+  p.caption = post.caption
+  p.category = post.category
+  p.topic = post.topic
+  const session = useSessionStore()
+  const nickname = session.profile.nickname !== '' ? session.profile.nickname : '我'
+  p.authorNickname = nickname
+  p.initial = nickname.length > 0 ? nickname.substring(0, 1) : '我'
+  p.likeCount = 0
+  p.liked = false
+  p.productId = post.productId
+  p.createdAt = post.createdAt
+  return p
+}
+
+export function remoteToPublicLook(item: CommunityPostRemote): PublicLookPost {
+  const post = new PublicLookPost()
+  post.id = item.id
+  post.imageUrl = item.imageUrl
+  post.caption = item.caption
+  post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : 'JK'
+  post.topic = item.topic
+  post.authorUserId = item.authorUserId
+  post.authorNickname = item.authorNickname !== '' ? item.authorNickname : '同好'
+  post.likeCount = item.likeCount
+  post.liked = item.liked
+  post.productId = item.productId
+  post.createdAt = item.createdAt
+  const nick = post.authorNickname
+  post.initial = nick.length > 0 ? nick.substring(0, 1) : '同'
+  return post
+}
+
+export function outfitCount(): number { return communityState.outfitPosts.length }
+
+export function likedPostCount(): number { return communityState.likedPostIds.length }
+
+export function defaultPublicLooks(): PublicLookPost[] {
+  const rows = [
+    ['mock_look_jk', '/static/demo/outfit-01.png', '通勤也能穿的清爽 JK 搭配', 'JK', '通勤三坑', '小樱', 'prd_jk_navy_45'],
+    ['mock_look_lolita', '/static/demo/outfit-02.png', '月夜茶会搭配记录', 'Lolita', '茶会搭配', '栗子', 'prd_lolita_moon'],
+    ['mock_look_hanfu', '/static/demo/outfit-editorial-01.jpg', '宋制日常穿搭分享', '汉服', '今日穿搭', '云间', 'prd_hanfu_song'],
+  ]
+  const posts: PublicLookPost[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const post = new PublicLookPost()
+    post.id = rows[i][0]
+    post.imageUrl = rows[i][1]
+    post.caption = rows[i][2]
+    post.category = rows[i][3]
+    post.topic = rows[i][4]
+    post.authorUserId = `mock_author_${i}`
+    post.authorNickname = rows[i][5]
+    post.initial = rows[i][5].substring(0, 1)
+    post.productId = rows[i][6]
+    post.likeCount = 12 + i * 9
+    post.createdAt = new Date(Date.now() - (i + 1) * 3600000).toISOString()
+    posts.push(post)
+  }
+  return posts
+}
+
+export async function refreshPublicPosts(): Promise<void> {
+  // 首次加载才显示骨架屏；之后进入静默刷新，避免空数据/重复进入闪 0.5s 骨架屏。
+  if (!communityState.publicLoadedOnce) communityState.publicLoading = true
+  communityState.publicError = ''
+  try {
+    if (isLocalMockSession()) { communityState.publicPosts = defaultPublicLooks(); communityState.publicHasMore = false; communityState.publicNextCursor = ''; return }
+    const remote = await listCommunityPostPageRemote('', '', '', false)
+    const posts: PublicLookPost[] = []
+    for (let i = 0; i < remote.items.length; i++) {
+      const item = remote.items[i]
+      const post = remoteToPublicLook(item)
+      posts.push(post)
+      if (item.liked && communityState.likedPostIds.indexOf(item.id) < 0) communityState.likedPostIds.push(item.id)
+    }
+    communityState.publicPosts = posts
+    communityState.publicNextCursor = remote.nextCursor
+    communityState.publicHasMore = remote.hasMore
+  } catch (e) {
+    communityState.publicError = '动态加载失败，请重试'
+  } finally {
+    // 本机发布动态混入公开 Gallery 顶部；仅按本机帖子 ID 去重，保留统一演示目录帖子。
+    const mock = isLocalMockSession() ? readMockPosts() : [] as SavedOutfitPost[]
+    const mockPublic: PublicLookPost[] = []
+    const localIds: string[] = []
+    for (let i = 0; i < mock.length; i++) { mockPublic.push(mockToPublicLook(mock[i])); localIds.push(mock[i].id) }
+    const remoteOnly = communityState.publicPosts.filter((post) => localIds.indexOf(post.id) < 0)
+    communityState.publicPosts = [...mockPublic, ...remoteOnly]
+    communityState.publicLoading = false
+    communityState.publicLoadedOnce = true
+  }
+}
+
+export async function loadMorePublicPosts(): Promise<void> {
+  if (communityState.publicLoadingMore || !communityState.publicHasMore || communityState.publicNextCursor === '') return
+  communityState.publicLoadingMore = true
+  try {
+    const remote = await listCommunityPostPageRemote(communityState.publicNextCursor, '', '', false)
+    const existing = [...communityState.publicPosts]
+    for (let i = 0; i < remote.items.length; i++) {
+      const item = remote.items[i]
+      if (existing.some((post) => post.id === item.id)) continue
+      existing.push(remoteToPublicLook(item))
+      if (item.liked && communityState.likedPostIds.indexOf(item.id) < 0) communityState.likedPostIds.push(item.id)
+    }
+    communityState.publicPosts = existing
+    communityState.publicNextCursor = remote.nextCursor
+    communityState.publicHasMore = remote.hasMore
+  } catch (e) {
+    showFeedback('加载更多失败，请稍后重试')
+  } finally {
+    communityState.publicLoadingMore = false
+  }
+}
+
+export async function refreshMyPosts(): Promise<void> {
+  const mock = isLocalMockSession() ? readMockPosts() : [] as SavedOutfitPost[]
+  if (getCachedAccessToken() == '') {
+    // 模拟登录：仅展示本地 Mock 已发布动态
+    communityState.outfitPosts = mock
+      return
+  }
+  try {
+    const remote = await listCommunityPostsRemote('', '', '', true)
+    const saved = [] as SavedOutfitPost[]
+    for (let i = 0; i < remote.length; i++) {
+      const item = remote[i]
+      const post = new SavedOutfitPost()
+      post.id = item.id
+      post.image = item.imageUrl
+      post.caption = item.caption
+      post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : item.category
+      post.topic = item.topic
+      post.productId = item.productId
+      post.createdAt = item.createdAt
+      post.isRemote = true
+      saved.push(post)
+      if (item.liked && communityState.likedPostIds.indexOf(item.id) < 0) communityState.likedPostIds.push(item.id)
+    }
+    communityState.outfitPosts = [...saved, ...mock]
+    } catch (e) {
+    // 网络失败保留上次列表，不阻塞社区页
+  }
+}
+
+export async function publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): Promise<boolean> {
+  if (getCachedAccessToken() == '' && !isLocalMockSession()) throw new Error('请先登录')
+  if (isLocalMockSession()) {
+    // 模拟登录（无真实 token）：本地 Mock 发布，写入本地并立即展示
+    const post = new SavedOutfitPost()
+    post.id = `mock_${Date.now()}`
+    post.image = imagePath
+    post.caption = caption
+    post.category = category
+    post.topic = topic
+    post.productId = productId
+    post.wardrobeIds = [...wardrobeIds]
+    post.createdAt = Date.now().toString()
+    post.isRemote = true
+    const posts = readMockPosts()
+    posts.unshift(post)
+    writeMockPosts(posts)
+    communityState.outfitPosts = posts
+    // 混入公开 Gallery 顶部
+    communityState.publicPosts = [mockToPublicLook(post), ...communityState.publicPosts.filter((item) => item.id != post.id)]
+      return true
+  }
+  const mediaId = await uploadOutfitImageRemote(imagePath)
+  const backendCategory = category === '混搭' ? 'MIXED' : (category === 'Lolita' ? 'LOLITA' : (category === '汉服' ? 'HANFU' : 'JK'))
+  const payload = {
+    mediaId,
+    caption,
+    category: backendCategory,
+    topic,
+    wardrobeIds,
+    // Phase 2.3-A：可选商品关联（空串不传 → 后端 productId=null 普通内容）
+    ...(productId !== '' ? { productId } : {}),
+  } as UTSJSONObject
+  await createCommunityPostRemote(payload)
+  reload()
+  return true
+}
+
+export function removeOutfit(id: string) {
+  const liked = [...communityState.likedPostIds]
+  const likedIdx = liked.indexOf(id)
+  if (likedIdx >= 0) {
+    liked.splice(likedIdx, 1)
+    communityState.likedPostIds = liked
+    writeList(LIKED_POST_IDS_KEY, liked)
+  }
+  const mockPosts = readMockPosts()
+  const isMock = mockPosts.some((post) => post.id == id)
+  if (isMock) {
+    // 本地 Mock 帖：直接从本地存储移除
+    writeMockPosts(mockPosts.filter((post) => post.id != id))
+  } else if (getCachedAccessToken() != '') {
+    // 远程帖子直接 DELETE（Authorized），失败才入队由同步队列重放
+    deleteCommunityPostRemote(id).catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'outfit', id, 'delete', '')
+    })
+  }
+  // 直接过滤内存列表（不再全量 reload，避免删除后其余帖子从视图消失）
+  communityState.outfitPosts = communityState.outfitPosts.filter((post) => post.id != id)
+  communityState.publicPosts = communityState.publicPosts.filter((post) => post.id != id)
+}
+
+export function isPostLiked(postId: string): boolean {
+  return communityState.likedPostIds.indexOf(postId) >= 0
+}
+
+export function togglePostLike(postId: string): boolean {
+  if (postId === '') return false
+  const values = [...communityState.likedPostIds]
+  const idx = values.indexOf(postId)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(postId)
+  communityState.likedPostIds = values
+  writeList(LIKED_POST_IDS_KEY, values)
+  if (isLocalMockSession()) return idx < 0
+  // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
+  if (getCachedAccessToken() != '') {
+    const wanted = idx < 0
+    setCommunityPostLikeRemote(postId, wanted).catch(() => {
+      enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
+    })
+  } else {
+    enqueueLocalOperation(getCurrentSyncUserId(), 'post_like', postId, idx < 0 ? 'upsert' : 'delete', '')
+  }
+  return idx < 0
+}
+
+export function reloadCommunity() {
+  communityState.likedPostIds = readList(LIKED_POST_IDS_KEY)
+  // 我的发布：远程帖子由 refreshMyPosts 拉取；本地 Mock 已发布动态从存储恢复
+  communityState.outfitPosts = isLocalMockSession() ? readMockPosts() : [] as SavedOutfitPost[]
+}

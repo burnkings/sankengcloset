@@ -2,7 +2,7 @@
   <view :style="navbarStyle">
     <view :style="statusBarStyle" />
     <view :style="contentStyle">
-      <view :style="leftStyle"><slot name="left"><text v-if="showBack" :style="backStyle" @tap="onBack"><AppIcon name="arrow-back" :size="40" /></text><text v-else :style="brandStyle">三坑绮橱</text></slot></view>
+      <view :style="leftStyle"><slot name="left"><view v-if="showBack" :style="backStyle" @tap="onBack"><AppIcon name="arrow-back" :size="40" /></view><text v-else :style="brandStyle">三坑绮橱</text></slot></view>
       <view :style="centerStyle"><slot><text :style="titleStyle">{{ title }}</text></slot></view>
       <view :style="rightStyle"><slot name="right" /></view>
     </view>
@@ -29,8 +29,8 @@ const contentStyle = { height: '88rpx', ...flexRow, alignItems: 'center', paddin
 const leftStyle = computed((): any => ({ flexShrink: 0, ...flexRow, alignItems: 'center', width: props.wideCenter ? '72rpx' : '180rpx' }))
 const centerStyle = { ...flexFill, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
 const rightStyle = computed((): any => ({ flexShrink: 0, ...flexRow, alignItems: 'center', justifyContent: 'flex-end', width: props.wideCenter ? '88rpx' : '180rpx' }))
-const backStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
+const backStyle = computed((): any => ({ width: '80rpx', height: '80rpx', alignItems: 'center', justifyContent: 'center' }))
 const brandStyle = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] as string }
 const titleStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
-function onBack() { emit('back'); uni.navigateBack() }
+function onBack() { emit('back'); uni.navigateBack({ fail: () => { uni.switchTab({ url: '/pages/home/index' }) } }) }
 </script>

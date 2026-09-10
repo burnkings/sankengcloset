@@ -6,7 +6,7 @@
         <view class="page-canvas" :style="pageWrap">
           <view v-if="isAiDraft" :style="aiDraftBanner"><text :style="aiDraftText">这是订单识别草稿：请核对每个金额、日期和商品信息后再保存。</text></view>
 
-          <FormSection title="基本信息">
+          <FormSection>
             <FieldLabel label="商品名称" />
             <AppInput v-model="form.name" placeholder="商品名称" :clearable="true" />
 
@@ -18,21 +18,20 @@
               </view>
             </view>
 
-            <FieldLabel label="店铺 / 团长" />
-            <AppInput v-model="form.shopName" placeholder="可选，便于回看订单来源" :clearable="true" />
 
             <FieldLabel label="坑向" />
             <SegmentedControl :items="categoryLabels" :active="activeCategoryLabel" @change="onCategoryChange" />
 
             <FieldLabel label="付款状态" />
-            <scroll-view direction="horizontal" :show-scrollbar="false" :style="statusScroll">
-              <SegmentedControl :items="statusLabels" :active="activeStatusLabel" @change="onStatusChange" />
-            </scroll-view>
+            <view :style="paymentChoices">
+              <view v-for="label in statusLabels" :key="label" :style="paymentChoice(label === activeStatusLabel)" @tap="onStatusChange(label)"><text :style="paymentChoiceText(label === activeStatusLabel)">{{ label }}</text></view>
+            </view>
 
+            <FieldLabel label="总金额（元）" />
+            <AppInput v-model="form.totalAmountStr" placeholder="填写商品总金额" type="digit" />
             <view :style="amountCard">
-              <view :style="amountColumn"><AppInput v-model="form.totalAmountStr" placeholder="总金额" type="digit" /></view>
-              <view :style="amountColumn"><AppInput v-model="form.depositAmountStr" placeholder="定金" type="digit" /></view>
-              <view :style="amountColumnLast"><AppInput v-model="form.paidAmountStr" placeholder="已支付" type="digit" /></view>
+              <view :style="amountColumn"><FieldLabel label="定金（元，选填）" /><AppInput v-model="form.depositAmountStr" placeholder="未付可留空" type="digit" /></view>
+              <view :style="amountColumnLast"><FieldLabel label="已支付（元）" /><AppInput v-model="form.paidAmountStr" placeholder="填写已支付金额" type="digit" /></view>
             </view>
 
             <view :style="twoColumnRow">
@@ -49,7 +48,7 @@
             </view>
           </FormSection>
 
-          <FormSection title="补充">
+          <FormSection title="备注（选填）">
             <view :style="noteShell"><textarea :value="form.note" placeholder="尺码、尾款时间等信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
           </FormSection>
 
@@ -262,7 +261,9 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER
 const bottomSpacer = { height: '40rpx' }
 const aiDraftBanner = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginBottom: '20rpx' }))
 const aiDraftText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '36rpx' }))
-const statusScroll = { marginBottom: '0' }
+const paymentChoices = { flexDirection: 'row', flexWrap: 'wrap' }
+function paymentChoice(active: boolean): any { return { width: '204rpx', minHeight: '76rpx', padding: '12rpx', marginRight: '12rpx', marginBottom: '12rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary } }
+function paymentChoiceText(active: boolean): any { return { fontSize: '26rpx', fontWeight: active ? 600 : 400, color: active ? brand.primary : n.value.textSecondary } }
 const amountCard = { flexDirection: 'row', marginTop: '24rpx' }
 const amountColumn = { flex: 1, marginRight: '12rpx' }
 const amountColumnLast = { flex: 1 }

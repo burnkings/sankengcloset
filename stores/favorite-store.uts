@@ -1,0 +1,349 @@
+import { reactive } from 'vue'
+import { flushLocalOperations, enqueueLocalOperation, getCurrentSyncUserId, readPendingOperations } from '@/services/sync/local-sync-queue'
+import { SyncOperation } from '@/domain/sync/sync-operation'
+import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
+import { FeedItem } from '@/domain/content/feed-item'
+import { ReleaseEvent } from '@/domain/content/release-event'
+import { fetchProductDetail } from '@/services/content/product-service'
+import { listWishlistRemote } from '@/services/user-data/user-data-service'
+
+import { showFeedback } from '@/utils/feedback'
+import { readString, readList, writeList } from '@/stores/content-storage'
+
+export class FavoriteEntry {
+  productId: string = ''
+  itemId: string = ''
+  title: string = ''
+  status: string = 'WISH'
+  /** 用户关注的发售批次（wishlist_items.release_id；历史数据为空时收藏页 fallback product.currentRelease） */
+  releaseId: string = ''
+}
+const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
+const FAVORITE_ENTRIES_KEY = 'v2_library_favorite_entries'
+const WISH_IDS_KEY = 'v2_library_wish_ids'
+export const FAVORITE_STATUS_LABELS = {
+  WISH: '已收藏',
+  WANT: '想买',
+  WATCHING: '观望',
+  WAIT_RELEASE: '等待开售',
+  WAIT_PRICE: '等待尾款',
+  PURCHASED: '已购买',
+}
+let _favoriteRevision = 0
+type State = {
+  favoriteEntries: FavoriteEntry[]
+  favoriteIds: string[]
+  favoriteProducts: FeedItem[]
+  favoriteReleases: ReleaseEvent[]
+  favoritesLoading: boolean
+  favoritesError: string
+  favoritesLoadedOnce: boolean
+  invalidFavoriteIds: string[]
+  wishIds: string[]
+}
+export const favoriteState = reactive<State>({
+  favoriteEntries: [] as FavoriteEntry[],
+  favoriteIds: [] as string[],
+  favoriteProducts: [] as FeedItem[],
+  favoriteReleases: [] as ReleaseEvent[],
+  favoritesLoading: false,
+  favoritesError: '',
+  favoritesLoadedOnce: false,
+  invalidFavoriteIds: [] as string[],
+  wishIds: [] as string[],
+})
+
+export function readEntries(): FavoriteEntry[] {
+  const raw = readString(FAVORITE_ENTRIES_KEY)
+  if (raw === '') {
+    // 迁移旧存量：v2_library_favorite_ids（逗号分隔 ID）→ entries（无 itemId，登录后由远程刷新回填）
+    const legacy = readList(FAVORITE_IDS_KEY)
+    const migrated: FavoriteEntry[] = []
+    for (let i = 0; i < legacy.length; i++) {
+      const entry = new FavoriteEntry()
+      entry.productId = legacy[i]
+      migrated.push(entry)
+    }
+    if (migrated.length > 0) writeEntries(migrated)
+    return migrated
+  }
+  try {
+    const parsed = JSON.parse(raw) as UTSJSONObject[]
+    const entries: FavoriteEntry[] = []
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i]
+      if (item == null) continue
+      const entry = new FavoriteEntry()
+      entry.productId = item['productId'] != null ? item['productId'] as string : ''
+      entry.itemId = item['itemId'] != null ? item['itemId'] as string : ''
+      entry.title = item['title'] != null ? item['title'] as string : ''
+      entry.status = item['status'] != null ? item['status'] as string : 'WISH'
+      entry.releaseId = item['releaseId'] != null ? item['releaseId'] as string : ''
+      if (entry.productId != '') entries.push(entry)
+    }
+    return entries
+  } catch (e) {
+    return []
+  }
+}
+
+export function writeEntries(entries: FavoriteEntry[]) {
+  try {
+    const serializable: UTSJSONObject[] = []
+    for (let i = 0; i < entries.length; i++) {
+      serializable.push({
+        productId: entries[i].productId,
+        itemId: entries[i].itemId,
+        title: entries[i].title,
+        status: entries[i].status,
+        releaseId: entries[i].releaseId,
+      } as UTSJSONObject)
+    }
+    uni.setStorageSync(isLocalMockSession() ? 'demo_' + FAVORITE_ENTRIES_KEY : FAVORITE_ENTRIES_KEY, JSON.stringify(serializable))
+    const ids: string[] = []
+    for (let i = 0; i < entries.length; i++) ids.push(entries[i].productId)
+    writeList(FAVORITE_IDS_KEY, ids)
+  } catch (e) {
+    // write failure is non-fatal
+  }
+}
+
+export function favoriteCount(): number { return favoriteState.favoriteIds.length }
+
+export function wishCount(): number { return favoriteState.wishIds.length }
+
+export function syncFavoriteIds() {
+  const ids: string[] = []
+  const entries = favoriteState.favoriteEntries
+  for (let i = 0; i < entries.length; i++) ids.push(entries[i].productId)
+  favoriteState.favoriteIds = ids
+}
+
+export function isFavorite(entityId: string): boolean {
+  return favoriteState.favoriteIds.indexOf(entityId) >= 0
+}
+
+export function queueFavorite(entityId: string, action: string, payload: string): boolean {
+  if (isLocalMockSession()) return true
+  if (enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, action, payload) === '') {
+    showFeedback('保存失败，请重试')
+    return false
+  }
+  _favoriteRevision += 1
+  flushLocalOperations().then(() => { refreshRemoteFavorites() }).catch(() => {})
+  return true
+}
+
+export function toggleFavorite(entityId: string, title: string = '', releaseId: string = ''): boolean {
+  if (entityId === '') return false
+  const entries = [...favoriteState.favoriteEntries]
+  const found = entries.findIndex((entry) => entry.productId === entityId)
+  if (!queueFavorite(entityId, found >= 0 ? 'delete' : 'upsert', JSON.stringify({ productId: entityId, title, releaseId }))) return found >= 0
+  if (found >= 0) entries.splice(found, 1)
+  else {
+    const entry = new FavoriteEntry()
+    entry.productId = entityId
+    entry.title = title
+    entry.releaseId = releaseId
+    entries.unshift(entry)
+  }
+  favoriteState.favoriteEntries = entries
+  writeEntries(entries)
+  syncFavoriteIds()
+  return found < 0
+}
+
+export function updateFavoriteStatus(entityId: string, status: string): boolean {
+  if (entityId === '') return false
+  const entries = [...favoriteState.favoriteEntries]
+  let found = -1
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].productId == entityId) { found = i; break }
+  }
+  if (found < 0) return false
+  const entry = entries[found]
+  if (entry.status == status) return true
+  if (!queueFavorite(entityId, 'update', JSON.stringify({ productId: entityId, status }))) return false
+  entry.status = status
+  favoriteState.favoriteEntries = entries
+  writeEntries(entries)
+  return true
+}
+
+export function favoriteStatusOf(entityId: string): string {
+  const entries = favoriteState.favoriteEntries
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].productId == entityId) return entries[i].status
+  }
+  return ''
+}
+
+export function favoriteEntryOf(entityId: string): FavoriteEntry | null {
+  const entries = favoriteState.favoriteEntries
+  for (let i = 0; i < entries.length; i++) if (entries[i].productId == entityId) return entries[i]
+  return null
+}
+
+export async function refreshRemoteFavorites(): Promise<void> {
+  if (getCachedAccessToken() == '' || isLocalMockSession()) return
+  const revision = _favoriteRevision
+  const userId = getCurrentSyncUserId()
+  try {
+    const items = await listWishlistRemote()
+    if (revision !== _favoriteRevision || userId !== getCurrentSyncUserId() || isLocalMockSession()) return
+    const serverByProduct = new Map<string, FavoriteEntry>()
+    for (let i = 0; i < items.length; i++) {
+      const raw = items[i]
+      const productId = raw['productId'] != null ? raw['productId'] as string : ''
+      if (productId == '') continue
+      const entry = new FavoriteEntry()
+      entry.productId = productId
+      entry.itemId = raw['id'] != null ? raw['id'] as string : ''
+      entry.title = raw['title'] != null ? raw['title'] as string : ''
+      entry.status = raw['status'] != null ? raw['status'] as string : 'WISH'
+      entry.releaseId = raw['releaseId'] != null ? raw['releaseId'] as string : ''
+      serverByProduct.set(productId, entry)
+    }
+    // 本地尚未同步（itemId 为空）或本地队列仍有 pending favorite 的条目：本地优先保留
+    const pendingOps = readPendingOperations()
+    const localMerged = [] as FavoriteEntry[]
+    const local = favoriteState.favoriteEntries
+    for (let i = 0; i < local.length; i++) {
+      const l = local[i]
+      const serverEntry = serverByProduct.get(l.productId)
+      if (serverEntry != null) {
+        // 服务端已有：采用服务端权威（itemId 精确）
+        if (hasPendingFavorite(pendingOps, l.productId)) { l.itemId = serverEntry!.itemId; localMerged.push(l) }
+        else localMerged.push(serverEntry!)
+      } else if (l.itemId == '' || hasPendingFavorite(pendingOps, l.productId)) {
+        // 服务端无且本地未同步：保留本地（多端冲突保护，防 B 端旧快照覆盖 A 端新收藏）
+        localMerged.push(l)
+      }
+      // 服务端无且本地已标记删除的项不并入
+    }
+    // 服务端独有的条目（本端从未见过）追加
+    for (let i = 0; i < items.length; i++) {
+      const raw = items[i]
+      const productId = raw['productId'] != null ? raw['productId'] as string : ''
+      if (productId == '') continue
+      if (hasPendingFavorite(pendingOps, productId)) continue
+      if (localMerged.some((e) => e.productId == productId)) continue
+      const entry = new FavoriteEntry()
+      entry.productId = productId
+      entry.itemId = raw['id'] != null ? raw['id'] as string : ''
+      entry.title = raw['title'] != null ? raw['title'] as string : ''
+      entry.status = raw['status'] != null ? raw['status'] as string : 'WISH'
+      entry.releaseId = raw['releaseId'] != null ? raw['releaseId'] as string : ''
+      localMerged.push(entry)
+    }
+    favoriteState.favoriteEntries = localMerged
+    writeEntries(localMerged)
+    syncFavoriteIds()
+    } catch (e) {
+    // 离线时保留本地收藏缓存
+  }
+}
+
+export function hasPendingFavorite(ops: SyncOperation[], productId: string): boolean {
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i].userId != getCurrentSyncUserId() && ops[i].userId != 'guest_local') continue
+    if (ops[i].entityType != 'favorite') continue
+    if (ops[i].entityId == productId) return true
+    try {
+      const body = JSON.parse(ops[i].payload) as UTSJSONObject
+      if (body != null && body['productId'] != null && body['productId'] as string == productId) return true
+    } catch (e) {}
+  }
+  return false
+}
+
+export async function refreshFavorites(): Promise<void> {
+  await refreshRemoteFavorites()
+  // 首次加载才显示骨架屏；之后进入静默刷新。
+  if (!favoriteState.favoritesLoadedOnce) favoriteState.favoritesLoading = true
+  favoriteState.favoritesError = ''
+  const products: FeedItem[] = []
+  const releases: ReleaseEvent[] = []
+  const entries = favoriteState.favoriteEntries
+  const invalid: string[] = []
+  for (let i = 0; i < entries.length; i++) {
+    try {
+      const detail = await fetchProductDetail(entries[i].productId, entries[i].releaseId)
+      if (detail != null) {
+        products.push(detail.item)
+        if (detail.currentRelease != null) releases.push(detail.currentRelease)
+      } else invalid.push(entries[i].productId)
+    } catch (e) {
+      // 单条失败不中断整列表：保留本地收藏条目，稍后可整体重试
+      const cached = favoriteState.favoriteProducts.find((item) => item.entityId === entries[i].productId)
+      if (cached != null) products.push(cached!)
+      favoriteState.favoritesError = '部分商品加载失败，请重试'
+    }
+  }
+  favoriteState.favoriteProducts = products
+  favoriteState.favoriteReleases = releases
+  favoriteState.invalidFavoriteIds = invalid
+  if (invalid.length > 0) {
+    favoriteState.favoritesError = `有 ${invalid.length} 个收藏的商品详情加载失败，可清除失效收藏`
+  }
+  favoriteState.favoritesLoading = false
+  favoriteState.favoritesLoadedOnce = true
+}
+
+export function removeInvalidFavorites(): void {
+  const invalid = favoriteState.invalidFavoriteIds
+  if (invalid.length === 0) return
+  for (let i = 0; i < invalid.length; i++) {
+    if (isFavorite(invalid[i])) toggleFavorite(invalid[i])
+  }
+  favoriteState.invalidFavoriteIds = invalid.filter((id) => isFavorite(id))
+  favoriteState.favoritesError = ''
+}
+
+export function favoriteReleaseOf(entityId: string): ReleaseEvent | null {
+  if (entityId === '') return null
+  for (let i = 0; i < favoriteState.favoriteReleases.length; i++) {
+    if (favoriteState.favoriteReleases[i].productId == entityId) return favoriteState.favoriteReleases[i]
+  }
+  return null
+}
+
+export function isWished(entityId: string): boolean {
+  return favoriteState.wishIds.indexOf(entityId) >= 0
+}
+
+export function toggleWish(entityId: string): boolean {
+  if (entityId === '') return false
+  const values = [...favoriteState.wishIds]
+  const idx = values.indexOf(entityId)
+  if (idx >= 0) values.splice(idx, 1)
+  else values.unshift(entityId)
+  favoriteState.wishIds = values
+  writeList(WISH_IDS_KEY, values)
+  enqueueLocalOperation(getCurrentSyncUserId(), 'wish', entityId, idx < 0 ? 'upsert' : 'delete', '')
+  return idx < 0
+}
+
+export function reloadFavorite() {
+  let entries = readEntries()
+  if (isLocalMockSession() && entries.length === 0) {
+    const demoRows = [
+      ['prd_jk_navy_45', '深蓝格裙 45cm', 'WAIT_RELEASE'],
+      ['prd_lolita_moon', '月夜蔷薇 JSK', 'WANT'],
+      ['prd_hanfu_song', '宋制旋裙套装', 'WISH'],
+    ]
+    const seeded: FavoriteEntry[] = []
+    for (let i = 0; i < demoRows.length; i++) {
+      const entry = new FavoriteEntry()
+      entry.productId = demoRows[i][0]
+      entry.title = demoRows[i][1]
+      entry.status = demoRows[i][2]
+      seeded.push(entry)
+    }
+    writeEntries(seeded)
+    entries = seeded
+  }
+  favoriteState.favoriteEntries = entries
+  syncFavoriteIds()
+  favoriteState.wishIds = readList(WISH_IDS_KEY)
+}

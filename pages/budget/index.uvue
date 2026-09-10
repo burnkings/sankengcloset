@@ -23,7 +23,7 @@
         <!-- 月份切换器：可查看任意历史月份 -->
         <view :style="monthBar">
           <view :style="monthArrow" @tap="prevMonth"><text :style="monthArrowText">‹</text></view>
-          <text :style="monthTitle">{{ displayMonth }}</text>
+          <view @tap="showMonthPicker = true"><text :style="monthTitle">{{ displayMonth }}⌄</text></view>
           <view :style="monthArrow" @tap="nextMonth"><text :style="monthArrowText">›</text></view>
         </view>
 
@@ -71,6 +71,7 @@
       </view>
     </template>
   </MainLayout>
+  <MonthPicker v-model:visible="showMonthPicker" :value="monthCursor" @change="onMonthPick" />
 </template>
 
 <script setup lang="uts">
@@ -84,6 +85,7 @@ import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsi
 import { n, initPageTheme } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
+import MonthPicker from '@/components/v3/MonthPicker.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -102,6 +104,8 @@ const budget = useBudgetStore()
 function padMonth(m: number): string { return m < 10 ? '0' + m.toString() : m.toString() }
 const now = new Date()
 const monthCursor = ref(`${now.getFullYear()}-${padMonth(now.getMonth() + 1)}`)
+const showMonthPicker = ref(false)
+function onMonthPick(value: string) { monthCursor.value = value }
 const showBudgetEditor = ref(false)
 const budgetLimitInput = ref('')
 const alertPercent = ref(80)

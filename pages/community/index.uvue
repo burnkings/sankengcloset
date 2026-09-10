@@ -1,7 +1,7 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
     <MainLayout @scrolltolower="loadMorePublic">
-      <template #navbar><PageHeader title="动态" action-text="发布" @action="goCreate" /></template>
+      <template #navbar><PageHeader title="动态" /></template>
       <template #default>
       <view class="page-canvas" :style="pageWrap">
         <view v-if="viewMode === 'mine'" :style="mineTitleWrap">
@@ -25,7 +25,7 @@
 
         <!-- 公开 Gallery：loading / empty / error 三态 -->
         <view v-if="viewMode !== 'mine' && (library.publicLoading || !library.publicLoadedOnce)" :style="stateWrap">
-          <FeedSkeleton />
+          <PageSkeleton variant="post" />
         </view>
         <view v-else-if="viewMode !== 'mine' && library.publicError !== ''" :style="stateWrap">
           <PageState icon="info" title="灵感加载失败" :message="library.publicError" action-text="重新加载" @action="reloadPublic" />
@@ -44,7 +44,7 @@
         <!-- 我的发布 -->
         <view v-if="viewMode === 'mine'">
         <view v-if="visibleUserLooks.length === 0" :style="stateWrap">
-          <PageState icon="camera" title="还没有发布过穿搭" message="点击右上角「发布」，分享你的第一套搭配" action-text="去发布" @action="goCreate" />
+          <PageState icon="camera" title="还没有发布过穿搭" message="点击上方「发布」，分享你的第一套搭配" action-text="去发布" @action="goCreate" />
         </view>
         <view v-if="visibleUserLooks.length > 0" :style="lookGrid">
         <view v-for="look in visibleUserLooks" :key="look.id" :style="lookShell">
@@ -74,7 +74,7 @@ import AppDialog from '@/components/base/AppDialog.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import NoteCard from '@/components/v3/NoteCard.uvue'
 import PostCard from '@/components/v3/PostCard.uvue'
-import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { useContentLibraryStore, SavedOutfitPost, PublicLookPost } from '@/stores/content-library-store'
 import { useCommunityBlacklistStore } from '@/stores/community-blacklist-store'
@@ -194,7 +194,7 @@ const nowTs = ref(Date.now())
 let clockTimer: number | null = null
 function postTime(createdAt: string): string {
   if (createdAt == '') return '刚刚'
-  const timestamp = parseInt(createdAt)
+  const timestamp = /^\d+$/.test(createdAt) ? Number(createdAt) : NaN
   if (isNaN(timestamp)) {
     // ISO 字符串时间
     const t = new Date(createdAt).getTime()
@@ -265,7 +265,7 @@ const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: 
 const composerDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '5rpx' }))
 const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
 const composerButtonText = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
-const filterBar = { ...flexRow, alignItems: 'center', minHeight: '76rpx', marginTop: '16rpx', position: 'relative' as string, zIndex: 20 }
+const filterBar = { ...flexRow, justifyContent: 'flex-end', alignItems: 'center', minHeight: '76rpx', marginTop: '16rpx', position: 'relative' as string, zIndex: 20 }
 const filterSpacer = { ...flexFill }
 const dropdownWrap = { position: 'relative' as string, marginLeft: '12rpx' }
 const dropdownWrapPit = { position: 'relative' as string, marginLeft: '12rpx' }
@@ -277,7 +277,7 @@ const lookGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUT
 const lookShell = { width: PRODUCT_CARD_WIDTH_V3, marginRight: COLUMN_GAP_V3 }
 // 公开 Gallery：单列 PostCard 动态流
 const postList = { paddingLeft: '8rpx', paddingRight: '8rpx' }
-// 三态使用 V3 PageState / FeedSkeleton（无本地样式）
+// 三态使用 V3 PageState / PageSkeleton（无本地样式）
 const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '96rpx', paddingBottom: '96rpx' }
 const loadMoreText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', paddingTop: '22rpx', paddingBottom: '22rpx' }))
 </script>

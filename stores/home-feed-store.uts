@@ -194,6 +194,7 @@ let _requestSeq = 0
 
 // 首屏加载（silent=true 用于下拉刷新，不切 loading 态）
 async function loadFirstPage(silent: boolean = false) {
+  _state.isLoadingMore = false
   const seq = ++_requestSeq
   if (!silent) _state.state = 'loading'
   _state.errorMessage = ''
@@ -220,6 +221,7 @@ async function loadFirstPage(silent: boolean = false) {
 async function loadMore() {
   if (_state.isLoadingMore || !_state.hasMore || _state.state !== 'loaded') return
   const seq = _requestSeq
+  _state.errorMessage = ''
   _state.isLoadingMore = true
   try {
     const page = await fetchFeedPage(_state.nextCursor, _state.currentChannel, '全部', pitTypesToCategories())
@@ -238,9 +240,10 @@ async function loadMore() {
       invalidateBlocksCache()
     }
   } catch (e) {
+    if (seq !== _requestSeq) return
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
   } finally {
-    _state.isLoadingMore = false
+    if (seq === _requestSeq) _state.isLoadingMore = false
     if (seq === _requestSeq) notifyChanged()
   }
 }
