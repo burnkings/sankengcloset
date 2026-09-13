@@ -14,7 +14,7 @@ export function categoryCodeToLabel(code: string): string {
 
 /** 展示 label → code（如 'Lolita' → 'LOLITA'） */
 export function categoryLabelToCode(label: string): string {
-  if (label == 'JK制服') return CATEGORY_LABELS_CLASS.JK
+  if (label == 'JK' || label == 'JK制服') return CATEGORY_LABELS_CLASS.JK
   if (label == 'Lolita') return CATEGORY_LABELS_CLASS.LOLITA
   if (label == '汉服') return CATEGORY_LABELS_CLASS.HANFU
   return CATEGORY_LABELS_CLASS.OTHER

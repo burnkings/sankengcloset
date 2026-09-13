@@ -289,12 +289,12 @@ const uploadDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.
 // V3 §5.7 二级筛选：56rpx 胶囊、选中品牌浅底+深色文字
 const categoryRow = { ...flexRow, flexWrap: 'wrap' as string }
 function categoryChip(idx: number, item: string) { return { height: '56rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: category.value === item ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid', borderColor: category.value === item ? 'transparent' : n.value.border, marginRight: '12rpx', marginBottom: '12rpx' } }
-function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? brand.primary : n.value.textSecondary } }
+function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: category.value === item ? n.value.iconActive : n.value.textSecondary } }
 const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
 function topicChip(idx: number, item: string) { return { height: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value == item ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid', borderColor: topic.value == item ? 'transparent' : n.value.border, marginRight: '12rpx', marginBottom: '12rpx' } }
-function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: topic.value == item ? brand.primary : n.value.textSecondary } }
+function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: topic.value == item ? n.value.iconActive : n.value.textSecondary } }
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角
-const publishButton = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center' }))
+const publishButton = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
 
@@ -310,7 +310,7 @@ const productCardBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.
 const productCardRemoveWrap = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const productPickerWrap = { paddingTop: '8rpx' }
 const productSearchRow = { flexDirection: 'row', alignItems: 'center', marginBottom: '16rpx' }
-const productSearchBtn = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx', flexShrink: 0 }))
+const productSearchBtn = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx', flexShrink: 0 }))
 const productPickerScroll = { maxHeight: '560rpx' }
 const productEmptyWrap = { alignItems: 'center', paddingTop: '48rpx', paddingBottom: '48rpx' }
 const productEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
@@ -327,7 +327,7 @@ const wardrobeLinkTitle = computed((): any => ({ fontSize: fontSize.sm, color: n
 const wardrobeLinkDesc = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 const wardrobeTagsWrap = { flexDirection: 'row', flexWrap: 'wrap' as string, marginTop: '12rpx' }
 const wardrobeTag = computed((): any => ({ flexDirection: 'row', alignItems: 'center', height: '48rpx', paddingLeft: '16rpx', paddingRight: '8rpx', borderRadius: '24rpx', backgroundColor: n.value.surfacePink, marginRight: '8rpx', marginBottom: '8rpx' }))
-const wardrobeTagText = computed((): any => ({ fontSize: fontSize.xs, color: brand.primary }))
+const wardrobeTagText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive }))
 const wardrobeTagRemove = { width: '36rpx', height: '36rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '4rpx' }
 const wardrobePickerScroll = { maxHeight: '560rpx' }
 const wardrobePickerGrid = { flexDirection: 'column' as string }
@@ -337,4 +337,11 @@ const wardrobePickerPlaceholder = computed((): any => ({ width: '72rpx', height:
 const wardrobePickerCopy = { flex: 1, marginLeft: '14rpx', marginRight: '12rpx' }
 const wardrobePickerName = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lines: 1 }))
 const wardrobePickerMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showProductPicker.value) { showProductPicker.value = false; return true }
+  if (showWardrobePicker.value) { showWardrobePicker.value = false; return true }
+  return false
+})
 </script>

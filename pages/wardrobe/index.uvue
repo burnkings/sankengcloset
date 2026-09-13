@@ -1,8 +1,16 @@
 <template>
-  <MainLayout navbar-content-height="192rpx" :scroll-top="scrollTop" @scroll="onPageScroll">
+  <MainLayout :navbar-content-height="selectMode ? '88rpx' : '192rpx'" :scroll-top="scrollTop" :bottom-spacer="fabBottomSpacer" @scroll="onPageScroll">
     <template #navbar>
-      <AppNavbar title="衣橱" :show-back="true" />
-      <view :style="searchBarFixed"><AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" :adjust-position="false" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput></view>
+      <AppNavbar v-if="!selectMode" title="衣橱" :show-back="true" />
+      <AppNavbar v-else title="选择单品" :show-back="false">
+        <template #left>
+          <view style="flex-direction: row; align-items: center;"><view style="width: 64rpx; height: 80rpx; justify-content: center;" @tap="exitSelectMode"><AppIcon name="arrow-back" :size="40" /></view><text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text></view>
+        </template>
+        <template #right>
+          <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
+        </template>
+      </AppNavbar>
+      <view v-if="!selectMode" :style="searchBarFixed"><AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" :adjust-position="false" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput></view>
     </template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
@@ -12,7 +20,7 @@
             <SummaryStrip :items="summaryItems" />
             <view :style="categoryFilterRow">
               <view v-for="chip in categoryFilterOptions" :key="chip.value" :style="categoryFilterStyle(chip.value)" @tap="onFilter(chip.value)">
-                <text :style="categoryFilterLabel(chip.value)">{{ chip.value === '全部' ? chip.label : chip.label + '（' + chip.count + '件）' }}</text>
+                <text :style="categoryFilterLabel(chip.value)">{{ chip.value === '全部' ? chip.label : chip.label + '（' + chip.count + '）' }}</text>
               </view>
             </view>
           </view>
@@ -32,11 +40,12 @@
 
           <view v-else :style="grid">
             <view :style="colLeft">
-              <view v-for="item in leftItems" :key="item.id" :style="card" @tap="openItem(item.id)">
+              <view v-for="item in leftItems" :key="item.id" :style="cardStyle(item.id)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelectMode(item.id)">
                 <view :style="imgWrap(item.id)">
                   <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                  <view :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
-                  <view v-if="item.isFavorite" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
+                  <view v-if="!selectMode" :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
+                  <view v-if="item.isFavorite && !selectMode" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
+                  <view v-if="selectMode" :style="selectCheckWrap"><view :style="selectCheck(selectedIds.indexOf(item.id) >= 0)"><AppIcon v-if="selectedIds.indexOf(item.id) >= 0" name="check" :size="24" /></view></view>
                 </view>
                 <view :style="cardBody">
                   <text :style="cardName">{{ item.name }}</text>
@@ -49,11 +58,12 @@
               </view>
             </view>
             <view :style="colRight">
-              <view v-for="item in rightItems" :key="item.id" :style="card" @tap="openItem(item.id)">
+              <view v-for="item in rightItems" :key="item.id" :style="cardStyle(item.id)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelectMode(item.id)">
                 <view :style="imgWrap(item.id)">
                   <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-                  <view :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
-                  <view v-if="item.isFavorite" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
+                  <view v-if="!selectMode" :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
+                  <view v-if="item.isFavorite && !selectMode" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
+                  <view v-if="selectMode" :style="selectCheckWrap"><view :style="selectCheck(selectedIds.indexOf(item.id) >= 0)"><AppIcon v-if="selectedIds.indexOf(item.id) >= 0" name="check" :size="24" /></view></view>
                 </view>
                 <view :style="cardBody">
                   <text :style="cardName">{{ item.name }}</text>
@@ -66,38 +76,56 @@
               </view>
             </view>
           </view>
-
-          <view :style="bottomSpacer" />
         </view>
     </template>
   </MainLayout>
-  <AppFab @tap="goAdd" />
+
+  <view v-if="selectMode && selectedIds.length > 0" :style="bottomBar">
+    <view :style="deleteButton" @tap="confirmDelete"><text :style="deleteButtonText">删除 ({{ selectedIds.length }})</text></view>
+  </view>
+  <view v-if="selectMode && selectedIds.length === 0" :style="bottomBar">
+    <view :style="deleteDisabled"><text :style="deleteDisabledText">请选择单品</text></view>
+  </view>
+
+  <AppDialog :visible="showDeleteConfirm" title="确认删除" @confirm="batchDelete" @cancel="showDeleteConfirm = false">
+    <text :style="dialogText">确定删除选中的 {{ selectedIds.length }} 件单品吗？</text>
+    <template #actions>
+      <view :style="dialogActions">
+        <view :style="dialogCancelBtn" @tap="showDeleteConfirm = false"><text :style="dialogCancelBtnText">取消</text></view>
+        <view :style="dialogDelBtn" @tap="batchDelete"><text :style="dialogDelBtnText">删除</text></view>
+      </view>
+    </template>
+  </AppDialog>
+
+  <AppFab v-if="!selectMode" @tap="goAdd" />
   <BackToTop :visible="showBackTop" @tap="backToTop" />
 </template>
 
 <script setup lang="uts">
 import { ref, computed, nextTick } from 'vue'
 import { useWardrobeStore, WardrobeDisplayModel } from '@/stores/wardrobe-store'
-import { brand } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
+import { flexRow } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight } from '@/utils/window-info'
 import { upx2px } from '@/utils/window-info'
+import { getFabBottomSpacer } from '@/utils/window-info'
 import { zIndex } from '@/theme/tokens/z-index'
+import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 import SummaryStrip from '@/components/v3/SummaryStrip.uvue'
 import StatusChip from '@/components/v3/StatusChip.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 import BackToTop from '@/components/base/BackToTop.uvue'
-import { showFeedback } from '@/utils/feedback'
 import { categoryLabelToCode } from '@/utils/category'
 
 const store = useWardrobeStore()
@@ -139,6 +167,54 @@ function onEmptyAction() {
 function onFilter(label: string) {
   activeFilter.value = label
   store.setCategory(label === '全部' ? '' : categoryLabelToCode(label))
+}
+
+// ====== 长按多选删除（与提醒/购买记录同一套交互：长按进入选择态 → 勾选 → 底部删除 + 二次确认）======
+const selectMode = ref(false)
+const selectedIds = ref<string[]>([])
+const showDeleteConfirm = ref(false)
+function enterSelectMode(id: string) {
+  selectMode.value = true
+  selectedIds.value = [id]
+}
+function exitSelectMode() {
+  selectMode.value = false
+  selectedIds.value = []
+  showDeleteConfirm.value = false
+}
+function toggleItem(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx >= 0) {
+    const next = [...selectedIds.value]; next.splice(idx, 1); selectedIds.value = next
+  } else {
+    selectedIds.value = [...selectedIds.value, id]
+  }
+}
+function visibleItemIds(): string[] {
+  const items = visibleItems.value
+  const ids: string[] = []
+  for (let i = 0; i < items.length; i++) ids.push(items[i].id)
+  return ids
+}
+function toggleSelectAll() {
+  const allIds = visibleItemIds()
+  if (selectedIds.value.length === allIds.length) selectedIds.value = []
+  else selectedIds.value = allIds
+}
+const selectAllLabel = computed((): string => {
+  const allIds = visibleItemIds()
+  return selectedIds.value.length === allIds.length && selectedIds.value.length > 0 ? '取消全选' : '全选'
+})
+function confirmDelete() {
+  if (selectedIds.value.length === 0) return
+  showDeleteConfirm.value = true
+}
+function batchDelete() {
+  const ids = [...selectedIds.value]
+  for (let i = 0; i < ids.length; i++) store.deleteItem(ids[i])
+  showDeleteConfirm.value = false
+  showFeedback(`已删除 ${ids.length} 件单品`)
+  exitSelectMode()
 }
 
 const hasAnyItems = computed((): boolean => store.itemCount > 0)
@@ -184,6 +260,8 @@ onLoad(() => { nextTick(() => initPageTheme()) })
 // 网络请求 30s TTL：频繁切 tab 不重复拉取
 let lastFetchAt = 0
 onShow(() => {
+  // 回到本页时退出选择态，避免离开后残留勾选
+  exitSelectMode()
   nextTick(() => {
     initPageTheme()
     const now = Date.now()
@@ -192,6 +270,8 @@ onShow(() => {
 })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+// 有 FAB：底部留白按 FAB 实际高度 + 底部安全区换算，避免浮动「+」压住末行卡片
+const fabBottomSpacer = getFabBottomSpacer()
 
 const statusBarH = getStatusBarHeight()
 const searchBarFixed = computed((): any => ({
@@ -223,7 +303,7 @@ const categoryFilterOptions = computed((): CategoryFilterOption[] => {
   const counts = store.categoryCounts
   const list: CategoryFilterOption[] = []
   const all = new CategoryFilterOption(); all.label = '全部'; all.value = '全部'; all.count = store.itemCount; list.push(all)
-  const jk = new CategoryFilterOption(); jk.label = 'JK制服'; jk.value = 'JK制服'; jk.count = counts['JK'] as number; list.push(jk)
+  const jk = new CategoryFilterOption(); jk.label = 'JK'; jk.value = 'JK'; jk.count = counts['JK'] as number; list.push(jk)
   const lol = new CategoryFilterOption(); lol.label = 'Lolita'; lol.value = 'Lolita'; lol.count = counts['LOLITA'] as number; list.push(lol)
   const han = new CategoryFilterOption(); han.label = '汉服'; han.value = '汉服'; han.count = counts['HANFU'] as number; list.push(han)
   return list
@@ -233,7 +313,7 @@ function categoryFilterStyle(value: string): any {
   const active = activeFilter.value === value
   return { flex: 1, height: '72rpx', alignItems: 'center', justifyContent: 'center', borderRadius: '16rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginRight: value === '汉服' ? '0' : '8rpx' }
 }
-function categoryFilterLabel(value: string): any { return { fontSize: '22rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? brand.primary : n.value.textSecondary } }
+function categoryFilterLabel(value: string): any { return { fontSize: '22rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? n.value.iconActive : n.value.textSecondary } }
 
 const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: '16rpx', marginBottom: '16rpx' }
 const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))
@@ -244,15 +324,18 @@ function quickChip(active: boolean): any {
   return { height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginLeft: '8rpx', alignItems: 'center', justifyContent: 'center' }
 }
 function quickChipText(active: boolean): any {
-  return { fontSize: fontSize.xs, fontWeight: active ? 600 : 400, color: active ? brand.primary : n.value.textSecondary }
+  return { fontSize: fontSize.xs, fontWeight: active ? 600 : 400, color: active ? n.value.iconActive : n.value.textSecondary }
 }
-
-const bottomSpacer = { height: '80rpx' }
+// 底部留白由 MainLayout 的 bottom-spacer 统一提供（避免与布局层叠加成双份空白）
 // V3 §6.12 双列错落瀑布流：左右两列独立堆叠，图片高度按 id 哈希错峰（与首页一致）
 const grid = { ...flexRow, flexDirection: 'row', alignItems: 'flex-start' as string, marginTop: '16rpx' }
 const colLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
 const colRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
-const card = computed((): any => ({ borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '28rpx' }))
+// 选择态用玫粉描边把选中卡从图海里提出来
+function cardStyle(id: string): any {
+  const selected = selectMode.value && selectedIds.value.indexOf(id) >= 0
+  return { borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid' as string, borderColor: selected ? (brand[500] as string) : n.value.border, marginBottom: '28rpx' }
+}
 function imgWrap(id: string): any {
   return { width: PRODUCT_CARD_WIDTH_V3, height: wardrobeImageHeight(id), position: 'relative' as string, backgroundColor: n.value.bgSecondary }
 }
@@ -260,11 +343,37 @@ function imgWrap(id: string): any {
 function catBadge(): any {
   return { position: 'absolute', top: '12rpx', left: '12rpx', paddingLeft: '12rpx', paddingRight: '12rpx', height: '36rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }
 }
-const catBadgeText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, color: brand.primary }))
+const catBadgeText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, color: n.value.iconActive }))
 const favBadge = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '40rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
+const selectCheckWrap = computed((): any => ({ position: 'absolute', top: '12rpx', left: '12rpx', width: '88rpx', height: '88rpx', alignItems: 'flex-start', justifyContent: 'flex-start', paddingTop: '6rpx', paddingLeft: '6rpx' }))
+function selectCheck(checked: boolean): any {
+  return { width: '48rpx', height: '48rpx', borderRadius: '24rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.surface, backgroundColor: checked ? (brand[500] as string) : n.value.surface, alignItems: 'center', justifyContent: 'center' }
+}
 const cardBody = { padding: '12rpx 16rpx' }
 const cardName = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const cardBottomRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', marginTop: '6rpx' }
 const cardBrand = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }))
-const cardPrice = { fontSize: '24rpx', fontWeight: fontWeight.medium, color: brand[500] as string, marginLeft: '6rpx', flexShrink: 0 }
+// 管理档金额靠字重与右对齐强语义，不用品牌色（与购买/收藏页统一）
+const cardPrice = computed((): any => ({ fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '6rpx', flexShrink: 0 }))
+
+const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
+const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
+const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
+const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
+const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
+const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
+const dialogDelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center' }))
+const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: semantic.error as string }
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showDeleteConfirm.value) { showDeleteConfirm.value = false; return true }
+  if (selectMode.value) { exitSelectMode(); return true }
+  return false
+})
 </script>

@@ -28,10 +28,13 @@ const props = withDefaults(defineProps<{
   navbarContentHeight?: string
   scrollable?: boolean
   scrollTop?: number
+  /** 内容末尾留白。默认仅呼吸间距；页面有浮动「+」或底部固定栏时自行传入所需高度 */
+  bottomSpacer?: string
 }>(), {
   navbarContentHeight: PAGE_HEADER_HEIGHT,
   scrollable: true,
   scrollTop: 0,
+  bottomSpacer: PAGE_BOTTOM_SAFE_SPACER,
 })
 
 const emit = defineEmits<{ scrolltolower: []; scroll: [scrollTop: number] }>()
@@ -65,5 +68,5 @@ const bodyStyle = computed((): any => ({
 const statusSpacerStyle = { height: `${statusBarHeight}px`, flexShrink: 0 }
 const navbarSpacerStyle = computed((): any => ({ height: props.navbarContentHeight, flexShrink: 0 }))
 
-const safeBottomStyle = computed((): any => ({ height: PAGE_BOTTOM_SAFE_SPACER, flexShrink: 0, backgroundColor: n.value.bg }))
+const safeBottomStyle = computed((): any => ({ height: props.bottomSpacer, flexShrink: 0, backgroundColor: n.value.bg }))
 </script>

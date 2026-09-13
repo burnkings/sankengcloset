@@ -30,6 +30,21 @@
         <AppInput v-model="contact" placeholder="便于我们回访（微信/邮箱）" :clearable="true" />
       </FormSection>
 
+      <FormSection title="我的反馈记录">
+        <template v-if="records.length > 0">
+          <view v-for="r in records" :key="r.id" :style="recordCard">
+            <view :style="recordTop">
+              <text :style="recordType">{{ r.type }}</text>
+              <view :style="recordRemove" @tap.stop="onRemoveRecord(r.id)"><AppIcon name="close" :size="24" /></view>
+            </view>
+            <text :style="recordContent">{{ r.content }}</text>
+            <text :style="recordTime">{{ formatRecordTime(r.createdAt) }}</text>
+          </view>
+          <text :style="recordClear" @tap="onClearRecords">清空记录</text>
+        </template>
+        <text v-else :style="recordEmpty">还没有反馈记录哦，提交后就会留在这里</text>
+      </FormSection>
+
       <view :style="bottomSpacer" />
     </view>
 
@@ -47,14 +62,13 @@ import AppInput from '@/components/base/AppInput.uvue'
 import FormSection from '@/components/v3/FormSection.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 import { FEEDBACK_TYPES, FeedbackRecord } from '@/domain/user/feedback-record'
-import { submitFeedbackRemote } from '@/services/user-data/feedback-service'
+import { submitFeedbackRemote, listLocalFeedback, removeLocalFeedback, clearLocalFeedback } from '@/services/user-data/feedback-service'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_PADDING, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
-import { getSafeBottomInset } from '@/utils/window-info'
 
 const feedbackTypes = FEEDBACK_TYPES
 const activeType = ref('')
@@ -62,8 +76,41 @@ const content = ref('')
 const contact = ref('')
 const images = ref<string[]>([])
 const submitting = ref(false)
+// 本地反馈记录（最新在前）：远端优先提交，无论成败都会在本机留一份，便于用户后续查证
+const records = ref<FeedbackRecord[]>([])
 
 onLoad(() => { initPageTheme() })
+onPageShow(() => { records.value = listLocalFeedback() })
+
+function pad2(v: number): string { return v < 10 ? '0' + v.toString() : v.toString() }
+function formatRecordTime(msText: string): string {
+  const ms = parseInt(msText)
+  if (isNaN(ms)) return ''
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+function onRemoveRecord(id: string) {
+  removeLocalFeedback(id)
+  records.value = listLocalFeedback()
+  showFeedback('已删除该条记录')
+}
+
+function onClearRecords() {
+  if (records.value.length === 0) return
+  uni.showModal({
+    title: '清空反馈记录',
+    content: '只删除本机记录，不影响已提交到服务器的反馈。确定清空吗？',
+    confirmText: '清空',
+    cancelText: '取消',
+    success: (res) => {
+      if (!res.confirm) return
+      clearLocalFeedback()
+      records.value = []
+      showFeedback('记录已清空')
+    },
+  })
+}
 
 function onTypeSelect(t: string) { activeType.value = t }
 
@@ -123,20 +170,20 @@ async function onSubmit() {
 let backTimer: number | null = null
 onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
 
-const safeBottom = getSafeBottomInset()
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
 const typeRow = { ...flexRow, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
 function typeChip(t: string): any {
   const active = activeType.value === t
+  // 选中态统一「浅粉底 + 玫粉字」（V3 §5.7），与收藏 tab / 内容偏好 / 榜单筛选同一套语言
   return {
     height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '32rpx',
-    backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary,
+    backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary,
     alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', marginBottom: '12rpx',
   }
 }
 function typeChipText(t: string): any {
   const active = activeType.value === t
-  return { fontSize: fontSize.sm, fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: active ? baseColors.white : n.value.text }
+  return { fontSize: fontSize.sm, fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: active ? n.value.iconActive : n.value.text }
 }
 const noteShell = computed((): any => ({ backgroundColor: n.value.inputFill, borderRadius: '16rpx', padding: '20rpx' }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '240rpx', fontSize: fontSize.sm, lineHeight: '40rpx', color: n.value.text }))
@@ -146,7 +193,17 @@ const thumbWrap = { width: '180rpx', height: '180rpx', borderRadius: '12rpx', ov
 const removeWrap = { position: 'absolute' as string, top: '6rpx', right: '6rpx', width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }
 const addWrap = computed((): any => ({ width: '180rpx', height: '180rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: '1rpx', borderStyle: 'dashed' as string, borderColor: n.value.border }))
 const addText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
-const bottomSpacer = { height: `${safeBottom + 120}px` }
+// 底部预留 = BottomActionBar 高度（16+88+34=138rpx）略加余量。原 `safeBottom + 120px` 把 rpx 写成了 px。
+const bottomSpacer = { height: '160rpx' }
 const submitButton = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const submitText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+// 我的反馈记录
+const recordCard = computed((): any => ({ padding: '20rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, marginBottom: '12rpx' }))
+const recordTop = { ...flexRow, alignItems: 'center', justifyContent: 'space-between' }
+const recordType = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] as string }))
+const recordRemove = { width: '44rpx', height: '44rpx', alignItems: 'center', justifyContent: 'center' }
+const recordContent = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '34rpx', lines: 3, textOverflow: 'ellipsis' }))
+const recordTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))
+const recordClear = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
+const recordEmpty = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
 </script>

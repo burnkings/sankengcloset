@@ -109,7 +109,7 @@ const priceStyle = computed((): any => ({ fontSize: '30rpx', fontWeight: 600, co
 const tagRow = { ...flexRow, alignItems: 'center', flexWrap: 'wrap' as string, marginTop: '8rpx' }
 const categoryTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
 const categoryTagText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary }))
-const hotText = computed((): any => ({ fontSize: '22rpx', fontWeight: 600, color: brand.primary, marginLeft: '12rpx' }))
+const hotText = computed((): any => ({ fontSize: '22rpx', fontWeight: 600, color: n.value.iconActive, marginLeft: '12rpx' }))
 const releaseTag = computed((): any => ({ height: '36rpx', paddingLeft: '12rpx', paddingRight: '12rpx', borderRadius: '18rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx' }))
 const releaseTagText = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary }))
 const metaText = computed((): any => ({ fontSize: '20rpx', color: n.value.textTertiary, marginLeft: '12rpx' }))

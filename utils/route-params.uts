@@ -1,0 +1,14 @@
+/**
+ * route-params — 路由参数解码（唯一实现）
+ *
+ * 页面跳转时中文/特殊字符普遍经过 encodeURIComponent，onLoad 里需要统一还原。
+ * 只在值包含 % 时解码：避开已解码过的明文；decodeURIComponent 对畸形编码会抛错
+ * （例如单独一个 %、%E4%B8），此处吞掉异常原样返回，避免整个 onLoad 中断。
+ */
+export function safeParam(value: string): string {
+  try {
+    return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value
+  } catch (e) {
+    return value
+  }
+}

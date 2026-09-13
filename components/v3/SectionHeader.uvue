@@ -8,7 +8,6 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
@@ -19,7 +18,7 @@ const emit = defineEmits<{ action: [] }>()
 const rowStyle = computed((): any => ({ ...flexRow, alignItems: 'center', paddingTop: '8rpx', paddingBottom: '8rpx' }))
 const titleStyle = computed((): any => ({ ...flexFill, fontSize: v3TextStyle.sectionTitle.fontSize, lineHeight: v3TextStyle.sectionTitle.lineHeight, fontWeight: v3TextStyle.sectionTitle.fontWeight, color: n.value.text }))
 const actionWrap = { minWidth: '80rpx', alignItems: 'flex-end', justifyContent: 'center', height: '64rpx' }
-const actionTextStyle = { fontSize: v3TextStyle.meta.fontSize, fontWeight: 500, color: brand.primary }
+const actionTextStyle = computed((): any => ({ fontSize: v3TextStyle.meta.fontSize, fontWeight: 500, color: n.value.iconActive }))
 </script>
 
 <style>

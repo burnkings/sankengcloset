@@ -43,3 +43,6 @@ desktop.ini
 *.tmp
 *.bak
 .wechat/
+
+# ====== Agent 工作数据（本地记忆/计划，不进仓库）======
+.workbuddy/

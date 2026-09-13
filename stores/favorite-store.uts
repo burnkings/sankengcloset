@@ -300,6 +300,27 @@ export function removeInvalidFavorites(): void {
   favoriteState.favoritesError = ''
 }
 
+/**
+ * 批量取消收藏（收藏页长按多选删除）。
+ * 逐条走 toggleFavorite（远端 delete + 本地条目移除），并立即把商品/发售缓存里对应项剔除，
+ * 不必等 refreshFavorites 重新逐条拉详情，避免删除后卡片仍留在列表里。
+ * @returns 实际移除的条数
+ */
+export function removeFavorites(ids: string[]): number {
+  let removed = 0
+  for (let i = 0; i < ids.length; i++) {
+    if (!isFavorite(ids[i])) continue
+    toggleFavorite(ids[i])
+    removed += 1
+  }
+  if (removed > 0) {
+    favoriteState.favoriteProducts = favoriteState.favoriteProducts.filter((item) => ids.indexOf(item.entityId) < 0)
+    favoriteState.favoriteReleases = favoriteState.favoriteReleases.filter((item) => ids.indexOf(item.productId) < 0)
+    favoriteState.invalidFavoriteIds = favoriteState.invalidFavoriteIds.filter((id) => ids.indexOf(id) < 0)
+  }
+  return removed
+}
+
 export function favoriteReleaseOf(entityId: string): ReleaseEvent | null {
   if (entityId === '') return null
   for (let i = 0; i < favoriteState.favoriteReleases.length; i++) {

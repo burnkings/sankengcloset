@@ -280,4 +280,11 @@ const postList = { paddingLeft: '8rpx', paddingRight: '8rpx' }
 // 三态使用 V3 PageState / PageSkeleton（无本地样式）
 const stateWrap = { alignItems: 'center', justifyContent: 'center', paddingTop: '96rpx', paddingBottom: '96rpx' }
 const loadMoreText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', paddingTop: '22rpx', paddingBottom: '22rpx' }))
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showReportDialog.value) { showReportDialog.value = false; return true }
+  if (showBlacklistDialog.value) { showBlacklistDialog.value = false; return true }
+  return false
+})
 </script>

@@ -14,7 +14,7 @@ function component(file,props,names) {
  let code=fs.readFileSync(path.join(root,file),'utf8').match(/<script[^>]*>([\s\S]*?)<\/script>/)[1]
  code=stripTypeScriptTypes(code,{mode:'transform'}).replace(/^import .*$/gm,'')
  const events=[],watchers=[]
- const ctx={console,Date,Math,parseInt,isNaN,brand:{primary:'pink'},n:{value:{bgTertiary:'gray',surfacePink:'pink',bgSecondary:'gray',text:'black'}},defineProps:()=>props,withDefaults:p=>p,defineEmits:()=>((...e)=>events.push(e)),ref:value=>({value}),computed:fn=>({get value(){return fn()}}),watch:(read,fn)=>watchers.push(fn)}
+ const ctx={console,Date,Math,parseInt,isNaN,brand:{primary:'pink'},n:{value:{bgTertiary:'gray',surfacePink:'pink',bgSecondary:'gray',text:'black',iconActive:'pink'}},defineProps:()=>props,withDefaults:p=>p,defineEmits:()=>((...e)=>events.push(e)),ref:value=>({value}),computed:fn=>({get value(){return fn()}}),watch:(read,fn)=>watchers.push(fn)}
  const result=vm.runInNewContext(`(function(){${code};return {${names}}})()`,ctx)
  return {...result,events,watchers}
 }

@@ -24,7 +24,7 @@
         <SectionHeader title="我的工具" />
         <view :style="gridRow">
           <view v-for="(item, idx) in gridItems" :key="item.id" :style="gridCard(idx)" @tap="onManageTap(item.id)">
-            <view :style="iconWrap"><AppIcon :name="item.icon" :size="34" :active="true" /></view>
+            <view :style="iconWrap"><AppIcon :name="item.icon" :size="36" /></view>
             <view :style="manageCopy"><text :style="manageLabel">{{ item.label }}</text><text :style="manageValue">{{ item.value }}</text></view>
             <AppIcon name="chevron-right" :size="20" />
           </view>
@@ -32,7 +32,7 @@
 
         <SectionHeader title="内容互动" />
         <view :style="contentCard" @tap="openMyPosts">
-          <view :style="iconWrap"><AppIcon name="camera" :size="34" :active="true" /></view>
+          <view :style="iconWrap"><AppIcon name="camera" :size="36" /></view>
           <view :style="outfitAssetCopy"><text :style="outfitAssetTitle">我的动态</text><text :style="outfitAssetValue">{{ library.outfitCount }} 条发布 · {{ library.likedPostCount }} 条点赞</text></view>
           <AppIcon name="chevron-right" :size="28" />
         </view>
@@ -83,6 +83,7 @@ import { useSessionStore } from '@/stores/session-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
+import { browseHistoryCount } from '@/stores/browse-history-store'
 import { APP_DISPLAY_VERSION } from '@/config/app-version'
 
 const pageHeight = getWindowHeight()
@@ -94,6 +95,12 @@ const session = useSessionStore()
 const preferences = usePreferencesStore()
 const blacklist = useBlacklistStore()
 const blacklistCountText = computed((): string => blacklist.count > 0 ? `${blacklist.count} 个` : '')
+// 浏览足迹数量：onShow 刷新一次即可（纯本地读取，无响应式依赖）
+const historyCountText = ref('')
+function refreshHistoryCount() {
+  const count = browseHistoryCount()
+  historyCountText.value = count > 0 ? count.toString() + ' 条' : ''
+}
 
 const preferenceSummary = computed((): string => {
   const values = preferences.preferences.pitTypes
@@ -135,6 +142,7 @@ function onManageTap(id: string) {
   if (id === 'favorites') openPrimaryTab('/pages/favorites/index')
   if (id === 'orders') goPage('/pages/purchase/index')
   if (id === 'reminders') goPage('/pages/reminder/index')
+  if (id === 'history') goPage('/pages/history/index')
   if (id === 'budget') goPage('/pages/budget/index')
 }
 function onHelpTap() { goPage('/pages/help/index') }
@@ -176,7 +184,7 @@ function reloadProfileData() {
   reminders.fetchItems()
   wardrobe.fetchItems()
 }
-onShow(() => { initPageTheme(); reloadProfileData(); refreshCacheSize() })
+onShow(() => { initPageTheme(); reloadProfileData(); refreshCacheSize(); refreshHistoryCount() })
 
 const bottomSpacer = { height: '48rpx' }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
@@ -209,15 +217,17 @@ const gridItems = computed(() => [
   mkItem('favorites', 'heart', '收藏', library.favoriteCount.toString() + ' 件'),
   mkItem('orders', 'order', '购买记录', purchases.itemCount.toString() + ' 笔'),
   mkItem('reminders', 'reminder', '提醒', reminders.itemCount.toString() + ' 条'),
+  mkItem('history', 'history', '浏览历史', historyCountText.value),
   mkItem('budget', 'budget', '消费日志', formatAmount(purchases.totalSpent)),
 ])
 function formatAmount(cents: number): string { return cents <= 0 ? '¥0' : '¥' + (cents / 100).toFixed(0) }
 
 const GRID_GAP = '16rpx'
-const GRID_WIDTH = '212rpx'
+// 两列：(750 - 32 - 32 - 16) / 2 = 335rpx
+const GRID_WIDTH = '335rpx'
 const gridRow = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string }
 function gridCard(idx: number) {
-  const lastInRow = (idx + 1) % 3 == 0
+  const lastInRow = (idx + 1) % 2 == 0
   return {
     ...flexRow,
     flexDirection: 'row',
@@ -236,7 +246,9 @@ function gridCard(idx: number) {
     marginBottom: GRID_GAP,
   }
 }
-const iconWrap = computed((): any => ({ width: '52rpx', height: '52rpx', borderRadius: '16rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50] as string, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', flexShrink: 0 }))
+// 图标容器统一采用 V3 ListRow（§4.2/§5.5）的规格：56rpx 中性底 + 14rpx 圆角 + 36rpx 中性色图标。
+// 「我的工具 / 内容互动」与「系统设置」三处此前分别是粉底粉图标、灰底灰图标，视觉上像两套图标库。
+const iconWrap = computed((): any => ({ width: '56rpx', height: '56rpx', borderRadius: '14rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', flexShrink: 0 }))
 const manageCopy = { ...flexFill }
 const manageLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const manageValue = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
@@ -247,4 +259,10 @@ const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeigh
 const outfitAssetValue = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showClearCacheDialog.value) { showClearCacheDialog.value = false; return true }
+  return false
+})
 </script>

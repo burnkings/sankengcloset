@@ -24,6 +24,7 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
+import { shareByCopy } from '@/utils/share'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import PostCard from '@/components/v3/PostCard.uvue'
@@ -83,7 +84,12 @@ function toggleLike() {
 function openProduct() { if (post.value != null && post.value!.productId !== '') uni.navigateTo({ url: `/pages/product/detail?id=${post.value!.productId}` }) }
 function reportPost() {
   if (post.value == null) return
-  uni.showActionSheet({ itemList: ['举报不适当内容'], success: async () => {
+  uni.showActionSheet({ itemList: ['分享这条动态', '举报不适当内容'], success: async (res) => {
+    if (res.tapIndex === 0) {
+      const detail = post.value!.authorNickname !== '' ? `作者：${post.value!.authorNickname}` : ''
+      shareByCopy(post.value!.caption !== '' ? post.value!.caption : '穿搭动态', detail)
+      return
+    }
     const ok = await submitCommunityReport(post.value!.id)
     showFeedback(ok ? '举报已记录，我们会尽快处理' : '举报记录失败，请重试')
   } })

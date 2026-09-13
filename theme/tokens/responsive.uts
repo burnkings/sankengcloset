@@ -84,20 +84,22 @@ export const PAGE_HEADER_HEIGHT = '96rpx'
 /** Header baseline to first body content */
 export const PAGE_HEADER_CONTENT_GAP = '24rpx'
 
-// ====== TabBar (rpx) ======
+// ====== 底部导航 ======
+// 底部导航由 pages.json 的原生 TabBar 实现（图标见 static/tabbar/），
+// 高度/图标/字号均由原生控件与 design 稿外置 PNG 决定，前端不需要对应 token。
+// 历史：此处曾有 TAB_BAR_HEIGHT / TAB_BAR_HEIGHT_NUM / TAB_ICON_SIZE / TAB_LABEL_FONT /
+// TAB_BAR_SAFE_BOTTOM 五个「浮岛 TabBar」token，全站零引用且与已上线的原生 TabBar 不符，
+// 并误导了 PAGE_BOTTOM_SAFE_SPACER 的取值，已删除。若日后要做自绘浮岛导航，请连同实现一起新增。
 
-/** 浮岛高度数值（rpx），供需要数值的视口/高度计算使用（如 upx2px） */
-export const TAB_BAR_HEIGHT_NUM = 112
-/** TabBar 浮岛高度（包含 safe area 上方的呼吸间距不算在内；浮岛本身高度） */
-export const TAB_BAR_HEIGHT = '112rpx'
-/** 底部导航图标尺寸 — 放大至 44rpx，五图标视觉等高 */
-export const TAB_ICON_SIZE = '44rpx'
-/** 底部导航标签字号 */
-export const TAB_LABEL_FONT = '20rpx'
-/** 浮岛 + 浮岛底距 safe area 的间隙 + safe area + 32rpx 内容呼吸 */
-export const TAB_BAR_SAFE_BOTTOM = '34rpx'
-/** TabBar + safe area + 56rpx breathing room — 适配浮岛高度 */
-export const PAGE_BOTTOM_SAFE_SPACER = '200rpx'
+/**
+ * 页面可滚动内容底部留白。
+ *
+ * 历史：该值曾为 200rpx，注释是「TabBar + safe area + 56rpx breathing room — 适配浮岛高度」，
+ * 但项目从未实现自绘浮岛 TabBar（TAB_BAR_HEIGHT 等 token 全站零引用），用的是 pages.json 原生 TabBar，
+ * 而原生 TabBar 不覆盖页面窗口（windowHeight 已排除），因此 200rpx 是每个页面末尾约 100px 的纯空白。
+ * 现在只保留内容呼吸间距；需要避让浮动「+」按钮或底部固定栏的页面用 MainLayout 的 bottomSpacer 显式声明。
+ */
+export const PAGE_BOTTOM_SAFE_SPACER = '40rpx'
 
 // ====== 频道栏 (rpx) ======
 

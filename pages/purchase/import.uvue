@@ -1,5 +1,5 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" bottom-spacer="0rpx">
     <template #navbar><AppNavbar title="尾款一键入库" :show-back="true" /></template>
     <template #default>
       <scroll-view :style="scrollStyle">
@@ -50,7 +50,7 @@ import { useSessionStore } from '@/stores/session-store'
 import { useAiImportStore } from '@/stores/ai-import-store'
 import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
+import { flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'

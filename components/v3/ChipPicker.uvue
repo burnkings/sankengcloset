@@ -1,0 +1,66 @@
+<template>
+  <view>
+    <view :style="chipsWrap">
+      <view v-for="item in items" :key="item" :style="chipStyle(item === modelValue)" @tap="onPick(item)">
+        <text :style="chipTextStyle(item === modelValue)">{{ item }}</text>
+      </view>
+      <view :style="chipStyle(customActive)" @tap="onPickCustom">
+        <text :style="chipTextStyle(customActive)">{{ customLabel }}</text>
+      </view>
+    </view>
+    <view v-if="showCustomInput" :style="customWrap">
+      <AppInput :model-value="modelValue" :placeholder="placeholder" @update:modelValue="onInput" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import AppInput from '@/components/base/AppInput.uvue'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { n } from '@/theme/use-theme'
+
+// V3 ChipPicker — 表单字段的 chips 单选（固定词表一点即选，末枚「自定义」展开输入框）。
+// 背景：自由文本手打输入成本高、产生「均码 / free size / F」这类脏数据且无法按字段筛选
+// （见 docs/design/SCREENSHOT-REVIEW-2026-09-13.md 竞品拆解：竞品长处全在输入效率）。
+// 词表与「自定义」互斥：点预设即清空自定义输入，点自定义即从预设退出。
+const props = withDefaults(defineProps<{
+  items?: Array<string>
+  modelValue?: string
+  customLabel?: string
+  placeholder?: string
+}>(), { items: () => [], modelValue: '', customLabel: '自定义', placeholder: '输入内容' })
+
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+
+// 用户点开「自定义」但尚未输入时输入框也要保持展开
+const customTouched = ref(false)
+const isPreset = computed((): boolean => props.items.indexOf(props.modelValue) >= 0)
+const customActive = computed((): boolean => {
+  if (customTouched.value && props.modelValue === '') return true
+  return props.modelValue !== '' && !isPreset.value
+})
+const showCustomInput = computed((): boolean => customActive.value || customTouched.value)
+
+function onPick(item: string) {
+  customTouched.value = false
+  emit('update:modelValue', item)
+}
+function onPickCustom() {
+  customTouched.value = true
+  if (isPreset.value) emit('update:modelValue', '')
+}
+function onInput(value: string) { emit('update:modelValue', value) }
+
+const chipsWrap = computed((): any => ({ ...flexRow, flexDirection: 'row', flexWrap: 'wrap' }))
+function chipStyle(active: boolean): any {
+  return { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '12rpx', backgroundColor: active ? n.value.surfacePink : n.value.surface, borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border }
+}
+function chipTextStyle(active: boolean): any {
+  return { fontSize: fontSize.sm, fontWeight: active ? fontWeight.semibold : fontWeight.regular, color: active ? n.value.iconActive : n.value.textSecondary }
+}
+const customWrap = { marginTop: '4rpx' }
+</script>
+
+<style>
+</style>

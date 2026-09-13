@@ -10,6 +10,7 @@
       <slot />
       <view :style="safeBottomStyle" />
     </scroll-view>
+    <AppFeedbackToast />
   </view>
 </template>
 
@@ -20,6 +21,7 @@ import { flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
 import { getStatusBarHeight, getWindowHeight } from '@/utils/window-info'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppFeedbackToast from '@/components/base/AppFeedbackToast.uvue'
 
 const props = withDefaults(defineProps<{
   title?: string

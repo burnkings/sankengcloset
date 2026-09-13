@@ -7,13 +7,17 @@
 
         <SectionHeader title="榜单排行" action-text="查看全部" @action="openRanking('hot')" />
         <view :style="rankingRow">
-          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><text :style="rankingTitle">热榜</text><text :style="rankingHint">大家在看</text></view>
-          <view :style="rankingCard('new')" @tap="openRanking('new')"><text :style="rankingTitle">上新榜</text><text :style="rankingHint">最近收录</text></view>
-          <view :style="rankingCard('favorite')" @tap="openRanking('favorite')"><text :style="rankingTitle">收藏榜</text><text :style="rankingHint">心动收藏</text></view>
+          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><AppIcon :name="rankingIcon('hot')" :size="40" /><text :style="rankingTitle">热榜</text><text :style="rankingHint">大家在看</text></view>
+          <view :style="rankingCard('new')" @tap="openRanking('new')"><AppIcon :name="rankingIcon('new')" :size="40" /><text :style="rankingTitle">上新榜</text><text :style="rankingHint">最近收录</text></view>
+          <view :style="rankingCard('favorite')" @tap="openRanking('favorite')"><AppIcon :name="rankingIcon('favorite')" :size="40" /><text :style="rankingTitle">收藏榜</text><text :style="rankingHint">心动收藏</text></view>
         </view>
 
-        <SectionHeader v-if="features.length > 0" title="精选专题" />
-        <scroll-view direction="horizontal" :style="featureScroll">
+        <PageSkeleton v-if="feedLoading" variant="list" />
+        <PageState v-else-if="feedError" icon="info" title="内容加载失败" :message="feedStore.errorMessage" action-text="点击重试" @action="onRetry" />
+        <view v-else>
+        <template v-if="features.length > 0">
+        <SectionHeader title="精选专题" />
+        <scroll-view direction="horizontal" :show-scrollbar="false" :style="featureScroll">
           <view :style="featureRow">
             <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="openEditorial(item)">
               <view :style="featureImage"><AppImage :src="item.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
@@ -22,21 +26,24 @@
             <view :style="endPad" />
           </view>
         </scroll-view>
+        </template>
 
         <SectionHeader title="品牌目录" action-text="全部品牌" @action="openBrandDirectory" />
-        <view :style="brandGrid">
+        <view v-if="brands.length === 0" :style="brandEmpty"><text :style="brandEmptyText">还没有收录品牌，稍后再来看看</text></view>
+        <view v-else :style="brandGrid">
           <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="openBrand(item)">
             <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
             <view :style="brandCopy"><text :style="brandName">{{ item.name }}</text><text v-if="item.meta !== ''" :style="brandMeta">{{ item.meta }}</text></view>
             <view :style="followAction(item.name)" @tap.stop="toggleBrand(item.name)"><text :style="followText(item.name)">{{ library.isFollowingBrand(item.name) ? '已关注' : '关注' }}</text></view>
           </view>
         </view>
+        </view>
 
         <SectionHeader title="发售日历" />
         <view :style="calHeader">
-          <view :style="calArrow" @tap="prevMonth"><text :style="calArrowText">‹</text></view>
+          <view :style="calArrow" @tap="prevMonth"><AppIcon name="arrow-back" :size="32" /></view>
           <text :style="calTitle">{{ calYear }}年{{ calMonth }}月</text>
-          <view :style="calArrow" @tap="nextMonth"><text :style="calArrowText">›</text></view>
+          <view :style="calArrow" @tap="nextMonth"><AppIcon name="arrow-right" :size="32" /></view>
         </view>
         <view :style="calWeekRow">
           <text v-for="w in weekLabels" :key="w" :style="calWeekLabel">{{ w }}</text>
@@ -72,10 +79,10 @@
 
 <script setup lang="uts">
 import { openProductDetail } from '@/utils/content-navigation'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, SEARCH_HEIGHT_V3, SEARCH_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
@@ -89,6 +96,8 @@ import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
+import PageState from '@/components/v3/PageState.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 // #ifdef APP
 import { getWindowHeight } from '@/utils/window-info'
@@ -144,6 +153,13 @@ const features = computed((): FeatureItem[] => {
     return f
   })
 })
+// 依赖 Feed 数据的区块必须有首屏骨架 / 失败重试 / 空提示三态（此前品牌区为空时静默留白）
+const feedLoading = computed((): boolean => feedStore.state === 'loading' && feedStore.allItems.length === 0)
+const feedError = computed((): boolean => feedStore.state === 'error')
+function onRetry() { feedStore.loadFirstPage() }
+const brandEmpty = computed((): any => ({ height: '96rpx', alignItems: 'center', justifyContent: 'center' }))
+const brandEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+
 const brands = computed((): BrandItem[] => {
   const result: BrandItem[] = []
   const seen: string[] = []
@@ -245,7 +261,12 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTE
 // 榜单入口双卡（热榜/上新榜，等宽均分 + 24rpx 间距）
 const rankingRow = { ...flexRow, flexDirection: 'row' as string }
 function rankingCard(variant: string): any {
-  return { flex: 1, minHeight: '164rpx', borderRadius: '16rpx', backgroundColor: n.value.surface, padding: '16rpx', alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column' as string, marginRight: variant !== 'favorite' ? '12rpx' : '0' }
+  return { flex: 1, minHeight: '164rpx', borderRadius: '16rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, padding: '16rpx', alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column' as string, marginRight: variant !== 'favorite' ? '12rpx' : '0' }
+}
+function rankingIcon(variant: string): string {
+  if (variant === 'new') return 'shirt'
+  if (variant === 'favorite') return 'heart'
+  return 'sparkles'
 }
 const rankingTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '10rpx' }))
 const rankingHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '6rpx' }))
@@ -258,23 +279,32 @@ const featureTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight:
 const featureDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
 const endPad = { width: '32rpx', flexShrink: 0 }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
-function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
+function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
 const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
 const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
-function followAction(brandName: string) { return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName) ? brand[600] : n.value.bgSecondary, marginLeft: '8rpx' } }
-function followText(brandName: string) { return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName) ? baseColors.white : brand[600] } }
+// 同品牌目录：关注=浅粉底+玫粉字，已关注=中性底+三级字（原实现主次倒置）
+function followAction(brandName: string) {
+  const followed = library.isFollowingBrand(brandName)
+  return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: followed ? n.value.bgSecondary : n.value.surfacePink, marginLeft: '8rpx' }
+}
+function followText(brandName: string) {
+  const followed = library.isFollowingBrand(brandName)
+  return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: followed ? n.value.textTertiary : n.value.iconActive }
+}
 const calHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', height: '80rpx' }
 const calArrow = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center' }
-const calArrowText = computed((): any => ({ fontSize: '40rpx', color: n.value.textSecondary }))
 const calTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const calWeekRow = { ...flexRow }
 const calWeekLabel = computed((): any => ({ width: '98rpx', textAlign: 'center', fontSize: fontSize.xs, color: n.value.textTertiary, paddingTop: '8rpx', paddingBottom: '8rpx' }))
 const calGrid = { ...flexRow, flexWrap: 'wrap' as string }
 const calCell = { width: '98rpx', height: '88rpx', flexDirection: 'column', alignItems: 'center', paddingTop: '8rpx' }
 function calDay(cell: CalendarCell): any {
+  const now = new Date()
+  const isToday = cell.day > 0 && cell.day === now.getDate() && calYear.value === now.getFullYear() && calMonth.value === now.getMonth() + 1
+  if (isToday) return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }
   const hasEvent = cell.events.length > 0
   return { fontSize: fontSize.sm, fontWeight: hasEvent ? fontWeight.semibold : fontWeight.regular, color: hasEvent ? (brand[600] as string) : n.value.text }
 }
@@ -294,4 +324,10 @@ onMounted(() => {
   if (feedStore.state === 'idle' || feedStore.state === 'error') feedStore.loadFirstPage()
 })
 onPageShow(() => { initPageTheme(); library.reload() })
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showDayRelease.value) { showDayRelease.value = false; return true }
+  return false
+})
 </script>

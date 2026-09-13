@@ -45,7 +45,6 @@ export const EventTypeLabels: UTSJSONObject = {
   final_payment: '尾款',
   release: '发售',
   restock: '补货',
-  price_drop: '降价',
 } as UTSJSONObject
 
 export function getEventTypeLabel(eventType: string): string {
@@ -60,7 +59,6 @@ export function getEventTypeColor(eventType: string): string {
   if (eventType === 'final_payment') return brand[500]
   if (eventType === 'release') return semantic.success
   if (eventType === 'restock') return semantic.info
-  if (eventType === 'price_drop') return semantic.error
   return brand[500]
 }
 
@@ -228,11 +226,10 @@ export const PostTypeLabels: UTSJSONObject = {
 
 // ====== Badge 颜色 ======
 
-/** 角标颜色：新品/预售/降价/联名/限定 */
+/** 角标颜色：新品/预售/联名/限定 */
 export function getBadgeColor(badge: string): string {
   if (badge === '新品') return semantic.success
   if (badge === '预售') return accent[500]
-  if (badge === '降价') return semantic.error
   if (badge === '联名') return '#6366F1'
   if (badge === '限定') return semantic.warning
   if (badge === '动态') return brand[500]

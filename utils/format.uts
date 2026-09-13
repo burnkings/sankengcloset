@@ -21,6 +21,18 @@ export function formatCentsYuan(cents: number): string {
   return `¥${(cents / 100).toFixed(2)}`
 }
 
+/**
+ * 汇总/合计金额：分 → ¥xxx（**0 也显示 ¥0**）
+ *
+ * 与 formatPriceCents 的区别是 0 值语义：后者对 ≤0 返回空串，用于商品卡「无价格信息」；
+ * 而「本月已支付」「总投入」这类汇总格子若返回空串，整格变空白，用户会以为没加载出来。
+ * 所有统计/合计场景一律走本函数。
+ */
+export function formatPriceOrZero(cents: number): string {
+  const text = formatPriceCents(cents)
+  return text === '' ? '¥0' : text
+}
+
 /** 相对时间：基于 ISO 字符串（x天前/x天后） */
 export function formatRelativeTime(isoStr: string): string {
   if (isoStr == null || isoStr == '') return ''

@@ -7,7 +7,6 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
 import { n } from '@/theme/use-theme'
 
 // V3 AppSwitch — 开关；整行点击热区由外层负责（V3 §6.25）
@@ -41,7 +40,7 @@ const trackStyle = computed((): any => ({
   width: '88rpx',
   height: '48rpx',
   borderRadius: '24rpx',
-  backgroundColor: props.modelValue ? brand.primary : n.value.bgTertiary,
+  backgroundColor: props.modelValue ? n.value.iconActive : n.value.bgTertiary,
 }))
 
 const thumbStyle = computed((): any => ({

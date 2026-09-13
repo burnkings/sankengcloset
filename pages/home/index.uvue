@@ -17,7 +17,7 @@
         </view>
         <view :style="wordmarkSearchSpacer" />
         <!-- Layer 2: Search -->
-        <view class="nav-canvas" :style="layer2Wrap">
+        <view :style="layer2Wrap">
           <view :style="searchBox" @tap="onSearch">
             <AppIcon name="search" :size="36" />
             <text :style="searchPlaceholder">搜索商品、品牌或风格</text>
@@ -41,7 +41,7 @@
         </view>
 
           <view v-for="block in store.masonryBlocks" :key="blockKey(block)">
-            <view v-if="block.type === 'columns'" class="feed-pair-row" :style="waterfallRow">
+            <view v-if="block.type === 'columns'" :style="waterfallRow">
               <view :style="masonryColLeft">
                 <FeedColumn :items="block.left" @tap="onTap" @toggle-save="onToggleSave" />
               </view>
@@ -52,7 +52,7 @@
           <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
         </view>
 
-        <view v-if="store.errorMessage !== ''" @tap="onLoadMore"><text>{{ store.errorMessage }} · 点击重试</text></view>
+        <view v-if="store.errorMessage !== ''" :style="loadErrorRow" @tap="onLoadMore"><text :style="loadErrorText">{{ store.errorMessage }} · 点击重试</text></view>
         <view v-if="showFeedFooter" :style="footerWrap">
           <text :style="footerTxt">{{ footerText }}</text>
         </view>
@@ -67,7 +67,7 @@
       <!-- 双列错落瀑布流：商品/穿搭归入左右两列（可变图片高度），发售/编辑专题全宽 -->
       <list-view v-else :style="listViewStyle" refresher-enabled :refresher-triggered="isRefreshing" @refresherrefresh="onRefresh" :scroll-top="scrollTop" @scroll="onPageScroll" @scrolltolower="onLoadMore">
         <list-item v-for="block in store.masonryBlocks" :key="blockKey(block)">
-          <view v-if="block.type === 'columns'" class="feed-pair-row" :style="waterfallRow">
+          <view v-if="block.type === 'columns'" :style="waterfallRow">
             <view :style="masonryColLeft">
               <FeedColumn :items="block.left" @tap="onTap" @toggle-save="onToggleSave" />
             </view>
@@ -78,7 +78,7 @@
           <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
         </list-item>
 
-        <list-item v-if="store.errorMessage !== ''"><view @tap="onLoadMore"><text>{{ store.errorMessage }} · 点击重试</text></view></list-item>
+        <list-item v-if="store.errorMessage !== ''"><view :style="loadErrorRow" @tap="onLoadMore"><text :style="loadErrorText">{{ store.errorMessage }} · 点击重试</text></view></list-item>
         <list-item v-if="showFeedFooter">
           <view :style="footerWrap"><text :style="footerTxt">{{ footerText }}</text></view>
         </list-item>
@@ -96,7 +96,7 @@ import { useHomeFeedStore, CHANNELS, MasonryBlock } from '@/stores/home-feed-sto
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
-import { brand } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow, flexCenter } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
@@ -234,7 +234,7 @@ const layer1 = {
   paddingRight: PAGE_GUTTER_V3,
 }
 const brandText = computed((): any => ({
-  fontSize: v3TextStyle.pageTitle.fontSize, fontWeight: v3TextStyle.pageTitle.fontWeight, color: brand.primary,
+  fontSize: v3TextStyle.pageTitle.fontSize, fontWeight: v3TextStyle.pageTitle.fontWeight, color: n.value.iconActive,
 }))
 const capsuleSpacer = { width: `${capsuleW}px` }
 const navActions = { ...flexRow, alignItems: 'center' }
@@ -242,7 +242,7 @@ const noticeButton = computed((): any => ({ width: '64rpx', height: '64rpx', bor
 const noticeDot = { position: 'absolute', top: '8rpx', right: '8rpx', width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[600] }
 
 const wordmarkSearchSpacer = { height: '16rpx' }
-const layer2Wrap = {}
+const layer2Wrap = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const searchBox = computed((): any => ({
   height: SEARCH_HEIGHT_V3, borderRadius: SEARCH_RADIUS_V3,
   backgroundColor: n.value.inputFill,
@@ -260,23 +260,14 @@ const listViewStyle = computed((): any => ({ width: '750rpx', flex: 1, minHeight
 const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: '48rpx' }
 
 // 双列错落瀑布流：左右两列独立纵向堆叠（V3 §3.3：16+353+12+353+16=750）
-const waterfallRow = { ...flexRow, alignItems: 'flex-start' as string }
+const waterfallRow = { ...flexRow, alignItems: 'flex-start' as string, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const masonryColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: CARD_PAIR_GAP, marginTop: CARD_V_GAP }
 const masonryColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginTop: CARD_V_GAP }
 
 // Footer
+// 加载更多失败：错误行本身即"点击重试"，必须有语义色与 >=88rpx 热区（此前是裸 text，无样式）
+const loadErrorRow = computed((): any => ({ height: '88rpx', alignItems: 'center', justifyContent: 'center', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }))
+const loadErrorText = computed((): any => ({ fontSize: v3TextStyle.meta.fontSize, color: semantic.error as string }))
 const footerWrap = { ...flexCenter, paddingTop: '32rpx', paddingBottom: PAGE_BOTTOM_SAFE_SPACER }
 const footerTxt = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 </script>
-
-<style>
-.nav-canvas {
-  padding-left: 32rpx;
-  padding-right: 32rpx;
-}
-
-.feed-pair-row {
-  padding-left: 32rpx;
-  padding-right: 32rpx;
-}
-</style>

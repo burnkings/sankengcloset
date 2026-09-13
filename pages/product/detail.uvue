@@ -1,5 +1,5 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" bottom-spacer="0rpx">
     <template #navbar><AppNavbar title="商品详情" :show-back="true" /></template>
     <template #default>
       <view v-if="loading" :style="emptyWrap"><PageSkeleton variant="detail" /></view>
@@ -44,10 +44,6 @@
               <text v-if="compatibility.matchedItems.length > 0" :style="compatibilityMatches">可优先试搭：{{ compatibilityNames }}</text>
             </view>
           </view>
-          <template v-if="description !== ''">
-            <SectionHeader title="商品简介" />
-            <view :style="detailCard"><text :style="detailText">{{ description }}</text></view>
-          </template>
           <template v-if="release !== null">
             <SectionHeader title="发售信息" />
             <view :style="releaseCard">
@@ -88,7 +84,7 @@
                 <text :style="sameStyleName">{{ sameStyle!.canonicalName }}</text>
                 <text :style="sameStyleBrand">{{ sameStyle!.brandName }}</text>
               </view>
-              <scroll-view scroll-x :show-scrollbar="false" :style="sameStyleScroll">
+              <scroll-view direction="horizontal" :show-scrollbar="false" :style="sameStyleScroll">
                 <view :style="sameStyleRow">
                   <view v-for="s in sameStyle!.products" :key="s.id" :style="sameStyleItem" @tap="openSameStyle(s.id)">
                     <AppImage :src="s.coverUrl" :style="sameStyleImage" mode="aspectFill" />
@@ -103,12 +99,12 @@
           <template v-if="realBuyerPosts.length > 0">
             <SectionHeader title="相关动态" />
             <view :style="buyerCard">
-              <scroll-view scroll-x :show-scrollbar="false" :style="buyerScroll">
+              <scroll-view direction="horizontal" :show-scrollbar="false" :style="buyerScroll">
                 <view :style="buyerRow">
                   <view v-for="p in realBuyerPosts" :key="p.id" :style="buyerItem" @tap="openBuyerPost(p.id)">
                     <AppImage :src="p.imageUrl" :style="buyerImage" mode="aspectFill" />
                     <text :style="buyerAuthor">{{ p.authorNickname }}</text>
-                    <text :style="buyerCaption" :lines="1">{{ p.caption !== '' ? p.caption : '上身返图' }}</text>
+                    <text :style="buyerCaption">{{ p.caption !== '' ? p.caption : '上身返图' }}</text>
                   </view>
                 </view>
               </scroll-view>
@@ -132,6 +128,10 @@
       <view :style="botIcon"><AppIcon name="reminder" :size="40" :active="true" /></view>
       <text :style="botLabel">设置提醒</text>
     </view>
+    <view :style="botItem" @tap="onShareTap">
+      <view :style="botIcon"><AppIcon name="share" :size="40" :active="true" /></view>
+      <text :style="botLabel">分享</text>
+    </view>
     <view :style="goBtn" @tap="openOfficial"><text :style="goBtnText">前往原店</text></view>
   </view>
 </template>
@@ -142,7 +142,7 @@ import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { StyleInfo } from '@/domain/content/style'
 import { ProductVariant } from '@/domain/content/product-variant'
-import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel, PRICE_TYPE_FULL } from '@/presentation/content/feed-presenter'
+import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel } from '@/presentation/content/feed-presenter'
 import { fetchStyle } from '@/services/content/style-service'
 import { fetchProductCommunity, ProductCommunityPost } from '@/services/content/product-service'
 import { useProductDetailStore } from '@/stores/product-detail-store'
@@ -156,6 +156,8 @@ import { CARD_PADDING, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
+import { recordBrowse } from '@/stores/browse-history-store'
+import { shareByCopy } from '@/utils/share'
 import { showFeedback } from '@/utils/feedback'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
@@ -172,7 +174,6 @@ const itemId = ref('')
 const item = ref(null) as Ref<FeedItem | null>
 const loading = ref(true)
 const errorMessage = ref('')
-const description = ref('')
 const shopUrl = ref('')
 const shopName = ref('')
 // 收藏态：与收藏页共用 content-library-store 统一数据源（后端 /api/v1/wishlist）
@@ -309,6 +310,13 @@ function openOfficial() {
   uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('原店链接已复制，可在浏览器打开') } })
 }
 
+/** 分享：复制标题 + 价格/品牌 + 原店链接（有则带上） */
+function onShareTap() {
+  if (item.value === null) return
+  const detail = priceSummaryText.value !== '' ? `${item.value!.brandName !== '' ? item.value!.brandName + ' · ' : ''}${priceSummaryText.value}` : item.value!.brandName
+  shareByCopy(item.value!.title, detail, shopUrl.value)
+}
+
 function dateOnly(value: string): string {
   if (value === '') return ''
   return value.length >= 10 ? value.substring(0, 10) : value
@@ -340,7 +348,8 @@ async function loadDetail() {
     if (result === null) { item.value = null; errorMessage.value = '商品信息不存在'; return }
     item.value = result.item
     detailImages.value = result.images
-    description.value = result.description
+    // 浏览足迹：加载成功即记入本机（不同步服务器），供「我的 → 浏览历史」找回
+    recordBrowse(result.item.entityId, result.item.title, result.item.brandName, result.item.coverUrl)
     shopUrl.value = result.shopUrl
     shopName.value = result.shopName
     currentRelease.value = result.currentRelease
@@ -403,14 +412,23 @@ const imageCounterText = { fontSize: '22rpx', fontWeight: fontWeight.medium, col
 // V3 §6.10 信息区 32rpx 边距；信息卡圆角 20rpx（列表组级）
 const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
-const priceText = { fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: brand.primary }
+const priceText = computed((): any => ({ fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: n.value.iconActive }))
 const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
 const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
 const brandRow = { flexDirection: 'row' as string, alignItems: 'center' }
+// 品牌行内小标签：坑向（品牌浅底）+ 子分类（中性底），与商品卡 typeChip 同构
+const pitChip = computed((): any => ({ marginLeft: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const pitChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[600] as string }))
+const subChip = computed((): any => ({ marginLeft: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const subChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 const blacklistBtn = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx' }))
 const blacklistBtnText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[600] as string }))
 const blockedBanner = computed((): any => ({ marginTop: '16rpx', padding: '16rpx', borderRadius: '12rpx', backgroundColor: n.value.surfacePink }))
 const blockedBannerText = computed((): any => ({ fontSize: fontSize.xs, color: brand[600] as string, lineHeight: '32rpx' }))
+// 卖点标签：中性底、可换行（数量不定，不用横向滚动）
+const featureRow = { flexDirection: 'row' as string, flexWrap: 'wrap' as string, marginTop: '16rpx' }
+const featureChip = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginBottom: '10rpx' }))
+const featureChipText = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
 const statusTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink }))
 const statusDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '8rpx' }
 const statusTagText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500] }
@@ -422,15 +440,18 @@ const compatibilityTrack = { height: '8rpx', borderRadius: '4rpx', backgroundCol
 const compatibilityFill = computed((): any => ({ height: '8rpx', width: `${Math.max(0, compatibility.value.score)}%`, borderRadius: '4rpx', backgroundColor: brand[500] }))
 const compatibilityReason = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '32rpx', marginTop: '10rpx' }))
 const compatibilityMatches = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '32rpx', marginTop: '4rpx' }))
-// V3 §6.10 「记入购买」为次要入口（外跳确认/更多操作），不制造站内交易感
-const decisionRow = { ...flexRow, marginTop: '22rpx' }
-const recordBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
-const recordText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '8rpx' }))
 // 发售信息卡：仅展示真实 release 数据（批次/时间/定金/尾款/全价），无数据不显示、不伪造、不显示 0
 const releaseCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const releaseRow = { flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between', minHeight: '56rpx' }
 const releaseLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const releaseValue = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '24rpx' }))
+// 规格卡：左侧固定标签列 + 右侧可换行 chip 组（颜色/尺码共用）
+const specCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const specRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string, marginBottom: '12rpx' }
+const specLabel = computed((): any => ({ width: '148rpx', flexShrink: 0, paddingTop: '10rpx', fontSize: fontSize.xs, color: n.value.textSecondary }))
+const specChips = { flex: 1, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
+const specChip = computed((): any => ({ height: '48rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginBottom: '10rpx' }))
+const specChipText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text }))
 // Phase 2.1 同款式：款式名 + 横向滚动同款商品（无 styleId 时不渲染）
 const sameStyleCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const sameStyleHeader = { ...flexRow, alignItems: 'center', marginBottom: '16rpx' }
@@ -440,7 +461,7 @@ const sameStyleScroll = { width: '100%', whiteSpace: 'nowrap' as string }
 const sameStyleRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string }
 const sameStyleItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
 const sameStyleImage = { width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: '#F2F2F2' }
-const sameStyleTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', maxLines: 2, lineHeight: '34rpx' }))
+const sameStyleTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 2, lineHeight: '34rpx' }))
 const sameStylePrice = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500], marginTop: '4rpx' }))
 // Phase 2.3-A 真实买家：横向返图卡片（与同款式模块同构，V3 §6.4 卡片风格）
 const buyerCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
@@ -448,18 +469,19 @@ const buyerScroll = { width: '100%', whiteSpace: 'nowrap' as string }
 const buyerRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string }
 const buyerItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
 const buyerImage = { width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: '#F2F2F2' }
-const buyerAuthor = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', maxLines: 1 }))
-const buyerCaption = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', maxLines: 1, lineHeight: '32rpx' }))
+const buyerAuthor = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1 }))
+const buyerCaption = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1, lineHeight: '32rpx' }))
 const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
-const actionSpacer = { height: `${upx2px(180) + safeBottom}px`, flexShrink: 0 }
+// 底部栏高度改为「内容驱动」：原来写死 160rpx，图标下方会留出约 70px 空白
+const actionSpacer = { height: `${upx2px(124) + safeBottom}px`, flexShrink: 0 }
 // 加载/失败使用 V3 PageSkeleton / PageState
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 // V3 §6.10 底部固定：收藏 / 设置提醒 / 前往官方渠道（避开安全区）
-const botBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, height: '160rpx', paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '16rpx', paddingBottom: `${safeBottom}px`, ...flexRow, alignItems: 'flex-start', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.border }))
-const botItem = { width: '100rpx', alignItems: 'center' }
-const botIcon = { width: '56rpx', height: '56rpx', alignItems: 'center', justifyContent: 'center' }
-const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '8rpx' }))
-const goBtn = { ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }
+const botBar = computed((): any => ({ position: 'fixed', left: '0', right: '0', bottom: '0', zIndex: zIndex.navbar, paddingLeft: '24rpx', paddingRight: '24rpx', paddingTop: '12rpx', paddingBottom: `${safeBottom + 12}px`, ...flexRow, alignItems: 'center', backgroundColor: n.value.surface, borderTopWidth: '1rpx', borderTopStyle: 'solid', borderTopColor: n.value.border }))
+const botItem = { width: '100rpx', minHeight: '88rpx', alignItems: 'center', justifyContent: 'center' }
+const botIcon = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center' }
+const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSecondary, marginTop: '4rpx' }))
+const goBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }))
 const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

@@ -9,7 +9,6 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -26,7 +25,7 @@ const statusSpacer = { height: `${statusBarHeight}px` }
 const headerRow = { height: '96rpx', ...flexRow, alignItems: 'center', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const titleStyle = computed((): any => ({ ...flexFill, fontSize: v3TextStyle.navTitle.fontSize, fontWeight: v3TextStyle.navTitle.fontWeight, color: n.value.text }))
 const actionButton = { minWidth: '96rpx', height: '64rpx', alignItems: 'flex-end', justifyContent: 'center' }
-const actionTextStyle = { fontSize: v3TextStyle.meta.fontSize, fontWeight: 500, color: brand.primary }
+const actionTextStyle = computed((): any => ({ fontSize: v3TextStyle.meta.fontSize, fontWeight: 500, color: n.value.iconActive }))
 </script>
 
 <style>

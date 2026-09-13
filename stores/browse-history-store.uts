@@ -1,0 +1,80 @@
+/**
+ * browse-history-store — 浏览足迹（纯本地，不上传）
+ *
+ * 记录用户看过的商品，便于找回。设计要点：
+ * - 只存展示所需的最小字段（id/标题/品牌/封面/时间），不存价格快照，避免误导；
+ * - 同一商品去重并刷新时间（最新看的排最前）；
+ * - 最多保留 MAX_ITEMS 条，超出丢弃最旧的；
+ * - 仅存本机（uni storage），不同步服务器，可在足迹页一键清空。
+ */
+
+export class BrowseHistoryItem {
+  id: string = ''          // 商品 entityId
+  title: string = ''
+  brandName: string = ''
+  coverUrl: string = ''
+  viewedAt: string = ''    // 毫秒时间戳字符串
+}
+
+const STORAGE_KEY = 'v2_browse_history'
+const MAX_ITEMS = 100
+
+function load(): BrowseHistoryItem[] {
+  const list: BrowseHistoryItem[] = []
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY) as string
+    if (raw == null || raw === '') return list
+    const parsed = JSON.parse(raw) as UTSJSONObject[]
+    if (parsed == null) return list
+    for (let i = 0; i < parsed.length; i++) {
+      const obj = parsed[i]
+      const item = new BrowseHistoryItem()
+      item.id = obj['id'] != null ? obj['id'] as string : ''
+      item.title = obj['title'] != null ? obj['title'] as string : ''
+      item.brandName = obj['brandName'] != null ? obj['brandName'] as string : ''
+      item.coverUrl = obj['coverUrl'] != null ? obj['coverUrl'] as string : ''
+      item.viewedAt = obj['viewedAt'] != null ? obj['viewedAt'] as string : ''
+      if (item.id !== '') list.push(item)
+    }
+  } catch (e) {}
+  return list
+}
+
+function save(list: BrowseHistoryItem[]) {
+  try { uni.setStorageSync(STORAGE_KEY, JSON.stringify(list)) } catch (e) {}
+}
+
+/** 记录一次浏览：同商品去重并置顶，超出上限丢弃最旧 */
+export function recordBrowse(id: string, title: string, brandName: string, coverUrl: string) {
+  if (id === '') return
+  const list = load().filter((item: BrowseHistoryItem) => item.id !== id)
+  const item = new BrowseHistoryItem()
+  item.id = id
+  item.title = title
+  item.brandName = brandName
+  item.coverUrl = coverUrl
+  item.viewedAt = Date.now().toString()
+  list.unshift(item)
+  save(list.slice(0, MAX_ITEMS))
+}
+
+/** 足迹列表（最新在前） */
+export function listBrowseHistory(): BrowseHistoryItem[] {
+  return load()
+}
+
+/** 足迹数量（「我的」页入口角标用） */
+export function browseHistoryCount(): number {
+  return load().length
+}
+
+/** 删除单条足迹 */
+export function removeBrowseHistory(id: string) {
+  if (id === '') return
+  save(load().filter((item: BrowseHistoryItem) => item.id !== id))
+}
+
+/** 清空足迹 */
+export function clearBrowseHistory() {
+  save([])
+}

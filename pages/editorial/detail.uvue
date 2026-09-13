@@ -1,6 +1,6 @@
 <template>
   <MainLayout navbar-content-height="88rpx">
-    <template #navbar><AppNavbar :title="pageTitle" show-back /></template>
+    <template #navbar><AppNavbar :title="pageTitle" show-back><template #right><view :style="navShareBtn" @tap="onShare"><AppIcon name="share" :size="36" :active="true" /></view></template></AppNavbar></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
         <!-- Hero image -->
@@ -38,20 +38,21 @@
 </template>
 
 <script setup lang="uts">
-import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { fontSize } from '@/theme/tokens/typography'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { flexRow } from '@/theme/layout/flex'
-import { n } from '@/theme/use-theme'
 import { baseColors } from '@/theme/tokens/colors'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import { safeParam } from '@/utils/route-params'
+import { shareByCopy } from '@/utils/share'
 import { filterMockFeed } from '@/services/mock/mock-catalog'
 
 const pageTitle = ref('')
@@ -81,9 +82,14 @@ function onProductTap(entityId: string) {
   uni.navigateTo({ url: `/pages/product/detail?id=${entityId}` })
 }
 
+/** 分享专题：标题 + 专题说明（复制文案） */
+function onShare() {
+  shareByCopy(pageTitle.value, pageDesc.value)
+}
+
 onLoad((query) => {
   if (query != null) {
-      if (query['title'] != null) pageTitle.value = (decodeURIComponent(query['title'] as string) ?? '')
+      if (query['title'] != null) pageTitle.value = safeParam(query['title'] as string)
     if (query['category'] != null) pageCategory.value = query['category'] as string
     if (query['image'] != null) {
       const img = query['image'] as string
@@ -120,6 +126,8 @@ const heroTitle = { fontSize: fontSize.xl, fontWeight: 700, color: baseColors.wh
 const heroDesc = { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.8)', marginTop: '8rpx' }
 // V3 §6.11 相关商品双列 ProductCard
 const productGrid = { ...flexRow, flexWrap: 'wrap' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
+// 导航栏右侧分享按钮：88×88rpx 热区（V3 §3.5）
+const navShareBtn = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 function productShell(idx: number) { return { width: PRODUCT_CARD_WIDTH_V3, marginRight: idx % 2 === 0 ? COLUMN_GAP_V3 : '0' } }
 const emptyWrap = { paddingTop: '48rpx', alignItems: 'center' }
 </script>

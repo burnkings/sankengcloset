@@ -29,7 +29,7 @@ export class FeedItem {
   brandName: string = ''
   price: number = 0             // 分
   originalPrice: number = 0     // 分 (用于显示划线价)
-  badgeText: string = ''        // 角标文字 ("预售" / "降价" / "新品")（后端业务字段生成，非前端猜测）
+  badgeText: string = ''        // 角标文字 ("预售" / "新品")（后端业务字段生成，非前端猜测）
   eventStartAt: string = ''     // 发售事件开始时间
   eventEndAt: string = ''       // 发售事件结束时间
   liked: boolean = false

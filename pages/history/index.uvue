@@ -1,0 +1,115 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar>
+      <AppNavbar title="浏览历史" :show-back="true">
+        <template #right>
+          <text v-if="items.length > 0" :style="clearText" @tap="onClearAll">清空</text>
+        </template>
+      </AppNavbar>
+    </template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <PageSkeleton variant="list" v-if="loading && items.length === 0" />
+
+        <PageState v-else-if="items.length === 0" icon="history" title="还没有浏览记录" message="看过的商品会自动记在这里，方便你回来找" action-text="去逛逛" @action="goDiscover" />
+
+        <view v-else>
+          <view v-for="(item, idx) in items" :key="item.id" :style="row(idx, items.length)" @tap="openProduct(item.id)">
+            <AppImage :src="item.coverUrl" :width="thumbSize" :height="thumbSize" mode="aspectFill" :radius-token="'12rpx'" />
+            <view :style="rowCopy">
+              <text :style="rowTitle">{{ item.title }}</text>
+              <text :style="rowBrand">{{ item.brandName !== '' ? item.brandName : '三坑好物' }}</text>
+              <text :style="rowTime">{{ formatViewedAt(item.viewedAt) }}</text>
+            </view>
+            <view :style="removeWrap" @tap.stop="onRemove(item.id)"><AppIcon name="close" :size="32" /></view>
+          </view>
+          <view :style="bottomSpacer" />
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+import { listBrowseHistory, removeBrowseHistory, clearBrowseHistory, BrowseHistoryItem } from '@/stores/browse-history-store'
+import { brand } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { flexRow, flexFill } from '@/theme/layout/flex'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
+import { showFeedback } from '@/utils/feedback'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import PageState from '@/components/v3/PageState.uvue'
+import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
+import { openPrimaryTab } from '@/utils/tab-navigation'
+
+const items = ref<BrowseHistoryItem[]>([])
+const loading = ref(true)
+const thumbSize = '160rpx'
+
+const clearText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] as string }))
+
+function refresh() { items.value = listBrowseHistory() }
+
+onLoad(() => { initPageTheme(); refresh(); loading.value = false })
+onPageShow(() => { initPageTheme(); refresh() })
+
+function pad2(v: number): string { return v < 10 ? '0' + v.toString() : v.toString() }
+function formatViewedAt(msText: string): string {
+  const ms = parseInt(msText)
+  if (isNaN(ms)) return ''
+  const d = new Date(ms)
+  const now = new Date()
+  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+  if (sameDay) return `今天 ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  const yesterday = new Date(now.getTime() - 86400000)
+  if (d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate()) {
+    return `昨天 ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  }
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+function openProduct(id: string) {
+  if (id === '') return
+  uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(id)}` })
+}
+
+function goDiscover() { openPrimaryTab('/pages/discover/index') }
+
+function onRemove(id: string) {
+  removeBrowseHistory(id)
+  refresh()
+  showFeedback('已删除该条足迹')
+}
+
+function onClearAll() {
+  if (items.value.length === 0) return
+  uni.showModal({
+    title: '清空浏览历史',
+    content: '只清除本机足迹记录，不影响收藏与提醒。确定清空吗？',
+    confirmText: '清空',
+    cancelText: '取消',
+    success: (res) => {
+      if (!res.confirm) return
+      clearBrowseHistory()
+      refresh()
+      showFeedback('浏览历史已清空')
+    },
+  })
+}
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '40rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+function row(idx: number, count: number): any {
+  return { ...flexRow, flexDirection: 'row' as string, alignItems: 'center', minHeight: '168rpx', paddingTop: '20rpx', paddingBottom: '20rpx', paddingLeft: '24rpx', paddingRight: '24rpx', backgroundColor: n.value.surface, borderRadius: '12rpx', borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: idx >= count - 1 ? '0' : '14rpx' }
+}
+const rowCopy = { ...flexFill, marginLeft: '20rpx', justifyContent: 'center' }
+const rowTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
+const rowBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '6rpx', lines: 1, textOverflow: 'ellipsis' }))
+const rowTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '6rpx' }))
+// 删除钮：统一 AppIcon close（32rpx），外层 88rpx 热区满足 V3 §3.5 最小点击区（原 56rpx 命中区偏小）
+const removeWrap = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+const bottomSpacer = { height: '40rpx' }
+</script>

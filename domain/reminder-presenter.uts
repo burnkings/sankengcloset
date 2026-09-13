@@ -53,7 +53,7 @@ function getStatusColor(status: string): string {
   return '#3B82F6'
 }
 
-export type ReminderGroup = 'today' | 'tomorrow' | 'week' | 'later' | 'overdue'
+export type ReminderGroup = 'today' | 'tomorrow' | 'week' | 'later' | 'overdue' | 'done'
 
 export class ReminderDisplayModel {
   id: string = ''
@@ -126,7 +126,15 @@ function diffDays(dateStr: string): number {
   }
 }
 
+/**
+ * 分组判定：**状态优先于日期**。
+ *
+ * 已完成的提醒一律进「已完成」分组，不再因为日期已过而落到「已过期」——
+ * 这是 2026-09-09 真机反馈中「提醒的已完成不能混入已过期分组」的修复点。
+ * 注意：判断依据是 status 而非 dm.isOverdue（后者原本就已排除 DONE，两张口径曾不一致）。
+ */
 function getGroupInfo(days: number, status: string): { group: ReminderGroup, groupLabel: string } {
+  if (status === 'DONE') return { group: 'done', groupLabel: '已完成' }
   if (days < 0) {
     return { group: 'overdue', groupLabel: '已过期' }
   }
@@ -174,9 +182,10 @@ export function toDisplayModels(items: Reminder[]): ReminderDisplayModel[] {
   return items.map((item) => toDisplayModel(item))
 }
 
+/** 按分组渲染顺序输出（已完成排在最后，避免与待办抢注意力） */
 export function groupByDate(items: ReminderDisplayModel[]): ReminderGroupViewModel[] {
   const map: Record<string, ReminderGroupViewModel> = {}
-  const order: ReminderGroup[] = ['today', 'tomorrow', 'week', 'later', 'overdue']
+  const order: ReminderGroup[] = ['today', 'tomorrow', 'week', 'later', 'overdue', 'done']
   for (let g = 0; g < order.length; g++) {
     const v = new ReminderGroupViewModel()
     v.group = order[g]
@@ -197,6 +206,7 @@ export function groupByDate(items: ReminderDisplayModel[]): ReminderGroupViewMod
         case 'week': v.label = '本周'; break
         case 'later': v.label = '稍后'; break
         case 'overdue': v.label = '已过期'; break
+        case 'done': v.label = '已完成'; break
       }
       result.push(v)
     }

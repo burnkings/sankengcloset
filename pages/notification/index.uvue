@@ -28,7 +28,7 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
-import { NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM, AppNotification } from '@/domain/notification/app-notification'
+import { NOTICE_SOCIAL, NOTICE_SYSTEM, AppNotification } from '@/domain/notification/app-notification'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -44,7 +44,7 @@ import PageState from '@/components/v3/PageState.uvue'
 
 const notices = useNotificationCenterStore()
 const activeLabel = ref('全部')
-const filterLabels = ['全部', '发售', '降价', '互动', '系统']
+const filterLabels = ['全部', '发售', '互动', '系统']
 const dismissedIds = ref<string[]>([])
 const visibleNotices = computed((): AppNotification[] => notices.visibleItems.filter((n: AppNotification) => dismissedIds.value.indexOf(n.id) < 0))
 function dismissNotice(id: string) { dismissedIds.value = [...dismissedIds.value, id] }
@@ -57,7 +57,6 @@ class NoticeVisual {
 
 function typeForLabel(label: string): string {
   if (label === '发售') return 'release'
-  if (label === '降价') return 'price'
   if (label === '互动') return 'social'
   if (label === '系统') return 'system'
   return 'all'
@@ -74,7 +73,6 @@ function openNotice(id: string, target: string) {
 // V3 §3.5：通知类型用线性图标，不使用文字符号
 function noticeVisual(type: string): NoticeVisual {
   const v = new NoticeVisual()
-  if (type === NOTICE_PRICE) { v.icon = 'budget'; v.active = true; return v }
   if (type === NOTICE_SOCIAL) { v.icon = 'heart'; v.active = true; return v }
   if (type === NOTICE_SYSTEM) { v.icon = 'info'; v.active = true; return v }
   v.icon = 'notification'; v.active = true

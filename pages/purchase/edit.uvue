@@ -1,5 +1,5 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" bottom-spacer="0rpx">
     <template #navbar><AppNavbar :title="isEdit ? '编辑购买记录' : '新增购买记录'" :show-back="true"></AppNavbar></template>
     <template #default>
       <scroll-view :style="scrollStyle">
@@ -51,8 +51,6 @@
           <FormSection title="备注（选填）">
             <view :style="noteShell"><textarea :value="form.note" placeholder="尺码、尾款时间等信息" :placeholder-style="placeholderStyle" :style="noteInput" :maxlength="160" @input="onNoteInput" /></view>
           </FormSection>
-
-          <view :style="bottomSpacer" />
         </view>
       </scroll-view>
 
@@ -71,11 +69,11 @@ import { useAiImportStore } from '@/stores/ai-import-store'
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { parseMoneyYuan, validatePaymentSplit } from '@/utils/money'
+import { safeParam } from '@/utils/route-params'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -202,6 +200,7 @@ function save() {
 }
 
 onLoad((options) => {
+  initPageTheme()
   store.fetchPurchases()
   if (options != null) {
     const id = options['id'] != null ? options['id'] as string : ''
@@ -246,7 +245,6 @@ onLoad((options) => {
     else if (paid > 0) form.value.paymentStatus = 'DEPOSIT_PAID'
   }
 })
-function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
 
 /** 分 → 元展示（编辑表单回填用；输入仍按元解析，保存时 ×100 转分） */
 function yuanText(cents: number): string {
@@ -257,13 +255,13 @@ function yuanText(cents: number): string {
 
 const safeBottom = getSafeBottomInset()
 const scrollStyle = { flex: 1 }
+// 底部预留 = BottomActionBar 高度（16+88+34=138rpx）略加余量，全站编辑页统一 160rpx
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '160rpx' }
-const bottomSpacer = { height: '40rpx' }
 const aiDraftBanner = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginBottom: '20rpx' }))
 const aiDraftText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lineHeight: '36rpx' }))
 const paymentChoices = { flexDirection: 'row', flexWrap: 'wrap' }
 function paymentChoice(active: boolean): any { return { width: '204rpx', minHeight: '76rpx', padding: '12rpx', marginRight: '12rpx', marginBottom: '12rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary } }
-function paymentChoiceText(active: boolean): any { return { fontSize: '26rpx', fontWeight: active ? 600 : 400, color: active ? brand.primary : n.value.textSecondary } }
+function paymentChoiceText(active: boolean): any { return { fontSize: '26rpx', fontWeight: active ? 600 : 400, color: active ? n.value.iconActive : n.value.textSecondary } }
 const amountCard = { flexDirection: 'row', marginTop: '24rpx' }
 const amountColumn = { flex: 1, marginRight: '12rpx' }
 const amountColumnLast = { flex: 1 }

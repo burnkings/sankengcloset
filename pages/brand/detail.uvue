@@ -1,5 +1,6 @@
 <template>
   <DetailLayout :title="brandName">
+    <template #right><view :style="navShareBtn" @tap="onShareBrand"><AppIcon name="share" :size="36" :active="true" /></view></template>
     <view :style="contentWrap">
       <view v-if="loading" :style="emptyWrap"><PageSkeleton variant="list" /></view>
       <PageState v-else-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadBrands" />
@@ -75,10 +76,13 @@ import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS_V3, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
+import { safeParam } from '@/utils/route-params'
+import { shareByCopy } from '@/utils/share'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import AppIcon from '@/components/base/AppIcon.uvue'
 
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
@@ -96,6 +100,10 @@ const brandDescText = computed((): string => {
   return ''
 })
 function initialOf(name: string): string { return name == '' ? '#' : name.substring(0, 1) }
+/** 分享品牌：品牌名 + 简介（复制文案） */
+function onShareBrand() {
+  shareByCopy(brandName.value, brandDescText.value)
+}
 function toggleBrand(name: string) {
   const followed = library.toggleBrandFollow(name)
   showFeedback(followed ? `已关注 ${name}` : `已取消关注 ${name}`)
@@ -137,7 +145,7 @@ onLoad((query) => {
   initPageTheme()
   if (query != null) {
     brandId.value = query['id'] != null ? query['id'] as string : ''
-    brandName.value = query['name'] != null ? decodeURIComponent(query['name'] as string) : ''
+    brandName.value = query['name'] != null ? safeParam(query['name'] as string) : ''
   }
 })
 async function reloadBrands() {
@@ -155,6 +163,8 @@ onMounted(() => { reloadBrands() })
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '24rpx' }
 const emptyWrap = { paddingTop: '48rpx' }
+// 导航栏右侧分享按钮：88×88rpx 热区（V3 §3.5）
+const navShareBtn = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const brandHeader = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '24rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginBottom: '24rpx' }))
 const brandAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '48rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const brandAvatarText = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[600] }

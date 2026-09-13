@@ -3,8 +3,7 @@
     <view :style="contentWrap">
       <!-- 品牌区 -->
       <view :style="brandCard">
-        <view :style="logoWrap"><text :style="logoText">SK</text></view>
-        <text :style="appName">{{ APP_NAME }}</text>
+        <text :style="logoText">三坑绮橱</text>
         <text :style="appVersion">{{ APP_DISPLAY_VERSION }}</text>
         <text :style="appSlogan">三坑文化爱好者的商品信息与发售资讯平台</text>
       </view>
@@ -37,10 +36,9 @@ import ListGroup from '@/components/v3/ListGroup.uvue'
 import ListRow from '@/components/v3/ListRow.uvue'
 import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { n, isDark, initPageTheme } from '@/theme/use-theme'
-import { brand } from '@/theme/tokens/colors'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
-import { APP_NAME, APP_DISPLAY_VERSION } from '@/config/app-version'
+import { APP_DISPLAY_VERSION } from '@/config/app-version'
 import { checkUpdateRemote, AppVersionInfo } from '@/services/user-data/app-update-service'
 
 const showUpdateDialog = ref(false)
@@ -105,17 +103,9 @@ const brandCard = computed((): any => ({
   borderRadius: '20rpx',
   marginBottom: '28rpx',
 }))
-const logoWrap = computed((): any => ({
-  width: '120rpx',
-  height: '120rpx',
-  borderRadius: '32rpx',
-  backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100],
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: '20rpx',
-}))
-const logoText = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[600] as string }
-const appName = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '8rpx' }))
+// 品牌字标：纯文字 + 自适应强调色，不用色块 + 拉丁缩写（"SK"不是品牌标识）
+// 品牌名一屏只出现两次（导航标题 + 字标）；曾有第三处黑色粗体名称行，与字标重复，已删
+const logoText = computed((): any => ({ fontSize: fontSize['2xl'], fontWeight: fontWeight.semibold, color: n.value.iconActive, marginBottom: '20rpx' }))
 const appVersion = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginBottom: '14rpx' }))
 const appSlogan = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const groupTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '8rpx', marginBottom: '12rpx' }))
@@ -125,4 +115,10 @@ const copyright = computed((): any => ({
   color: n.value.textTertiary,
   marginTop: '28rpx',
 }))
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showUpdateDialog.value) { showUpdateDialog.value = false; return true }
+  return false
+})
 </script>

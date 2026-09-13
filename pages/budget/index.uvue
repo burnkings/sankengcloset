@@ -20,13 +20,6 @@
           </view>
         </view>
 
-        <!-- 月份切换器：可查看任意历史月份 -->
-        <view :style="monthBar">
-          <view :style="monthArrow" @tap="prevMonth"><text :style="monthArrowText">‹</text></view>
-          <view @tap="showMonthPicker = true"><text :style="monthTitle">{{ displayMonth }}⌄</text></view>
-          <view :style="monthArrow" @tap="nextMonth"><text :style="monthArrowText">›</text></view>
-        </view>
-
         <!-- 月度汇总 -->
         <view :style="summaryCard">
           <SummaryStrip :items="summaryItems" :surface="true" />
@@ -38,6 +31,15 @@
           <view v-for="row in categoryRows" :key="row.label" :style="categoryRow">
             <text :style="categoryLabel">{{ row.label }}</text>
             <text :style="categoryValue">{{ row.value }}</text>
+          </view>
+        </view>
+
+        <!-- 月份切换：归入流水区作分组标题行，与统计条脱离；始终显示，空月也能切 -->
+        <view :style="monthBar">
+          <text :style="monthTitle" @tap="showMonthPicker = true">{{ displayMonth }}</text>
+          <view :style="monthArrows">
+            <view :style="monthArrow" @tap="prevMonth"><AppIcon name="arrow-back" :size="32" /></view>
+            <view :style="monthArrow" @tap="nextMonth"><AppIcon name="arrow-right" :size="32" /></view>
           </view>
         </view>
 
@@ -82,7 +84,7 @@ import { formatCentsYuan } from '@/utils/format'
 import { fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
-import { n, initPageTheme } from '@/theme/use-theme'
+import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import MonthPicker from '@/components/v3/MonthPicker.uvue'
@@ -92,9 +94,10 @@ import AppInput from '@/components/base/AppInput.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import PageState from '@/components/v3/PageState.uvue'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { brand, baseColors, semantic, categoryDotColors, categoryDotColorsDark } from '@/theme/tokens/colors'
 import { showFeedback } from '@/utils/feedback'
 import { parseMoneyYuan } from '@/utils/money'
+import AppIcon from '@/components/base/AppIcon.uvue'
 
 const purchases = usePurchaseStore()
 const budget = useBudgetStore()
@@ -220,19 +223,20 @@ function categoryAbbr(item: PurchaseRecord): string {
   if (item.category == 'OTHER') return '其'
   return 'J'
 }
+function categoryPalette(category: string): any {
+  const table = isDark.value ? categoryDotColorsDark : categoryDotColors
+  if (category == 'LOLITA') return table['LOLITA']
+  if (category == 'HANFU') return table['HANFU']
+  if (category == 'OTHER') return table['OTHER']
+  return table['JK']
+}
 function categoryDot(item: PurchaseRecord): any {
-  let bg = '#F7E7EC'
-  if (item.category == 'LOLITA') bg = '#F3F0F7'
-  if (item.category == 'HANFU') bg = '#FBF2E8'
-  if (item.category == 'OTHER') bg = '#F0E6E8'
-  return { width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: bg, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
+  const c = categoryPalette(item.category)
+  return { width: '56rpx', height: '56rpx', borderRadius: '28rpx', backgroundColor: c['bg'], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }
 }
 function categoryDotText(item: PurchaseRecord): any {
-  let fg = '#D45F7E'
-  if (item.category == 'LOLITA') fg = '#9B6FAE'
-  if (item.category == 'HANFU') fg = '#C4924A'
-  if (item.category == 'OTHER') fg = '#8A8184'
-  return { fontSize: '22rpx', fontWeight: 600, color: fg }
+  const c = categoryPalette(item.category)
+  return { fontSize: '22rpx', fontWeight: 600, color: c['text'] }
 }
 function openDetail(id: string) { uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
 
@@ -250,15 +254,15 @@ const budgetTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWe
 const budgetDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
 const budgetAction = { fontSize: '24rpx', fontWeight: 600, color: brand[600] }
 const progressTrack = computed((): any => ({ height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.bgSecondary, marginTop: '20rpx', overflow: 'hidden' }))
-const progressBar = computed((): any => ({ width: budgetRatio.value.toString() + '%', height: '12rpx', borderRadius: '6rpx', backgroundColor: budgetRatio.value >= budget.alertPercent ? '#E8956A' : brand[500] }))
+const progressBar = computed((): any => ({ width: budgetRatio.value.toString() + '%', height: '12rpx', borderRadius: '6rpx', backgroundColor: budgetRatio.value >= budget.alertPercent ? semantic.warning : n.value.iconActive }))
 const budgetEditor = { marginTop: '20rpx' }
 const budgetEditorHint = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '16rpx', marginBottom: '12rpx' }))
 const budgetSave = { height: '72rpx', borderRadius: '16rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
 const budgetSaveText = { fontSize: '26rpx', fontWeight: 600, color: baseColors.white }
-const monthBar = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '16rpx' }
+const monthBar = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '4rpx' }
+const monthArrows = { ...flexRow, alignItems: 'center' }
 const monthArrow = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
-const monthArrowText = computed((): any => ({ fontSize: '44rpx', lineHeight: '44rpx', color: n.value.textSecondary }))
-const monthTitle = computed((): any => ({ fontSize: '32rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const monthTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const summaryCard = { marginBottom: '24rpx' }
 const categoryCard = computed((): any => ({ padding: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '24rpx' }))
 const categoryTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '8rpx' }))
@@ -281,4 +285,10 @@ const itemAmountWrap = { alignItems: 'flex-end' as string, flexShrink: 0 }
 const itemAmount = computed((): any => ({ fontSize: '28rpx', fontWeight: 600, color: n.value.text }))
 const itemRemain = computed((): any => ({ fontSize: '18rpx', color: n.value.textTertiary, marginTop: '4rpx' }))
 const emptyWrap = { paddingTop: '48rpx' }
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showMonthPicker.value) { showMonthPicker.value = false; return true }
+  return false
+})
 </script>

@@ -15,7 +15,6 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { CHANNEL_INDICATOR_HEIGHT, CHANNEL_INDICATOR_WIDTH, MIN_TOUCH_SIZE, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -38,7 +37,7 @@ function textStyle(item: string) {
   const active = item === props.active
   return { fontSize: active ? v3TextStyle.body.fontSize : v3TextStyle.meta.fontSize, fontWeight: active ? 600 : 400, color: active ? n.value.text : n.value.textSecondary }
 }
-const indicatorStyle = { position: 'absolute', bottom: '4rpx', width: CHANNEL_INDICATOR_WIDTH, height: CHANNEL_INDICATOR_HEIGHT, borderRadius: radius.full, backgroundColor: brand.primary }
+const indicatorStyle = computed((): any => ({ position: 'absolute', bottom: '4rpx', width: CHANNEL_INDICATOR_WIDTH, height: CHANNEL_INDICATOR_HEIGHT, borderRadius: radius.full, backgroundColor: n.value.iconActive }))
 </script>
 
 <style>

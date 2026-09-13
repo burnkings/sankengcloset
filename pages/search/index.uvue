@@ -46,13 +46,11 @@
         </view>
 
         <view v-else>
-          <scroll-view direction="horizontal" :style="filterScroll">
-            <view :style="filterRow">
-              <view :style="filterChip(activeSaleStatus !== '')" @tap="pickSaleStatus"><text :style="filterChipText(activeSaleStatus !== '')">{{ saleStatusLabel }}</text></view>
-              <view :style="filterChip(minPrice > 0 || maxPrice > 0)" @tap="pickPrice"><text :style="filterChipText(minPrice > 0 || maxPrice > 0)">{{ priceLabel }}</text></view>
-              <view v-if="hasActiveFilters" :style="clearFilter" @tap="clearFilters"><text :style="clearFilterText">清除筛选</text></view>
-            </view>
-          </scroll-view>
+          <view :style="filterWrap">
+            <view :style="filterChip(activeSaleStatus !== '')" @tap="pickSaleStatus"><text :style="filterChipText(activeSaleStatus !== '')">{{ saleStatusLabel }}</text></view>
+            <view :style="filterChip(minPrice > 0 || maxPrice > 0)" @tap="pickPrice"><text :style="filterChipText(minPrice > 0 || maxPrice > 0)">{{ priceLabel }}</text></view>
+            <view v-if="hasActiveFilters" :style="clearFilter" @tap="clearFilters"><text :style="clearFilterText">清除筛选</text></view>
+          </view>
           <view v-if="searching && results.length === 0" :style="emptyWrap">
             <FeedSkeleton />
           </view>
@@ -119,7 +117,7 @@ import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, Pro
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
 import { zIndex } from '@/theme/tokens/z-index'
 import { shadow } from '@/theme/tokens/shadow'
 import { n } from '@/theme/use-theme'
@@ -410,8 +408,8 @@ onMounted(() => {
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const plainSections = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
-const filterScroll = { width: '750rpx', marginBottom: '18rpx' }
-const filterRow = { ...flexRow, width: '940rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+// 筛选行只有 2–3 个胶囊，固定宽度永远放得下，不需要横向滚动容器（去掉后不再有滚动条/回弹）
+const filterWrap = { ...flexRow, alignItems: 'center', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, marginBottom: '18rpx' }
 function filterChip(active: boolean): any { return { height: '56rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '28rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? brand[500] : n.value.bgSecondary, marginRight: '12rpx' } }
 function filterChipText(active: boolean): any { return { fontSize: fontSize.xs, color: active ? '#FFFFFF' : n.value.textSecondary } }
 const clearFilter = { height: '56rpx', paddingLeft: '12rpx', paddingRight: '12rpx', alignItems: 'center', justifyContent: 'center' }
@@ -429,7 +427,7 @@ const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
 const clearBtnStyle = { width: '56rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[600], flexShrink: 0, marginLeft: '16rpx' } as UTSJSONObject
 
-// V3 §6.8 历史 chip：56rpx 胶囊（禁 gap，用 margin）
+// 「最近搜索」chip 样式（V3 §6.8）：56rpx 胶囊；列表内禁止用 gap 撑间距，统一用 margin
 const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '4rpx' } as UTSJSONObject
 function recentChip(idx: number) {
   return { minHeight: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '12rpx', marginBottom: '12rpx' } as UTSJSONObject

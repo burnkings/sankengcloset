@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { AppNotification, NOTICE_RELEASE, NOTICE_PRICE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
+import { AppNotification, NOTICE_RELEASE, NOTICE_SOCIAL, NOTICE_SYSTEM } from '@/domain/notification/app-notification'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { generateNotificationsRemote, listNotificationsRemote, markNotificationReadRemote } from '@/services/user-data/user-data-service'
@@ -28,15 +28,6 @@ function mockNotifications(): AppNotification[] {
   release.createdAt = (now - 20 * 60000).toString()
   release.actionTarget = '/pages/reminder/index'
   items.push(release)
-
-  const price = new AppNotification()
-  price.id = 'notice_price_01'
-  price.type = NOTICE_PRICE
-  price.title = '收藏商品出现价格变化'
-  price.body = '田园碎花 OP 当前展示价较上次记录降低 ¥90。'
-  price.createdAt = (now - 2 * 3600000).toString()
-  price.actionTarget = '/pages/favorites/index'
-  items.push(price)
 
   const social = new AppNotification()
   social.id = 'notice_social_01'

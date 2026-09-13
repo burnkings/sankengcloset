@@ -170,6 +170,21 @@ export const categoryColors = {
   hanfu: hanfuColors,
 }
 
+/** 预算分类圆点色 — 浅/深成对照表（禁止页面硬编码 hex，否则深色模式下浅底会发光） */
+export const categoryDotColors = {
+  JK:     { text: '#D45F7E', bg: '#F7E7EC' },
+  LOLITA: { text: '#9B6FAE', bg: '#F3F0F7' },
+  HANFU:  { text: '#C4924A', bg: '#FBF2E8' },
+  OTHER:  { text: '#8A8184', bg: '#F0E6E8' },
+}
+
+export const categoryDotColorsDark = {
+  JK:     { text: '#E891A8', bg: 'rgba(232,145,168,0.20)' },
+  LOLITA: { text: '#B49BC4', bg: 'rgba(180,155,196,0.20)' },
+  HANFU:  { text: '#DDAF74', bg: 'rgba(221,175,116,0.20)' },
+  OTHER:  { text: '#B0A8AB', bg: 'rgba(176,168,171,0.20)' },
+}
+
 /** 语义状态色映射 — 统一 V2StatusChip 使用 */
 export const statusColors = {
   positive: { text: '#4F9870', bg: '#E8F2EA' },

@@ -19,7 +19,7 @@
         @confirm="onConfirm"
       />
       <view v-if="clearable && modelValue !== ''" :style="clearStyle" @tap="onClear">
-        <text :style="clearIconStyle">×</text>
+        <AppIcon name="close" :size="28" />
       </view>
       <view :style="suffixStyle"><slot name="suffix" /></view>
     </view>
@@ -30,10 +30,10 @@
 <script setup lang="uts">
 import { useSlots } from 'vue'
 import { semantic } from '@/theme/tokens/colors'
-import { radius } from '@/theme/tokens/radius'
 import { fontSize } from '@/theme/tokens/typography'
 import { flexRowCenter } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
+import AppIcon from '@/components/base/AppIcon.uvue'
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -78,7 +78,6 @@ const prefixStyle = { width: '40rpx', height: '56rpx', alignItems: 'center', jus
 const suffixStyle = { marginLeft: '12rpx', flexShrink: 0 }
 // 56rpx 的独立点击热区，避免叉号边缘难点或事件落到 input。
 const clearStyle = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', marginLeft: '8rpx', flexShrink: 0, zIndex: 2 }
-const clearIconStyle = computed((): any => ({ fontSize: fontSize.base, color: n.value.iconLight, textAlign: 'center' }))
 const errorTextStyle = { fontSize: fontSize.xs, color: semantic.error, marginTop: '4rpx', paddingLeft: '8rpx' }
 
 function onInput(e: UniInputEvent) {

@@ -40,8 +40,7 @@ import { fetchRankingRemote } from '@/services/content/ranking-service'
 import { PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
-import { n, isDark, initPageTheme } from '@/theme/use-theme'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { n, initPageTheme } from '@/theme/use-theme'
 
 const tabItems = ['热榜', '上新榜', '收藏榜']
 const activeTab = ref('热榜')
@@ -109,11 +108,13 @@ const filterBar = { ...flexRow, alignItems: 'center', marginBottom: '16rpx', fle
 const filterChipsWrap = { ...flexRow, flexWrap: 'wrap' as string, flex: 1 }
 const filterGroup = { ...flexRow, flexWrap: 'wrap' as string, marginRight: '12rpx' }
 // active 由模板表达式直接传入，避免函数内部读 ref 的依赖追踪不确定
+// 选中态统一为「浅粉底 + 玫粉字」（V3 §5.7）：与榜单类型 SegmentedControl、收藏 tab 同一套选中语言，
+// 不再用实底玫粉 + 白字（否则同 App 两套选中语言，且实底玫粉只应留给底部 CTA）
 function filterChip(opt: string, active: boolean): any {
-  return { height: '48rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '24rpx', backgroundColor: active ? (brand[500] as string) : (isDark.value ? '#2B2628' : '#EDE8E9'), alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }
+  return { height: '48rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '24rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }
 }
 function filterChipText(opt: string, active: boolean): any {
-  return { fontSize: '22rpx', fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: active ? baseColors.white : n.value.textSecondary }
+  return { fontSize: '22rpx', fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: active ? n.value.iconActive : n.value.textSecondary }
 }
 const listScroll = { flex: 1, minHeight: '0' }
 const listWrap = { paddingBottom: '24rpx' }

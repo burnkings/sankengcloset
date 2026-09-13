@@ -1,5 +1,5 @@
 /** Compatibility facade: independent favorites, brand follows and community stores. */
-import { readEntries, writeEntries, favoriteCount, wishCount, syncFavoriteIds, isFavorite, queueFavorite, toggleFavorite, updateFavoriteStatus, favoriteStatusOf, favoriteEntryOf, refreshRemoteFavorites, hasPendingFavorite, refreshFavorites, removeInvalidFavorites, favoriteReleaseOf, isWished, toggleWish, reloadFavorite, favoriteState } from '@/stores/favorite-store'
+import { readEntries, writeEntries, favoriteCount, wishCount, syncFavoriteIds, isFavorite, queueFavorite, toggleFavorite, updateFavoriteStatus, favoriteStatusOf, favoriteEntryOf, refreshRemoteFavorites, hasPendingFavorite, refreshFavorites, removeInvalidFavorites, removeFavorites, favoriteReleaseOf, isWished, toggleWish, reloadFavorite, favoriteState } from '@/stores/favorite-store'
 import { followedBrandCount, isFollowingBrand, toggleBrandFollow, refreshRemoteBrands, hasPendingBrandFollow, reloadBrand, brandState } from '@/stores/brand-follow-store'
 import { readMockPosts, writeMockPosts, mockToPublicLook, remoteToPublicLook, outfitCount, likedPostCount, defaultPublicLooks, refreshPublicPosts, loadMorePublicPosts, refreshMyPosts, publishOutfitRemote, removeOutfit, isPostLiked, togglePostLike, reloadCommunity, communityState } from '@/stores/community-store'
 import { FavoriteEntry } from '@/stores/favorite-store'
@@ -9,7 +9,14 @@ import { ReleaseEvent } from '@/domain/content/release-event'
 export { FavoriteEntry, FAVORITE_STATUS_LABELS } from '@/stores/favorite-store'
 export { SavedOutfitPost, PublicLookPost, publishOutfitRemote } from '@/stores/community-store'
 function reload() { reloadFavorite(); reloadBrand(); reloadCommunity() }
-reload()
+// 历史：此前在模块顶层直接调用 reload()，等于「只要有人 import 这个模块就读一次 storage」，
+// 属启动期隐式 I/O 且无法控制时序。改为首次取 handle 时初始化（所有页面都通过 useContentLibraryStore()）。
+let _loaded = false
+function ensureLoaded() {
+  if (_loaded) return
+  _loaded = true
+  reload()
+}
 class ContentLibraryStoreHandle {
   get favoriteIds(): string[] { return favoriteState.favoriteIds }
   get favoriteProducts(): FeedItem[] { return favoriteState.favoriteProducts }
@@ -40,6 +47,7 @@ class ContentLibraryStoreHandle {
   refreshRemoteFavorites(): Promise<void> { return refreshRemoteFavorites() }
   refreshFavorites(): Promise<void> { return refreshFavorites() }
   removeInvalidFavorites(): void { removeInvalidFavorites() }
+  removeFavorites(ids: string[]): number { return removeFavorites(ids) }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
   toggleFavorite(entityId: string, title: string = '', releaseId: string = ''): boolean { return toggleFavorite(entityId, title, releaseId) }
   favoriteReleaseOf(entityId: string): ReleaseEvent | null { return favoriteReleaseOf(entityId) }
@@ -58,6 +66,9 @@ class ContentLibraryStoreHandle {
 
 let _handle: ContentLibraryStoreHandle | null = null
 export function useContentLibraryStore(): ContentLibraryStoreHandle {
-  if (_handle == null) _handle = new ContentLibraryStoreHandle()
+  if (_handle == null) {
+    ensureLoaded()
+    _handle = new ContentLibraryStoreHandle()
+  }
   return _handle!
 }

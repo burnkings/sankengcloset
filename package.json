@@ -3,6 +3,8 @@
   "version": "2.5.0-beta.2",
   "description": "三坑绮橱 AppX",
   "scripts": {
+    "verify": "node scripts/verify.js",
+    "verify:watch": "node scripts/verify.js --watch",
     "build:mp-weixin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-mp-weixin.ps1",
     "patch:mp-weixin": "python scripts/patch-vendor.py unpackage/dist/dev/mp-weixin",
     "check:mp-weixin": "node scripts/check-uts-compile.js unpackage/dist/dev/mp-weixin",

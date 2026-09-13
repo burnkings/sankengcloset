@@ -180,3 +180,93 @@ if (tabBar && Array.isArray(tabBar.list)) {
 
 if (failed) process.exit(1)
 console.log('[PASS] audit regression gates — no double-escape regex, no legal placeholders, urlCheck on, no navigateTo-to-tabBar')
+
+// ---------- 5. uvue 模板绑定门禁（防 pitChip / scroll-x 类运行时崩溃）----------
+// 背景：pages/product/detail.uvue 曾把 13 个未定义的样式名写进模板（pitChip 等），
+// 编译通过但运行到该节点即 ReferenceError 并导致 App 崩溃；同类问题必须在此拦截。
+
+/** 拆出 .uvue 的模板段与脚本段 */
+function splitUvue(src) {
+  const i = src.indexOf('<script setup')
+  if (i < 0) return null
+  const tpl = src.slice(0, i)
+  const rest = src.slice(i)
+  const j = rest.indexOf('</script>')
+  return { tpl, script: j > 0 ? rest.slice(0, j) : rest }
+}
+
+/** 脚本段中所有可见的顶层标识符（声明 + import） */
+function scriptIdentifiers(script) {
+  const names = new Set()
+  for (const m of script.matchAll(/(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1])
+  for (const m of script.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}/g)) {
+    for (const n of m[1].split(',')) {
+      const name = n.trim().split(/\s+as\s+/).pop()
+      if (name) names.add(name.trim())
+    }
+  }
+  for (const m of script.matchAll(/import\s+([A-Za-z_$][\w$]*)\s+from/g)) names.add(m[1])
+  return names
+}
+
+for (const dir of ['pages', 'components']) {
+  for (const file of walk(dir)) {
+    if (!file.endsWith('.uvue')) continue
+    const parts = splitUvue(fs.readFileSync(file, 'utf8'))
+    if (parts == null) continue
+    const names = scriptIdentifiers(parts.script)
+
+    // 5.1 模板 :style="裸标识符" 必须在脚本中声明
+    for (const m of parts.tpl.matchAll(/:(?:style|placeholder-style|indicator-style)\s*=\s*"\s*([A-Za-z_$][\w$]*)\s*"/g)) {
+      if (!names.has(m[1])) fail(`${file} 模板引用了未定义的样式/变量 "${m[1]}"（运行到该节点会 ReferenceError）`)
+    }
+
+    // 5.2 scroll-view 的 scroll-x / scroll-y：App 端不支持，应使用 direction="horizontal"（滚动方向）
+    //     #ifdef MP-WEIXIN 区块内的小程序输出仍可用 scroll-y，跳过该区间
+    const rawLines = fs.readFileSync(file, 'utf8').split('\n')
+    let inMpOnly = 0
+    for (let li = 0; li < rawLines.length; li++) {
+      const line = rawLines[li]
+      if (/#ifdef\s+MP-WEIXIN/.test(line)) { inMpOnly++; continue }
+      if (/#endif/.test(line) && inMpOnly > 0) { inMpOnly--; continue }
+      if (inMpOnly > 0) continue
+      const hit = line.match(/<scroll-view[^>]*\s(scroll-x|scroll-y)\b/)
+      if (hit != null) fail(`${file}:${li + 1} <scroll-view> 不支持属性 ${hit[1]}（App 端请用 direction="horizontal"）`)
+    }
+
+    // 5.3 text 行数控制：属性 :lines 与样式 maxLines 均无效，统一用 style.lines
+    for (const m of parts.tpl.matchAll(/<text[^>]*\s:lines\s*=/g)) {
+      fail(`${file} <text> 不支持属性 :lines（应写入 :style 的 lines 字段）`)
+    }
+    for (const m of parts.script.matchAll(/\bmaxLines\s*:/g)) {
+      fail(`${file} 样式 maxLines 在 uni-app x 无效（应使用 lines）`)
+    }
+
+    // 5.4 import 进来的绑定必须被用到
+    //     反向价值：只 import 却忘了声明/调用（如 reminder/edit 漏写 const library、页面漏调 initPageTheme）
+    //     会被这条规则当场拦下，避免运行到该节点才 ReferenceError。
+    const whole = rawLines.join('\n')
+    const withoutImports = whole.replace(/^import[^\n]*\n/gm, '')
+    for (const m of whole.matchAll(/^import\s+(?:type\s+)?\{([^}]*)\}\s+from/gm)) {
+      for (const raw of m[1].split(',')) {
+        const name = raw.trim().split(/\s+as\s+/).pop().trim()
+        if (name === '') continue
+        if (!new RegExp(`\\b${name}\\b`).test(withoutImports)) {
+          fail(`${file} import 了 ${name} 但全文未使用（多为漏写声明/漏调初始化）`)
+        }
+      }
+    }
+
+    // 5.5 提示必须有宿主：showFeedback 依赖 <AppFeedbackToast /> 渲染（当前挂在 MainLayout/DetailLayout 里）。
+    //     页面既不使用这两个布局、也不自挂 toast 时，所有「已保存/已提交」提示都会静默失效。
+    if (/showFeedback\s*\(/.test(parts.script)) {
+      if (!/<(MainLayout|DetailLayout|AppFeedbackToast)\b/.test(parts.tpl)) {
+        fail(`${file} 调用了 showFeedback 但没有提示宿主（需使用 MainLayout / DetailLayout 或自挂 <AppFeedbackToast />）`)
+      }
+    }
+  }
+}
+
+if (failed) process.exit(1)
+console.log('[PASS] uvue binding gates — template styles declared, no scroll-x/scroll-y on scroll-view, no :lines attribute / maxLines style')
+

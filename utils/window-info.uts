@@ -31,7 +31,11 @@ export function getSafeBottomInset(): number {
     const info = uni.getWindowInfo()
     const safe = info.safeArea
     if (safe == null) return 0
-    return Math.max(info.windowHeight - safe.bottom, 0)
+    // 必须用 screenHeight：windowHeight 已排除原生 TabBar（及状态栏）的高度，
+    // 用它会在任何 Tab 页算出 0 或负值（被 Math.max 夹成 0），导致底部元素贴到系统手势区。
+    // safeArea.bottom 与 screenHeight 同在屏幕坐标系，相减才是真实底部安全区。
+    const screenHeight = info.screenHeight > 0 ? info.screenHeight : info.windowHeight
+    return Math.max(screenHeight - safe.bottom, 0)
   } catch (e) {
     return 0
   }
@@ -45,4 +49,24 @@ export function upx2px(rpx: number): number {
   } catch (e) {
     return rpx * 375 / 750
   }
+}
+
+/** Convert px to rpx: px * 750 / screenWidth */
+export function px2rpx(px: number): number {
+  try {
+    const w = uni.getWindowInfo().windowWidth
+    return w > 0 ? Math.round(px * 750 / w) : Math.round(px * 2)
+  } catch (e) {
+    return Math.round(px * 2)
+  }
+}
+
+/**
+ * 有浮动「+」按钮（AppFab：96rpx 高、距安全区 64px）的列表页，底部应预留的留白（rpx）。
+ * 传法：<MainLayout :bottom-spacer="getFabBottomSpacer()">（页面级调用一次即可）。
+ * 用 px 常量 + 安全区换算，避免不同安全区机型上 FAB 压住最后一行。
+ */
+export function getFabBottomSpacer(): string {
+  // FAB 96rpx + 间距 64px + 呼吸 16px + 底部安全区
+  return (96 + px2rpx(getSafeBottomInset() + 80)).toString() + 'rpx'
 }

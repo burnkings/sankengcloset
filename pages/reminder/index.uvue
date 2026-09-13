@@ -1,5 +1,5 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" :bottom-spacer="fabBottomSpacer">
     <template #navbar>
       <AppNavbar v-if="!selectMode" title="提醒事项" :show-back="true" />
       <AppNavbar v-else title="选择提醒" :show-back="false">
@@ -41,7 +41,7 @@
                  </view>
                  <view v-if="!selectMode" :style="checkboxWrap" @tap.stop="onQuickToggle(item)">
                    <view :style="checkboxMarkNormal(item)">
-                     <AppIcon v-if="item.statusText !== '待提醒'" name="check" :size="20" />
+                     <AppIcon v-if="item.statusText !== '待提醒'" name="check" :size="24" />
                    </view>
                  </view>
                  <view :style="cardCenter">
@@ -55,7 +55,6 @@
             </view>
           </view>
 
-          <view :style="bottomSpacer" />
         </view>
       </scroll-view>
     </template>
@@ -87,8 +86,8 @@ import { ReminderDisplayModel } from '@/domain/reminder-presenter'
 import { TYPE_COLORS, TYPE_COLORS_DARK } from '@/domain/reminder'
 import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { getFabBottomSpacer } from '@/utils/window-info'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -157,12 +156,15 @@ function batchDelete() {
   exitSelectMode()
 }
 
-onMounted(() => { store.fetchItems() })
+// 主题需在页面进入时初始化（原文件只 import 未调用）
+onMounted(() => { initPageTheme(); store.fetchItems() })
 
 const scrollWrap = { flex: 1 }
 const chipsGap = { height: '24rpx' }
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
-const bottomSpacer = { height: '200rpx' }
+// 底部留白由 MainLayout 的 bottom-spacer 统一提供（避免与布局层叠加成双份空白）；
+// 有 FAB 的页面必须按 FAB 实际高度 + 安全区预留，否则浮动「+」会压住最后一行
+const fabBottomSpacer = getFabBottomSpacer()
 
 // V3 §6.22 顶部紧凑摘要：待办/今日/过期
 const summaryItems = computed(() => [
@@ -201,8 +203,8 @@ const cardTime = computed((): any => ({ fontSize: '22rpx', color: n.value.textSe
 
 function cardStatus(item: ReminderDisplayModel): any {
   if (item.statusText === '已完成') return { fontSize: '22rpx', color: semantic.success as string }
-  if (item.statusText === '已过期') return { fontSize: '22rpx', color: n.value.textTertiary }
-  return { fontSize: '22rpx', color: brand.primary }
+  if (item.statusText === '已过期') return { fontSize: '22rpx', fontWeight: fontWeight.semibold, color: semantic.error as string }
+  return { fontSize: '22rpx', color: n.value.iconActive }
 }
 const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
 const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
@@ -231,6 +233,9 @@ function checkboxMarkNormal(item: ReminderDisplayModel): any {
       if (item.statusText === '已完成') {
         fillColor = semantic.success as string
         strokeColor = semantic.success as string
+      } else if (item.statusText === '已过期') {
+        fillColor = semantic.error as string
+        strokeColor = semantic.error as string
       } else {
         fillColor = n.value.textTertiary
         strokeColor = n.value.textTertiary
@@ -238,8 +243,8 @@ function checkboxMarkNormal(item: ReminderDisplayModel): any {
     }
   }
   return {
-    width: '40rpx', height: '40rpx', borderRadius: '20rpx',
-    borderWidth: '3rpx', borderStyle: 'solid' as string,
+    width: '48rpx', height: '48rpx', borderRadius: '24rpx',
+    borderWidth: '2rpx', borderStyle: 'solid' as string,
     borderColor: strokeColor,
     backgroundColor: fillColor,
     alignItems: 'center', justifyContent: 'center',
@@ -256,4 +261,11 @@ const dialogCancelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32
 const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 const dialogDelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center' }))
 const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: semantic.error as string }
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showDeleteConfirm.value) { showDeleteConfirm.value = false; return true }
+  if (selectMode.value) { exitSelectMode(); return true }
+  return false
+})
 </script>

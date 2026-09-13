@@ -47,8 +47,8 @@ const iconWrap = computed((): any => ({ width: '56rpx', height: '56rpx', borderR
 const contentWrap = { flex: 1, justifyContent: 'center' }
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: v3TextStyle.body.lineHeight, fontWeight: 400, color: n.value.text }))
 const subtitleStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textTertiary, marginTop: '4rpx' }))
-const valueWrap = { justifyContent: 'center', marginLeft: '16rpx', flexShrink: 0 }
-const valueStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.textSecondary }))
+const valueWrap = { justifyContent: 'center', marginLeft: '16rpx', marginRight: '16rpx', flexShrink: 1 }
+const valueStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.textSecondary, lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const arrowWrap = { width: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 </script>
 

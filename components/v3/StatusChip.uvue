@@ -50,6 +50,8 @@ const textStyle = computed((): any => {
     fontSize: props.size === 'sm' ? v3TextStyle.caption.fontSize : v3TextStyle.meta.fontSize,
     fontWeight: 500,
     color: s.text,
+    // 必须 nowrap：窄容器（商品卡价格同排）下文字会逐字竖排，肉眼可见的渲染错误
+    whiteSpace: 'nowrap',
   }
 })
 </script>

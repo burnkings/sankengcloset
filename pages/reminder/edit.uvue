@@ -1,5 +1,5 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" bottom-spacer="0rpx">
     <template #navbar>
       <AppNavbar :title="isEdit ? '编辑提醒' : '新建提醒'" :show-back="false">
         <template #left><view :style="backBtnStyle" @tap="handleBack"><AppIcon name="arrow-back" :size="40" /></view></template>
@@ -29,13 +29,14 @@
             </view>
           </FormSection>
 
-          <FormSection v-if="relatedProductId !== ''" title="关联商品">
-            <view :style="wardrobeBtnRow" @tap="openRelatedProduct">
-              <text :style="wardrobeBtnText">{{ relatedProductName !== '' ? relatedProductName : '查看关联商品' }}</text>
+          <FormSection title="关联商品">
+            <view :style="wardrobeBtnRow" @tap="onProductRowTap">
+              <text :style="wardrobeBtnText">{{ relatedProductId !== '' ? (relatedProductName !== '' ? relatedProductName : '已关联商品') : '选择商品（可选）' }}</text>
               <AppIcon name="chevron-right" :size="28" />
             </view>
+            <text v-if="relatedProductId !== ''" :style="inlineActionText" @tap="clearRelatedProduct">取消关联</text>
           </FormSection>
-          <FormSection v-if="relatedProductId === ''" title="关联我的衣物">
+          <FormSection title="关联我的衣物">
             <view :style="wardrobeBtnRow" @tap="openWardrobePicker">
               <text :style="wardrobeBtnText">{{ form.wardrobeBindings.length > 0 ? '已选 ' + form.wardrobeBindings.length + ' 件' : '选择衣物（可选）' }}</text>
               <AppIcon name="chevron-right" :size="28" />
@@ -59,8 +60,6 @@
           </FormSection>
 
           <view v-if="isEdit" :style="deleteBtn" @tap="onDeleteTap"><text :style="deleteBtnText">删除提醒</text></view>
-
-          <view :style="bottomSpacer" />
         </view>
     </template>
   </MainLayout>
@@ -102,6 +101,27 @@
     </template>
   </AppDialog>
 
+  <AppDialog :visible="showProductPicker" title="选择关联商品" @cancel="showProductPicker = false">
+    <view :style="wardrobePickerWrap">
+      <view v-if="pickableProducts.length === 0" :style="wardrobeEmptyWrap">
+        <text :style="wardrobeEmptyText">收藏里还没有商品，先去收藏几件吧</text>
+      </view>
+      <scroll-view v-else :style="wardrobePickerScroll">
+        <view :style="wardrobeGrid">
+          <view v-for="p in pickableProducts" :key="p.entityId" :style="productGridCard(p.entityId)" @tap="selectProduct(p)">
+            <image v-if="p.coverUrl !== ''" :src="p.coverUrl" :style="wardrobeGridImg" mode="aspectFill" />
+            <view v-else :style="wardrobeGridPlaceholder"><AppIcon name="camera" :size="40" :active="true" /></view>
+            <text :style="wardrobeGridName">{{ p.title }}</text>
+            <text :style="wardrobePickerCat">{{ p.brandName }}</text>
+            <view v-if="relatedProductId === p.entityId" :style="wardrobeGridCheck">
+              <AppIcon name="check" :size="22" />
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </AppDialog>
+
   <view v-if="showDatePicker" :style="pickerOverlay" @tap="showDatePicker = false">
     <view :style="pickerPanel" @tap.stop>
       <view :style="pickerHeader">
@@ -138,17 +158,18 @@ function openRelatedProduct() {
 }
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { FeedItem } from '@/domain/content/feed-item'
 import { reminderTypeFromContext } from '@/utils/reminder-context'
-import { TYPE_LABELS } from '@/domain/reminder'
+import { safeParam } from '@/utils/route-params'
 import { canSetBalanceReminder } from '@/utils/purchase-reminder'
 import { usePurchaseStore } from '@/stores/purchase-store'
-import { Reminder, ReminderUpdateData, TYPE_COLORS } from '@/domain/reminder'
+import { Reminder, ReminderUpdateData, TYPE_LABELS, TYPE_PLACEHOLDERS } from '@/domain/reminder'
 import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
-import { getSafeBottomInset } from '@/utils/window-info'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
@@ -158,19 +179,15 @@ import FormSection from '@/components/v3/FormSection.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 
-function getTypePlaceholder(type: string): string {
-  if (type === 'ARRIVAL') return '例：包裹预计送达'
-  if (type === 'BALANCE') return '例：月光曲 JSK 尾款截止'
-  if (type === 'RELEASE') return '例：新品限定 10 点开售'
-  if (type === 'OUTFIT') return '例：周末茶会穿搭'
-  if (type === 'PHOTO') return '例：Lolita外拍日程'
-  if (type === 'ORGANIZE') return '例：换季整理衣橱'
-  if (type === 'WISH') return '例：中牌新款蹲守'
-  return '例：每日穿搭打卡'
-}
+// 占位文案统一取自 domain/reminder.uts 的 TYPE_PLACEHOLDERS（此处曾有逐条重复的实现）
+const typePlaceholder = computed((): string => {
+  const p = TYPE_PLACEHOLDERS[form.value.type]
+  return p != null ? p as string : '例：每日穿搭打卡'
+})
 
 const store = useReminderStore()
 const wardrobeStore = useWardrobeStore()
+const library = useContentLibraryStore()
 // 保存/删除后延迟返回的定时器：页面卸载时清理，避免残留
 let backTimer: number | null = null
 onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
@@ -180,13 +197,14 @@ const saving = ref(false)
 const showDeleteDialog = ref(false)
 const showLeaveDialog = ref(false)
 const showWardrobePicker = ref(false)
+const showProductPicker = ref(false)
 const showDatePicker = ref(false)
 const relatedPurchaseId = ref('')
 const relatedWishId = ref('')
 const relatedProductId = ref('')
+// 关联商品名：不再在 id 变化时清空，避免详情拉取失败或离线时名称被抹掉
 watch(relatedProductId, async (id: string) => {
-  relatedProductName.value = ''
-  if (id === '') return
+  if (id === '') { relatedProductName.value = ''; return }
   try {
     const product = await fetchProductDetail(id)
     if (relatedProductId.value === id && product != null) relatedProductName.value = product.item.title
@@ -213,20 +231,22 @@ type ReminderFormState = {
 let initialFormSnapshot: ReminderFormState = { title: '', type: 'CHECKIN', remindDate: '', remindTime: '', note: '', status: 'PENDING', isAllDay: false, wardrobeBindings: [] as string[] }
 const form = ref<ReminderFormState>({ title: '', type: 'CHECKIN', remindDate: '', remindTime: '', note: '', status: 'PENDING', isAllDay: false, wardrobeBindings: [] as string[] })
 
+// 类型标签：前 4 个是「时间驱动」（有明确日期压力），后 4 个是「活动驱动」。
+// 模板按 slice(0,4) / slice(4) 分两行渲染，顺序即分组，不要随意调换。
+// 历史：每项曾带 color: TYPE_COLORS.X 字段，但 typeChip() 只用品牌色，属死数据，已删。
 const typeOptions = [
-  { label: '尾款', value: 'BALANCE', color: TYPE_COLORS.BALANCE },
-  { label: '上新发售', value: 'RELEASE', color: TYPE_COLORS.RELEASE },
-  { label: '到货提醒', value: 'ARRIVAL', color: TYPE_COLORS.ARRIVAL },
-  { label: '穿搭计划', value: 'OUTFIT', color: TYPE_COLORS.OUTFIT },
-  { label: '拍照日程', value: 'PHOTO', color: TYPE_COLORS.PHOTO },
-  { label: '整理衣橱', value: 'ORGANIZE', color: TYPE_COLORS.ORGANIZE },
-  { label: '蹲新品', value: 'WISH', color: TYPE_COLORS.WISH },
-  { label: '打卡', value: 'CHECKIN', color: TYPE_COLORS.CHECKIN },
+  { label: '尾款', value: 'BALANCE' },
+  { label: '上新发售', value: 'RELEASE' },
+  { label: '到货提醒', value: 'ARRIVAL' },
+  { label: '穿搭计划', value: 'OUTFIT' },
+  { label: '拍照日程', value: 'PHOTO' },
+  { label: '整理衣橱', value: 'ORGANIZE' },
+  { label: '蹲新品', value: 'WISH' },
+  { label: '打卡', value: 'CHECKIN' },
 ]
 
 const statusLabels = ['待提醒', '已完成', '已过期']
 const activeStatusLabel = computed((): string => form.value.status === 'DONE' ? '已完成' : (form.value.status === 'MISSED' ? '已过期' : '待提醒'))
-const typePlaceholder = computed((): string => getTypePlaceholder(form.value.type))
 
 function getDefaultTime(): string {
   if (form.value.type === 'BALANCE' || form.value.type === 'RELEASE') return '20:00'
@@ -314,12 +334,13 @@ function onTypeSelect(value: string) {
 function typeChip(active: boolean): any {
   return {
     flex: 1 as const, height: '76rpx', alignItems: 'center' as const, justifyContent: 'center' as const,
-    borderRadius: '24rpx', backgroundColor: active ? (brand[500] as string) : n.value.bgSecondary,
+    borderRadius: '24rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary,
     marginRight: '12rpx', borderWidth: active ? '0' : '1rpx', borderStyle: 'solid' as const, borderColor: n.value.border,
   }
 }
+// 选中态统一「浅粉底 + 玫粉字」（V3 §5.7）：实底玫粉只留给底部主 CTA，避免同 App 两套选中语言
 function typeChipText(active: boolean): any {
-  return { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: active ? baseColors.white : n.value.text }
+  return { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: active ? n.value.iconActive : n.value.text }
 }
 
 function onStatusChange(label: string) { form.value.status = label === '已完成' ? 'DONE' : (label === '已过期' ? 'MISSED' : 'PENDING') }
@@ -357,6 +378,26 @@ function getWardrobeCat(cat: string): string {
   if (cat === 'LOLITA') return 'Lolita'
   if (cat === 'HANFU') return '汉服'
   return '其他'
+}
+
+// ====== 关联商品（新建提醒同样可关联，来源为收藏商品池）======
+const pickableProducts = computed((): FeedItem[] => library.favoriteProducts)
+function openProductPicker() {
+  library.reload()
+  showProductPicker.value = true
+}
+function onProductRowTap() {
+  if (relatedProductId.value !== '') openRelatedProduct()
+  else openProductPicker()
+}
+function selectProduct(p: FeedItem) {
+  relatedProductId.value = p.entityId
+  relatedProductName.value = p.title
+  showProductPicker.value = false
+}
+function clearRelatedProduct() {
+  relatedProductId.value = ''
+  relatedProductName.value = ''
 }
 
 function onSaveTap() {
@@ -413,15 +454,21 @@ function deleteItem() {
   backTimer = setTimeout(() => { uni.navigateBack() }, 220)
 }
 
-function handleBack() {
-  const changed = form.value.title !== initialFormSnapshot.title
+// 表单是否有未保存改动：导航栏返回箭头与系统返回共用（原实现把这段比较内联在 handleBack 里，
+// 且漏了 wardrobeBindings —— 只改了关联衣物时不会提示，等于静默丢改动）
+function hasUnsavedChanges(): boolean {
+  return form.value.title !== initialFormSnapshot.title
     || form.value.type !== initialFormSnapshot.type
     || form.value.remindDate !== initialFormSnapshot.remindDate
     || form.value.remindTime !== initialFormSnapshot.remindTime
     || form.value.isAllDay !== initialFormSnapshot.isAllDay
     || form.value.note !== initialFormSnapshot.note
     || form.value.status !== initialFormSnapshot.status
-  if (changed) { showLeaveDialog.value = true }
+    || form.value.wardrobeBindings.join(',') !== initialFormSnapshot.wardrobeBindings.join(',')
+}
+
+function handleBack() {
+  if (hasUnsavedChanges()) { showLeaveDialog.value = true }
   else { uni.navigateBack() }
 }
 
@@ -462,17 +509,16 @@ onLoad((options) => {
   }
 })
 
-const safeBottom = getSafeBottomInset()
 const backBtnStyle = { width: '64rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
-const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: `${safeBottom + 120}px`, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
-const bottomSpacer = { height: '20rpx' }
+// 底部预留 = BottomActionBar 高度（16+88+34=138rpx）略加余量。原 `safeBottom + 120px` 把 rpx 写成了 px，
+// 等于预留 240rpx，滚动到底会多出一大片空白。
+const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '160rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 
 const optionalHint = computed((): any => ({ fontSize: '24rpx', color: n.value.textTertiary, marginTop: '8rpx', marginBottom: '12rpx' }))
 const typeRow = { flexDirection: 'row', marginBottom: '12rpx' }
 
 const timeFieldRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }))
 const timeValue = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '8rpx' }))
-const timePickWrap = { flexDirection: 'row', alignItems: 'center' }
 const pickerOverlay = computed((): any => ({
   position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
   backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 999, justifyContent: 'flex-end',
@@ -496,9 +542,6 @@ const pickerItemText = computed((): any => ({ fontSize: fontSize.base, color: n.
 const indicatorStyleStr = computed((): string => `height: 70px; border-top: 1rpx solid ${n.value.border}; border-bottom: 1rpx solid ${n.value.border};`)
 const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
-const timeSwitchRow = { flexDirection: 'row', alignItems: 'center', marginRight: '16rpx' }
-const timeSwitchLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '10rpx' }))
-const timeDisabledText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textDisabled }))
 
 const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: fontSize.base, color: n.value.text, lineHeight: '40rpx' }))
@@ -534,6 +577,17 @@ function wardrobeGridCard(id: string): any {
     position: 'relative',
   }
 }
+const inlineActionText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '12rpx' }))
+function productGridCard(entityId: string): any {
+  const selected = relatedProductId.value === entityId
+  return {
+    width: '48%', borderRadius: '24rpx', overflow: 'hidden',
+    backgroundColor: n.value.surface, marginBottom: '24rpx',
+    borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid',
+    borderColor: selected ? (brand[500] as string) : n.value.border,
+    position: 'relative',
+  }
+}
 const wardrobeGridImg = { width: '100%', height: '240rpx', borderRadius: '0' }
 const wardrobeGridPlaceholder = computed((): any => ({ width: '100%', height: '240rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
 const wardrobeGridName = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', lines: 1, textOverflow: 'ellipsis' }))
@@ -542,26 +596,7 @@ const wardrobeGridCheck = computed((): any => ({
   width: '44rpx', height: '44rpx', borderRadius: '22rpx',
   backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center',
 }))
-const wardrobePickerItem = computed((): any => ({
-  flexDirection: 'row', alignItems: 'center', height: '80rpx',
-  paddingLeft: '8rpx', paddingRight: '8rpx',
-}))
-const wardrobePickerName = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flex: 1, lines: 1, textOverflow: 'ellipsis' }))
 const wardrobePickerCat = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '12rpx' }))
-function wardrobeCheckbox(checked: boolean): any {
-  return {
-    width: '36rpx', height: '36rpx', borderRadius: '18rpx',
-    borderWidth: '2rpx', borderStyle: 'solid',
-    borderColor: checked ? (brand[500] as string) : n.value.border,
-    backgroundColor: checked ? (brand[500] as string) : 'transparent',
-    alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0,
-  }
-}
-const wardrobeName = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flex: 1, lines: 1, textOverflow: 'ellipsis' }))
-const wardrobeCatStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '12rpx' }))
-
-const tipsBanner = computed((): any => ({ padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, marginTop: '24rpx' }))
-const tipsText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx' }))
 
 const deleteBtn = { height: '88rpx', alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
 const deleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }
@@ -575,5 +610,19 @@ const dialogCancelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32
 const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 const dialogWardrobeBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center' }))
 const dialogWardrobeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: semantic.error as string }
-const customBackStyle = computed((): any => ({ fontSize: fontSize.lg, color: n.value.text }))
+
+// 全面屏手势 / 实体返回键：按「最上层叠加层」从外到内依次关闭，不要直接退出编辑页。
+// 顺序 = 视觉层级：日期选择面板 → 商品/衣物选择 → 离开确认 → 删除确认 → 未保存离开提示。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回会触发。
+onBackPress((options) => {
+  if (showDatePicker.value) { showDatePicker.value = false; return true }
+  if (showProductPicker.value) { showProductPicker.value = false; return true }
+  if (showWardrobePicker.value) { showWardrobePicker.value = false; return true }
+  if (showDeleteDialog.value) { showDeleteDialog.value = false; return true }
+  if (showLeaveDialog.value) { showLeaveDialog.value = false; return true }
+  // 只拦系统返回（全面屏手势 / 实体返回键）：我们自己在 handleLeave 里调 uni.navigateBack() 时
+  // from == 'navigateBack'，必须放行，否则会反复弹确认造成死循环
+  if (options.from == 'backbutton' && hasUnsavedChanges()) { showLeaveDialog.value = true; return true }
+  return false
+})
 </script>

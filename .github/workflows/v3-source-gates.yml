@@ -1,8 +1,10 @@
 name: V3 Source Gates
 
-# V3 全量审计修复后补充门禁：
-# PR 修改 pages/components/theme/scripts 时，必须运行 v24（运行时契约）、
-# v25（Android 静态）与 V3 源码门禁（components/v2 引用禁令 / 主题响应式 / pages.json 路由与图标）。
+# 单一入口：`npm run verify`（scripts/verify.js）依次跑
+#   源码门禁（v2 引用禁令 / 主题响应式 / pages.json 路由与图标 / uvue 绑定规则 / 提示宿主）
+#   + 运行时契约（V2.4）+ 同步一致性（R0）+ Android 静态（V2.5）+ 单元测试（tests/*.test.cjs 自动发现）
+# 日常迭代本地请用 `npm run verify:watch`：保存即自动校验，不需要手敲命令。
+# 发布前用 `npm run check`：额外校验 mp-weixin 编译产物。
 on:
   pull_request:
     paths:
@@ -29,9 +31,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Runtime contract (V2.4)
-        run: node scripts/check-v24-remote-runtime.js
-      - name: Android static (V2.5)
-        run: node scripts/check-v25-android-beta.js
-      - name: V3 source gates (v2 refs / theme reactivity / pages.json)
-        run: node scripts/check-source-gates.js
+      - name: Source verify (gates + runtime + sync + android + unit tests)
+        run: npm run verify

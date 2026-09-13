@@ -22,7 +22,7 @@
 <script setup lang="uts">
 import { computed } from 'vue'
 import AppIcon from '@/components/base/AppIcon.uvue'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { PAGE_GUTTER_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
@@ -70,8 +70,8 @@ const summaryCard = computed((): any => ({ backgroundColor: n.value.surface, bor
 const summaryTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '16rpx' }))
 const summaryText = computed((): any => ({ fontSize: fontSize.sm, lineHeight: 1.7, color: n.value.textSecondary, marginBottom: '20rpx' }))
 const linkRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between', height: '76rpx', borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.border }))
-const linkText = { fontSize: fontSize.sm, color: brand.primary }
-const agreeBtn = { height: '88rpx', borderRadius: '16rpx', backgroundColor: brand.primary, alignItems: 'center', justifyContent: 'center', marginBottom: '20rpx' }
+const linkText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.iconActive }))
+const agreeBtn = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginBottom: '20rpx' }))
 const agreeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const disagreeBtn = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
 const disagreeBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }))

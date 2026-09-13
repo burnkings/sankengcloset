@@ -1,7 +1,9 @@
 <template>
-  <MainLayout navbar-content-height="88rpx">
+  <MainLayout navbar-content-height="88rpx" bottom-spacer="0rpx">
     <template #navbar>
-      <AppNavbar :title="isEdit ? '编辑单品' : '添加单品'" :show-back="true" />
+      <AppNavbar :title="isEdit ? '编辑单品' : '添加单品'" :show-back="false">
+        <template #left><view :style="backBtnStyle" @tap="handleBack"><AppIcon name="arrow-back" :size="40" /></view></template>
+      </AppNavbar>
     </template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
@@ -15,12 +17,12 @@
           <FieldLabel label="坑向" /><SegmentedControl :items="categories" :active="activeCategory" @change="onCategory" />
           <view :style="twoColumnRow">
             <view :style="halfField"><FieldLabel label="品牌" /><AppInput v-model="form.brand" placeholder="品牌" /></view>
-            <view :style="halfFieldLast"><FieldLabel label="购买价格" /><AppInput v-model="form.price" placeholder="0" type="digit" /></view>
+            <view :style="halfFieldLast"><FieldLabel label="购买价格" /><AppInput v-model="form.price" placeholder="¥ 输入价格" type="digit" /></view>
           </view>
-          <view :style="twoColumnRow">
-            <view :style="halfField"><FieldLabel label="颜色" /><AppInput v-model="form.color" placeholder="主色" /></view>
-            <view :style="halfFieldLast"><FieldLabel label="尺码" /><AppInput v-model="form.size" placeholder="尺码" /></view>
-          </view>
+          <!-- 型别 / 颜色 / 尺码统一走 ChipPicker：固定词表一点即选，末枚「自定义」展开输入框 -->
+          <FieldLabel label="型别" /><ChipPicker :items="stylePresets" v-model="form.style" placeholder="输入型别，如 水手服 / 马面裙" />
+          <FieldLabel label="颜色" /><ChipPicker :items="colorPresets" v-model="form.color" placeholder="输入颜色" />
+          <FieldLabel label="尺码" /><ChipPicker :items="sizePresets" v-model="form.size" placeholder="输入尺码，如 170 / 加长" />
         </FormSection>
 
         <FormSection title="穿着状态">
@@ -47,9 +49,11 @@
       </view>
     </template>
   </MainLayout>
-  <view v-if="isEdit" :style="contentDeleteBtn" @tap="deleteItem"><text :style="contentDeleteBtnText">删除单品</text></view>
+  <!-- 删除是危险操作：先二次确认再执行（V3 §6.13），原实现直接删没有确认 -->
+  <view v-if="isEdit" :style="contentDeleteBtn" @tap="showDeleteDialog = true"><text :style="contentDeleteBtnText">删除单品</text></view>
   <BottomActionBar><view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣橱' }}</text></view></BottomActionBar>
   <AppDialog v-model:visible="showDeleteDialog" title="确认删除" message="删除后无法恢复，确定要删除这件单品吗？" confirm-text="删除" @confirm="deleteItem" />
+  <AppDialog :visible="showLeaveDialog" title="确认离开" message="内容尚未保存，确定离开吗？" confirm-text="离开" :show-cancel="true" cancel-text="取消" @confirm="handleLeave" @cancel="showLeaveDialog = false" />
 </template>
 
 <script setup lang="uts">
@@ -64,6 +68,7 @@ import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
+import { safeParam } from '@/utils/route-params'
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -71,6 +76,7 @@ import AppInput from '@/components/base/AppInput.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
+import ChipPicker from '@/components/v3/ChipPicker.uvue'
 import FormSection from '@/components/v3/FormSection.uvue'
 import FieldLabel from '@/components/v3/FieldLabel.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
@@ -92,6 +98,7 @@ const sourcePurchaseDate = ref('')
 type WardrobeFormState = {
   name: string
   category: string
+  style: string
   brand: string
   price: string
   color: string
@@ -99,14 +106,58 @@ type WardrobeFormState = {
   wearStatus: string
   note: string
 }
-const form = ref<WardrobeFormState>({ name: '', category: 'JK', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
+const form = ref<WardrobeFormState>({ name: '', category: 'JK', style: '', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
 const categories = ['JK', 'Lolita', '汉服', '其他']
 const wearLabels = ['未穿', '已穿', '常穿']
 const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'OTHER' ? '其他' : 'JK')))
 const activeWearLabel = computed((): string => form.value.wearStatus === 'WORN' ? '已穿' : (form.value.wearStatus === 'FREQUENT' ? '常穿' : '未穿'))
 
+// ====== 未保存离开确认 ======
+// 导航栏返回箭头与系统返回（全面屏手势 / 实体返回键）都要过这一关，避免辛苦填的表被一次手势抹掉。
+// 快照在 onLoad 预填完成后再取一次，因此「从收藏/订单带参跳进来」不会被误判成已修改。
+const showLeaveDialog = ref(false)
+type WardrobeFormSnapshot = {
+  name: string
+  category: string
+  style: string
+  brand: string
+  price: string
+  color: string
+  size: string
+  wearStatus: string
+  note: string
+  image: string
+}
+function takeSnapshot(): WardrobeFormSnapshot {
+  return {
+    name: form.value.name, category: form.value.category, style: form.value.style, brand: form.value.brand,
+    price: form.value.price, color: form.value.color, size: form.value.size, wearStatus: form.value.wearStatus,
+    note: form.value.note, image: imagePath.value,
+  }
+}
+let initialSnapshot: WardrobeFormSnapshot = takeSnapshot()
+function hasUnsavedChanges(): boolean {
+  const s = initialSnapshot
+  return form.value.name !== s.name || form.value.category !== s.category || form.value.style !== s.style
+    || form.value.brand !== s.brand || form.value.price !== s.price || form.value.color !== s.color
+    || form.value.size !== s.size || form.value.wearStatus !== s.wearStatus || form.value.note !== s.note
+    || imagePath.value !== s.image
+}
+function handleBack() {
+  if (hasUnsavedChanges()) { showLeaveDialog.value = true }
+  else { uni.navigateBack() }
+}
+function handleLeave() { showLeaveDialog.value = false; uni.navigateBack() }
+
 function onCategory(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK')) }
 function onWear(label: string) { form.value.wearStatus = label === '已穿' ? 'WORN' : (label === '常穿' ? 'FREQUENT' : 'UNWORN') }
+
+// ====== 型别 / 颜色 / 尺码的 chips 词表 ======
+// 竞品拆解结论：长处全在输入效率（chips 化 / 默认值 / 快速选择）。三类字段都用固定词表一点即选，
+// 末枚「自定义」兜底（JK 的水手服、汉服的马面裙等词表外型别走自定义），避免手打自由文本造成脏数据。
+const stylePresets = ['JSK', 'OP', 'SK', '背带', '衬衫']
+const colorPresets = ['生成', '白', '黑', '绀', 'sax', '粉', '红', '棕']
+const sizePresets = ['S', 'M', 'L', 'XL', '均码']
 function onNoteInput(e: any) {
   const eObj = e as UTSJSONObject
   const d = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
@@ -125,13 +176,13 @@ function save() {
   if (isNaN(price) || !isFinite(price) || price < 0 || price > 9999999) { showFeedback('请填写正确的价格'); return }
   if (isEdit.value) {
     const data = new WardrobeUpdateData()
-    data.name = form.value.name.trim(); data.category = form.value.category; data.brand = form.value.brand.trim(); data.purchasePrice = price
+    data.name = form.value.name.trim(); data.category = form.value.category; data.style = form.value.style.trim(); data.brand = form.value.brand.trim(); data.purchasePrice = price
     data.color = form.value.color.trim(); data.size = form.value.size.trim(); data.wearStatus = form.value.wearStatus; data.note = form.value.note.trim()
     data.images = imagePath.value === '' ? [] : [imagePath.value]
     if (!store.updateItem(editId.value, data)) { showFeedback('保存失败，请重试'); return }
   } else {
     const item = new WardrobeItem()
-    item.name = form.value.name.trim(); item.category = form.value.category; item.brand = form.value.brand.trim(); item.purchasePrice = price
+    item.name = form.value.name.trim(); item.category = form.value.category; item.style = form.value.style.trim(); item.brand = form.value.brand.trim(); item.purchasePrice = price
     item.color = form.value.color.trim(); item.size = form.value.size.trim(); item.wearStatus = form.value.wearStatus; item.note = form.value.note.trim()
     item.images = imagePath.value === '' ? [] : [imagePath.value]
     item.purchaseId = sourcePurchaseId.value
@@ -146,8 +197,8 @@ function save() {
   backTimer = setTimeout(() => { uni.navigateBack() }, 240)
 }
 function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); backTimer = setTimeout(() => { uni.navigateBack() }, 220) } }
-function safeParam(value: string): string { try { return value.indexOf('%') >= 0 ? (decodeURIComponent(value) ?? value) : value } catch (e) { return value } }
 onLoad((options) => {
+  initPageTheme()
   store.fetchItems()
   const id = options != null && options['id'] != null ? options['id'] as string : ''
   if (id === '') {
@@ -160,15 +211,17 @@ onLoad((options) => {
       sourceWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
       sourcePurchaseDate.value = options['purchaseDate'] != null ? safeParam(options['purchaseDate'] as string) : ''
     }
+    initialSnapshot = takeSnapshot()
     return
   }
   editId.value = id; isEdit.value = true
   const item = store.getById(id)
   if (item == null) return
-  form.value.name = item.name; form.value.category = item.category; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? item.purchasePrice.toString() : ''
+  form.value.name = item.name; form.value.category = item.category; form.value.style = item.style; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? item.purchasePrice.toString() : ''
   form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = wardrobeCoverImage(item)
   sourcePurchaseId.value = item.purchaseId
   sourceWishId.value = item.wishId
+  initialSnapshot = takeSnapshot()
 })
 
 // 编辑态「来源订单」卡片：从衣橱反查下单店铺/金额/尾款状态
@@ -180,7 +233,8 @@ function openSourcePurchase() {
   if (sourcePurchaseId.value !== '') uni.navigateTo({ url: `/pages/purchase/detail?id=${sourcePurchaseId.value}` })
 }
 
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '180rpx' , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
+// 底部预留 = BottomActionBar 高度（16+88+34=138rpx）略加余量，全站编辑页统一 160rpx
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '160rpx' , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const editSafeBottom = getSafeBottomInset()
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角
 const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
@@ -204,4 +258,16 @@ const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 // V3 §6.13 危险操作：页面末尾、与保存分离、确认后执行
 const contentDeleteBtn = computed((): any => ({ position: 'fixed' as string, left: '0', right: '0', bottom: `${editSafeBottom + 108}px`, height: '44rpx', alignItems: 'center', justifyContent: 'center', zIndex: 99 }))
 const contentDeleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }
+
+// 全面屏手势 / 实体返回键：有弹窗时先关弹窗；没有弹窗但表单改过，则先弹「未保存」确认，不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回会触发。
+onBackPress((options) => {
+  if (showDeleteDialog.value) { showDeleteDialog.value = false; return true }
+  if (showLeaveDialog.value) { showLeaveDialog.value = false; return true }
+  // 只拦系统返回：我们自己在 handleLeave 里调 uni.navigateBack() 时 from == 'navigateBack'，必须放行，否则死循环
+  if (options.from == 'backbutton' && hasUnsavedChanges()) { showLeaveDialog.value = true; return true }
+  return false
+})
+
+const backBtnStyle = { width: '64rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 </script>

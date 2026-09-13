@@ -25,7 +25,7 @@ import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import ListRow from '@/components/v3/ListRow.uvue'
 import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
-import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { fontSize } from '@/theme/tokens/typography'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 

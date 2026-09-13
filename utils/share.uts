@@ -1,0 +1,29 @@
+/**
+ * share — 站内分享（复制文案到剪贴板）
+ *
+ * 为什么是「复制文案」而不是拉起原生分享面板：
+ * - App 端分享到微信/朋友圈需要配置开放平台 AppID 与第三方分享 SDK，当前未接入；
+ * - 当前 uni-app x SDK 未暴露 onShareAppMessage（node_modules 类型定义中不存在）。
+ * 复制文案是零依赖、全平台可靠的裂变入口：用户复制后粘贴到微信群/好友即可。
+ * 后续接入分享 SDK 后，把 shareByCopy 内部替换为拉起分享面板，各调用方不用改。
+ */
+import { showFeedback } from './feedback'
+
+/** 组装分享文案：标题必有，补充信息与链接可选 */
+export function buildShareText(title: string, detail: string = '', url: string = ''): string {
+  const lines: string[] = []
+  lines.push(`【三坑绮橱】${title}`)
+  if (detail !== '') lines.push(detail)
+  if (url !== '') lines.push(url)
+  return lines.join('\n')
+}
+
+/** 复制分享文案到剪贴板（仅写入，不读取剪贴板） */
+export function shareByCopy(title: string, detail: string = '', url: string = '') {
+  if (title.trim() === '') { showFeedback('该内容暂无可分享的信息'); return }
+  uni.setClipboardData({
+    data: buildShareText(title, detail, url),
+    success: () => { showFeedback('分享文案已复制，粘贴给好友吧') },
+    fail: () => { showFeedback('复制失败，请重试') },
+  })
+}

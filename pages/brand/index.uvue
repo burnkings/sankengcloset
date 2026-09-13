@@ -27,7 +27,7 @@ import { Brand } from '@/domain/content/brand'
 import { getPitTypeLabel } from '@/presentation/content/feed-presenter'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useBrandStore } from '@/stores/brand-store'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -75,6 +75,14 @@ const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, c
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
-function followAction(brandName: string) { return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName) ? brand[600] : n.value.bgSecondary, marginLeft: '8rpx' } }
-function followText(brandName: string) { return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName) ? baseColors.white : brand[600] } }
+// 关注 = 浅粉底 + 玫粉字（可点的主动作）；已关注 = 中性底 + 三级字（安静下来）。
+// 原实现把「已关注」做成深玫实底白字（最抢），主次倒置。
+function followAction(name: string) {
+  const followed = library.isFollowingBrand(name)
+  return { minWidth: '88rpx', height: '48rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: followed ? n.value.bgSecondary : n.value.surfacePink, marginLeft: '8rpx' }
+}
+function followText(name: string) {
+  const followed = library.isFollowingBrand(name)
+  return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: followed ? n.value.textTertiary : n.value.iconActive }
+}
 </script>

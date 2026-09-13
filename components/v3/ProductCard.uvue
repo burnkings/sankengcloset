@@ -16,10 +16,11 @@
         <text v-if="brand !== ''" :style="brandStyle">{{ brand }}</text>
         <view v-if="typeText !== ''" :style="typeChipStyle"><text :style="typeChipText">{{ typeText }}</text></view>
       </view>
-      <view v-if="statusText !== ''" :style="statusWrap">
-        <StatusChip :label="statusText" :status="statusColor" size="sm" />
+      <!-- 状态与价格同排：把原来的两行压成一行，卡片底部保持 3 行 -->
+      <view v-if="statusText !== '' || priceText !== ''" :style="metaRow">
+        <view :style="statusWrap"><StatusChip v-if="statusText !== ''" :label="statusText" :status="statusColor" size="sm" /></view>
+        <text v-if="priceText !== ''" :style="priceStyle">{{ priceText }}</text>
       </view>
-      <text v-if="priceText !== ''" :style="priceStyle">{{ priceText }}</text>
     </view>
   </view>
 </template>
@@ -29,7 +30,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import StatusChip from '@/components/v3/StatusChip.uvue'
 import { v3TextStyle } from '@/theme/tokens/typography'
-import { PRODUCT_CARD_WIDTH_V3, PRODUCT_CARD_IMAGE_HEIGHT_V3 } from '@/theme/tokens/responsive'
+import { PRODUCT_CARD_IMAGE_HEIGHT_V3 } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 
 // V3 ProductCard — 双列商品卡（Product V2 §三）：主图 → 品牌/坑向 → 标题 → 销售状态 → 价格摘要 → 收藏
@@ -60,15 +61,18 @@ const imageWrap = computed((): any => ({ position: 'relative', width: '100%', he
 const imageStyle = computed((): any => ({ width: '100%', height: props.imageHeight }))
 const imageFallbackStyle = computed((): any => ({ width: '100%', height: props.imageHeight, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
 const fallbackTextStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }))
-const saveButtonStyle = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }))
+// 收藏按钮：默认不透明底色，避免透明热区在图片上“看不见却可点”
+const saveButtonStyle = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
 const infoStyle = { paddingTop: '12rpx' }
 const brandRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', marginTop: '8rpx' }))
-const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textSecondary, flexShrink: 1 }))
-const typeChipStyle = computed((): any => ({ marginLeft: '8rpx', paddingLeft: '10rpx', paddingRight: '10rpx', paddingTop: '2rpx', paddingBottom: '2rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, flexShrink: 0 }))
-const typeChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, color: n.value.textTertiary }))
+const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textSecondary, flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
+const typeChipStyle = computed((): any => ({ marginLeft: '8rpx', paddingLeft: '12rpx', paddingRight: '12rpx', paddingTop: '4rpx', paddingBottom: '4rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }))
+// 必须 nowrap：否则窄空间下文字会逐字竖排（肉眼可见的渲染错误）
+const typeChipText = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, fontWeight: 500, color: n.value.textTertiary, whiteSpace: 'nowrap' }))
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text, lines: 2, textOverflow: 'ellipsis' }))
-const statusWrap = { marginTop: '8rpx', flexDirection: 'row' as string }
-const priceStyle = computed((): any => ({ fontSize: v3TextStyle.price.fontSize, lineHeight: v3TextStyle.price.lineHeight, fontWeight: 600, color: n.value.text, marginTop: '8rpx' }))
+const metaRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', marginTop: '8rpx' }))
+const statusWrap = { flex: 1, flexDirection: 'row' as string, alignItems: 'center' }
+const priceStyle = computed((): any => ({ fontSize: v3TextStyle.price.fontSize, lineHeight: v3TextStyle.price.lineHeight, fontWeight: 600, color: n.value.text, marginLeft: '8rpx', flexShrink: 0 }))
 </script>
 
 <style>

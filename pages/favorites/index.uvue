@@ -1,6 +1,16 @@
 <template>
   <MainLayout :scroll-top="scrollTop" @scroll="onPageScroll">
-    <template #navbar><PageHeader title="收藏" /></template>
+    <template #navbar>
+      <PageHeader v-if="!selectMode" title="收藏" />
+      <view v-else :style="selectNavRoot">
+        <view :style="selectNavSpacer" />
+        <view :style="selectNavRow">
+          <text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text>
+          <text :style="selectNavTitle">选择收藏</text>
+          <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
+        </view>
+      </view>
+    </template>
     <template #default>
       <view :style="tabsTopSpacer" />
       <FilterChips :items="tabs" :active="activeTab" :gutter="PAGE_GUTTER_V3" @change="onTabTap" />
@@ -21,7 +31,7 @@
           </view>
           <view :style="productColumns">
             <view :style="productColLeft">
-              <view v-for="item in productLeft" :key="item.id">
+              <view v-for="item in productLeft" :key="item.id" :style="cardWrap(item.entityId)" @longpress="enterSelectMode(item.entityId)">
                 <ProductCard
                   :image="item.coverUrl"
                   :brand="item.brandName"
@@ -32,21 +42,24 @@
                   :price-text="priceSummaryText(item)"
                   :image-height="feedImageHeight(item)"
                   :saved="library.isFavorite(item.entityId)"
-                  @tap="openProduct(item)"
+                  :show-save="!selectMode"
+                  @tap="selectMode ? toggleItem(item.entityId) : openProduct(item)"
                   @toggle-save="onToggleSave(item)"
                 />
-                <view :style="statusRow" @tap.stop="openStatusPicker(item)">
-                  <text :style="statusHintText">待购状态</text>
-                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
+                <view v-if="selectMode" :style="selectCheckWrap">
+                  <view :style="selectCheck(selectedIds.indexOf(item.entityId) >= 0)"><AppIcon v-if="selectedIds.indexOf(item.entityId) >= 0" name="check" :size="24" /></view>
                 </view>
-                <view :style="releaseRow">
-                  <text :style="releaseStatusTextStyle">{{ favoriteReleaseText(item) }}</text>
-                  <text :style="reminderActionStyle" @tap.stop="onEnableReminder(item)">{{ reminderActionText(item) }}</text>
+                <view v-if="!selectMode" :style="decisionRow">
+                  <view :style="decisionLeft" @tap.stop="openStatusPicker(item)">
+                    <text :style="decisionStatusText">{{ favoriteStatusLabel(item) }}</text>
+                    <text :style="decisionReleaseText">{{ favoriteReleaseText(item) }}</text>
+                  </view>
+                  <view :style="reminderActionWrap" @tap.stop="onEnableReminder(item)"><text :style="reminderActionStyle">{{ reminderActionText(item) }}</text></view>
                 </view>
               </view>
             </view>
             <view :style="productColRight">
-              <view v-for="item in productRight" :key="item.id">
+              <view v-for="item in productRight" :key="item.id" :style="cardWrap(item.entityId)" @longpress="enterSelectMode(item.entityId)">
                 <ProductCard
                   :image="item.coverUrl"
                   :brand="item.brandName"
@@ -57,16 +70,19 @@
                   :price-text="priceSummaryText(item)"
                   :image-height="feedImageHeight(item)"
                   :saved="library.isFavorite(item.entityId)"
-                  @tap="openProduct(item)"
+                  :show-save="!selectMode"
+                  @tap="selectMode ? toggleItem(item.entityId) : openProduct(item)"
                   @toggle-save="onToggleSave(item)"
                 />
-                <view :style="statusRow" @tap.stop="openStatusPicker(item)">
-                  <text :style="statusHintText">待购状态</text>
-                  <text :style="statusLabelText">{{ favoriteStatusLabel(item) }}</text>
+                <view v-if="selectMode" :style="selectCheckWrap">
+                  <view :style="selectCheck(selectedIds.indexOf(item.entityId) >= 0)"><AppIcon v-if="selectedIds.indexOf(item.entityId) >= 0" name="check" :size="24" /></view>
                 </view>
-                <view :style="releaseRow">
-                  <text :style="releaseStatusTextStyle">{{ favoriteReleaseText(item) }}</text>
-                  <text :style="reminderActionStyle" @tap.stop="onEnableReminder(item)">{{ reminderActionText(item) }}</text>
+                <view v-if="!selectMode" :style="decisionRow">
+                  <view :style="decisionLeft" @tap.stop="openStatusPicker(item)">
+                    <text :style="decisionStatusText">{{ favoriteStatusLabel(item) }}</text>
+                    <text :style="decisionReleaseText">{{ favoriteReleaseText(item) }}</text>
+                  </view>
+                  <view :style="reminderActionWrap" @tap.stop="onEnableReminder(item)"><text :style="reminderActionStyle">{{ reminderActionText(item) }}</text></view>
                 </view>
               </view>
             </view>
@@ -103,6 +119,24 @@
       </view>
     </template>
   </MainLayout>
+
+  <view v-if="selectMode && selectedIds.length > 0" :style="bottomBar">
+    <view :style="deleteButton" @tap="confirmDelete"><text :style="deleteButtonText">删除收藏 ({{ selectedIds.length }})</text></view>
+  </view>
+  <view v-if="selectMode && selectedIds.length === 0" :style="bottomBar">
+    <view :style="deleteDisabled"><text :style="deleteDisabledText">请选择收藏</text></view>
+  </view>
+
+  <AppDialog :visible="showDeleteConfirm" title="确认删除" @confirm="batchRemove" @cancel="showDeleteConfirm = false">
+    <text :style="dialogText">确定从收藏中移除选中的 {{ selectedIds.length }} 件商品吗？</text>
+    <template #actions>
+      <view :style="dialogActions">
+        <view :style="dialogCancelBtn" @tap="showDeleteConfirm = false"><text :style="dialogCancelBtnText">取消</text></view>
+        <view :style="dialogDelBtn" @tap="batchRemove"><text :style="dialogDelBtnText">删除</text></view>
+      </view>
+    </template>
+  </AppDialog>
+
   <BackToTop :visible="showBackTop" @tap="backToTop" />
 </template>
 
@@ -118,11 +152,13 @@ import { useBrandStore } from '@/stores/brand-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { useBlacklistStore } from '@/stores/blacklist-store'
-import { brand } from '@/theme/tokens/colors'
+import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { COLUMN_GAP_V3, PAGE_HEADER_CONTENT_GAP, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { COLUMN_GAP_V3, PAGE_HEADER_CONTENT_GAP, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
+import { getStatusBarHeight } from '@/utils/window-info'
+import { zIndex } from '@/theme/tokens/z-index'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import BackToTop from '@/components/base/BackToTop.uvue'
@@ -169,10 +205,59 @@ const emptyTitleText = computed((): string => {
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
   if (activeTab.value === '动态') return '收藏的动态会显示在这里'
-  return '从新品、预约和降价中慢慢挑选'
+  return '从新品和预约里慢慢挑选'
 })
 
-function onTabTap(tab: string) { activeTab.value = tab }
+// 切 tab 时退出选择态，避免跨 tab 残留勾选
+function onTabTap(tab: string) { exitSelectMode(); activeTab.value = tab }
+
+// ====== 长按多选删除（与提醒 / 衣橱 / 购买记录同一套交互：长按进入选择态 → 勾选 → 底部删除 + 二次确认）======
+const selectMode = ref(false)
+const selectedIds = ref<string[]>([])
+const showDeleteConfirm = ref(false)
+function enterSelectMode(id: string) {
+  selectMode.value = true
+  selectedIds.value = [id]
+}
+function exitSelectMode() {
+  selectMode.value = false
+  selectedIds.value = []
+  showDeleteConfirm.value = false
+}
+function toggleItem(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx >= 0) {
+    const next = [...selectedIds.value]; next.splice(idx, 1); selectedIds.value = next
+  } else {
+    selectedIds.value = [...selectedIds.value, id]
+  }
+}
+function favoriteIds(): string[] {
+  const items = visibleFavoriteProducts.value
+  const ids: string[] = []
+  for (let i = 0; i < items.length; i++) ids.push(items[i].entityId)
+  return ids
+}
+function toggleSelectAll() {
+  const allIds = favoriteIds()
+  if (selectedIds.value.length === allIds.length) selectedIds.value = []
+  else selectedIds.value = allIds
+}
+const selectAllLabel = computed((): string => {
+  const allIds = favoriteIds()
+  return selectedIds.value.length === allIds.length && selectedIds.value.length > 0 ? '取消全选' : '全选'
+})
+function confirmDelete() {
+  if (selectedIds.value.length === 0) return
+  showDeleteConfirm.value = true
+}
+function batchRemove() {
+  const ids = [...selectedIds.value]
+  const removed = library.removeFavorites(ids)
+  showDeleteConfirm.value = false
+  showFeedback(removed > 0 ? `已移除 ${removed} 件收藏` : '未移除任何收藏')
+  exitSelectMode()
+}
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
   return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
@@ -217,13 +302,24 @@ function reminderDateFor(release: ReleaseEvent, status: string): string {
 }
 
 /** 收藏卡发售状态行：状态文案（尾款/再贩/抽选/现货/定金/预约…）+ 提醒日期 */
+// 长日期（2026-09-20）在窄行里会被拦腰斩断，统一转短格式（9月20日 / 2027年3月8日）
+function shortReleaseDate(d: string): string {
+  const parts = d.split('-')
+  if (parts.length !== 3) return d
+  const m = parseInt(parts[1])
+  const day = parseInt(parts[2])
+  if (isNaN(m) || isNaN(day)) return d
+  const now = new Date()
+  const sameYear = parseInt(parts[0]) === now.getFullYear()
+  return sameYear ? `${m}月${day}日` : `${parts[0]}年${m}月${day}日`
+}
 function favoriteReleaseText(item: FeedItem): string {
   const release = library.favoriteReleaseOf(item.entityId)
   if (release == null) return '暂无发售信息'
   const statusText = deriveReleaseStatusText(release)
   const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
   const statusPart = statusText !== '' ? statusText : '发售'
-  return date !== '' ? `${statusPart} ${date}` : statusPart
+  return date !== '' ? `${statusPart} ${shortReleaseDate(date)}` : statusPart
 }
 
 /** 提醒按钮文案：已提醒 / 可开启 / 无有效提醒时间 */
@@ -233,7 +329,7 @@ function reminderActionText(item: FeedItem): string {
   const release = library.favoriteReleaseOf(item.entityId)
   if (release == null) return '开启提醒'
   const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
-  return date !== '' ? '开启提醒' : '开启提醒'
+  return date !== '' ? '开启提醒' : '暂无提醒'
 }
 
 /** 一键开启提醒：无有效 Release 或无有效提醒时间不创建；重复（同 productId+releaseId+type）不创建 */
@@ -291,10 +387,21 @@ function onSelectStatus(status: string) {
     uni.navigateTo({ url: `/pages/purchase/edit?name=${encodeURIComponent(product.title)}&brand=${encodeURIComponent(product.brandName)}&amount=${amount}&category=${category}&wishId=${encodeURIComponent(wishId)}&productId=${encodeURIComponent(productId)}&releaseId=${encodeURIComponent(releaseId)}` })
   }
 }
+/** 待购状态文案。未设置待购状态但该商品已有发售信息时，用发售状态（尾款/预约/开售…）
+ *  替代「未设置」，避免同一张卡上「未设置」与「尾款 9月21日」自相矛盾；
+ *  确实没有任何发售信息才显示「未设置」（点按即打开状态选择）。 */
 function favoriteStatusLabel(item: FeedItem): string {
   const status = library.favoriteStatusOf(item.entityId)
   const label = FAVORITE_STATUS_LABELS[status]
-  return status === 'WISH' || status === '' ? '未设置' : (label != null ? label as string : '未设置')
+  if (status === 'WISH' || status === '') {
+    const release = library.favoriteReleaseOf(item.entityId)
+    if (release != null) {
+      const releaseStatus = deriveReleaseStatusText(release)
+      if (releaseStatus !== '') return releaseStatus
+    }
+    return '未设置'
+  }
+  return label != null ? label as string : '未设置'
 }
 function statusOptionText(value: string): any {
   const active = statusPickerCurrent.value == value
@@ -331,6 +438,7 @@ onLoad(() => { initPageTheme() })
 // 网络请求 30s TTL：频繁切 tab 不重复拉取（本地 reload 每次仍执行）
 let lastFavoritesFetchAt = 0
 onPageShow(() => {
+  exitSelectMode()
   initPageTheme()
   library.reload()
   const now = Date.now()
@@ -352,13 +460,14 @@ const emptyIcon = computed((): string => {
 const productColumns = { ...flexRow, alignItems: 'flex-start' as string, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
 const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
-// 待购状态行（收藏决策池）
-const statusRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'center', marginTop: '8rpx', marginBottom: '20rpx', paddingTop: '10rpx', paddingBottom: '10rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
-const statusLabelText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500], marginLeft: '8rpx' }))
-const statusHintText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
-// 发售状态 + 提醒入口行（Phase 1.1-C）
-const releaseRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx', marginBottom: '20rpx', paddingTop: '10rpx', paddingBottom: '10rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
-const releaseStatusTextStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '8rpx' }))
+// 收藏决策行：待购状态 + 发售日期/提醒按钮合并为一行，左右各留内边距（原两行且贴边框）
+const decisionRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx', marginBottom: '20rpx', paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', paddingBottom: '12rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
+// 两行结构：上行购买状态、下行发售/截止信息，避免三段挤一行把日期拦腰斩断
+const decisionLeft = { flex: 1, justifyContent: 'center' }
+const decisionStatusText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500] }))
+const decisionReleaseText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '4rpx' }))
+// 裸 <text> 当按钮热区不足：外层补 88rpx 容器，视觉不变
+const reminderActionWrap = { height: '88rpx', paddingLeft: '16rpx', paddingRight: '16rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: '8rpx' }
 const reminderActionStyle = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }))
 const statusOptionRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', minHeight: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }))
 // 品牌：紧凑列表（V3 §6.3 品牌用紧凑列表）
@@ -372,4 +481,41 @@ const partialErrorWrap = { ...flexRow, alignItems: 'center', justifyContent: 'ce
 const partialErrorText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const partialErrorAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600], marginLeft: '16rpx' }))
 const likedLookList = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+
+// ====== 选择态样式（长按多选删除）======
+const statusBarH = getStatusBarHeight()
+const selectNavRoot = computed((): any => ({ position: 'fixed' as string, top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg }))
+const selectNavSpacer = { height: `${statusBarH}px` }
+const selectNavRow = computed((): any => ({ height: '96rpx', ...flexRow, alignItems: 'center', justifyContent: 'space-between', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }))
+const selectNavTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
+const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
+// 选择态：未选中卡降透明度，选中卡保持原样（不改变布局，避免瀑布流跳动）
+function cardWrap(id: string): any {
+  const selected = selectedIds.value.indexOf(id) >= 0
+  return { position: 'relative' as string, opacity: selectMode.value && !selected ? 0.55 : 1 }
+}
+const selectCheckWrap = computed((): any => ({ position: 'absolute', top: '0', left: '0', width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center', zIndex: 2 }))
+function selectCheck(checked: boolean): any {
+  return { width: '44rpx', height: '44rpx', borderRadius: '22rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.border, backgroundColor: checked ? (brand[500] as string) : n.value.surface, alignItems: 'center', justifyContent: 'center' }
+}
+const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
+const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
+const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
+const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
+const dialogText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, textAlign: 'center', padding: '24rpx' }))
+const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: '8rpx' }))
+const dialogCancelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const dialogCancelBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
+const dialogDelBtn = computed((): any => ({ height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx', alignItems: 'center', justifyContent: 'center' }))
+const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: semantic.error as string }
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (showStatusPicker.value) { showStatusPicker.value = false; return true }
+  if (showDeleteConfirm.value) { showDeleteConfirm.value = false; return true }
+  if (selectMode.value) { exitSelectMode(); return true }
+  return false
+})
 </script>

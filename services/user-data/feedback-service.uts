@@ -8,38 +8,53 @@ import { apiPost } from '@/services/platform/api-client'
 const STORAGE_KEY = 'v2_feedback_records'
 const MAX_RECORDS = 50
 
+/** 解析本地反馈记录（最新在前）；解析失败返回空数组，不抛错。供「我的反馈记录」展示 */
+export function listLocalFeedback(): FeedbackRecord[] {
+  const list: FeedbackRecord[] = []
+  try {
+    const raw = uni.getStorageSync(STORAGE_KEY) as string
+    if (raw == null || raw === '') return list
+    const parsed = JSON.parse(raw) as UTSJSONObject[]
+    if (parsed == null) return list
+    for (let i = 0; i < parsed.length; i++) {
+      const obj = parsed[i]
+      const item = new FeedbackRecord()
+      item.id = obj['id'] != null ? obj['id'] as string : ''
+      item.type = obj['type'] != null ? obj['type'] as string : ''
+      item.content = obj['content'] != null ? obj['content'] as string : ''
+      item.contact = obj['contact'] != null ? obj['contact'] as string : ''
+      item.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''
+      const imgs = obj['images']
+      if (imgs != null && Array.isArray(imgs)) item.images = imgs as string[]
+      list.push(item)
+    }
+  } catch (e) {}
+  return list
+}
+
+function writeLocal(list: FeedbackRecord[]) {
+  uni.setStorageSync(STORAGE_KEY, JSON.stringify(list))
+}
+
+/** 删除单条本地反馈记录 */
+export function removeLocalFeedback(id: string): void {
+  if (id === '') return
+  writeLocal(listLocalFeedback().filter((r: FeedbackRecord) => r.id !== id))
+}
+
+/** 清空本地反馈记录 */
+export function clearLocalFeedback(): void {
+  writeLocal([])
+}
+
 /** 保存反馈本地副本，作为远端不可用时的可靠降级。 */
 function persistLocal(record: FeedbackRecord): string {
   if (record.content.trim() === '') return ''
-  try {
-    const raw = uni.getStorageSync(STORAGE_KEY) as string
-    let list: FeedbackRecord[] = []
-    if (raw != null && raw !== '') {
-      try {
-        const parsed = JSON.parse(raw) as UTSJSONObject[]
-        if (parsed != null) {
-          for (let i = 0; i < parsed.length; i++) {
-            const obj = parsed[i]
-            const item = new FeedbackRecord()
-            item.id = obj['id'] != null ? obj['id'] as string : ''
-            item.type = obj['type'] != null ? obj['type'] as string : ''
-            item.content = obj['content'] != null ? obj['content'] as string : ''
-            item.contact = obj['contact'] != null ? obj['contact'] as string : ''
-            item.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''
-            const imgs = obj['images']
-            if (imgs != null && Array.isArray(imgs)) item.images = imgs as string[]
-            list.push(item)
-          }
-        }
-      } catch (e) {}
-    }
-    list.unshift(record)
-    while (list.length > MAX_RECORDS) list.pop()
-    uni.setStorageSync(STORAGE_KEY, JSON.stringify(list))
-    return record.id
-  } catch (e) {
-    return ''
-  }
+  const list = listLocalFeedback()
+  list.unshift(record)
+  while (list.length > MAX_RECORDS) list.pop()
+  writeLocal(list)
+  return record.id
 }
 
 export async function submitFeedbackRemote(record: FeedbackRecord): Promise<string> {

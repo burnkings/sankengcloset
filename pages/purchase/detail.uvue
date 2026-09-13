@@ -131,10 +131,9 @@ import { PurchaseRecord } from '@/domain/purchase-record'
 import { toDisplayModel, PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import { brand, semantic } from '@/theme/tokens/colors'
 import { spacing } from '@/theme/tokens/spacing'
-import { semanticRadius } from '@/theme/tokens/radius'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { flexRow, flexRowBetween, flexCenter, flexColumnCenter, flexFill } from '@/theme/layout/flex'
+import { flexRow, flexRowBetween, flexCenter, flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
 import { canSetBalanceReminder, balanceReminderUrl } from '@/utils/purchase-reminder'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
@@ -358,4 +357,10 @@ const noteTextStyle = computed((): any => ({
   fontSize: fontSize.sm,
   color: n.value.textSecondary,
   lineHeight: '1.6' }))
+// 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
+// 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
+onBackPress((): boolean => {
+  if (deleteDialogVisible.value) { deleteDialogVisible.value = false; return true }
+  return false
+})
 </script>

@@ -3,6 +3,7 @@
     <template #navbar><AppNavbar title="内容偏好" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
+        <text :style="sectionTitle">坑向偏好</text>
         <text :style="hintText">用于首页推荐与发现排序，可多选</text>
         <view :style="pitRow">
           <view v-for="(item, idx) in pitItems" :key="item" :style="pitChip(idx, item)" @tap="togglePit(item)">
@@ -59,13 +60,13 @@ function priceChip(value: string): any {
   const selected = prefs.preferences.priceRange == value
   return { height: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: selected ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: selected ? 'transparent' : n.value.border, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '12rpx' }
 }
-function priceText(value: string): any { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: prefs.preferences.priceRange == value ? brand.primary : n.value.textSecondary } }
+function priceText(value: string): any { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: prefs.preferences.priceRange == value ? n.value.iconActive : n.value.textSecondary } }
 // V3 §5.7 多选胶囊：选中品牌浅底+深色文字
 function pitChip(idx: number, item: string) {
   const selected = isPitSelected(item)
   return { ...flexRow, alignItems: 'center', justifyContent: 'center', height: '56rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '9999rpx', backgroundColor: selected ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: selected ? 'transparent' : n.value.border, marginRight: idx < 2 ? '12rpx' : '0' }
 }
-function pitText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? brand.primary : n.value.textSecondary } }
+function pitText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? n.value.iconActive : n.value.textSecondary } }
 const resetRow = { alignItems: 'center', paddingTop: '20rpx' }
 const resetText = { fontSize: fontSize.sm, color: brand[600] }
 </script>

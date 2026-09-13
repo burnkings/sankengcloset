@@ -31,21 +31,28 @@ import AppSwitch from '@/components/v3/AppSwitch.uvue'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
-import { n, themeMode, setThemeMode, initPageTheme } from '@/theme/use-theme'
+import { n, setThemeMode, initPageTheme } from '@/theme/use-theme'
 
-const isSystemMode = computed((): boolean => n.themeMode == 'system')
+// 两个开关**反相关联**，只有 2 态，不再出现「跟随系统 ON + 深色 ON」这种自相矛盾的组合：
+//   深色模式 开 → 跟随系统自动关（themeMode = dark）
+//   深色模式 关 → 跟随系统自动开（themeMode = system）
+// 两行永远一开一关；点任一行只会落到这两种状态之一。
 const isDarkMode = computed((): boolean => n.themeMode == 'dark')
+const isSystemMode = computed((): boolean => n.themeMode != 'dark')
 
 function onSystemToggle(on: boolean) {
-  if (on) setThemeMode('system')
-  else setThemeMode('light')
+  setThemeMode(on ? 'system' : 'dark')
 }
 function onDarkToggle(on: boolean) {
-  if (on) setThemeMode('dark')
-  else setThemeMode('light')
+  setThemeMode(on ? 'dark' : 'system')
 }
 
-onLoad(() => { initPageTheme() })
+onLoad(() => {
+  initPageTheme()
+  // 迁移：旧版本可能存过 themeMode = 'light'。本页已无「浅色」档位，
+  // 'light' 会被显示成「跟随系统 ON」但实际锁定浅色（界面说谎）→ 归一到 system。
+  if (n.themeMode != 'dark' && n.themeMode != 'system') setThemeMode('system')
+})
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const rowGap = { height: '12rpx' }
@@ -54,3 +61,6 @@ const rowLabelWrap = { flex: 1 }
 const rowLabel = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const rowSubtitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 </script>
+
+<style>
+</style>
