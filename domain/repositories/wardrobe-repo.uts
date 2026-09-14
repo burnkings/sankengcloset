@@ -14,6 +14,7 @@ function loadAll(): WardrobeItem[] {
       const obj = arr[i]
       const item = new WardrobeItem()
       item.id = obj['id'] != null ? obj['id'] as string : ''; item.name = obj['name'] != null ? obj['name'] as string : ''; item.category = obj['category'] != null ? obj['category'] as string : 'OTHER'; item.style = obj['style'] != null ? obj['style'] as string : ''; item.brand = obj['brand'] != null ? obj['brand'] as string : ''
+      item.silhouette = obj['silhouette'] != null ? obj['silhouette'] as string : ''
       item.color = obj['color'] != null ? obj['color'] as string : ''; item.size = obj['size'] != null ? obj['size'] as string : ''; item.wearStatus = obj['wearStatus'] != null ? obj['wearStatus'] as string : 'UNWORN'; item.seasons = obj['seasons'] != null ? obj['seasons'] as string[] : []
       item.images = obj['images'] != null ? obj['images'] as string[] : []; item.tags = obj['tags'] != null ? obj['tags'] as string[] : []; item.purchaseDate = obj['purchaseDate'] != null ? obj['purchaseDate'] as string : ''; item.purchasePrice = obj['purchasePrice'] != null ? obj['purchasePrice'] as number : 0
       item.purchaseSource = obj['purchaseSource'] != null ? obj['purchaseSource'] as string : ''; item.note = obj['note'] != null ? obj['note'] as string : ''; item.isFavorite = obj['isFavorite'] != null ? obj['isFavorite'] as boolean : false; item.isDeleted = obj['isDeleted'] != null ? obj['isDeleted'] as boolean : false
@@ -32,6 +33,7 @@ function toPlainObject(item: WardrobeItem): UTSJSONObject {
     name: item.name,
     category: item.category,
     style: item.style,
+    silhouette: item.silhouette,
     brand: item.brand,
     color: item.color,
     size: item.size,
@@ -68,6 +70,7 @@ export function update(id: string, data: WardrobeUpdateData): boolean {
   const items = loadAll(); const item = items.find((entry) => entry.id == id); if (item == null) return false
   if (data.name != '') item.name = data.name
   if (data.category != '') item.category = data.category
+  item.silhouette = item.category === 'HANFU' ? data.silhouette : ''
   item.style = data.style; item.brand = data.brand; item.color = data.color; item.size = data.size
   if (data.wearStatus != '') item.wearStatus = data.wearStatus
   item.images = data.images; item.purchaseDate = data.purchaseDate

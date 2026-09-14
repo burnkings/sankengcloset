@@ -23,7 +23,7 @@
       <template v-if="variant === 'hot'">
         <view :style="tagRow">
           <view :style="categoryTag"><text :style="categoryTagText">{{ item.category }}</text></view>
-          <text :style="hotText">{{ item.viewCount }} 人浏览</text>
+          <text :style="hotText">{{ item.viewCount }} 次浏览</text>
         </view>
       </template>
 

@@ -10,7 +10,7 @@ export class RankingItem {
   category: string = ''          // JK / Lolita / 汉服
 
   // 热榜
-  viewCount: number = 0          // 热榜「X 人浏览」（2026-09-13 新增：热榜按浏览，不再错用收藏数）
+  viewCount: number = 0          // 已记录的浏览事件次数；不表示去重人数，排序仍由后端热度分决定
   favoriteCount: number = 0      // 收藏榜「X 人收藏」/ 通用收藏次数
   favoriteGrowth: number = 0     // 收藏榜「近周期新增收藏」
   // 上新榜

@@ -32,7 +32,7 @@ function harness() {
     '@/utils/format':{formatPriceCents:String,formatRelativeTime:String,formatDeadline:String},
     '@/services/mock/mock-catalog':{filterMockFeed:()=>[{id:'demo',category:'JK'}],listMockRanking:()=>[{entityId:'demo'}]},
   }
-  const context=vm.createContext({console,Map,Set,Date,Math,JSON,Error,Promise,uni:{getStorageSync:k=>storage.get(k)??'',setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),getNetworkType:o=>o.success({networkType:'wifi'})}})
+  const context=vm.createContext({console,Map,Set,Date,Math,JSON:Object.assign(Object.create(JSON),{parseArray:JSON.parse}),Error,Promise,uni:{getStorageSync:k=>storage.get(k)??'',setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),getNetworkType:o=>o.success({networkType:'wifi'})}})
   function load(id) {
     if(stubs[id])return stubs[id]
     if(cache.has(id))return cache.get(id)
@@ -45,7 +45,7 @@ function harness() {
     vm.runInContext(`(function(require,exports){${code}\nObject.assign(exports,{${exports.join(',')}})})`,context,{filename:file})(load,result)
     return result
   }
-  h.load=load;h.login=()=>{token='real';user='user1';storage.set('v21_session_user_id',user)};h.demo=()=>{mock=true};h.real=()=>{mock=false};
+  h.load=load;h.loadActual=id=>{delete stubs[id];return load(id)};h.login=()=>{token='real';user='user1';storage.set('v21_session_user_id',user)};h.demo=()=>{mock=true};h.real=()=>{mock=false};
   h.favorites=()=>load('@/stores/favorite-store');h.queue=()=>load('@/services/sync/local-sync-queue')
   return h
 }
@@ -135,4 +135,27 @@ test('late pagination error cannot overwrite a refreshed channel',async()=>{
  const g=deferred();h.get=p=>p.includes('cursor=old')?g.promise:Promise.resolve({data:[{id:'new'}],page:{hasMore:false}})
  const old=s.loadMore();await s.loadFirstPage();g.reject(Error('old error'));await old
  assert.equal(s.errorMessage,'');assert.equal(s.allItems[0].id,'new');assert.equal(s.isLoadingMore,false)
+})
+
+
+test('ranking maps viewCount independently from favoriteCount',async()=>{
+ const h=harness();h.response={data:[{entityId:'p1',viewCount:17,favoriteCount:3}]}
+ const rows=await h.load('@/services/content/ranking-service').fetchRankingRemote('hot')
+ assert.equal(rows[0].viewCount,17);assert.equal(rows[0].favoriteCount,3)
+})
+test('product detail carries variant styles into the rendered model',async()=>{
+ const h=harness();h.response={data:{id:'p1',variants:[{id:'v1',styleName:'JSK'},{id:'v2',styleName:'OP'}]}}
+ const detail=await h.loadActual('@/services/content/product-service').fetchProductDetail('p1')
+ assert.equal(detail.variants[0].styleName,'JSK');assert.equal(detail.variants[1].styleName,'OP')
+})
+test('wardrobe silhouette survives storage, edit, favorite toggle and category change',()=>{
+ const h=harness(),repo=h.load('@/domain/repositories/wardrobe-repo')
+ const {WardrobeItem,WardrobeUpdateData}=h.load('@/domain/wardrobe-item')
+ const item=new WardrobeItem();item.category='HANFU';item.silhouette='明制';item.style='马面裙'
+ repo.add(item);assert.equal(repo.getById(item.id).silhouette,'明制')
+ const data=new WardrobeUpdateData();data.silhouette='宋制';data.style='下裙'
+ assert.equal(repo.update(item.id,data),true);repo.toggleFavorite(item.id)
+ assert.equal(repo.getById(item.id).silhouette,'宋制')
+ data.category='JK';data.silhouette='';repo.update(item.id,data)
+ assert.equal(repo.getById(item.id).silhouette,'')
 })
