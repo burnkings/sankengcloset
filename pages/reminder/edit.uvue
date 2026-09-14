@@ -20,13 +20,26 @@
           </FormSection>
 
           <FormSection title="提醒时间">
-            <view :style="timeFieldRow" @tap="initDateTimePicker">
-              <text :style="timeFieldLabel">时间</text>
-              <view :style="timeRight">
-                <text :style="timeValue">{{ dateTimeDisplay }}</text>
-                <AppIcon name="chevron-right" :size="28" />
+            <!-- 日期与时间改用**系统弹层**（<picker mode="date"> / mode="time">）。
+                 原自绘 picker-view 面板在深色下出现"上下白中间灰"，系统弹层在用户环境显示正常。 -->
+            <picker mode="date" :value="remindDateValue" :start="minRemindDate" :end="maxRemindDate" @change="onRemindDateChange">
+              <view :style="timeFieldRow">
+                <text :style="timeFieldLabel">日期</text>
+                <view :style="timeRight">
+                  <text :style="timeValue">{{ remindDateDisplay }}</text>
+                  <AppIcon name="chevron-right" :size="28" />
+                </view>
               </view>
-            </view>
+            </picker>
+            <picker mode="time" :value="remindTimeValue" @change="onRemindTimeChange">
+              <view :style="timeFieldRow">
+                <text :style="timeFieldLabel">时间</text>
+                <view :style="timeRight">
+                  <text :style="timeValue">{{ remindTimeDisplay }}</text>
+                  <AppIcon name="chevron-right" :size="28" />
+                </view>
+              </view>
+            </picker>
           </FormSection>
 
           <FormSection title="关联商品">
@@ -122,32 +135,6 @@
     </view>
   </AppDialog>
 
-  <view v-if="showDatePicker" :style="pickerOverlay" @tap="showDatePicker = false">
-    <view :style="pickerPanel" @tap.stop>
-      <view :style="pickerHeader">
-        <text :style="pickerCancel" @tap="showDatePicker = false">取消</text>
-        <text :style="pickerTitle">选择日期时间</text>
-        <text :style="pickerConfirm" @tap="confirmDateTime">确定</text>
-      </view>
-      <picker-view :value="dateTimePickerVal" :style="pickerViewStyle" :indicator-style="indicatorStyleStr" @change="onDateTimeChange">
-        <picker-view-column>
-          <view v-for="y in pickerYearOptions" :key="y" :style="pickerItem"><text :style="pickerItemText">{{ y }}年</text></view>
-        </picker-view-column>
-        <picker-view-column>
-          <view v-for="m in 12" :key="m" :style="pickerItem"><text :style="pickerItemText">{{ m }}月</text></view>
-        </picker-view-column>
-        <picker-view-column>
-          <view v-for="d in getDaysInMonth()" :key="d" :style="pickerItem"><text :style="pickerItemText">{{ d }}日</text></view>
-        </picker-view-column>
-        <picker-view-column>
-          <view v-for="h in 24" :key="h" :style="pickerItem"><text :style="pickerItemText">{{ h - 1 }}时</text></view>
-        </picker-view-column>
-        <picker-view-column>
-          <view v-for="m in 60" :key="m" :style="pickerItem"><text :style="pickerItemText">{{ m - 1 }}分</text></view>
-        </picker-view-column>
-      </picker-view>
-    </view>
-  </view>
 </template>
 
 <script setup lang="uts">
@@ -165,10 +152,10 @@ import { safeParam } from '@/utils/route-params'
 import { canSetBalanceReminder } from '@/utils/purchase-reminder'
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { Reminder, ReminderUpdateData, TYPE_LABELS, TYPE_PLACEHOLDERS } from '@/domain/reminder'
-import { brand, baseColors, semantic } from '@/theme/tokens/colors'
+import { baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
@@ -198,7 +185,7 @@ const showDeleteDialog = ref(false)
 const showLeaveDialog = ref(false)
 const showWardrobePicker = ref(false)
 const showProductPicker = ref(false)
-const showDatePicker = ref(false)
+// 日期/时间已改回系统弹层，不再需要页面托管面板可见性
 const relatedPurchaseId = ref('')
 const relatedWishId = ref('')
 const relatedProductId = ref('')
@@ -212,11 +199,6 @@ watch(relatedProductId, async (id: string) => {
 })
 const relatedReleaseId = ref('')
 const tempSelected = ref<string[]>([])
-const dateTimePickerVal = ref([0, 0, 0, 0, 0])
-const tempMonthDay = ref('')
-const tempHourMin = ref('')
-const pickerYearBase = new Date().getFullYear()
-const pickerYearOptions = [pickerYearBase, pickerYearBase + 1, pickerYearBase + 2]
 
 type ReminderFormState = {
   title: string
@@ -254,77 +236,43 @@ function getDefaultTime(): string {
   return '12:00'
 }
 
-const dateTimeDisplay = computed((): string => {
-  if (form.value.remindDate === '') return '选择时间'
+/** 日期行展示：9月21日 周日（保留周几，与旧版一致） */
+const remindDateDisplay = computed((): string => {
+  if (form.value.remindDate === '') return '选择日期'
   const parts = form.value.remindDate.split('-')
   if (parts.length !== 3) return form.value.remindDate
   const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
   const wd = ['日', '一', '二', '三', '四', '五', '六']
-  let display = `${parseInt(parts[1])}月${parseInt(parts[2])}日 周${wd[d.getDay()]}`
-  if (form.value.remindTime !== '') display += ` ${form.value.remindTime}`
-  return display
+  return `${parseInt(parts[1])}月${parseInt(parts[2])}日 周${wd[d.getDay()]}`
 })
-
-function pickerYear(): number {
-  const idx = dateTimePickerVal.value[0]
-  return (idx >= 0 && idx < pickerYearOptions.length) ? pickerYearOptions[idx] : pickerYearBase
-}
-
-function getDaysInMonth(): number {
-  const m = dateTimePickerVal.value[1] + 1
-  return new Date(pickerYear(), m, 0).getDate()
-}
+const remindTimeDisplay = computed((): string => form.value.remindTime !== '' ? form.value.remindTime : '选择时间')
 
 function pad2(value: number): string { return value < 10 ? '0' + value.toString() : value.toString() }
-
-function initDateTimePicker() {
+function todayText(): string {
   const now = new Date()
-  const d = form.value.remindDate !== '' ? form.value.remindDate : `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
-  const t = form.value.remindTime !== '' ? form.value.remindTime : '12:00'
-  const dp = d.split('-')
-  const tp = t.split(':')
-  let yearIdx = 0
-  const yearNum = parseInt(dp[0])
-  if (!isNaN(yearNum)) {
-    for (let i = 0; i < pickerYearOptions.length; i++) { if (pickerYearOptions[i] === yearNum) { yearIdx = i; break } }
-  }
-  let monthIdx = 0
-  const monthNum = parseInt(dp[1])
-  if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) monthIdx = monthNum - 1
-  let dayIdx = 0
-  const dayNum = parseInt(dp[2])
-  if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) dayIdx = dayNum - 1
-  let hourIdx = 0
-  const hourNum = parseInt(tp[0])
-  if (!isNaN(hourNum) && hourNum >= 0 && hourNum <= 23) hourIdx = hourNum
-  let minuteIdx = 0
-  const minuteNum = parseInt(tp[1])
-  if (!isNaN(minuteNum) && minuteNum >= 0 && minuteNum <= 59) minuteIdx = minuteNum
-  dateTimePickerVal.value = [yearIdx, monthIdx, dayIdx, hourIdx, minuteIdx]
-  tempMonthDay.value = d
-  tempHourMin.value = t
-  showDatePicker.value = true
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
 }
+// 系统 picker 的 value 必须是合法日期/时间串；空值时回落，避免弹层定位错乱
+const remindDateValue = computed((): string => form.value.remindDate !== '' ? form.value.remindDate : todayText())
+const remindTimeValue = computed((): string => form.value.remindTime !== '' ? form.value.remindTime : '12:00')
+// 可选范围：过去 5 年 ~ 未来 5 年（编辑一条旧提醒时年份必须选得回来）
+const remindYearBase = new Date().getFullYear()
+const minRemindDate = `${remindYearBase - 5}-01-01`
+const maxRemindDate = `${remindYearBase + 5}-12-31`
 
-function onDateTimeChange(e: any) {
+function onRemindDateChange(e: any) {
   const eObj = e as UTSJSONObject
-  const raw = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
-  const val = raw != null && raw['value'] != null ? raw['value'] as number[] : dateTimePickerVal.value
-  dateTimePickerVal.value = val
-  const yr = pickerYear()
-  const m = val[1] + 1
-  const day = Math.min(val[2] + 1, new Date(yr, m, 0).getDate())
-  tempMonthDay.value = `${yr}-${pad2(m)}-${pad2(day)}`
-  const hour = val[3]
-  const minute = val[4]
-  tempHourMin.value = `${pad2(hour)}:${pad2(minute)}`
+  const detail = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  const val = (detail != null && detail['value'] != null) ? detail['value'] as string : ''
+  if (val !== '') form.value.remindDate = val
+}
+function onRemindTimeChange(e: any) {
+  const eObj = e as UTSJSONObject
+  const detail = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  const val = (detail != null && detail['value'] != null) ? detail['value'] as string : ''
+  if (val !== '') form.value.remindTime = val
 }
 
-function confirmDateTime() {
-  form.value.remindDate = tempMonthDay.value
-  form.value.remindTime = tempHourMin.value
-  showDatePicker.value = false
-}
 
 function onTypeSelect(value: string) {
   form.value.type = value
@@ -475,6 +423,9 @@ function handleBack() {
 function handleLeave() { showLeaveDialog.value = false; uni.navigateBack() }
 
 onLoad((options) => {
+  // 关键修复（2026-09-14）：本页原来**从不**调用 initPageTheme，导致原生 <picker-view> 拿不到 App 深色主题，
+  // 深色下时间面板呈现「上下白、中间灰」的系统浅色外观 —— 这是"自绘日期选择器深色修不好"的真正原因。
+  initPageTheme()
   store.fetchItems()
   wardrobeStore.fetchItems()
   if (options != null) {
@@ -519,27 +470,6 @@ const typeRow = { flexDirection: 'row', marginBottom: '12rpx' }
 
 const timeFieldRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill, marginBottom: '12rpx' }))
 const timeValue = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '8rpx' }))
-const pickerOverlay = computed((): any => ({
-  position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
-  backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 999, justifyContent: 'flex-end',
-  display: 'flex', flexDirection: 'column',
-}))
-const pickerPanel = computed((): any => ({
-  backgroundColor: n.value.surface,
-  borderTopLeftRadius: '32rpx', borderTopRightRadius: '32rpx',
-}))
-const pickerHeader = computed((): any => ({
-  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  height: '88rpx', paddingLeft: '32rpx', paddingRight: '32rpx',
-  borderBottomWidth: '1rpx', borderBottomStyle: 'solid', borderBottomColor: n.value.divider,
-}))
-const pickerCancel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary }))
-const pickerTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.text }))
-const pickerConfirm = computed((): any => ({ fontSize: fontSize.sm, color: brand[500], fontWeight: fontWeight.medium }))
-const pickerViewStyle = { width: '100%', height: '350px' }
-const pickerItem = computed((): any => ({ height: '70px', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }))
-const pickerItemText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text, lineHeight: '70px', textAlign: 'center' }))
-const indicatorStyleStr = computed((): string => `height: 70px; border-top: 1rpx solid ${n.value.border}; border-bottom: 1rpx solid ${n.value.border};`)
 const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
 
@@ -573,7 +503,7 @@ function wardrobeGridCard(id: string): any {
     width: '48%', borderRadius: '24rpx', overflow: 'hidden',
     backgroundColor: n.value.surface, marginBottom: '24rpx',
     borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid',
-    borderColor: selected ? (brand[500] as string) : n.value.border,
+    borderColor: selected ? (n.value.iconActive) : n.value.border,
     position: 'relative',
   }
 }
@@ -584,7 +514,7 @@ function productGridCard(entityId: string): any {
     width: '48%', borderRadius: '24rpx', overflow: 'hidden',
     backgroundColor: n.value.surface, marginBottom: '24rpx',
     borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid',
-    borderColor: selected ? (brand[500] as string) : n.value.border,
+    borderColor: selected ? (n.value.iconActive) : n.value.border,
     position: 'relative',
   }
 }
@@ -594,7 +524,7 @@ const wardrobeGridName = computed((): any => ({ fontSize: fontSize.xs, color: n.
 const wardrobeGridCheck = computed((): any => ({
   position: 'absolute', top: '12rpx', right: '12rpx',
   width: '44rpx', height: '44rpx', borderRadius: '22rpx',
-  backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center',
+  backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center',
 }))
 const wardrobePickerCat = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '12rpx' }))
 
@@ -602,7 +532,7 @@ const deleteBtn = { height: '88rpx', alignItems: 'center', justifyContent: 'cent
 const deleteBtnText = { fontSize: fontSize.sm, color: semantic.error as string }
 
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角；saving 锁防重复
-const saveBtnWrap = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? n.value.bgTertiary : (brand[500] as string), alignItems: 'center' as string, justifyContent: 'center' as string }))
+const saveBtnWrap = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? n.value.bgTertiary : (n.value.iconActive), alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 const savingBtnText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textTertiary }))
 const dialogActions = computed((): any => ({ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: '8rpx' }))
@@ -612,10 +542,10 @@ const dialogWardrobeBtn = computed((): any => ({ height: '88rpx', paddingLeft: '
 const dialogWardrobeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: semantic.error as string }
 
 // 全面屏手势 / 实体返回键：按「最上层叠加层」从外到内依次关闭，不要直接退出编辑页。
-// 顺序 = 视觉层级：日期选择面板 → 商品/衣物选择 → 离开确认 → 删除确认 → 未保存离开提示。
+// 顺序 = 视觉层级：商品/衣物选择 → 离开确认 → 删除确认 → 未保存离开提示。
+// （日期/时间已改用系统弹层，不再需要在这里关自绘面板）
 // 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回会触发。
 onBackPress((options) => {
-  if (showDatePicker.value) { showDatePicker.value = false; return true }
   if (showProductPicker.value) { showProductPicker.value = false; return true }
   if (showWardrobePicker.value) { showWardrobePicker.value = false; return true }
   if (showDeleteDialog.value) { showDeleteDialog.value = false; return true }

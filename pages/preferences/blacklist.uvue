@@ -19,7 +19,6 @@ import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { useBlacklistStore } from '@/stores/blacklist-store'
-import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
@@ -41,7 +40,7 @@ function rowShell(idx: number, total: number): any {
   return { ...flexRow, alignItems: 'center', minHeight: '104rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: n.value.surface, borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }
 }
 const rowName = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
-const rowAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] as string }))
+const rowAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 </script>
 
 <style>

@@ -19,7 +19,6 @@
 
 <script setup lang="uts">
 import { useContentLibraryStore, SavedOutfitPost } from '@/stores/content-library-store'
-import { brand } from '@/theme/tokens/colors'
 import { fontSize } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -86,6 +85,6 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER
 const postShell = { marginBottom: '20rpx' }
 const metaRow = computed((): any => ({ ...flexRow, alignItems: 'center', minHeight: '64rpx', paddingLeft: '12rpx', paddingRight: '12rpx', backgroundColor: n.value.surface }))
 const tagRow = { ...flexFill, ...flexRow, alignItems: 'center' }
-const topicStyle = { fontSize: fontSize.xs, color: brand[600] }
+const topicStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive }))
 const categoryStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '16rpx' }))
 </script>

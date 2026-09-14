@@ -33,7 +33,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import { useSessionStore } from '@/stores/session-store'
 import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
@@ -68,13 +68,13 @@ function save() {
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const avatarRow = { ...flexRow, alignItems: 'center', minHeight: '112rpx' }
 const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '48rpx', overflow: 'hidden', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx' }))
-const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
+const avatarText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.bold, color: n.value.iconActive }))
 const avatarCopy = { ...flexFill }
 const avatarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const avatarHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '6rpx', lineHeight: '30rpx' }))
 const privacyHint = { paddingTop: '12rpx', paddingLeft: '8rpx', paddingRight: '8rpx' }
 const privacyText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
 const bottomSpacer = { height: '160rpx' }
-const saveButton = { flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center' }
+const saveButton = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const saveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>

@@ -69,7 +69,7 @@ const cardStyle = computed((): any => ({
 }))
 const headerRow = { ...flexRow, alignItems: 'center' }
 const avatarWrap = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }))
-const avatarTextStyle = computed((): any => ({ fontSize: '30rpx', fontWeight: 600, color: brand[600] as string }))
+const avatarTextStyle = computed((): any => ({ fontSize: '30rpx', fontWeight: 600, color: n.value.iconActive }))
 const headerCopy = { flex: 1 }
 const authorStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
 const timeStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '4rpx' }))

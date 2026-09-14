@@ -41,7 +41,8 @@
                  </view>
                  <view v-if="!selectMode" :style="checkboxWrap" @tap.stop="onQuickToggle(item)">
                    <view :style="checkboxMarkNormal(item)">
-                     <AppIcon v-if="item.statusText !== '待提醒'" name="check" :size="24" />
+                     <!-- 勾只属于「已完成」：已过期是未完成状态，画勾会被读成「已完成」（评审 R3-4） -->
+                     <AppIcon v-if="item.statusText === '已完成'" name="check" :size="24" />
                    </view>
                  </view>
                  <view :style="cardCenter">
@@ -84,7 +85,7 @@
 import { useReminderStore } from '@/stores/reminder-store'
 import { ReminderDisplayModel } from '@/domain/reminder-presenter'
 import { TYPE_COLORS, TYPE_COLORS_DARK } from '@/domain/reminder'
-import { brand, semantic } from '@/theme/tokens/colors'
+import { semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { getFabBottomSpacer } from '@/utils/window-info'
@@ -167,8 +168,9 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER
 const fabBottomSpacer = getFabBottomSpacer()
 
 // V3 §6.22 顶部紧凑摘要：待办/今日/过期
+// 待办 = 未完成且未逾期（逾期条目归入已过期，不与待办重复计数）
 const summaryItems = computed(() => [
-  { label: '待办', value: `${store.todayCount + store.upcomingCount + store.missedCount} 条` },
+  { label: '待办', value: `${store.pendingCount} 条` },
   { label: '今日到期', value: `${store.todayCount} 条` },
   { label: '已过期', value: `${store.overdueCount} 条` },
 ])
@@ -180,7 +182,9 @@ const typeColors = computed((): any => isDark.value ? TYPE_COLORS_DARK : TYPE_CO
 
 // V3 §6.22 列表按日期分组，左侧时间/状态点轻时间轴；完成提供撤销
 function itemCard(item: ReminderDisplayModel): any {
-  const bgColor = item.statusText === '已完成' ? n.value.bgTertiary : (typeColors.value[item.type] != null ? typeColors.value[item.type] as string : n.value.surface)
+  // 已完成卡：深色下用 surface（干净的卡面），不再用 bgTertiary —— 后者在暖黑底上偏灰、显脏（用户反馈）
+  const doneBg = isDark.value ? n.value.surface : n.value.bgTertiary
+  const bgColor = item.statusText === '已完成' ? doneBg : (typeColors.value[item.type] != null ? typeColors.value[item.type] as string : n.value.surface)
   return {
     flexDirection: 'row',
     alignItems: 'center',
@@ -206,7 +210,7 @@ function cardStatus(item: ReminderDisplayModel): any {
   if (item.statusText === '已过期') return { fontSize: '22rpx', fontWeight: fontWeight.semibold, color: semantic.error as string }
   return { fontSize: '22rpx', color: n.value.iconActive }
 }
-const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
+const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.iconActive }))
 const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const checkboxWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '10rpx' }
 const selectCheckWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '4rpx' }
@@ -214,33 +218,28 @@ function selectCheckStyle(checked: boolean): any {
   return {
     width: '40rpx', height: '40rpx', borderRadius: '8rpx',
     borderWidth: '3rpx', borderStyle: 'solid' as string,
-    borderColor: checked ? (brand[500] as string) : n.value.border,
-    backgroundColor: checked ? (brand[500] as string) : 'transparent',
+    borderColor: checked ? (n.value.iconActive) : n.value.border,
+    backgroundColor: checked ? (n.value.iconActive) : 'transparent',
     alignItems: 'center', justifyContent: 'center',
   }
 }
 function checkboxMarkNormal(item: ReminderDisplayModel): any {
-  const isSelectChecked = selectMode.value && selectedIds.value.indexOf(item.id) >= 0
-  const isStatusChecked = !selectMode.value && item.statusText !== '待提醒'
-  const checked = selectMode.value ? isSelectChecked : isStatusChecked
   let fillColor = 'transparent'
   let strokeColor = n.value.border
-  if (checked) {
-    if (selectMode.value) {
-      fillColor = brand[500] as string
-      strokeColor = brand[500] as string
-    } else {
-      if (item.statusText === '已完成') {
-        fillColor = semantic.success as string
-        strokeColor = semantic.success as string
-      } else if (item.statusText === '已过期') {
-        fillColor = semantic.error as string
-        strokeColor = semantic.error as string
-      } else {
-        fillColor = n.value.textTertiary
-        strokeColor = n.value.textTertiary
-      }
+  const isSelectChecked = selectMode.value && selectedIds.value.indexOf(item.id) >= 0
+  if (selectMode.value) {
+    if (isSelectChecked) {
+      fillColor = n.value.iconActive
+      strokeColor = n.value.iconActive
     }
+  } else if (item.statusText === '已完成') {
+    // 完成：实底 success（勾由模板渲染）
+    fillColor = semantic.success as string
+    strokeColor = semantic.success as string
+  } else if (item.statusText === '已过期') {
+    // 过期 ≠ 完成：空心 error 描边圈，不填充、不画勾（红底 + 勾 = 语义打架）
+    fillColor = 'transparent'
+    strokeColor = semantic.error as string
   }
   return {
     width: '48rpx', height: '48rpx', borderRadius: '24rpx',
@@ -251,7 +250,7 @@ function checkboxMarkNormal(item: ReminderDisplayModel): any {
   }
 }
 const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
-const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))

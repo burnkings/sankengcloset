@@ -10,7 +10,7 @@
           </view>
         </view>
       </view>
-      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
+      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
     </view>
   </view>
 </template>
@@ -23,7 +23,7 @@ import { feedImageHeight } from '@/stores/home-feed-store'
 import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
-import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 
 const props = withDefaults(defineProps<{
   items: FeedItem[]
@@ -36,9 +36,14 @@ const emit = defineEmits<{
 
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 
-/** 价格摘要：FULL「¥368」/ DEPOSIT「定金 ¥100 · 全款 ¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空 */
+/** 价格摘要：FULL「¥368」/ DEPOSIT「¥368」+ 降级小字「定金 ¥100」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空 */
 function priceSummaryText(item: FeedItem): string {
-  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+
+/** 双价降级小字（仅定金场景非空） */
+function priceSubText(item: FeedItem): string {
+  return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
 }
 
 /** 三坑类型标签（JK / Lolita / 汉服 / 其他） */

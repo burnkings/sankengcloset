@@ -132,9 +132,17 @@ function diffDays(dateStr: string): number {
  * 已完成的提醒一律进「已完成」分组，不再因为日期已过而落到「已过期」——
  * 这是 2026-09-09 真机反馈中「提醒的已完成不能混入已过期分组」的修复点。
  * 注意：判断依据是 status 而非 dm.isOverdue（后者原本就已排除 DONE，两张口径曾不一致）。
+ *
+ * 2026-09-13 补充：已过期（MISSED）同理必须先于日期判定。
+ * 配合 store 的「当天宽限」规则（今天到期的提醒当天不过期、次日才转 MISSED）：
+ * 今天到期的条目 status 仍是 PENDING，days === 0 → 落「今天」组；
+ * 只有 days < 0（提醒日已过）或 status === MISSED 才落「已过期」。
+ * 旧逻辑曾按「当天的时刻已过」把条目提前置 MISSED，于是「今天」组里出现「已过期」条目
+ * （评审 R3-3：中牌新品发售在“今天”分组里状态却是“已过期”）—— 已按用户要求改为次日宽限。
  */
 function getGroupInfo(days: number, status: string): { group: ReminderGroup, groupLabel: string } {
   if (status === 'DONE') return { group: 'done', groupLabel: '已完成' }
+  if (status === 'MISSED') return { group: 'overdue', groupLabel: '已过期' }
   if (days < 0) {
     return { group: 'overdue', groupLabel: '已过期' }
   }

@@ -7,9 +7,9 @@
 
         <SectionHeader title="榜单排行" action-text="查看全部" @action="openRanking('hot')" />
         <view :style="rankingRow">
-          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><AppIcon :name="rankingIcon('hot')" :size="40" /><text :style="rankingTitle">热榜</text><text :style="rankingHint">大家在看</text></view>
-          <view :style="rankingCard('new')" @tap="openRanking('new')"><AppIcon :name="rankingIcon('new')" :size="40" /><text :style="rankingTitle">上新榜</text><text :style="rankingHint">最近收录</text></view>
-          <view :style="rankingCard('favorite')" @tap="openRanking('favorite')"><AppIcon :name="rankingIcon('favorite')" :size="40" /><text :style="rankingTitle">收藏榜</text><text :style="rankingHint">心动收藏</text></view>
+          <view :style="rankingCard('hot')" @tap="openRanking('hot')"><view :style="rankingIconWrap"><AppIcon :name="rankingIcon('hot')" :size="40" /></view><text :style="rankingTitle">热榜</text></view>
+          <view :style="rankingCard('new')" @tap="openRanking('new')"><view :style="rankingIconWrap"><AppIcon :name="rankingIcon('new')" :size="40" /></view><text :style="rankingTitle">上新榜</text></view>
+          <view :style="rankingCard('favorite')" @tap="openRanking('favorite')"><view :style="rankingIconWrap"><AppIcon :name="rankingIcon('favorite')" :size="40" /></view><text :style="rankingTitle">收藏榜</text></view>
         </view>
 
         <PageSkeleton v-if="feedLoading" variant="list" />
@@ -258,18 +258,21 @@ function onAddReleaseReminder(evt: CalendarEvent) {
 }
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
-// 榜单入口双卡（热榜/上新榜，等宽均分 + 24rpx 间距）
+// 榜单入口卡：**图标 + 名称** 一横排。
+// 2026-09-14：删掉副行提示语（"大家在看/最近收录/心动收藏"）—— 榜单入口只负责"这是什么榜"，
+// 榜名已经说清了，再加一句解释属于把入口当说明文案用，主流做法就是「图标+名称」或纯名称。
 const rankingRow = { ...flexRow, flexDirection: 'row' as string }
 function rankingCard(variant: string): any {
-  return { flex: 1, minHeight: '164rpx', borderRadius: '16rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, padding: '16rpx', alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column' as string, marginRight: variant !== 'favorite' ? '12rpx' : '0' }
+  return { flex: 1, minHeight: '104rpx', borderRadius: '16rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, padding: '16rpx', alignItems: 'center', flexDirection: 'row' as string, marginRight: variant !== 'favorite' ? '12rpx' : '0' }
 }
+const rankingIconWrap = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '8rpx' }
 function rankingIcon(variant: string): string {
-  if (variant === 'new') return 'shirt'
+  if (variant === 'new') return 'calendar'
   if (variant === 'favorite') return 'heart'
+  // 热榜不额外加"火焰"：榜名「热榜」本身已经把语义说清了，再加一个同义图标属于重复说明（用户反馈"大可不必"）
   return 'sparkles'
 }
-const rankingTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '10rpx' }))
-const rankingHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '6rpx' }))
+const rankingTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text, flexShrink: 0 }))
 const featureScroll = { width: '718rpx', marginRight: '-32rpx' }
 const featureRow = computed((): any => ({ ...flexRow, width: (features.value.length * 520 + 32) + 'rpx' }))
 function featureCard(idx: number) { return { width: '500rpx', flexShrink: 0, borderRadius: CARD_RADIUS_V3, overflow: 'hidden', backgroundColor: n.value.surface, marginRight: idx < features.value.length - 1 ? '20rpx' : '0' } }
@@ -281,7 +284,7 @@ const endPad = { width: '32rpx', flexShrink: 0 }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
 const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
-const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const brandInitial = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
@@ -306,10 +309,10 @@ function calDay(cell: CalendarCell): any {
   const isToday = cell.day > 0 && cell.day === now.getDate() && calYear.value === now.getFullYear() && calMonth.value === now.getMonth() + 1
   if (isToday) return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }
   const hasEvent = cell.events.length > 0
-  return { fontSize: fontSize.sm, fontWeight: hasEvent ? fontWeight.semibold : fontWeight.regular, color: hasEvent ? (brand[600] as string) : n.value.text }
+  return { fontSize: fontSize.sm, fontWeight: hasEvent ? fontWeight.semibold : fontWeight.regular, color: hasEvent ? (n.value.iconActive) : n.value.text }
 }
 const calEventRow = { ...flexRow, marginTop: '6rpx' }
-const calEventDot = { width: '10rpx', height: '10rpx', borderRadius: '5rpx', backgroundColor: brand[500] as string, marginLeft: '2rpx', marginRight: '2rpx' }
+const calEventDot = computed((): any => ({ width: '10rpx', height: '10rpx', borderRadius: '5rpx', backgroundColor: n.value.iconActive, marginLeft: '2rpx', marginRight: '2rpx' }))
 const dayEmptyWrap = { alignItems: 'center', paddingTop: '40rpx', paddingBottom: '40rpx' }
 const dayEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 const dayEventRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', minHeight: '88rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }))
@@ -317,7 +320,7 @@ const dayEventCopy = { flex: 1, justifyContent: 'center' }
 const dayEventTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const dayEventMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const dayEventAction = { flexDirection: 'row' as string, alignItems: 'center', flexShrink: 0, marginLeft: '12rpx' }
-const dayEventActionText = computed((): any => ({ fontSize: fontSize.xs, color: brand[600] as string, marginLeft: '6rpx' }))
+const dayEventActionText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive, marginLeft: '6rpx' }))
 onLoad(() => { initPageTheme() })
 onMounted(() => {
   calendarStore.loadMonth(calYear.value, calMonth.value)

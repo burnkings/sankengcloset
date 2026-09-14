@@ -24,7 +24,6 @@
 </template>
 
 <script setup lang="uts">
-import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -68,5 +67,5 @@ function pitChip(idx: number, item: string) {
 }
 function pitText(item: string) { return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isPitSelected(item) ? n.value.iconActive : n.value.textSecondary } }
 const resetRow = { alignItems: 'center', paddingTop: '20rpx' }
-const resetText = { fontSize: fontSize.sm, color: brand[600] }
+const resetText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.iconActive }))
 </script>

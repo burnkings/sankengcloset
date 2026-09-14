@@ -32,7 +32,6 @@
 
 <script setup lang="uts">
 import { listBrowseHistory, removeBrowseHistory, clearBrowseHistory, BrowseHistoryItem } from '@/stores/browse-history-store'
-import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -50,7 +49,7 @@ const items = ref<BrowseHistoryItem[]>([])
 const loading = ref(true)
 const thumbSize = '160rpx'
 
-const clearText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] as string }))
+const clearText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.iconActive }))
 
 function refresh() { items.value = listBrowseHistory() }
 

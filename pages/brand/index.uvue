@@ -71,7 +71,7 @@ const emptyWrap = { paddingTop: '48rpx' }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
 const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
-const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const brandInitial = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const brandMeta = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))

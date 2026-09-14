@@ -224,7 +224,10 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
   release.id = 'mock_release_' + mock.id
   release.productId = mock.id
   release.brandId = mock.brandId
-  release.title = mock.title + '发售批次'
+  // 批次名不再拼接商品标题（会和上方大标题重复），改用批次性质区分
+  release.title = mock.releaseType == 'rerelease' ? '再贩批'
+    : (mock.releaseType == 'first_release' ? '首批'
+    : (mock.releaseType == 'reservation' ? '预约批' : '现货批'))
   release.eventType = mock.releaseType
   release.releaseType = mock.releaseType
   release.saleStatus = mock.status

@@ -7,6 +7,7 @@
 <script setup lang="uts">
 import { getSafeBottomInset } from '@/utils/window-info'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import { n, isDark } from '@/theme/use-theme'
 
 // BackToTop — 返回顶部圆形浮钮（小红书风：深色半透明圆底 + 白色箭头）
 const props = withDefaults(defineProps<{
@@ -27,7 +28,11 @@ const btnStyle = computed((): any => ({
   width: '96rpx',
   height: '96rpx',
   borderRadius: '48rpx',
-  backgroundColor: 'rgba(0,0,0,0.35)',
+  // 深色下 35% 黑圆在暖黑底上几乎不可见 → 换成实面色卡 + 发丝描边
+  backgroundColor: isDark.value ? n.value.surfaceRaised : 'rgba(0,0,0,0.35)',
+  borderWidth: isDark.value ? '1rpx' : '0rpx',
+  borderStyle: 'solid',
+  borderColor: n.value.border,
   alignItems: 'center',
   justifyContent: 'center',
   zIndex: 99,

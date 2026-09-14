@@ -16,9 +16,12 @@
         <text v-if="brand !== ''" :style="brandStyle">{{ brand }}</text>
         <view v-if="typeText !== ''" :style="typeChipStyle"><text :style="typeChipText">{{ typeText }}</text></view>
       </view>
-      <!-- 状态与价格同排：把原来的两行压成一行，卡片底部保持 3 行 -->
+      <!-- 状态与价格同排；定金降级小字放在**状态 chip 下面**（左列），避免在主价下方独占一行留出空洞 -->
       <view v-if="statusText !== '' || priceText !== ''" :style="metaRow">
-        <view :style="statusWrap"><StatusChip v-if="statusText !== ''" :label="statusText" :status="statusColor" size="sm" /></view>
+        <view :style="statusWrap">
+          <StatusChip v-if="statusText !== ''" :label="statusText" :status="statusColor" size="sm" />
+          <text v-if="priceSubText !== ''" :style="priceSubStyle">{{ priceSubText }}</text>
+        </view>
         <text v-if="priceText !== ''" :style="priceStyle">{{ priceText }}</text>
       </view>
     </view>
@@ -45,18 +48,22 @@ const props = withDefaults(defineProps<{
   /** 销售状态颜色（StatusChip status: positive/pending/initial/neutral/error/brand） */
   statusColor?: string
   priceText?: string
+  /** 双价降级小字（定金提示）：由调用方按 price_type 生成，空串不渲染 */
+  priceSubText?: string
   image?: string
   saved?: boolean
   showSave?: boolean
   imageHeight?: string
-}>(), { title: '', brand: '', typeText: '', statusText: '', statusColor: 'neutral', priceText: '', image: '', saved: false, showSave: true, imageHeight: PRODUCT_CARD_IMAGE_HEIGHT_V3 })
+  /** 卡片与下方内容的间距。收藏页卡片下面还挂着「决策行」，需要传 0 让两者成为一张卡 */
+  marginBottom?: string
+}>(), { title: '', brand: '', typeText: '', statusText: '', statusColor: 'neutral', priceText: '', priceSubText: '', image: '', saved: false, showSave: true, imageHeight: PRODUCT_CARD_IMAGE_HEIGHT_V3, marginBottom: '28rpx' })
 
 const emit = defineEmits<{
   tap: []
   toggleSave: []
 }>()
 
-const cardStyle = { width: '100%', marginBottom: '28rpx' }
+const cardStyle = computed((): any => ({ width: '100%', marginBottom: props.marginBottom }))
 const imageWrap = computed((): any => ({ position: 'relative', width: '100%', height: props.imageHeight, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
 const imageStyle = computed((): any => ({ width: '100%', height: props.imageHeight }))
 const imageFallbackStyle = computed((): any => ({ width: '100%', height: props.imageHeight, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
@@ -71,8 +78,11 @@ const typeChipStyle = computed((): any => ({ marginLeft: '8rpx', paddingLeft: '1
 const typeChipText = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, fontWeight: 500, color: n.value.textTertiary, whiteSpace: 'nowrap' }))
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text, lines: 2, textOverflow: 'ellipsis' }))
 const metaRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', marginTop: '8rpx' }))
-const statusWrap = { flex: 1, flexDirection: 'row' as string, alignItems: 'center' }
-const priceStyle = computed((): any => ({ fontSize: v3TextStyle.price.fontSize, lineHeight: v3TextStyle.price.lineHeight, fontWeight: 600, color: n.value.text, marginLeft: '8rpx', flexShrink: 0 }))
+const statusWrap = { flex: 1, flexDirection: 'column' as string, alignItems: 'flex-start' as string }
+// 卡片价格统一用品牌粉（用户拍板：所有卡片价格色统一品牌粉）——走主题 token，深色自动换 #E47A96
+const priceStyle = computed((): any => ({ fontSize: v3TextStyle.price.fontSize, lineHeight: v3TextStyle.price.lineHeight, fontWeight: 600, color: n.value.iconActive, marginLeft: '8rpx', flexShrink: 0 }))
+// 定金降级小字：跟随状态 chip 左对齐（原来放主价下方会独占一行留出空洞）
+const priceSubStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '6rpx', lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }))
 </script>
 
 <style>

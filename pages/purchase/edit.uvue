@@ -34,6 +34,10 @@
               <view :style="amountColumnLast"><FieldLabel label="已支付（元）" /><AppInput v-model="form.paidAmountStr" placeholder="填写已支付金额" type="digit" /></view>
             </view>
 
+            <!-- 金额与日期之间加分组标题 + 发丝线：原来两组输入框直接上下相邻，
+                 读不出「日期」属于哪一块，也没有隔离（用户反馈"没有做隔离"） -->
+            <view :style="blockDivider" />
+            <FieldLabel label="日期" />
             <view :style="twoColumnRow">
               <view :style="halfField">
                 <DateField :value="form.purchaseDate" placeholder="购买日期" @change="onPurchaseDatePick" />
@@ -43,9 +47,9 @@
               </view>
             </view>
             <view :style="twoColumnRow">
-              <view :style="halfField"><DateField :value="form.arrivalDate" placeholder="预计到货日（可选）" @change="onArrivalDatePick" /></view>
-              <view :style="halfFieldLast"><text :style="fieldHint">保存后会自动维护尾款和到货提醒</text></view>
+              <view :style="halfFieldFull"><DateField :value="form.arrivalDate" placeholder="预计到货日（可选）" @change="onArrivalDatePick" /></view>
             </view>
+            <text :style="fieldHint">保存后会自动维护尾款和到货提醒</text>
           </FormSection>
 
           <FormSection title="备注（选填）">
@@ -93,6 +97,8 @@ let backTimer: number | null = null
 onUnload(() => { if (backTimer != null) { clearTimeout(backTimer); backTimer = null } })
 // 保存防重复：确认/入库期间锁住按钮，防止连点产生重复订单
 const saving = ref(false)
+// 日期已改回**系统弹层**（DateField 内部改用 <picker mode="date">），
+// 不再有自绘面板需要页面托管可见性 —— 弹层的开关由系统自己负责
 type FormState = {
   name: string
   brand: string
@@ -266,9 +272,13 @@ const amountCard = { flexDirection: 'row', marginTop: '24rpx' }
 const amountColumn = { flex: 1, marginRight: '12rpx' }
 const amountColumnLast = { flex: 1 }
 const twoColumnRow = { flexDirection: 'row', marginTop: '12rpx' }
+// 金额块与日期块之间的分组隔离：发丝线 + 上下间距
+const blockDivider = computed((): any => ({ height: '1rpx', backgroundColor: n.value.divider, marginTop: '28rpx', marginBottom: '4rpx' }))
 const halfField = { flex: 1, marginRight: '12rpx' }
 const halfFieldLast = { flex: 1 }
-const fieldHint = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary, lineHeight: '34rpx', paddingTop: '12rpx' }))
+const halfFieldFull = { flex: 1 }
+// 表单说明文字：整行独占（原来和「预计到货日」挤在同一行的右半边）
+const fieldHint = computed((): any => ({ fontSize: '22rpx', color: n.value.textTertiary, lineHeight: '34rpx', marginTop: '12rpx' }))
 
 const brandDropdown = computed((): any => ({
   borderRadius: '12rpx', backgroundColor: n.value.surface, overflow: 'hidden',
@@ -289,4 +299,7 @@ const placeholderStyle = computed((): string => `color:${n.value.placeholder}`)
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角；saving 锁防重复提交
 const saveButtonStyle = computed((): any => ({ flex: 1 as const, height: '88rpx', borderRadius: '16rpx', backgroundColor: saving.value ? brand[300] as string : brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
+
+// 说明：iOS 原生侧滑返回默认不触发 onBackPress，已由 pages.json 的 swipeBackAsBackPress 转成该事件。
+// 原逻辑是"先关自绘日期面板再退页"；日期已改回系统弹层（由系统自己关闭），这里不再需要拦截。
 </script>

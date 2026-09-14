@@ -73,7 +73,10 @@ function product(
   item.shopUrl = 'https://www.sankengcloset.icu'
   item.colorTags = category == 'JK' ? ['绀色', '格纹'] : category == 'LOLITA' ? ['奶油白', '雾粉'] : ['黛青', '米白']
   item.materialTags = category == 'HANFU' ? ['提花', '雪纺'] : ['棉混纺', '里布']
-  item.featureTags = status == 'PRE_ORDER' ? ['预约', '可设提醒'] : ['日常', '现货']
+  // 卖点标签：**不放发售状态词**（预约/可设提醒这类信息由「发售信息」卡承载，
+  // 以前这里放 '预约' 会和下方「当前状态：预约」重复，用户反馈"发售信息上面的内容有点乱"）
+  item.featureTags = category == 'LOLITA' ? ['重工刺绣', '可拆蝴蝶结']
+    : (category == 'HANFU' ? ['提花面料', '宋制版型'] : ['原创格柄', '高腰显瘦'])
   if (status == 'PRE_ORDER') {
     item.priceType = 'DEPOSIT'
     item.depositCents = Math.max(1000, Math.floor(priceCents * 0.25))

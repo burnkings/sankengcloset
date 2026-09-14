@@ -82,7 +82,7 @@
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { PurchaseDisplayModel } from '@/domain/purchase-presenter'
 import { formatPriceOrZero } from '@/utils/format'
-import { brand, semantic } from '@/theme/tokens/colors'
+import { semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -218,15 +218,15 @@ function cardProgressFill(percent: number, color: string): any {
   return { width: `${percent}%`, height: '6rpx', borderRadius: '3rpx', backgroundColor: color }
 }
 
-const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
+const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.iconActive }))
 const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const selectCheckWrap = { width: '56rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '4rpx' }
 function selectCheckStyle(checked: boolean): any {
-  return { width: '40rpx', height: '40rpx', borderRadius: '8rpx', borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.border, backgroundColor: checked ? (brand[500] as string) : 'transparent', alignItems: 'center', justifyContent: 'center' }
+  return { width: '40rpx', height: '40rpx', borderRadius: '8rpx', borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: checked ? (n.value.iconActive) : n.value.border, backgroundColor: checked ? (n.value.iconActive) : 'transparent', alignItems: 'center', justifyContent: 'center' }
 }
 
 const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
-const deleteBtn = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const deleteBtn = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const deleteBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))

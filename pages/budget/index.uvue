@@ -3,6 +3,16 @@
     <template #navbar><AppNavbar title="消费日志" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
+        <!-- 月份切换：页面级周期筛选 —— 预算进度、月度汇总、分类支出、逐笔流水都按此月过滤，
+             所以放在页面最上方（原先夹在分类卡与流水之间，看不出它在管谁；评审 P2） -->
+        <view :style="monthBar">
+          <text :style="monthTitle" @tap="showMonthPicker = true">{{ displayMonth }}</text>
+          <view :style="monthArrows">
+            <view :style="monthArrow" @tap="prevMonth"><AppIcon name="arrow-back" :size="32" /></view>
+            <view :style="monthArrow" @tap="nextMonth"><AppIcon name="arrow-right" :size="32" /></view>
+          </view>
+        </view>
+
         <view :style="budgetCard">
           <view :style="budgetHeader">
             <view :style="budgetCopy">
@@ -31,15 +41,6 @@
           <view v-for="row in categoryRows" :key="row.label" :style="categoryRow">
             <text :style="categoryLabel">{{ row.label }}</text>
             <text :style="categoryValue">{{ row.value }}</text>
-          </view>
-        </view>
-
-        <!-- 月份切换：归入流水区作分组标题行，与统计条脱离；始终显示，空月也能切 -->
-        <view :style="monthBar">
-          <text :style="monthTitle" @tap="showMonthPicker = true">{{ displayMonth }}</text>
-          <view :style="monthArrows">
-            <view :style="monthArrow" @tap="prevMonth"><AppIcon name="arrow-back" :size="32" /></view>
-            <view :style="monthArrow" @tap="nextMonth"><AppIcon name="arrow-right" :size="32" /></view>
           </view>
         </view>
 
@@ -252,17 +253,18 @@ const budgetHeader = { ...flexRow, alignItems: 'center' }
 const budgetCopy = { flex: 1 }
 const budgetTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const budgetDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '6rpx' }))
-const budgetAction = { fontSize: '24rpx', fontWeight: 600, color: brand[600] }
+const budgetAction = computed((): any => ({ fontSize: '24rpx', fontWeight: 600, color: n.value.iconActive }))
 const progressTrack = computed((): any => ({ height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.bgSecondary, marginTop: '20rpx', overflow: 'hidden' }))
 const progressBar = computed((): any => ({ width: budgetRatio.value.toString() + '%', height: '12rpx', borderRadius: '6rpx', backgroundColor: budgetRatio.value >= budget.alertPercent ? semantic.warning : n.value.iconActive }))
 const budgetEditor = { marginTop: '20rpx' }
 const budgetEditorHint = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '16rpx', marginBottom: '12rpx' }))
-const budgetSave = { height: '72rpx', borderRadius: '16rpx', backgroundColor: brand[500], alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }
+const budgetSave = computed((): any => ({ height: '72rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginTop: '20rpx' }))
 const budgetSaveText = { fontSize: '26rpx', fontWeight: 600, color: baseColors.white }
-const monthBar = { ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '4rpx' }
+// 页面级周期头：底部发丝线把它与下方卡片分开，明确「它在管这一屏」
+const monthBar = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '20rpx', paddingBottom: '8rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider }))
 const monthArrows = { ...flexRow, alignItems: 'center' }
 const monthArrow = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
-const monthTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
+const monthTitle = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const summaryCard = { marginBottom: '24rpx' }
 const categoryCard = computed((): any => ({ padding: '24rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '24rpx' }))
 const categoryTitle = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '8rpx' }))

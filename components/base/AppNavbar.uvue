@@ -16,7 +16,6 @@ import { zIndex } from '@/theme/tokens/z-index'
 import { shadow } from '@/theme/tokens/shadow'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
-import { brand } from '@/theme/tokens/colors'
 import { getStatusBarHeight } from '@/utils/window-info'
 import AppIcon from '@/components/base/AppIcon.uvue'
 
@@ -38,7 +37,7 @@ const leftStyle = computed((): any => ({ flexShrink: 0, ...flexRow, alignItems: 
 const centerStyle = { ...flexFill, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
 const rightStyle = computed((): any => ({ flexShrink: 0, ...flexRow, alignItems: 'center', justifyContent: 'flex-end', width: props.wideCenter ? '88rpx' : '180rpx' }))
 const backStyle = computed((): any => ({ width: '80rpx', height: '80rpx', alignItems: 'center', justifyContent: 'center' }))
-const brandStyle = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] as string }
+const brandStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.bold, color: n.value.iconActive }))
 const titleStyle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
 function onBack() { emit('back'); uni.navigateBack({ fail: () => { uni.switchTab({ url: '/pages/home/index' }) } }) }
 </script>

@@ -46,6 +46,6 @@ const spinnerStyle = computed((): any => ({
 
 const textStyle = computed((): any => ({
   fontSize: fontSize.sm,
-  color: brand[500],
+  color: n.value.iconActive,
   marginTop: spacing[2] }))
 </script>

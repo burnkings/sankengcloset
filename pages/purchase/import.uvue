@@ -52,7 +52,10 @@ import { brand, baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
+
+// 主题在页面显示时再应用一次（原生组件按页面读取 appTheme）；本页原本没有任何生命周期钩子
+onShow(() => { initPageTheme() })
 import { getSafeBottomInset } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'

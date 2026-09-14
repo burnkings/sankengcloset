@@ -19,8 +19,12 @@
             <view :style="halfField"><FieldLabel label="品牌" /><AppInput v-model="form.brand" placeholder="品牌" /></view>
             <view :style="halfFieldLast"><FieldLabel label="购买价格" /><AppInput v-model="form.price" placeholder="¥ 输入价格" type="digit" /></view>
           </view>
-          <!-- 型别 / 颜色 / 尺码统一走 ChipPicker：固定词表一点即选，末枚「自定义」展开输入框 -->
-          <FieldLabel label="型别" /><ChipPicker :items="stylePresets" v-model="form.style" placeholder="输入型别，如 水手服 / 马面裙" />
+          <!-- 款式 / 颜色 / 尺码统一走 ChipPicker：固定词表一点即选，末枚「自定义」展开输入框。
+               款式词表**随坑向切换**（JK 是水手服/格裙，汉服是马面裙/褙子，Lolita 是 JSK/OP），不再写死某一坑向。 -->
+          <!-- 形制（仅汉服）：与「款式（部件）」并列的第二个维度，不是它的上级。
+               汉服按形制发布（宋制/明制…），同一形制下再选部件，所以展示顺序放在款式前面。 -->
+          <template v-if="form.category === 'HANFU'"><FieldLabel label="形制" /><ChipPicker :items="silhouettePresets" v-model="form.silhouette" placeholder="输入形制，如 宋制 / 明制" /></template>
+          <FieldLabel label="款式" /><ChipPicker :items="stylePresets" v-model="form.style" placeholder="输入款式，如 水手服 / 马面裙" />
           <FieldLabel label="颜色" /><ChipPicker :items="colorPresets" v-model="form.color" placeholder="输入颜色" />
           <FieldLabel label="尺码" /><ChipPicker :items="sizePresets" v-model="form.size" placeholder="输入尺码，如 170 / 加长" />
         </FormSection>
@@ -99,6 +103,7 @@ type WardrobeFormState = {
   name: string
   category: string
   style: string
+  silhouette: string
   brand: string
   price: string
   color: string
@@ -106,7 +111,7 @@ type WardrobeFormState = {
   wearStatus: string
   note: string
 }
-const form = ref<WardrobeFormState>({ name: '', category: 'JK', style: '', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
+const form = ref<WardrobeFormState>({ name: '', category: 'JK', style: '', silhouette: '', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
 const categories = ['JK', 'Lolita', '汉服', '其他']
 const wearLabels = ['未穿', '已穿', '常穿']
 const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'OTHER' ? '其他' : 'JK')))
@@ -120,6 +125,7 @@ type WardrobeFormSnapshot = {
   name: string
   category: string
   style: string
+  silhouette: string
   brand: string
   price: string
   color: string
@@ -130,7 +136,7 @@ type WardrobeFormSnapshot = {
 }
 function takeSnapshot(): WardrobeFormSnapshot {
   return {
-    name: form.value.name, category: form.value.category, style: form.value.style, brand: form.value.brand,
+    name: form.value.name, category: form.value.category, style: form.value.style, silhouette: form.value.silhouette, brand: form.value.brand,
     price: form.value.price, color: form.value.color, size: form.value.size, wearStatus: form.value.wearStatus,
     note: form.value.note, image: imagePath.value,
   }
@@ -139,6 +145,7 @@ let initialSnapshot: WardrobeFormSnapshot = takeSnapshot()
 function hasUnsavedChanges(): boolean {
   const s = initialSnapshot
   return form.value.name !== s.name || form.value.category !== s.category || form.value.style !== s.style
+    || form.value.silhouette !== s.silhouette
     || form.value.brand !== s.brand || form.value.price !== s.price || form.value.color !== s.color
     || form.value.size !== s.size || form.value.wearStatus !== s.wearStatus || form.value.note !== s.note
     || imagePath.value !== s.image
@@ -149,14 +156,34 @@ function handleBack() {
 }
 function handleLeave() { showLeaveDialog.value = false; uni.navigateBack() }
 
-function onCategory(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK')) }
+function onCategory(label: string) {
+  form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK'))
+  // 换坑向后：款式不在新词表就清空；离开汉服则清掉形制（避免留下"JK + 明制"这类脏数据）
+  const list = stylePresets.value
+  if (form.value.style !== '' && list.indexOf(form.value.style) < 0) form.value.style = ''
+  if (form.value.category !== 'HANFU') form.value.silhouette = ''
+}
 function onWear(label: string) { form.value.wearStatus = label === '已穿' ? 'WORN' : (label === '常穿' ? 'FREQUENT' : 'UNWORN') }
 
 // ====== 型别 / 颜色 / 尺码的 chips 词表 ======
 // 竞品拆解结论：长处全在输入效率（chips 化 / 默认值 / 快速选择）。三类字段都用固定词表一点即选，
 // 末枚「自定义」兜底（JK 的水手服、汉服的马面裙等词表外型别走自定义），避免手打自由文本造成脏数据。
-const stylePresets = ['JSK', 'OP', 'SK', '背带', '衬衫']
-const colorPresets = ['生成', '白', '黑', '绀', 'sax', '粉', '红', '棕']
+// 款式词表按坑向分开（用户反馈：原来写死 Lolita 的 JSK/OP，切到 JK/汉服时词表完全不搭）
+// 这里只放**部件/衣型**这一维度；鞋与配饰也是部件，所以按坑向各自列进来。
+// 汉服的「年代/形制」（宋制、明制…）是**另一个正交维度**，暂放在备注里，见沟通记录。
+const STYLE_PRESETS: Record<string, string[]> = {
+  JK: ['水手服', '衬衫', '格裙', '百褶裙', '马甲', '领结', '鞋', '小物'],
+  LOLITA: ['JSK', 'OP', 'SK', '背带', '衬衫', '外套', '鞋', '包', '发饰', '小物'],
+  HANFU: ['上衣', '下裙', '褙子', '马面裙', '短袄', '披帛', '鞋', '配饰'],
+}
+// 坑向 = 其他（跨类目/未归类）时**不给预设词表**，款式由用户自由输入 ——
+// 硬塞一套"上衣/下装/连衣裙"的通用分类，只会让归类失真（用户反馈删掉"其他"类目）
+const stylePresets = computed((): string[] => {
+  const list = STYLE_PRESETS[form.value.category]
+  return list != null ? list : ([] as string[])
+})
+// 形制/年代词表（仅汉服）。与款式（部件）正交：马面裙 = 部件 × 明制，旋裙 = 部件 × 宋制。
+const silhouettePresets = ['宋制', '明制', '唐制', '晋制', '秦汉', '现代改良']
 const sizePresets = ['S', 'M', 'L', 'XL', '均码']
 function onNoteInput(e: any) {
   const eObj = e as UTSJSONObject
@@ -176,13 +203,13 @@ function save() {
   if (isNaN(price) || !isFinite(price) || price < 0 || price > 9999999) { showFeedback('请填写正确的价格'); return }
   if (isEdit.value) {
     const data = new WardrobeUpdateData()
-    data.name = form.value.name.trim(); data.category = form.value.category; data.style = form.value.style.trim(); data.brand = form.value.brand.trim(); data.purchasePrice = price
+    data.name = form.value.name.trim(); data.category = form.value.category; data.style = form.value.style.trim(); data.silhouette = form.value.silhouette.trim(); data.brand = form.value.brand.trim(); data.purchasePrice = price
     data.color = form.value.color.trim(); data.size = form.value.size.trim(); data.wearStatus = form.value.wearStatus; data.note = form.value.note.trim()
     data.images = imagePath.value === '' ? [] : [imagePath.value]
     if (!store.updateItem(editId.value, data)) { showFeedback('保存失败，请重试'); return }
   } else {
     const item = new WardrobeItem()
-    item.name = form.value.name.trim(); item.category = form.value.category; item.style = form.value.style.trim(); item.brand = form.value.brand.trim(); item.purchasePrice = price
+    item.name = form.value.name.trim(); item.category = form.value.category; item.style = form.value.style.trim(); item.silhouette = form.value.silhouette.trim(); item.brand = form.value.brand.trim(); item.purchasePrice = price
     item.color = form.value.color.trim(); item.size = form.value.size.trim(); item.wearStatus = form.value.wearStatus; item.note = form.value.note.trim()
     item.images = imagePath.value === '' ? [] : [imagePath.value]
     item.purchaseId = sourcePurchaseId.value
@@ -217,7 +244,7 @@ onLoad((options) => {
   editId.value = id; isEdit.value = true
   const item = store.getById(id)
   if (item == null) return
-  form.value.name = item.name; form.value.category = item.category; form.value.style = item.style; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? item.purchasePrice.toString() : ''
+  form.value.name = item.name; form.value.category = item.category; form.value.style = item.style; form.value.silhouette = item.silhouette; form.value.brand = item.brand; form.value.price = item.purchasePrice > 0 ? item.purchasePrice.toString() : ''
   form.value.color = item.color; form.value.size = item.size; form.value.wearStatus = item.wearStatus; form.value.note = item.note; imagePath.value = wardrobeCoverImage(item)
   sourcePurchaseId.value = item.purchaseId
   sourceWishId.value = item.wishId
@@ -237,14 +264,14 @@ function openSourcePurchase() {
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '160rpx' , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
 const editSafeBottom = getSafeBottomInset()
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角
-const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
+const saveButton = computed((): any => ({ width: '100%', height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const saveButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: baseColors.white }
 const sourceOrderCard = computed((): any => ({ flexDirection: 'row', alignItems: 'center', padding: '20rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const sourceOrderCopy = { flex: 1 }
 const sourceOrderTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const sourceOrderMeta = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx' }))
 const sourceOrderRight = { flexDirection: 'row' as string, alignItems: 'center', flexShrink: 0, marginLeft: '12rpx' }
-const sourceOrderPrice = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold as number, color: brand[500] as string, marginRight: '4rpx' }))
+const sourceOrderPrice = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold as number, color: n.value.iconActive, marginRight: '4rpx' }))
 const photoCard = computed((): any => ({ width: '686rpx', height: '460rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgTertiary }))
 const photoEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 const photoText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, marginTop: '16rpx' }))
