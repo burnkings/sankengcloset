@@ -334,7 +334,7 @@ const colRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: '
 // 选择态用玫粉描边把选中卡从图海里提出来
 function cardStyle(id: string): any {
   const selected = selectMode.value && selectedIds.value.indexOf(id) >= 0
-  return { borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid' as string, borderColor: selected ? (brand[500] as string) : n.value.border, marginBottom: '28rpx' }
+  return { borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.surface, borderWidth: selected ? '3rpx' : '1rpx', borderStyle: 'solid' as string, borderColor: selected ? (n.value.iconActive) : n.value.border, marginBottom: '28rpx' }
 }
 function imgWrap(id: string): any {
   return { width: PRODUCT_CARD_WIDTH_V3, height: wardrobeImageHeight(id), position: 'relative' as string, backgroundColor: n.value.bgSecondary }
@@ -347,19 +347,19 @@ const catBadgeText = computed((): any => ({ fontSize: '20rpx', fontWeight: 500, 
 const favBadge = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '40rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
 const selectCheckWrap = computed((): any => ({ position: 'absolute', top: '12rpx', left: '12rpx', width: '88rpx', height: '88rpx', alignItems: 'flex-start', justifyContent: 'flex-start', paddingTop: '6rpx', paddingLeft: '6rpx' }))
 function selectCheck(checked: boolean): any {
-  return { width: '48rpx', height: '48rpx', borderRadius: '24rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.surface, backgroundColor: checked ? (brand[500] as string) : n.value.surface, alignItems: 'center', justifyContent: 'center' }
+  return { width: '48rpx', height: '48rpx', borderRadius: '24rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: checked ? (n.value.iconActive) : n.value.surface, backgroundColor: checked ? (n.value.iconActive) : n.value.surface, alignItems: 'center', justifyContent: 'center' }
 }
 const cardBody = { padding: '12rpx 16rpx' }
 const cardName = computed((): any => ({ fontSize: '28rpx', fontWeight: fontWeight.semibold as number, color: n.value.text, lines: 1 as const, textOverflow: 'ellipsis' as string }))
 const cardBottomRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', marginTop: '6rpx' }
 const cardBrand = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, flex: 1 }))
-// 管理档金额靠字重与右对齐强语义，不用品牌色（与购买/收藏页统一）
-const cardPrice = computed((): any => ({ fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.text, marginLeft: '6rpx', flexShrink: 0 }))
+// 卡片价格统一用品牌粉（用户拍板）；走主题 token，深色自动换 #E47A96
+const cardPrice = computed((): any => ({ fontSize: '24rpx', fontWeight: fontWeight.semibold, color: n.value.iconActive, marginLeft: '6rpx', flexShrink: 0 }))
 
-const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
+const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.iconActive }))
 const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.text }))
 const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
-const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))

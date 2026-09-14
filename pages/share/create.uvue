@@ -113,12 +113,15 @@
 
 <script setup lang="uts">
 import { openPrimaryTab } from '@/utils/tab-navigation'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
+
+// 主题在页面显示时再应用一次（原生组件按页面读取 appTheme）；本页原本没有任何生命周期钩子
+onShow(() => { initPageTheme() })
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -320,7 +323,7 @@ const productResultImgPlaceholder = computed((): any => ({ width: '88rpx', heigh
 const productResultInfo = { flex: 1, marginLeft: '16rpx', marginRight: '12rpx' }
 const productResultTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, lines: 1 }))
 const productResultBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', lines: 1 }))
-const productResultCheck = computed((): any => ({ width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const productResultCheck = computed((): any => ({ width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 const wardrobeLinkRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', minHeight: '88rpx', marginTop: '12rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const wardrobeLinkCopy = { flex: 1 }
 const wardrobeLinkTitle = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text }))

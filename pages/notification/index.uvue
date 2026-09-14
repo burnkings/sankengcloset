@@ -93,7 +93,7 @@ onPageShow(() => { initPageTheme(); notices.reload(); notices.refreshRemote() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const filterWrap = { marginBottom: '20rpx' }
-const readAllText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[600] }
+const readAllText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.iconActive }))
 // V3 §6.7 行结构：类型图标、标题、摘要、时间、未读点；分割线分组
 function noticeRow(read: boolean) { return { ...flexRow, flexDirection: 'row', alignItems: 'center', paddingTop: '22rpx', paddingBottom: '22rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), borderRadius: CARD_RADIUS_V3, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '14rpx', position: 'relative' as string } }
 function noticeIcon(type: string) {
@@ -103,7 +103,7 @@ function noticeIcon(type: string) {
 const noticeCopy = { ...flexFill }
 const noticeTop = { ...flexRow, flexDirection: 'row', alignItems: 'center' }
 function noticeTitle(read: boolean) { return { ...flexFill, fontSize: fontSize.sm, fontWeight: read ? fontWeight.medium : fontWeight.semibold, color: n.value.text } }
-const unreadDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[600], marginLeft: '10rpx' }
+const unreadDot = computed((): any => ({ width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.iconActive, marginLeft: '10rpx' }))
 const noticeBody = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '34rpx', marginTop: '8rpx' }))
 const noticeTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))
 const noticeClose = { position: 'absolute' as string, top: '12rpx', right: '16rpx', width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', zIndex: 3 }

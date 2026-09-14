@@ -15,7 +15,7 @@ import { ref, computed } from 'vue'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { AGREEMENT_SECTIONS, PRIVACY_SECTIONS } from './legal-content'
 import type { LegalSection } from './legal-content'
 
@@ -23,6 +23,9 @@ const pageTitle = ref('用户协议')
 const sections = ref<LegalSection[]>([])
 
 onLoad((query) => {
+  // 主题必须在页面进入时再应用一次：原生组件（picker-view / tabBar 等）按「页面」读取 appTheme，
+  // 只在 App 启动时设一次，会导致部分页面在深色下仍按浅色渲染（原生控件是最明显的受害者）。
+  initPageTheme()
   if (query != null && query['type'] != null) {
     const type = query['type'] as string
     if (type == 'privacy') {

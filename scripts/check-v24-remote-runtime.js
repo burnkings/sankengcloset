@@ -27,8 +27,8 @@ const required = {
   'services/ai/purchase-import-service.uts': ["'/api/v1/ai/import-tasks'", "'/api/v1/uploads:prepare'", 'purchase_order', 'confirmPurchaseImport'],
   'pages/purchase/import.uvue': ['尾款一键入库', 'aiImportStore.analyzePurchase', '手动补全', '识别并确认'],
   'stores/ai-import-store.uts': ['analyzePurchaseScreenshot', 'analyzePurchase'],
-  'services/ai/wardrobe-compatibility-service.uts': ['calculateWardrobeCompatibility', '衣橱为空时返回 -1'],
-  'pages/product/detail.uvue': ['与你衣橱的搭配度', 'calculateWardrobeCompatibility'],
+  // 搭配度：2026-09-14 用户决定整体下线（算法为启发式 v1，等排期重做），
+  // 故不再断言 services/ai/wardrobe-compatibility-service.uts 与详情页的搭配度文案。
   'pages.json': ['"pagePath": "pages/favorites/index"', '"text": "收藏"'],
 }
 const notAllowed = {

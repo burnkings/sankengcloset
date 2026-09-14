@@ -348,10 +348,15 @@ export function toggleWish(entityId: string): boolean {
 export function reloadFavorite() {
   let entries = readEntries()
   if (isLocalMockSession() && entries.length === 0) {
+    // 演示数据（2026-09-14 对齐）：标题与 mock 商品一致；待购状态必须与该商品的真实销售状态自洽，
+    // 否则会出现「卡片 chip 写在售、决策行写等待开售」这种自相矛盾的卡（用户反馈"展示混乱"）。
+    //   prd_jk_navy_45  现货在售   → 想买
+    //   prd_lolita_moon 预约定金期 → 等待尾款
+    //   prd_hanfu_song  即将发售   → 等待开售
     const demoRows = [
-      ['prd_jk_navy_45', '深蓝格裙 45cm', 'WAIT_RELEASE'],
-      ['prd_lolita_moon', '月夜蔷薇 JSK', 'WANT'],
-      ['prd_hanfu_song', '宋制旋裙套装', 'WISH'],
+      ['prd_jk_navy_45', '深蓝格裙 45cm', 'WANT'],
+      ['prd_lolita_moon', '月光曲 JSK', 'WAIT_PRICE'],
+      ['prd_hanfu_song', '宋制旋裙套装', 'WAIT_RELEASE'],
     ]
     const seeded: FavoriteEntry[] = []
     for (let i = 0; i < demoRows.length; i++) {

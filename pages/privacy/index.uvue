@@ -25,7 +25,10 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { PAGE_GUTTER_V3, CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
+
+// 主题在页面显示时再应用一次（原生组件按页面读取 appTheme）；本页原本没有任何生命周期钩子
+onShow(() => { initPageTheme() })
 
 const PRIVACY_AGREED_KEY = 'v2_privacy_agreed'
 

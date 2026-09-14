@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="uts">
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, FEED_GUTTER_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
@@ -263,7 +263,7 @@ const composerIcon = computed((): any => ({ width: '72rpx', height: '72rpx', bor
 const composerCopy = { ...flexFill }
 const composerTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const composerDesc = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary, marginTop: '5rpx' }))
-const composerButton = { minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
+const composerButton = computed((): any => ({ minWidth: '104rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const composerButtonText = { fontSize: '26rpx', fontWeight: fontWeight.semibold, color: baseColors.white }
 const filterBar = { ...flexRow, justifyContent: 'flex-end', alignItems: 'center', minHeight: '76rpx', marginTop: '16rpx', position: 'relative' as string, zIndex: 20 }
 const filterSpacer = { ...flexFill }

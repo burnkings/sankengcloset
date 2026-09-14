@@ -20,6 +20,7 @@ export class ProductVariant {
   name: string = ''           // "粉色 S" / "蓝色 M"
   colorName: string = ''      // 粉色、蓝色、白色
   sizeName: string = ''       // S / M / L / 均码
+  styleName: string = ''      // 型别：JSK / OP / SK / 背带（Lolita 的一个链接可能同时卖 JSK+OP，所以挂在变体上）
   skuCode: string = ''
   price: number = 0           // 分
   stockStatus: string = 'IN_STOCK'

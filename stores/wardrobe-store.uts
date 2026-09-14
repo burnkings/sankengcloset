@@ -132,6 +132,7 @@ function mapRemoteWardrobe(raw: UTSJSONObject): WardrobeItem {
   item.name = readStr(raw, 'name')
   item.category = readStr(raw, 'category', 'OTHER')
   item.style = readStr(raw, 'style')
+  item.silhouette = readStr(raw, 'silhouette')
   item.brand = readStr(raw, 'brand')
   item.color = readStr(raw, 'color')
   item.size = readStr(raw, 'size')

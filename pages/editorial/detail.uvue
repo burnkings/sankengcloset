@@ -27,7 +27,7 @@
                 :type-text="pitTypeLabel(item)"
                 :status-text="saleStatusText(item)"
                 :status-color="saleStatusColor(item)"
-                :price-text="priceSummaryText(item)"
+                :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                 @tap="onProductTap(item.entityId)"
               />
           </view>
@@ -39,11 +39,12 @@
 
 <script setup lang="uts">
 import { FeedItem } from '@/domain/content/feed-item'
-import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { fontSize } from '@/theme/tokens/typography'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { flexRow } from '@/theme/layout/flex'
 import { baseColors } from '@/theme/tokens/colors'
+import { initPageTheme } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -63,7 +64,11 @@ const filteredItems = ref<FeedItem[]>([])
 
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
-  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+/** 双价降级小字（仅定金场景非空） */
+function priceSubText(item: FeedItem): string {
+  return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
 }
 function pitTypeLabel(item: FeedItem): string {
   const pit = item.pitType !== '' ? item.pitType : item.category
@@ -88,6 +93,8 @@ function onShare() {
 }
 
 onLoad((query) => {
+  // 主题在页面进入时再应用一次（原生组件按页面读取 appTheme）
+  initPageTheme()
   if (query != null) {
       if (query['title'] != null) pageTitle.value = safeParam(query['title'] as string)
     if (query['category'] != null) pageCategory.value = query['category'] as string

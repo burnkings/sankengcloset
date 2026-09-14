@@ -192,10 +192,10 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER
 // V3 §6.6 无外层卡片的紧凑个人头部：头像、昵称、Mock/同步状态、编辑入口
 const profileCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', paddingTop: '8rpx', paddingBottom: '24rpx', marginBottom: '8rpx' }))
 const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100] as string, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0, position: 'relative', borderWidth: '2rpx', borderStyle: 'solid', borderColor: baseColors.white }))
-const avatarText = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[500] as string }
-const cameraBadge = { position: 'absolute', bottom: '-2rpx', right: '-2rpx', width: '24rpx', height: '24rpx', borderRadius: '12rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }
+const avatarText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.bold, color: n.value.iconActive }))
+const cameraBadge = computed((): any => ({ position: 'absolute', bottom: '-2rpx', right: '-2rpx', width: '24rpx', height: '24rpx', borderRadius: '12rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
-const loginButton = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: radius.full, backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
+const loginButton = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: radius.full, backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
 const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))

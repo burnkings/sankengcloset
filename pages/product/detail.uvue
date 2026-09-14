@@ -1,6 +1,12 @@
 <template>
   <MainLayout navbar-content-height="88rpx" bottom-spacer="0rpx">
-    <template #navbar><AppNavbar title="商品详情" :show-back="true" /></template>
+    <template #navbar>
+      <AppNavbar title="商品详情" :show-back="true">
+        <template #right>
+          <view v-if="item !== null" :style="navMoreBtn" @tap="onMoreTap"><AppIcon name="more" :size="40" /></view>
+        </template>
+      </AppNavbar>
+    </template>
     <template #default>
       <view v-if="loading" :style="emptyWrap"><PageSkeleton variant="detail" /></view>
       <view v-else-if="item !== null">
@@ -23,26 +29,21 @@
               <text :style="brandText">{{ item!.brandName !== '' ? item!.brandName : shopName }}</text>
               <view v-if="pitTypeLabel !== ''" :style="pitChip"><text :style="pitChipText">{{ pitTypeLabel }}</text></view>
               <view v-if="subCategory !== ''" :style="subChip"><text :style="subChipText">{{ subCategory }}</text></view>
-              <view v-if="item!.brandName !== ''" :style="blacklistBtn" @tap="onToggleBlacklist">
-                <text :style="blacklistBtnText">{{ blacklist.isBlacklisted(item!.brandName) ? '已屏蔽·恢复' : '屏蔽品牌' }}</text>
+              <!-- 屏蔽品牌（负向、低频）已移入导航栏「…」菜单；只有"已被屏蔽"时才在这里给恢复入口 -->
+              <view v-if="item!.brandName !== '' && blacklist.isBlacklisted(item!.brandName)" :style="blacklistBtn" @tap="onToggleBlacklist">
+                <text :style="blacklistBtnText">已屏蔽·恢复</text>
               </view>
             </view>
-            <view v-if="featureTags.length > 0" :style="featureRow">
-              <view v-for="tag in featureTags" :key="tag" :style="featureChip"><text :style="featureChipText">{{ tag }}</text></view>
-            </view>
+            <!-- 原来此处还有一行「卖点标签」—— 与「发售信息 → 当前状态」重复，2026-09-14 按反馈删除。
+                 标签数据（featureTags）仍从服务端接收，留给后续筛选/搜索用。 -->
             <view v-if="blacklist.isBlacklisted(item!.brandName)" :style="blockedBanner">
               <text :style="blockedBannerText">该品牌已被你屏蔽，首页、搜索与收藏中将不再展示。可点上方「已屏蔽·恢复」取消。</text>
             </view>
-            <view v-if="releaseStatusText !== ''" :style="statusTag">
-              <view :style="statusDot" />
-              <text :style="statusTagText">{{ releaseStatusText !== '' ? releaseStatusText : '商品资料' }}</text>
-            </view>
-            <view v-if="compatibility.score >= 0" :style="compatibilityCard">
-              <view :style="compatibilityHeader"><text :style="compatibilityTitle">与你衣橱的搭配度</text><text :style="compatibilityScore">{{ compatibility.score }}%</text></view>
-              <view :style="compatibilityTrack"><view :style="compatibilityFill" /></view>
-              <text :style="compatibilityReason">{{ compatibility.explanation }}</text>
-              <text v-if="compatibility.matchedItems.length > 0" :style="compatibilityMatches">可优先试搭：{{ compatibilityNames }}</text>
-            </view>
+            <!-- 原先此处还有一个孤立的状态胶囊（只写「尾款」两个字、无上下文），
+                 与下方「发售信息 → 当前状态」完全重复，2026-09-13 按用户反馈删除：
+                 发售状态统一由「发售信息」卡承载，摘要卡只放 价格/品牌/标签/搭配度。 -->
+            <!-- 搭配度模块已整体下线（2026-09-14）：算法为启发式 v1，不适合以百分比上线，等排期重做。
+                 算法文件 services/ai/wardrobe-compatibility-service.uts 一并删除（git 历史可恢复）。 -->
           </view>
           <template v-if="release !== null">
             <SectionHeader title="发售信息" />
@@ -54,17 +55,23 @@
             </view>
           </template>
 
-          <template v-if="colorTags.length > 0 || sizeOptions.length > 0">
+          <template v-if="styleOptions.length > 0 || colorTags.length > 0 || sizeOptions.length > 0">
             <SectionHeader title="规格" />
             <view :style="specCard">
+              <view v-if="styleOptions.length > 0" :style="specRow">
+                <text :style="specLabel">款式</text>
+                <view :style="specChips">
+                  <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ st }}</text></view>
+                </view>
+              </view>
               <view v-if="colorTags.length > 0" :style="specRow">
-                <text :style="specLabel">可选颜色</text>
+                <text :style="specLabel">颜色</text>
                 <view :style="specChips">
                   <view v-for="c in colorTags" :key="c" :style="specChip"><text :style="specChipText">{{ c }}</text></view>
                 </view>
               </view>
               <view v-if="sizeOptions.length > 0" :style="specRow">
-                <text :style="specLabel">可选尺码</text>
+                <text :style="specLabel">尺码</text>
                 <view :style="specChips">
                   <view v-for="s in sizeOptions" :key="s" :style="specChip"><text :style="specChipText">{{ s }}</text></view>
                 </view>
@@ -149,7 +156,7 @@ import { useProductDetailStore } from '@/stores/product-detail-store'
 import { formatPrice } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSessionStore } from '@/stores/session-store'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight, v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_PADDING, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -159,9 +166,7 @@ import { getSafeBottomInset, upx2px } from '@/utils/window-info'
 import { recordBrowse } from '@/stores/browse-history-store'
 import { shareByCopy } from '@/utils/share'
 import { showFeedback } from '@/utils/feedback'
-import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
-import { calculateWardrobeCompatibility } from '@/services/ai/wardrobe-compatibility-service'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -180,11 +185,8 @@ const shopName = ref('')
 const library = useContentLibraryStore()
 const session = useSessionStore()
 const productDetailStore = useProductDetailStore()
-const wardrobe = useWardrobeStore()
 const blacklist = useBlacklistStore()
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
-const compatibility = computed(() => item.value !== null ? calculateWardrobeCompatibility(item.value!, wardrobe.items) : calculateWardrobeCompatibility(new FeedItem(), wardrobe.items))
-const compatibilityNames = computed((): string => compatibility.value.matchedItems.map((entry) => entry.name).join('、'))
 // 真实发售批次（后端 currentRelease → ReleaseEvent）：发售状态/时间/金额的唯一事实源，禁止 badgeText 猜测
 const currentRelease = ref(null) as Ref<ReleaseEvent | null>
 const release = computed((): ReleaseEvent | null => currentRelease.value)
@@ -212,6 +214,17 @@ const priceSummaryText = computed((): string => {
 })
 /** 三坑类型展示名 */
 const pitTypeLabel = computed((): string => getPitTypeLabel(pitType.value))
+/** 可选款式：规格变体提取去重。
+ *  Lolita 一个链接常同时卖 JSK + OP —— 对这类商品，款式是**规格**（与颜色/尺码同级、可多选），不是分类标签。
+ *  命名用「款式」：用户明确否掉了「型别」（口语书面都不会这么说），也去掉了「可选」前缀（规格卡里已有多余）。 */
+const styleOptions = computed((): string[] => {
+  const list: string[] = []
+  for (let i = 0; i < variants.value.length; i++) {
+    const s = variants.value[i].styleName
+    if (s !== '' && list.indexOf(s) < 0) list.push(s)
+  }
+  return list
+})
 /** 可选尺码：款式变体提取去重（variants 无数据则不显示尺码模块） */
 const sizeOptions = computed((): string[] => {
   const sizes: string[] = []
@@ -290,6 +303,24 @@ function toggleSaved() {
   const r = currentRelease.value
   const saved = library.toggleFavorite(entityId, item.value!.title, r != null ? r.id : '')
   showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
+}
+
+/** 导航栏「…」更多菜单：低频/负向动作收进来（分享、屏蔽品牌）。
+ *  原先"屏蔽品牌"做成品牌行里的粉色小胶囊，等于让低频负向操作占了主信息行 —— 已搬走。 */
+function onMoreTap() {
+  if (item.value === null) return
+  const name = item.value!.brandName
+  const blocked = name !== '' && blacklist.isBlacklisted(name)
+  const itemList: string[] = name !== ''
+    ? ['分享商品', blocked ? '恢复该品牌' : '屏蔽该品牌']
+    : ['分享商品']
+  uni.showActionSheet({
+    itemList: itemList,
+    success: (res) => {
+      if (res.tapIndex === 0) { onShareTap(); return }
+      if (res.tapIndex === 1) onToggleBlacklist()
+    },
+  })
 }
 
 function onToggleBlacklist() {
@@ -400,11 +431,12 @@ onLoad((options) => {
   itemId.value = options != null && options['id'] != null ? options['id'] as string : ''
   if (itemId.value === '') { loading.value = false; errorMessage.value = '缺少商品信息'; return }
   loadDetail()
-  wardrobe.fetchItems()
 })
 
 const safeBottom = getSafeBottomInset()
 const pageWrap = { paddingTop: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+// 导航栏「…」按钮：88rpx 热区（低频动作入口，不做小字）
+const navMoreBtn = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const heroWrap = computed((): any => ({ width: '750rpx', height: '720rpx', position: 'relative' as string, backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
 const hero = { width: '750rpx', height: '720rpx' }
 const imageCounter = { position: 'absolute' as string, right: '30rpx', bottom: '32rpx', minWidth: '84rpx', height: '48rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '24rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: baseColors.black }
@@ -414,32 +446,22 @@ const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PAD
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
 const priceText = computed((): any => ({ fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: n.value.iconActive }))
 const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
-const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
-const brandRow = { flexDirection: 'row' as string, alignItems: 'center' }
+const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', marginRight: '12rpx', flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
+// 品牌 / 坑向 / 子分类同排：允许换行 + 统一 12rpx 间隔，避免"一个内容紧接下一个内容"（用户反馈）
+const brandRow = { flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'wrap' as string }
 // 品牌行内小标签：坑向（品牌浅底）+ 子分类（中性底），与商品卡 typeChip 同构
-const pitChip = computed((): any => ({ marginLeft: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
-const pitChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[600] as string }))
-const subChip = computed((): any => ({ marginLeft: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const pitChip = computed((): any => ({ marginRight: '12rpx', marginBottom: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+// 品牌色文字/前景一律走主题 token（n.value.iconActive），不再用模块级 brand[600]
+// —— 模块常量在深色下不刷新，暖黑底上对比度只有约 2.7:1，等于"看不清"。
+const pitChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.iconActive }))
+const subChip = computed((): any => ({ marginRight: '12rpx', marginBottom: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 const subChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary }))
-const blacklistBtn = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx' }))
-const blacklistBtnText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: brand[600] as string }))
+const blacklistBtn = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }))
+const blacklistBtnText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.iconActive }))
 const blockedBanner = computed((): any => ({ marginTop: '16rpx', padding: '16rpx', borderRadius: '12rpx', backgroundColor: n.value.surfacePink }))
-const blockedBannerText = computed((): any => ({ fontSize: fontSize.xs, color: brand[600] as string, lineHeight: '32rpx' }))
+const blockedBannerText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive, lineHeight: '32rpx' }))
 // 卖点标签：中性底、可换行（数量不定，不用横向滚动）
-const featureRow = { flexDirection: 'row' as string, flexWrap: 'wrap' as string, marginTop: '16rpx' }
-const featureChip = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginBottom: '10rpx' }))
-const featureChipText = computed((): any => ({ fontSize: '22rpx', color: n.value.textSecondary }))
-const statusTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '14rpx', paddingRight: '18rpx', marginTop: '18rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink }))
-const statusDot = { width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[500], marginRight: '8rpx' }
-const statusTagText = { fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: brand[500] }
-const compatibilityCard = computed((): any => ({ padding: '18rpx', borderRadius: '18rpx', backgroundColor: n.value.surfacePink, marginTop: '18rpx' }))
-const compatibilityHeader = { ...flexRow, alignItems: 'center', justifyContent: 'space-between' }
-const compatibilityTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const compatibilityScore = { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: brand[600] }
-const compatibilityTrack = { height: '8rpx', borderRadius: '4rpx', backgroundColor: brand[100], overflow: 'hidden', marginTop: '12rpx' }
-const compatibilityFill = computed((): any => ({ height: '8rpx', width: `${Math.max(0, compatibility.value.score)}%`, borderRadius: '4rpx', backgroundColor: brand[500] }))
-const compatibilityReason = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lineHeight: '32rpx', marginTop: '10rpx' }))
-const compatibilityMatches = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '32rpx', marginTop: '4rpx' }))
+// 卖点标签行的样式已随该行一并删除（2026-09-14）
 // 发售信息卡：仅展示真实 release 数据（批次/时间/定金/尾款/全价），无数据不显示、不伪造、不显示 0
 const releaseCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const releaseRow = { flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between', minHeight: '56rpx' }
@@ -460,21 +482,24 @@ const sameStyleBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.va
 const sameStyleScroll = { width: '100%', whiteSpace: 'nowrap' as string }
 const sameStyleRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string }
 const sameStyleItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
-const sameStyleImage = { width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: '#F2F2F2' }
+const sameStyleImage = computed((): any => ({ width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
 const sameStyleTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 2, lineHeight: '34rpx' }))
-const sameStylePrice = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500], marginTop: '4rpx' }))
+// 价格走主题色（拍板 B，与榜单卡一致），旧写法 brand[500] 深色下不刷新
+const sameStylePrice = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive, marginTop: '4rpx' }))
 // Phase 2.3-A 真实买家：横向返图卡片（与同款式模块同构，V3 §6.4 卡片风格）
 const buyerCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const buyerScroll = { width: '100%', whiteSpace: 'nowrap' as string }
 const buyerRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string }
 const buyerItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
-const buyerImage = { width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: '#F2F2F2' }
+const buyerImage = computed((): any => ({ width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
 const buyerAuthor = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1 }))
 const buyerCaption = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1, lineHeight: '32rpx' }))
 const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 // 底部栏高度改为「内容驱动」：原来写死 160rpx，图标下方会留出约 70px 空白
-const actionSpacer = { height: `${upx2px(124) + safeBottom}px`, flexShrink: 0 }
+// 底部留白 = 底部栏真实高度（paddingTop 12rpx + 内容 88rpx + paddingBottom(safeBottom+12)px）+ 24rpx 呼吸间距。
+// 旧值只预留 upx2px(124)≈62px，小于底部栏实际高度 → 「相关动态」卡下边缘会贴死操作栏（用户反馈"贴紧了没间隔"）。
+const actionSpacer = computed((): any => ({ height: `${upx2px(100) + safeBottom + 12 + upx2px(24)}px`, flexShrink: 0 }))
 // 加载/失败使用 V3 PageSkeleton / PageState
 const emptyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center' }
 // V3 §6.10 底部固定：收藏 / 设置提醒 / 前往官方渠道（避开安全区）

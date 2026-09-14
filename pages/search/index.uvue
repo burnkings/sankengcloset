@@ -68,7 +68,7 @@
                     :type-text="pitTypeLabel(item)"
                     :status-text="saleStatusText(item)"
                     :status-color="saleStatusColor(item)"
-                    :price-text="priceSummaryText(item)"
+                    :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                     :image-height="feedImageHeight(item)"
                     :saved="item.saved"
                     @tap="onResultTap(item)"
@@ -85,7 +85,7 @@
                     :type-text="pitTypeLabel(item)"
                     :status-text="saleStatusText(item)"
                     :status-color="saleStatusColor(item)"
-                    :price-text="priceSummaryText(item)"
+                    :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                     :image-height="feedImageHeight(item)"
                     :saved="item.saved"
                     @tap="onResultTap(item)"
@@ -113,14 +113,14 @@ import { FeedItem } from '@/domain/content/feed-item'
 import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSearchStore } from '@/stores/search-store'
-import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3 } from '@/theme/tokens/responsive'
 import { zIndex } from '@/theme/tokens/z-index'
 import { shadow } from '@/theme/tokens/shadow'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight } from '@/utils/window-info'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
@@ -134,7 +134,11 @@ import { SearchFilters, SearchResult } from '@/services/content/search-service'
 
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
-  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+/** 双价降级小字（仅定金场景非空） */
+function priceSubText(item: FeedItem): string {
+  return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
 }
 function pitTypeLabel(item: FeedItem): string {
   const pit = item.pitType !== '' ? item.pitType : item.category
@@ -397,6 +401,7 @@ onUnload(() => {
 })
 
 onMounted(() => {
+  initPageTheme()
   try {
     const pending = uni.getStorageSync('pending_search_keyword') as string
     if (pending !== '') {
@@ -410,10 +415,12 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP }
 const plainSections = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 // 筛选行只有 2–3 个胶囊，固定宽度永远放得下，不需要横向滚动容器（去掉后不再有滚动条/回弹）
 const filterWrap = { ...flexRow, alignItems: 'center', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, marginBottom: '18rpx' }
-function filterChip(active: boolean): any { return { height: '56rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '28rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? brand[500] : n.value.bgSecondary, marginRight: '12rpx' } }
-function filterChipText(active: boolean): any { return { fontSize: fontSize.xs, color: active ? '#FFFFFF' : n.value.textSecondary } }
+// V3 §5.7 选中态统一「浅粉底 + 玫粉字」：实底玫粉只留给底部主 CTA
+// （原为实底 brand[500] + 白字，是评审 N1 遗漏的一处，全 App 两套选中语言）
+function filterChip(active: boolean): any { return { height: '56rpx', paddingLeft: '22rpx', paddingRight: '22rpx', borderRadius: '28rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginRight: '12rpx' } }
+function filterChipText(active: boolean): any { return { fontSize: fontSize.xs, fontWeight: active ? 600 : 400, color: active ? n.value.iconActive : n.value.textSecondary } }
 const clearFilter = { height: '56rpx', paddingLeft: '12rpx', paddingRight: '12rpx', alignItems: 'center', justifyContent: 'center' }
-const clearFilterText = { fontSize: fontSize.xs, color: brand[600] }
+const clearFilterText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive }))
 // 自定义搜索导航栏：返回 64rpx + 输入框 flex:1 + 取消（不再用 AppNavbar 左右各 180rpx 三栏）
 const statusBarH = getStatusBarHeight()
 const searchNavStyle = computed((): any => ({ position: 'fixed', top: '0', left: '0', right: '0', zIndex: zIndex.navbar, backgroundColor: n.value.bg, boxShadow: shadow.navbar }))
@@ -425,7 +432,7 @@ const inputIconStyle = { width: '40rpx', height: '56rpx', alignItems: 'center', 
 const inputStyle = computed((): any => ({ flex: 1, height: '100%', minWidth: '0', fontSize: fontSize.base, color: n.value.text }))
 const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
 const clearBtnStyle = { width: '56rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
-const cancelText = { fontSize: '27rpx', fontWeight: '500', color: brand[600], flexShrink: 0, marginLeft: '16rpx' } as UTSJSONObject
+const cancelText = computed((): any => ({ fontSize: '27rpx', fontWeight: '500', color: n.value.iconActive, flexShrink: 0, marginLeft: '16rpx' }))
 
 // 「最近搜索」chip 样式（V3 §6.8）：56rpx 胶囊；列表内禁止用 gap 撑间距，统一用 margin
 const recentWrap = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '4rpx' } as UTSJSONObject
@@ -437,7 +444,7 @@ const recentChipText = computed((): any => ({ fontSize: '25rpx', fontWeight: '50
 const hotList = { marginTop: '8rpx' } as UTSJSONObject
 const hotRow = { ...flexRow, alignItems: 'center', minHeight: '72rpx', paddingVertical: '8rpx' } as UTSJSONObject
 function rankText(idx: number) {
-  const color = idx === 0 ? brand[500] : idx === 1 ? semantic.warning : idx === 2 ? accent[500] : n.value.textSecondary
+  const color = idx === 0 ? n.value.iconActive : idx === 1 ? semantic.warning : idx === 2 ? accent[500] : n.value.textSecondary
   return { width: '44rpx', fontSize: '33rpx', fontWeight: '600', color } as UTSJSONObject
 }
 const hotKeywordText = computed((): any => ({ ...flexFill, fontSize: '27rpx', fontWeight: '500', color: n.value.text }))

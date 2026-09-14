@@ -127,7 +127,11 @@ export const neutralDark = {
   borderLight: '#393335',
   borderFocus: '#E47A96',
   cardBorder: '#393335',
-  text: '#F7F3F4', // V3 text.primary
+  // 2026-09-13：主文字由 #F7F3F4（约 97% 白）降到 #E8E3E4（约 91% 白）。
+  // 依据现代深色规范：Material 3 dark onSurface #E6E1E5、GitHub dark #E6EDF3、X dark #E7E9EA、
+  // 微信/支付宝深色正文也在 #E6~#EE 区间 —— 纯白在深底上会"发光"、久看刺眼。
+  // 对比度：#E8E3E4 在 #141112 上约 14:1、在 #211D1E 上约 12:1，仍远超 4.5:1。
+  text: '#E8E3E4', // V3 text.primary（深色不再用近纯白）
   textSecondary: '#BDB5B8', // V3 text.secondary
   textTertiary: '#8E8588', // V3 text.tertiary
   textDisabled: '#60595B',
@@ -195,15 +199,25 @@ export const statusColors = {
   brand:    { text: '#D45F7E', bg: '#FCEFF2' },
 }
 
-/** 深色模式语义状态色 — 浅底替换为主色 20% 透明度 */
+/** 深色模式语义状态色 — 浅底替换为主色 20% 透明度
+ *  2026-09-13：initial(紫) 文字由 #9B6FAE 提到 accent 300 档 #B49BC4
+ *  —— 原值在暖黑底上仅 ~3.9:1，深色下「即将发售」这类 initial chip 读起来发灰、像一块脏补丁。
+ *  兼容影响：仅深色模式、仅 status="initial" 的 chip（商品卡 UPCOMING / 收藏 / 榜单），浅色零影响。
+ */
 export const statusColorsDark = {
   positive: { text: '#69B98A', bg: 'rgba(105,185,138,0.20)' },
   pending:  { text: '#D99767', bg: 'rgba(217,151,103,0.20)' },
   error:    { text: '#E17880', bg: 'rgba(225,120,128,0.20)' },
-  initial:  { text: '#9B6FAE', bg: 'rgba(155,111,174,0.20)' },
+  initial:  { text: '#B49BC4', bg: 'rgba(155,111,174,0.20)' },
   neutral:  { text: '#8E8588', bg: 'rgba(142,133,136,0.20)' },
   brand:    { text: '#E47A96', bg: 'rgba(228,122,150,0.20)' },
 }
+
+/** 原生 tabBar 选中色 — 必须与 static/tabbar/*-active.png 的实际像素色一致。
+ *  原因：tabBar 的选中图标是**编译期固定的 PNG**（原生 tabBar 不支持运行时换图标），
+ *  所以文字色跟资源对齐才能保证"图标+文字"在同一项里是同一个粉；写别的颜色会出现深浅两层粉。
+ *  （资源采样值：rgb(214,83,120) = #D65378） */
+export const tabSelectedColor = '#D65378'
 
 /** 暖色系 — V2 低饱和 */
 export const warm = {

@@ -115,7 +115,8 @@
     {
       "path": "pages/purchase/edit",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "swipeBackAsBackPress": true
       }
     },
     {

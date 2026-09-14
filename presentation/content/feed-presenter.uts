@@ -178,6 +178,33 @@ export function formatPriceSummaryByType(
   return '' // UNKNOWN：不猜测价格语义
 }
 
+/**
+ * 商品卡价格行「双价降级」（拍板 旧4-B）：全款做主价、定金降级成小字。
+ * - 主价：DEPOSIT 场景优先给「全款」；没有全款才退回定金金额；其余场景与 formatPriceSummaryByType 一致
+ * - 副价（降级小字）：仅 DEPOSIT 且有全款时给「定金 ¥100」，其余一律空串（不造噪音）
+ */
+export function formatPricePrimary(
+  priceType: string,
+  priceCents: number,
+  fullPriceCents: number,
+  depositCents: number,
+  balanceCents: number,
+): string {
+  if (priceType === PRICE_TYPE_DEPOSIT) {
+    if (fullPriceCents > 0) return formatPriceCents(fullPriceCents)
+    const deposit = depositCents > 0 ? depositCents : priceCents
+    return deposit > 0 ? formatPriceCents(deposit) : ''
+  }
+  return formatPriceSummaryByType(priceType, priceCents, fullPriceCents, depositCents, balanceCents)
+}
+
+export function formatPriceSecondary(priceType: string, priceCents: number, fullPriceCents: number, depositCents: number): string {
+  if (priceType !== PRICE_TYPE_DEPOSIT) return ''
+  if (fullPriceCents <= 0) return ''
+  const deposit = depositCents > 0 ? depositCents : priceCents
+  return deposit > 0 ? `定金 ${formatPriceCents(deposit)}` : ''
+}
+
 // ====== StockStatus 展示 ======
 
 export const StockStatusLabels: UTSJSONObject = {

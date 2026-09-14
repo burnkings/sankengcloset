@@ -36,35 +36,49 @@ const _state = reactive<ReminderState>({
 
 function activeItems(): Reminder[] { return _state.items.filter((r) => !r.isDeleted) }
 
+/**
+ * 逾期判定：与 autoMarkOverdue 完全同源，避免「列表分组」与「状态自动流转」两套口径打架。
+ *
+ * 2026-09-13 定稿规则（用户明确要求的「当天宽限」）：
+ *   「今天」到期的提醒，**只要还是当天就不算过期**，哪怕提醒时刻已经过了 ——
+ *   它仍留在「今天」分组、状态仍是「待提醒」，用户点圆圈即标记为「已完成」。
+ *   只有到了**第二天**（remindDate < today）才自动转为「已过期」。
+ * 这样一次解决两件事：
+ *   1) 评审 R3-3：「今天」组里混进「已过期」条目（分组与状态自相矛盾）；
+ *   2) 评审 R3-4：过期条目画红勾、语义读不出（现在只有「已完成」才画勾）。
+ * 注意：**不再**按「当天的时刻已过」判过期 —— 旧行为已按用户要求改为次日宽限。
+ */
+function hasPassedDue(r: Reminder): boolean {
+  if (r.remindDate === '') return false
+  return r.remindDate < localToday()
+}
+
+function isOverdueItem(r: Reminder): boolean {
+  return r.status === 'MISSED' || (r.status === STATUS_PENDING && hasPassedDue(r))
+}
+
+/** 待办 = 未完成且未逾期；逾期条目不再计入待办（否则「待办 + 已过期」会重复计数） */
+function pendingItems(): Reminder[] {
+  return activeItems().filter((r) => r.status === STATUS_PENDING && !hasPassedDue(r))
+}
+
 function todayItems(): Reminder[] {
   const today = localToday()
-  return activeItems().filter((r) => r.remindDate === today && r.status === STATUS_PENDING)
+  return pendingItems().filter((r) => r.remindDate === today)
 }
 
+/**
+ * 「本周内」（不含今天）：改为纯日期字符串比较，走 localToday/localDateShifted。
+ * 旧实现用 new Date('YYYY-MM-DD') 与本地零点比毫秒 —— 前者按 UTC 解析，
+ * 在 UTC+8 会等于「当天 08:00」，于是**今天**到期的条目也会被算进「本周内」（重复计数）。
+ */
 function upcomingItems(): Reminder[] {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const weekLater = today + 7 * 86400000
-  return activeItems().filter((r) => {
-    if (r.status !== STATUS_PENDING) return false
-    try {
-      const t = new Date(r.remindDate).getTime()
-      return t > today && t <= weekLater
-    } catch {
-      return false
-    }
-  })
+  const today = localToday()
+  const weekLater = localDateShifted(7)
+  return pendingItems().filter((r) => r.remindDate !== '' && r.remindDate > today && r.remindDate <= weekLater)
 }
 
-function overdueItems(): Reminder[] {
-  const today = localToday()
-  return activeItems().filter((r) => r.remindDate < today || r.status === 'MISSED')
-}
-
-function missedItems(): Reminder[] {
-  const today = localToday()
-  return activeItems().filter((r) => r.remindDate < today && r.status === 'PENDING')
-}
+function overdueItems(): Reminder[] { return activeItems().filter(isOverdueItem) }
 
 function doneItems(): Reminder[] { return activeItems().filter((r) => r.status === 'DONE') }
 
@@ -73,8 +87,10 @@ function filteredItems(): Reminder[] {
   let result = activeItems()
   if (_state.filterStatus) {
     if (_state.filterStatus === 'MISSED') {
-      const today = localToday()
-      result = result.filter((r) => r.status === 'MISSED' || r.remindDate < today)
+      result = result.filter(isOverdueItem)
+    } else if (_state.filterStatus === 'PENDING') {
+      // 与分组同源：逾期条目不算「待提醒」（否则筛「待提醒」会漏掉今天已过时刻的条目归属）
+      result = result.filter((r) => r.status === STATUS_PENDING && !isOverdueItem(r))
     } else {
       result = result.filter((r) => r.status == _state.filterStatus)
     }
@@ -108,11 +124,11 @@ function filteredItems(): Reminder[] {
 function displayItems(): ReminderDisplayModel[] { return toDisplayModels(filteredItems()) }
 function groupedItems(): ReminderGroupViewModel[] { return groupByDate(displayItems()) }
 function itemCount(): number { return activeItems().length }
-function pendingCount(): number { return activeItems().filter((r) => r.status == 'PENDING').length }
+function pendingCount(): number { return pendingItems().length }
 function todayCount(): number { return todayItems().length }
 function upcomingCount(): number { return upcomingItems().length }
 function overdueCount(): number { return overdueItems().length }
-function missedCount(): number { return missedItems().length }
+function missedCount(): number { return overdueItems().length }
 function balancePendingCount(): number { return activeItems().filter((r) => r.type === 'BALANCE' && r.status === 'PENDING').length }
 
 function notifyChanged() {}
@@ -385,25 +401,18 @@ function swapItems(id1: string, id2: string) {
   }
 }
 
+/**
+ * 自动过期：只把「提醒日已经过去」的 PENDING 条目置为 MISSED。
+ * 2026-09-13：去掉「当天但时刻已过」分支 —— 按用户要求当天宽限，
+ * 今天到期的提醒当天不会过期（仍可勾选完成），次日才自动进「已过期」。
+ */
 function autoMarkOverdue() {
-  const now = new Date()
   const today = localToday()
-  const nowMinutes = now.getHours() * 60 + now.getMinutes()
   let changed = false
   for (let i = 0; i < _state.items.length; i++) {
     const item = _state.items[i]
     if (!item.isDeleted && item.status === 'PENDING' && item.remindDate !== '') {
-      let isOverdue = false
       if (item.remindDate < today) {
-        isOverdue = true
-      } else if (item.remindDate === today && !item.isAllDay && item.remindTime !== '') {
-        const parts = item.remindTime.split(':')
-        if (parts.length === 2) {
-          const remindMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1])
-          if (remindMinutes < nowMinutes) isOverdue = true
-        }
-      }
-      if (isOverdue) {
         item.status = 'MISSED'
         item.updatedAt = new Date().toISOString()
         changed = true

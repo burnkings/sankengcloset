@@ -96,7 +96,7 @@ import { useHomeFeedStore, CHANNELS, MasonryBlock } from '@/stores/home-feed-sto
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { FeedItem, FEED_OUTFIT } from '@/domain/content/feed-item'
-import { brand, semantic } from '@/theme/tokens/colors'
+import { semantic } from '@/theme/tokens/colors'
 import { fontSize, v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow, flexCenter } from '@/theme/layout/flex'
 import { zIndex } from '@/theme/tokens/z-index'
@@ -239,7 +239,7 @@ const brandText = computed((): any => ({
 const capsuleSpacer = { width: `${capsuleW}px` }
 const navActions = { ...flexRow, alignItems: 'center' }
 const noticeButton = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', position: 'relative', marginRight: capsuleW > 0 ? '12rpx' : '0' }))
-const noticeDot = { position: 'absolute', top: '8rpx', right: '8rpx', width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: brand[600] }
+const noticeDot = computed((): any => ({ position: 'absolute', top: '8rpx', right: '8rpx', width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.iconActive }))
 
 const wordmarkSearchSpacer = { height: '16rpx' }
 const layer2Wrap = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }

@@ -134,7 +134,7 @@ import { spacing } from '@/theme/tokens/spacing'
 import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexRowBetween, flexCenter, flexFill } from '@/theme/layout/flex'
-import { n } from '@/theme/use-theme'
+import { n, initPageTheme } from '@/theme/use-theme'
 import { canSetBalanceReminder, balanceReminderUrl } from '@/utils/purchase-reminder'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppCard from '@/components/base/AppCard.uvue'
@@ -200,6 +200,7 @@ function onConfirmDelete() {
 
 // 页面加载时获取路由参数
 onLoad((options) => {
+  initPageTheme()
   const id = options != null && options['id'] != null ? options['id'] as string : ''
   itemId.value = id
 })

@@ -1,12 +1,20 @@
 <template>
-  <picker mode="date" :value="value" @change="onDateChange">
-    <view :style="pickerRow">
-      <text :style="valueStyle(filled)">{{ filled ? displayValue : placeholder }}</text>
-      <view :style="iconWrap">
-        <AppIcon name="calendar" :size="32" />
+  <view :style="rootStyle">
+    <!-- 系统日期选择器（2026-09-14 按用户决定改回）。
+         上一版是自绘 picker-view 底部面板，起因是我判断"系统弹层不跟随 App 主题"。
+         用户实测系统弹层在其环境（manifest darkmode:true + 系统深色）下**显示正常**，
+         而自绘 picker-view 反而出现"上下白中间灰"，故回退到系统弹层。
+         ⚠️ 已知取舍：系统弹层由 OS 渲染，遵循 manifest 的 darkmode 机制（跟随系统深浅），
+         「App 深色 + 系统浅色」的组合下它仍会偏白 —— 这是原生弹层的固有行为，不是主题 token 能覆盖的。 -->
+    <picker mode="date" :value="pickerValue" :start="minDate" :end="maxDate" @change="onChange">
+      <view :style="fieldRow">
+        <text :style="fieldValueStyle">{{ filled ? displayValue : placeholder }}</text>
+        <view :style="iconWrap">
+          <AppIcon name="calendar" :size="32" />
+        </view>
       </view>
-    </view>
-  </picker>
+    </picker>
+  </view>
 </template>
 
 <script setup lang="uts">
@@ -15,24 +23,41 @@ import { v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
 
-// V3 DateField — 日期选择（V3 §4.4）：统一选择器，不把下拉项伪装成普通输入；16rpx 圆角、88rpx 高
+// V3 DateField — 日期选择（V3 §4.4）：16rpx 圆角、88rpx 高的可点选行，点击唤起系统日期弹层
 const props = withDefaults(defineProps<{
   value?: string
   placeholder?: string
 }>(), { value: '', placeholder: '请选择日期' })
 
-const emit = defineEmits<{ change: [value: string] }>()
+const emit = defineEmits<{
+  change: [value: string]
+}>()
 
 const filled = computed((): boolean => props.value !== '')
 const displayValue = computed((): string => props.value !== '' ? props.value : props.placeholder)
 
-function onDateChange(e: any) {
-  const d = (e as UTSJSONObject)['detail'] as UTSJSONObject
-  const val = d != null && d['value'] != null ? d['value'] as string : ''
-  emit('change', val)
+function pad2(value: number): string { return value < 10 ? '0' + value.toString() : value.toString() }
+function today(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
-const pickerRow = computed((): any => ({
+// 系统 picker 的 value 必须是合法日期串；空值时回落到今天，避免弹层定位错乱
+const pickerValue = computed((): string => props.value !== '' ? props.value : today())
+// 可选范围：过去 15 年 ~ 未来 5 年 —— 与旧自绘滚轮一致，「购买日期」要能补录历史订单（三坑老款/二手常见）
+const yearBase = new Date().getFullYear()
+const minDate = `${yearBase - 15}-01-01`
+const maxDate = `${yearBase + 5}-12-31`
+
+function onChange(e: any) {
+  const eObj = e as UTSJSONObject
+  const detail = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
+  const val = (detail != null && detail['value'] != null) ? detail['value'] as string : ''
+  if (val !== '') emit('change', val)
+}
+
+const rootStyle = { width: '100%' }
+const fieldRow = computed((): any => ({
   ...flexRow,
   flexDirection: 'row',
   alignItems: 'center',
@@ -42,15 +67,11 @@ const pickerRow = computed((): any => ({
   borderRadius: '16rpx',
   backgroundColor: n.value.inputFill,
 }))
-
-function valueStyle(filled: boolean) {
-  return {
-    flex: 1,
-    fontSize: v3TextStyle.body.fontSize,
-    color: filled ? n.value.text : n.value.placeholder,
-  }
-}
-
+const fieldValueStyle = computed((): any => ({
+  flex: 1,
+  fontSize: v3TextStyle.body.fontSize,
+  color: filled.value ? n.value.text : n.value.placeholder,
+}))
 const iconWrap = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 </script>
 

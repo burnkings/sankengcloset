@@ -63,7 +63,7 @@ import FormSection from '@/components/v3/FormSection.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 import { FEEDBACK_TYPES, FeedbackRecord } from '@/domain/user/feedback-record'
 import { submitFeedbackRemote, listLocalFeedback, removeLocalFeedback, clearLocalFeedback } from '@/services/user-data/feedback-service'
-import { brand, baseColors } from '@/theme/tokens/colors'
+import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -195,12 +195,12 @@ const addWrap = computed((): any => ({ width: '180rpx', height: '180rpx', border
 const addText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '8rpx' }))
 // 底部预留 = BottomActionBar 高度（16+88+34=138rpx）略加余量。原 `safeBottom + 120px` 把 rpx 写成了 px。
 const bottomSpacer = { height: '160rpx' }
-const submitButton = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center' as string, justifyContent: 'center' as string }))
+const submitButton = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center' as string, justifyContent: 'center' as string }))
 const submitText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 // 我的反馈记录
 const recordCard = computed((): any => ({ padding: '20rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, marginBottom: '12rpx' }))
 const recordTop = { ...flexRow, alignItems: 'center', justifyContent: 'space-between' }
-const recordType = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] as string }))
+const recordType = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const recordRemove = { width: '44rpx', height: '44rpx', alignItems: 'center', justifyContent: 'center' }
 const recordContent = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '34rpx', lines: 3, textOverflow: 'ellipsis' }))
 const recordTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))

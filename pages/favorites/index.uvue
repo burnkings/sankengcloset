@@ -1,5 +1,5 @@
 <template>
-  <MainLayout :scroll-top="scrollTop" @scroll="onPageScroll">
+  <MainLayout :scroll-top="scrollTop" :bottom-spacer="pageBottomSpacer" @scroll="onPageScroll">
     <template #navbar>
       <PageHeader v-if="!selectMode" title="收藏" />
       <view v-else :style="selectNavRoot">
@@ -39,8 +39,9 @@
                   :type-text="pitTypeLabel(item)"
                   :status-text="saleStatusText(item)"
                   :status-color="saleStatusColor(item)"
-                  :price-text="priceSummaryText(item)"
+                  :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                   :image-height="feedImageHeight(item)"
+                  :margin-bottom="'0rpx'"
                   :saved="library.isFavorite(item.entityId)"
                   :show-save="!selectMode"
                   @tap="selectMode ? toggleItem(item.entityId) : openProduct(item)"
@@ -67,8 +68,9 @@
                   :type-text="pitTypeLabel(item)"
                   :status-text="saleStatusText(item)"
                   :status-color="saleStatusColor(item)"
-                  :price-text="priceSummaryText(item)"
+                  :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                   :image-height="feedImageHeight(item)"
+                  :margin-bottom="'0rpx'"
                   :saved="library.isFavorite(item.entityId)"
                   :show-save="!selectMode"
                   @tap="selectMode ? toggleItem(item.entityId) : openProduct(item)"
@@ -150,12 +152,12 @@ import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore, FAVORITE_STATUS_LABELS } from '@/stores/content-library-store'
 import { useBrandStore } from '@/stores/brand-store'
 import { useReminderStore } from '@/stores/reminder-store'
-import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { deriveReleaseStatusText, formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
-import { COLUMN_GAP_V3, PAGE_HEADER_CONTENT_GAP, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { COLUMN_GAP_V3, PAGE_HEADER_CONTENT_GAP, PAGE_BOTTOM_SAFE_SPACER, PRODUCT_CARD_WIDTH_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { getStatusBarHeight } from '@/utils/window-info'
 import { zIndex } from '@/theme/tokens/z-index'
@@ -260,7 +262,11 @@ function batchRemove() {
 }
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
-  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+/** 双价降级小字（仅定金场景非空） */
+function priceSubText(item: FeedItem): string {
+  return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
 }
 function pitTypeLabel(item: FeedItem): string {
   const pit = item.pitType !== '' ? item.pitType : item.category
@@ -313,13 +319,37 @@ function shortReleaseDate(d: string): string {
   const sameYear = parseInt(parts[0]) === now.getFullYear()
   return sameYear ? `${m}月${day}日` : `${parts[0]}年${m}月${day}日`
 }
+/** 发售状态与商品卡上的销售状态是否同义 —— 同义就不再重复展示（评审：同一张卡两处说同一件事）。
+ *  两张词表来源不同：销售状态 = ProductStatusLabels（在售/预售中/即将发售…），
+ *  发售状态 = deriveReleaseStatusText（开售/预售/预告…），需要一张等价表来对齐。 */
+function sameAsSaleStatus(releaseStatus: string, item: FeedItem): boolean {
+  const sale = saleStatusText(item)
+  if (sale === '' || releaseStatus === '') return false
+  if (releaseStatus === sale) return true
+  const pairs: string[][] = [
+    ['预售', '预售中'],
+    ['开售', '在售'],
+    ['现货', '在售'],
+    ['预告', '即将发售'],
+    ['售罄', '已售罄'],
+    ['已结束', '已下架'],
+  ]
+  for (let i = 0; i < pairs.length; i++) {
+    const a = pairs[i][0]
+    const b = pairs[i][1]
+    if ((releaseStatus === a && sale === b) || (releaseStatus === b && sale === a)) return true
+  }
+  return false
+}
 function favoriteReleaseText(item: FeedItem): string {
   const release = library.favoriteReleaseOf(item.entityId)
   if (release == null) return '暂无发售信息'
   const statusText = deriveReleaseStatusText(release)
   const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
-  const statusPart = statusText !== '' ? statusText : '发售'
-  return date !== '' ? `${statusPart} ${shortReleaseDate(date)}` : statusPart
+  const datePart = date !== '' ? shortReleaseDate(date) : ''
+  // 已与卡片 chip 同义 → 只留日期；否则「状态 + 日期」一次说清
+  if (statusText === '' || sameAsSaleStatus(statusText, item)) return datePart !== '' ? datePart : statusText
+  return datePart !== '' ? `${statusText} ${datePart}` : statusText
 }
 
 /** 提醒按钮文案：已提醒 / 可开启 / 无有效提醒时间 */
@@ -387,25 +417,19 @@ function onSelectStatus(status: string) {
     uni.navigateTo({ url: `/pages/purchase/edit?name=${encodeURIComponent(product.title)}&brand=${encodeURIComponent(product.brandName)}&amount=${amount}&category=${category}&wishId=${encodeURIComponent(wishId)}&productId=${encodeURIComponent(productId)}&releaseId=${encodeURIComponent(releaseId)}` })
   }
 }
-/** 待购状态文案。未设置待购状态但该商品已有发售信息时，用发售状态（尾款/预约/开售…）
- *  替代「未设置」，避免同一张卡上「未设置」与「尾款 9月21日」自相矛盾；
- *  确实没有任何发售信息才显示「未设置」（点按即打开状态选择）。 */
+/** 待购状态文案 —— **只展示用户自己的决策状态**（想买/等待开售/等待尾款/已购买）。
+ *  2026-09-13：不再拿"发售状态"顶替「未设置」。原因：发售状态已经出现在卡片 chip 与右侧发售文字里，
+ *  再顶到这一行等于同一件事说三遍；未设置时给「动作提示」而不是"状态断言"，
+ *  也就不会再出现「未设置 + 尾款 9月21日」那种自相矛盾。 */
 function favoriteStatusLabel(item: FeedItem): string {
   const status = library.favoriteStatusOf(item.entityId)
   const label = FAVORITE_STATUS_LABELS[status]
-  if (status === 'WISH' || status === '') {
-    const release = library.favoriteReleaseOf(item.entityId)
-    if (release != null) {
-      const releaseStatus = deriveReleaseStatusText(release)
-      if (releaseStatus !== '') return releaseStatus
-    }
-    return '未设置'
-  }
-  return label != null ? label as string : '未设置'
+  if (status === 'WISH' || status === '') return '设置待购状态'
+  return label != null ? label as string : '设置待购状态'
 }
 function statusOptionText(value: string): any {
   const active = statusPickerCurrent.value == value
-  return { fontSize: fontSize.base, color: active ? brand[500] : n.value.text, fontWeight: active ? fontWeight.semibold : fontWeight.regular }
+  return { fontSize: fontSize.base, color: active ? n.value.iconActive : n.value.text, fontWeight: active ? fontWeight.semibold : fontWeight.regular }
 }
 const visibleFavoriteProducts = computed((): FeedItem[] => {
   return library.favoriteProducts.filter((item) => !blacklist.isBlacklisted(item.brandName))
@@ -464,22 +488,22 @@ const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirec
 const decisionRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx', marginBottom: '20rpx', paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', paddingBottom: '12rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
 // 两行结构：上行购买状态、下行发售/截止信息，避免三段挤一行把日期拦腰斩断
 const decisionLeft = { flex: 1, justifyContent: 'center' }
-const decisionStatusText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[500] }))
+const decisionStatusText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const decisionReleaseText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '4rpx' }))
 // 裸 <text> 当按钮热区不足：外层补 88rpx 容器，视觉不变
 const reminderActionWrap = { height: '88rpx', paddingLeft: '16rpx', paddingRight: '16rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: '8rpx' }
-const reminderActionStyle = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600] }))
+const reminderActionStyle = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const statusOptionRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', minHeight: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border }))
 // 品牌：紧凑列表（V3 §6.3 品牌用紧凑列表）
 function brandRow(idx: number) { return { ...flexRow, alignItems: 'center', minHeight: '112rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderBottomWidth: idx < library.followedBrands.length - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.border } }
 const brandAvatar = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
-const brandInitial = { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: brand[600] }
+const brandInitial = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const brandNameText = computed((): any => ({ ...flexFill, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const followedText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginRight: '8rpx' }))
 // 部分详情加载失败：商品仍展示，顶部提示可恢复
 const partialErrorWrap = { ...flexRow, alignItems: 'center', justifyContent: 'center', paddingTop: '16rpx', paddingBottom: '16rpx' }
 const partialErrorText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
-const partialErrorAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: brand[600], marginLeft: '16rpx' }))
+const partialErrorAction = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive, marginLeft: '16rpx' }))
 const likedLookList = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 
 // ====== 选择态样式（长按多选删除）======
@@ -488,7 +512,7 @@ const selectNavRoot = computed((): any => ({ position: 'fixed' as string, top: '
 const selectNavSpacer = { height: `${statusBarH}px` }
 const selectNavRow = computed((): any => ({ height: '96rpx', ...flexRow, alignItems: 'center', justifyContent: 'space-between', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }))
 const selectNavTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: brand[500] as string }))
+const selectAllText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.iconActive }))
 const selectCancelText = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 // 选择态：未选中卡降透明度，选中卡保持原样（不改变布局，避免瀑布流跳动）
 function cardWrap(id: string): any {
@@ -497,10 +521,13 @@ function cardWrap(id: string): any {
 }
 const selectCheckWrap = computed((): any => ({ position: 'absolute', top: '0', left: '0', width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center', zIndex: 2 }))
 function selectCheck(checked: boolean): any {
-  return { width: '44rpx', height: '44rpx', borderRadius: '22rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: checked ? (brand[500] as string) : n.value.border, backgroundColor: checked ? (brand[500] as string) : n.value.surface, alignItems: 'center', justifyContent: 'center' }
+  return { width: '44rpx', height: '44rpx', borderRadius: '22rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: checked ? (n.value.iconActive) : n.value.border, backgroundColor: checked ? (n.value.iconActive) : n.value.surface, alignItems: 'center', justifyContent: 'center' }
 }
+// 底部留白：多选态会浮起删除栏（paddingTop 20 + 按钮 88 + paddingBottom 40 ≈ 148rpx），
+// 只用默认的安全区留白会**盖住最后一行卡片**（与 product/detail 同类问题）。
+const pageBottomSpacer = computed((): string => selectMode ? '188rpx' : PAGE_BOTTOM_SAFE_SPACER)
 const bottomBar = computed((): any => ({ position: 'fixed', bottom: '0', left: '0', right: '0', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3, paddingBottom: '40rpx', paddingTop: '20rpx', backgroundColor: n.value.surface }))
-const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: brand[500] as string, alignItems: 'center', justifyContent: 'center' }))
+const deleteButton = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const deleteButtonText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 const deleteDisabled = computed((): any => ({ height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgTertiary, alignItems: 'center', justifyContent: 'center' }))
 const deleteDisabledText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))

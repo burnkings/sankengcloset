@@ -30,7 +30,7 @@
                 :type-text="pitTypeLabel(item)"
                 :status-text="saleStatusText(item)"
                 :status-color="saleStatusColor(item)"
-                :price-text="priceSummaryText(item)"
+                :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                 :image-height="feedImageHeight(item)"
                 :saved="library.isFavorite(item.entityId)"
                 @tap="openProduct(item)"
@@ -47,7 +47,7 @@
                 :type-text="pitTypeLabel(item)"
                 :status-text="saleStatusText(item)"
                 :status-color="saleStatusColor(item)"
-                :price-text="priceSummaryText(item)"
+                :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                 :image-height="feedImageHeight(item)"
                 :saved="library.isFavorite(item.entityId)"
                 @tap="openProduct(item)"
@@ -69,7 +69,7 @@ import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useBrandStore } from '@/stores/brand-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
-import { formatPriceSummaryByType, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { brand, baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -116,7 +116,11 @@ function openProduct(item: FeedItem) { openProductDetail(item.entityId) }
 function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
-  return formatPriceSummaryByType(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+}
+/** 双价降级小字（仅定金场景非空） */
+function priceSubText(item: FeedItem): string {
+  return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
 }
 function pitTypeLabel(item: FeedItem): string {
   const pit = item.pitType !== '' ? item.pitType : item.category
@@ -167,14 +171,15 @@ const emptyWrap = { paddingTop: '48rpx' }
 const navShareBtn = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const brandHeader = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '24rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginBottom: '24rpx' }))
 const brandAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '48rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
-const brandAvatarText = { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: brand[600] }
+const brandAvatarText = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.iconActive }))
 const brandHeaderCopy = { ...flexFill }
 const brandTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
 const brandDescStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '6rpx' }))
-const followBtn = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: '30rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName.value) ? brand[600] : brand[500], marginLeft: '16rpx', flexShrink: 0 }))
-const followBtnText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
+// 未关注 = 实底品牌粉（主 CTA）；已关注 = 浅底安静态。原来两个状态都是实底、只靠深浅区分，深色下会完全分不出来。
+const followBtn = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: '30rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: library.isFollowingBrand(brandName.value) ? n.value.bgSecondary : n.value.iconActive, marginLeft: '16rpx', flexShrink: 0 }))
+const followBtnText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: library.isFollowingBrand(brandName.value) ? n.value.textSecondary : baseColors.white }))
 const blacklistBtn = computed((): any => ({ minWidth: '112rpx', height: '60rpx', borderRadius: '30rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary, marginLeft: '12rpx', flexShrink: 0, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
-const blacklistBtnText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: blacklist.isBlacklisted(brandName.value) ? (brand[600] as string) : n.value.textSecondary }))
+const blacklistBtnText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: blacklist.isBlacklisted(brandName.value) ? (n.value.iconActive) : n.value.textSecondary }))
 const productColumns = { ...flexRow, alignItems: 'flex-start' as string, paddingLeft: FEED_GUTTER_V3, paddingRight: FEED_GUTTER_V3 }
 const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
 const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }

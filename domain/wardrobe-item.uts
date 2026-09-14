@@ -1,6 +1,9 @@
-export class WardrobeItem {
+ export class WardrobeItem {
   id: string = ''; name: string = ''; category: string = 'OTHER'; style: string = ''; brand: string = ''; color: string = ''; size: string = ''
   wearStatus: string = 'UNWORN'; seasons: string[] = []; images: string[] = []; tags: string[] = []; purchaseDate: string = ''
+  // silhouette = 形制/年代（宋制、明制、唐制…），**仅汉服有**。
+  // 它与 style（部件/衣型）是**并列的两个维度**，不是父子层级：马面裙 = 部件「马面裙」 × 形制「明制」。
+  silhouette: string = ''
   purchasePrice: number = 0; purchaseSource: string = ''; note: string = ''; isFavorite: boolean = false; isDeleted: boolean = false
   // 由订单入橱时保留来源，便于回看价格、履约和原始种草。
   purchaseId: string = ''; wishId: string = ''
@@ -19,4 +22,5 @@ export function wardrobeCoverImage(item: WardrobeItem): string {
 export class WardrobeUpdateData {
   name: string = ''; category: string = ''; style: string = ''; brand: string = ''; color: string = ''; size: string = ''
   wearStatus: string = ''; images: string[] = []; purchaseDate: string = ''; purchasePrice: number = -1; purchaseSource: string = ''; note: string = ''
+  silhouette: string = ''
 }
