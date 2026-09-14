@@ -17,6 +17,7 @@ function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
   item.priceCents = raw['priceCents'] != null ? raw['priceCents'] as number : 0
   const category = raw['category'] != null ? raw['category'] as string : ''
   item.category = category == 'LOLITA' ? 'Lolita' : category == 'HANFU' ? '汉服' : category
+  item.viewCount = raw['viewCount'] != null ? raw['viewCount'] as number : 0
   item.favoriteCount = raw['favoriteCount'] != null ? raw['favoriteCount'] as number : 0
   item.favoriteGrowth = raw['favoriteGrowth'] != null ? raw['favoriteGrowth'] as number : 0
   item.releaseTypeName = raw['releaseTypeName'] != null ? raw['releaseTypeName'] as string : ''
