@@ -25,7 +25,7 @@
             <view v-for="item in productLeft" :key="item.id">
               <ProductCard
                 :image="item.coverUrl"
-                :brand="item.brandName"
+                :brand="item.brandName !== "" ? item.brandName : item.sourceLabel"
                 :title="item.title"
                 :type-text="pitTypeLabel(item)"
                 :status-text="saleStatusText(item)"
@@ -42,7 +42,7 @@
             <view v-for="item in productRight" :key="item.id">
               <ProductCard
                 :image="item.coverUrl"
-                :brand="item.brandName"
+                :brand="item.brandName !== "" ? item.brandName : item.sourceLabel"
                 :title="item.title"
                 :type-text="pitTypeLabel(item)"
                 :status-text="saleStatusText(item)"

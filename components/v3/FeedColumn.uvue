@@ -10,7 +10,7 @@
           </view>
         </view>
       </view>
-      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
+      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName !== "" ? item.brandName : item.sourceLabel" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
     </view>
   </view>
 </template>
