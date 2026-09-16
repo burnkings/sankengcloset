@@ -6,7 +6,7 @@ import { isLocalMockSession } from '@/config/runtime'
  * ★ 12-table schema: sale_events table removed. Calendar events only from product_releases.
  */
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
-import { listMockProducts, mockDateAfter } from '@/services/mock/mock-catalog'
+// import { listMockProducts, mockDateAfter } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
 
 /** 日历事件展示 DTO（页面渲染 + 提醒跳转所需字段） */
 export class CalendarEvent {
@@ -64,7 +64,7 @@ function mapEvent(raw: UTSJSONObject): CalendarEvent {
 export async function fetchCalendarMonth(year: number, month: number): Promise<CalendarEvent[]> {
   const key = `${year}-${String(month).padStart(2, '0')}`
   const result: CalendarEvent[] = []
-  if (!isLocalMockSession()) try {
+  try {
     const response = await apiGet('/api/v1/calendar?month=' + encodeQuery(key))
     const rawItems = response.data
     if (rawItems != null && Array.isArray(rawItems)) {
@@ -75,23 +75,25 @@ export async function fetchCalendarMonth(year: number, month: number): Promise<C
     }
     return result
   } catch (e) { throw e }
-  const products = listMockProducts()
-  for (let i = 0; i < products.length && i < 5; i++) {
-    const p = products[i]
-    const startAt = mockDateAfter(i * 3 + 1)
-    const evt = new CalendarEvent()
-    evt.id = 'mock_calendar_' + p.id
-    evt.productId = p.id
-    evt.title = p.title
-    evt.brand = p.brandName
-    evt.eventType = p.releaseType
-    evt.tag = p.releaseType == 'rerelease' ? '再贩' : p.releaseType == 'reservation' ? '预约' : p.releaseType == 'spot' ? '现货' : '首发'
-    evt.startAt = startAt
-    evt.endAt = mockDateAfter(i * 3 + 5)
-    evt.dateKey = startAt.substring(0, 10)
-    evt.day = startAt.substring(8, 10)
-    evt.status = '已收录'
-    result.push(evt)
-  }
-  return result
+
+  // [MOCK-DEBUG] 以下为 mock 数据回退，调试时可取消注释
+  // const products = listMockProducts()
+  // for (let i = 0; i < products.length && i < 5; i++) {
+  //   const p = products[i]
+  //   const startAt = mockDateAfter(i * 3 + 1)
+  //   const evt = new CalendarEvent()
+  //   evt.id = 'mock_calendar_' + p.id
+  //   evt.productId = p.id
+  //   evt.title = p.title
+  //   evt.brand = p.brandName
+  //   evt.eventType = p.releaseType
+  //   evt.tag = p.releaseType == 'rerelease' ? '再贩' : p.releaseType == 'reservation' ? '预约' : p.releaseType == 'spot' ? '现货' : '首发'
+  //   evt.startAt = startAt
+  //   evt.endAt = mockDateAfter(i * 3 + 5)
+  //   evt.dateKey = startAt.substring(0, 10)
+  //   evt.day = startAt.substring(8, 10)
+  //   evt.status = '已收录'
+  //   result.push(evt)
+  // }
+  // return result
 }
