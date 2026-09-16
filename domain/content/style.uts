@@ -1,9 +1,12 @@
 /**
- * Style — 三坑款式（Phase 2.1 Style Entity MVP）
- * Brand → Style → Product → Release 数据链
- * Style ≠ Product：一个款式可对应多个商品（黑/酒红/再售版本），发售批次由 Release 负责
+ * Style — DEPRECATED: styles table removed in 12-table schema
+ *
+ * Same-style grouping is now handled by product.groupKey.
+ * This file is kept only for type-compat with any remaining imports.
+ * Remove once all consumers are migrated.
  */
 
+/** @deprecated Use product.groupKey for same-style grouping */
 export class StyleItem {
   id: string = ''
   title: string = ''
@@ -13,6 +16,7 @@ export class StyleItem {
   brandName: string = ''
 }
 
+/** @deprecated Use product.groupKey for same-style grouping */
 export class StyleInfo {
   id: string = ''
   brandId: string = ''

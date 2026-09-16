@@ -2,7 +2,8 @@ import { isLocalMockSession } from '@/config/runtime'
 /**
  * CalendarService — 发售日历服务
  * GET /api/v1/calendar?month=YYYY-MM&limit=N
- * 后端数据源：product_releases（发售事件）+ sale_events（定金/尾款等销售事件），真实数据非 mock。
+ * 后端数据源：product_releases（发售事件），真实数据非 mock。
+ * ★ 12-table schema: sale_events table removed. Calendar events only from product_releases.
  */
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 import { listMockProducts, mockDateAfter } from '@/services/mock/mock-catalog'

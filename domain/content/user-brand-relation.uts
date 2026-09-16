@@ -1,6 +1,10 @@
 /**
- * UserBrandRelation — 用户品牌关系
+ * UserBrandRelation — 用户品牌关系 (12-table schema)
  * 独立于 Brand 实体，不污染公共数据
+ *
+ * ★ 12-table schema: Brand follows are now BRAND_FOLLOW interactions
+ *   in the user_interactions table. This domain type remains for backward compat
+ *   but the actual storage/retrieval uses user_interactions.
  */
 
 export class UserBrandRelation {

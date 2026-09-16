@@ -8,6 +8,10 @@ import { followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote } from
 import { readList, writeList } from '@/stores/content-storage'
 
 const FOLLOWED_BRANDS_KEY = 'v2_library_followed_brands'
+/**
+ * Brand follows are now stored as BRAND_FOLLOW interactions in user_interactions table.
+ * The local storage key is kept for offline/cache purposes.
+ */
 type State = {
   followedBrands: string[]
 }

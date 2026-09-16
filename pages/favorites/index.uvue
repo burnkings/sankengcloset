@@ -294,7 +294,7 @@ function dateOnly(value: string): string {
 /** 提醒时间规则（用户明确关注的批次字段）：等待尾款→尾款截止；首发/再贩/现货→开售；
  * 定金/抽选→截止；无对应时间不伪造（返回空串）。 */
 function reminderDateFor(release: ReleaseEvent, status: string): string {
-  if (status === 'WAIT_PRICE' && release.balanceDueAt !== '') return dateOnly(release.balanceDueAt)
+  if (status === 'WAIT_BALANCE' && release.balanceDueAt !== '') return dateOnly(release.balanceDueAt)
   if (release.releaseType === 'first_release' || release.releaseType === 'rerelease' || release.releaseType === 'spot') {
     if (release.startAt !== '') return dateOnly(release.startAt)
   }
@@ -369,7 +369,7 @@ function onEnableReminder(item: FeedItem) {
   const status = library.favoriteStatusOf(item.entityId)
   const date = reminderDateFor(release, status)
   if (date === '') { showFeedback('该发售暂无提醒时间，暂不能设置'); return }
-  const type = status === 'WAIT_PRICE' ? 'BALANCE' : 'RELEASE'
+  const type = status === 'WAIT_BALANCE' ? 'BALANCE' : 'RELEASE'
   const statusText = deriveReleaseStatusText(release)
   const title = `${item.title} ${statusText !== '' ? statusText : '发售'}`
   const note = `${item.brandName} · 来自收藏`
@@ -391,7 +391,7 @@ function createStatusOption(value: string, label: string): StatusOption {
 const statusOptions: StatusOption[] = [
   createStatusOption('WANT', '想买'),
   createStatusOption('WAIT_RELEASE', '等待开售'),
-  createStatusOption('WAIT_PRICE', '等待尾款'),
+  createStatusOption('WAIT_BALANCE', '等待尾款'),
   createStatusOption('PURCHASED', '已购买'),
 ]
 const showStatusPicker = ref(false)
