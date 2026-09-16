@@ -84,6 +84,11 @@
             <view :style="detailCard"><text :style="detailText">{{ materialSummary }}</text></view>
           </template>
 
+          <template v-if="descriptionText !== ''">
+            <SectionHeader title="商品说明" />
+            <view :style="detailCard"><text :style="detailText">{{ descriptionText }}</text></view>
+          </template>
+
           <template v-if="sameStyle !== null && sameStyle.products.length > 0">
             <SectionHeader title="同款式" />
             <view :style="sameStyleCard">
@@ -239,6 +244,11 @@ const sizeOptions = computed((): string[] => {
 const materialSummary = computed((): string => {
   if (materialTags.value.length === 0) return ''
   return materialTags.value.join('、')
+})
+/** 商品说明（description；无数据不显示） */
+const descriptionText = computed((): string => {
+  if (item.value === null) return ''
+  return item.value!.subtitle
 })
 /** 出货时间（release.shipAt；无数据不显示） */
 const shipDateText = computed((): string => {

@@ -105,16 +105,17 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
   item.category = raw['category'] != null ? raw['category'] as string : ''
   item.price = raw['priceCents'] != null ? raw['priceCents'] as number : 0
+  // Note: price=0 with priceType=INTENTION means intention amount, not free
   item.originalPrice = raw['originalPriceCents'] != null ? raw['originalPriceCents'] as number : item.price
-  item.badgeText = statusLabel(raw['status'] != null ? raw['status'] as string : '')
+  item.badgeText = statusLabel(raw['saleStatus'] != null ? raw['saleStatus'] as string : '')
   // coverUrl is derived from images[0]?.url below (12-table schema)
-  item.sourceLabel = '服务端'
+  item.sourceLabel = raw['shopName'] != null ? raw['shopName'] as string : ''
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
   // ====== Product V2 展示字段透传（priceType 缺失保持 UNKNOWN，展示层不猜测） ======
   item.priceType = raw['priceType'] != null ? raw['priceType'] as string : 'UNKNOWN'
   item.depositCents = raw['depositCents'] != null ? raw['depositCents'] as number : 0
   item.balanceCents = raw['balanceCents'] != null ? raw['balanceCents'] as number : 0
-  item.saleStatus = raw['status'] != null ? raw['status'] as string : ''
+  item.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
   item.pitType = raw['category'] != null ? raw['category'] as string : ''
   item.subCategory = raw['subCategory'] != null ? raw['subCategory'] as string : ''
   item.colorTags = parseStringArray(raw['colorTags'])
@@ -150,7 +151,7 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
 
   result.item = item
   result.description = raw['description'] != null ? raw['description'] as string : ''
-  result.shopUrl = raw['shopUrl'] != null ? raw['shopUrl'] as string : ''
+  result.shopUrl = raw['canonicalUrl'] != null ? raw['canonicalUrl'] as string : (raw['shopUrl'] != null ? raw['shopUrl'] as string : '')
   result.groupKey = raw['groupKey'] != null ? raw['groupKey'] as string : ''
   // ====== Product V2 展示字段 ======
   result.priceType = item.priceType
