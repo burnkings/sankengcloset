@@ -16,7 +16,7 @@
       </view>
       <view :style="brandRow">
         <text :style="brandStyle">{{ item.brandName }}</text>
-        <text :style="priceStyle">{{ priceText }}</text>
+        <text v-if="item.priceCents > 0" :style="priceStyle">{{ priceText }}</text>
       </view>
 
       <!-- 热榜：按「浏览」计量 -->
@@ -99,11 +99,11 @@ const leftWrap = { ...flexRow, alignItems: 'center', marginRight: '24rpx' }
 const rankBadge = (style: string): any => ({ width: style === 'gold' ? '64rpx' : '56rpx', height: style === 'gold' ? '64rpx' : '56rpx', borderRadius: style === 'gold' ? '32rpx' : '28rpx', alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', backgroundColor: rankBadgeBg(style) })
 const rankText = (style: string): any => ({ fontSize: style === 'normal' ? '28rpx' : '30rpx', fontWeight: style === 'normal' ? 500 : 700, color: rankColor(style) })
 const imageWrap = computed((): any => ({ width: '120rpx', height: '120rpx', borderRadius: '16rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, position: 'relative' as string }))
-const infoWrap = { flex: 1 }
+const infoWrap = { flex: 1, minWidth: 0 }
 const titleRow = { ...flexRow, alignItems: 'center' }
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis', flex: 1 }))
 // 品牌 + 价格同行：品牌左 flex 单行省略，价格右对齐，横向充实
-const brandRow = { ...flexRow, alignItems: 'center', marginTop: '4rpx' }
+const brandRow = { flexDirection: 'row' as string, flexWrap: 'nowrap' as string, alignItems: 'center', width: '100%', marginTop: '4rpx' }
 const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, flex: 1, lines: 1, textOverflow: 'ellipsis' }))
 // 价格走主题色（拍板 B）：旧写法用模块级常量 brand.strong（#B94767），深色下不刷新、对比度仅约 3.3:1
 const priceStyle = computed((): any => ({ fontSize: '30rpx', fontWeight: 600, color: n.value.iconActive, flexShrink: 0, marginLeft: '12rpx' }))
@@ -118,3 +118,4 @@ const metaText = computed((): any => ({ fontSize: '20rpx', color: n.value.textTe
 
 <style>
 </style>
+
