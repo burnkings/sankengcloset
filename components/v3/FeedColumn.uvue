@@ -10,7 +10,7 @@
           </view>
         </view>
       </view>
-      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName !== "" ? item.brandName : item.sourceLabel" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
+      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName !== '' ? item.brandName : item.sourceLabel" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('tap', item)" @toggle-save="emit('toggleSave', item)" />
     </view>
   </view>
 </template>
@@ -73,3 +73,4 @@ const outfitInfoOverlay = { position: 'absolute' as string, bottom: '0', left: '
 const outfitTitle = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', marginTop: '4rpx' }
 </script>
+
