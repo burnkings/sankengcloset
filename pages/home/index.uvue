@@ -91,6 +91,8 @@
 </template>
 
 <script setup lang="uts">
+import { showFeedback } from '@/utils/feedback'
+import { isComparisonProduct } from '@/services/mock/comparison-products'
 import { nextTick } from 'vue'
 import { useHomeFeedStore, CHANNELS, MasonryBlock } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
@@ -172,9 +174,10 @@ function onTap(item: FeedItem) {
     return
   }
   if (item.entityId == '') return
-  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+  uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(item.entityId)}` })
 }
 function onToggleSave(item: FeedItem) {
+  if (isComparisonProduct(item.entityId)) { showFeedback('展示样例不保存收藏'); return }
   // 同步翻转服务端 saved（乐观更新，刷新后以服务端权威值为准）
   store.toggleSave(item.id)
   library.toggleFavorite(item.entityId, item.title)
@@ -271,3 +274,4 @@ const loadErrorText = computed((): any => ({ fontSize: v3TextStyle.meta.fontSize
 const footerWrap = { ...flexCenter, paddingTop: '32rpx', paddingBottom: PAGE_BOTTOM_SAFE_SPACER }
 const footerTxt = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 </script>
+
