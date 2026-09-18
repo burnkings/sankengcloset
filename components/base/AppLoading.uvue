@@ -1,6 +1,6 @@
 <template>
   <view v-if="visible" :style="wrapperStyle">
-    <view :style="spinnerStyle" />
+    <view class="app-loading-spin" :style="spinnerStyle" />
     <text v-if="text" :style="textStyle">{{ text }}</text>
   </view>
 </template>
@@ -41,11 +41,17 @@ const spinnerStyle = computed((): any => ({
   height: props.size,
   borderWidth: '4rpx',
   borderStyle: 'solid',
-  borderColor: `${brand[200]} transparent transparent transparent`,
-  borderRadius: '50%' }))
+  borderColor: n.value.border,
+  borderTopColor: n.value.iconActive,
+  borderRadius: '999rpx' }))
 
 const textStyle = computed((): any => ({
   fontSize: fontSize.sm,
   color: n.value.iconActive,
   marginTop: spacing[2] }))
 </script>
+
+<style>
+.app-loading-spin { animation: app-loading-rotate 0.9s linear infinite; }
+@keyframes app-loading-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
