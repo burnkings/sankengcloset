@@ -1,3 +1,4 @@
+import { isComparisonProduct } from '@/services/mock/comparison-products'
 /**
  * HomeFeedStore — 首页内容发现 Feed 状态管理
  * V2.6: 稳定性修复
@@ -127,7 +128,7 @@ function isLoading(): boolean { return _state.state == 'loading' }
  * 频道切换时 Store 已按频道重新请求，这里仅做轻量过滤兜底。
  */
 function displayItems(): FeedItem[] {
-  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
+  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => isComparisonProduct(item.entityId) || (!isBrandBlocked(item.brandName) && fitsPricePreference(item)))
 }
 
 function isEmpty(): boolean {
@@ -146,7 +147,7 @@ function isCardEligible(item: FeedItem): boolean {
  */
 function masonryBlocks(): MasonryBlock[] {
   const blocks: MasonryBlock[] = []
-  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
+  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => isComparisonProduct(item.entityId) || (!isBrandBlocked(item.brandName) && fitsPricePreference(item)))
   let i = 0
   while (i < channelItems.length) {
     const item = channelItems[i]
