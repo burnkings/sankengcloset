@@ -1,3 +1,4 @@
+import { SHOW_COMPARISON_PRODUCTS, comparisonProducts, canonicalProductId } from '@/services/mock/comparison-products'
 import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { createRequestId } from '@/domain/platform/api-contract'
@@ -18,7 +19,7 @@ export function mapFeedItem(raw: UTSJSONObject): FeedItem {
   const item = new FeedItem()
   item.id = raw['id'] != null ? raw['id'] as string : ''
   item.feedType = raw['feedType'] != null ? raw['feedType'] as string : 'product'
-  item.entityId = raw['entityId'] != null ? raw['entityId'] as string : ''
+  item.entityId = canonicalProductId(raw['entityId'] != null ? raw['entityId'] as string : item.id)
   item.title = raw['title'] != null ? raw['title'] as string : ''
   item.subtitle = raw['subtitle'] != null ? raw['subtitle'] as string : ''
   item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : IMAGE_UNAVAILABLE
@@ -128,7 +129,23 @@ async function fetchRemoteFeed(cursor: string, channel: string, category: string
 }
 
 export async function fetchFeedPage(cursor: string, channel: string = '推荐', category: string = '全部', categories: string = ''): Promise<FeedPage> {
-  return await fetchRemoteFeed(cursor, channel, category, categories)
+  const page = await fetchRemoteFeed(cursor, channel, category, categories)
+  if (SHOW_COMPARISON_PRODUCTS && cursor == '' && channel == '推荐') {
+    const examples: FeedItem[] = []
+    const products = comparisonProducts()
+    for (let i = 0; i < products.length; i++) {
+      const raw = products[i]
+      const sample = mapFeedItem(raw)
+      sample.entityId = raw['id'] as string
+      sample.price = raw['priceCents'] as number
+      sample.fullPriceCents = sample.price
+      sample.coverUrl = i == 0 ? '/static/demo/prod-01.png' : '/static/demo/prod-02.png'
+      sample.sourceLabel = '展示样例'
+      examples.push(sample)
+    }
+    page.items = examples.concat(page.items)
+  }
+  return page
 
   // [MOCK-DEBUG] 以下为 mock 数据回退，调试时可取消注释
   // if (!isLocalMockSession()) return await fetchRemoteFeed(cursor, channel, category, categories)
@@ -149,11 +166,7 @@ export async function fetchFeedPage(cursor: string, channel: string = '推荐', 
  * 频道轻量过滤兜底（服务端已按 channel 参数过滤，此函数仅用于本地补充筛选）。
  * 注意：频道切换时 Store 已重新请求该频道第 1 页，这里不再承担主过滤职责。
  */
+/** Remote API owns channel membership; labels are presentation, not filters. */
 export function filterFeedByChannel(items: FeedItem[], channel: string): FeedItem[] {
-  if (channel == '' || channel == '推荐') return items
-  // 预约：真实业务字段判断（saleStatus / releaseType），禁止 badgeText 猜测发售状态
-  if (channel == '预约') return items.filter((i) => i.saleStatus == 'PRE_ORDER' || i.releaseType == 'reservation' || i.badgeText == '预约' || i.badgeText == '定金')
-  if (channel == '上新') return items.filter((i) => i.badgeText == '新品')
-  if (channel == '现货') return items.filter((i) => i.releaseType == 'spot' || i.saleStatus == 'ON_SALE' || i.badgeText == '现货')
-  return items.filter((i) => i.category == channel)
+  return items
 }
