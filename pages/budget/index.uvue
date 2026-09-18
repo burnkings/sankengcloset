@@ -6,11 +6,9 @@
         <!-- 月份切换：页面级周期筛选 —— 预算进度、月度汇总、分类支出、逐笔流水都按此月过滤，
              所以放在页面最上方（原先夹在分类卡与流水之间，看不出它在管谁；评审 P2） -->
         <view :style="monthBar">
-          <text :style="monthTitle" @tap="showMonthPicker = true">{{ displayMonth }}</text>
-          <view :style="monthArrows">
-            <view :style="monthArrow" @tap="prevMonth"><AppIcon name="arrow-back" :size="32" /></view>
-            <view :style="monthArrow" @tap="nextMonth"><AppIcon name="arrow-right" :size="32" /></view>
-          </view>
+          <view :style="monthArrow" @tap="prevMonth"><view style="transform: rotate(180deg)"><AppIcon name="arrow-right" :size="32" /></view></view>
+          <view :style="monthPickerButton" @tap="showMonthPicker = true"><text :style="monthTitle">{{ displayMonth }} ▾</text></view>
+          <view :style="monthArrow" @tap="nextMonth"><AppIcon name="arrow-right" :size="32" /></view>
         </view>
 
         <view :style="budgetCard">
@@ -262,7 +260,7 @@ const budgetSave = computed((): any => ({ height: '72rpx', borderRadius: '16rpx'
 const budgetSaveText = { fontSize: '26rpx', fontWeight: 600, color: baseColors.white }
 // 页面级周期头：底部发丝线把它与下方卡片分开，明确「它在管这一屏」
 const monthBar = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '20rpx', paddingBottom: '8rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider }))
-const monthArrows = { ...flexRow, alignItems: 'center' }
+const monthPickerButton = { flex: 1, height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const monthArrow = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const monthTitle = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const summaryCard = { marginBottom: '24rpx' }
@@ -294,3 +292,4 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
