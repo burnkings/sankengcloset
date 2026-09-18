@@ -149,6 +149,7 @@
 </template>
 
 <script setup lang="uts">
+import { isComparisonProduct } from '@/services/mock/comparison-products'
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
@@ -300,6 +301,7 @@ function isLoggedIn(): boolean {
 }
 
 function toggleSaved() {
+  if (isComparisonProduct(itemId.value)) { showFeedback('展示样例不保存收藏'); return }
   if (item.value === null) return
   const entityId = item.value!.entityId
   if (entityId === '') return
@@ -367,6 +369,7 @@ function dateOnly(value: string): string {
 function encoded(value: string): string { return encodeURIComponent(value) ?? '' }
 
 function createReminder() {
+  if (isComparisonProduct(itemId.value)) { showFeedback('展示样例不创建提醒'); return }
   if (item.value === null) return
   const r = currentRelease.value
   // 尾款期 → 尾款提醒；其余 → 发售提醒（基于真实 release 状态，非 badgeText）
@@ -392,7 +395,7 @@ async function loadDetail() {
     // 12-table: images is ProductImage[], extract URL strings for swiper
     detailImages.value = extractImageUrls(result.images)
     // 浏览足迹：加载成功即记入本机（不同步服务器），供「我的 → 浏览历史」找回
-    recordBrowse(result.item.entityId, result.item.title, result.item.brandName, result.item.coverUrl)
+    if (!isComparisonProduct(itemId.value)) recordBrowse(result.item.entityId, result.item.title, result.item.brandName, result.item.coverUrl)
     shopUrl.value = result.shopUrl
     shopName.value = result.shopName
     currentRelease.value = result.currentRelease
@@ -523,3 +526,4 @@ const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const goBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }))
 const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
+
