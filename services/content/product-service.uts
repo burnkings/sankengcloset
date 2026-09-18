@@ -1,3 +1,4 @@
+import { SHOW_COMPARISON_PRODUCTS, comparisonProducts, canonicalProductId, isComparisonProduct } from '@/services/mock/comparison-products'
 import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
@@ -135,8 +136,13 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
       pi.height = obj['height'] != null ? obj['height'] as number : 0
       pi.sizeBytes = obj['sizeBytes'] != null ? obj['sizeBytes'] as number : 0
       pi.objectKey = obj['objectKey'] != null ? obj['objectKey'] as string : ''
-      result.images.push(pi)
+      if (pi.url !== '') result.images.push(pi)
     }
+  }
+  if (result.images.length == 0 && raw['coverUrl'] != null) {
+    const cover = new ProductImage()
+    cover.url = raw['coverUrl'] as string
+    if (cover.url !== '') result.images.push(cover)
   }
   // Derive coverUrl from images[0] if available
   result.item.coverUrl = deriveCoverUrl(result.images)
@@ -200,7 +206,15 @@ function parseVariants(raw: any): ProductVariant[] {
 }
 
 export async function fetchProductDetail(id: string, releaseId: string = ''): Promise<ProductDetailModel | null> {
+  id = canonicalProductId(id)
   if (id === '') return null
+  if (SHOW_COMPARISON_PRODUCTS && isComparisonProduct(id)) {
+    const samples = comparisonProducts()
+    for (let i = 0; i < samples.length; i++) {
+      if (samples[i]['id'] == id) return mapRemoteProduct(samples[i], 'comparison')
+    }
+    return null
+  }
   // releaseId 非空：后端优先返回该批次 currentRelease（不存在则回退最新一条）
   const query = releaseId !== '' ? `?releaseId=${encodeQuery(releaseId)}` : ''
   try {
@@ -286,6 +300,7 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
 
 /** Phase 2.3-A：商品关联社区内容（「真实买家」模块；后端默认 4 条，游客可读） */
 export async function fetchProductCommunity(id: string): Promise<ProductCommunityPost[]> {
+  if (isComparisonProduct(id)) return []
   if (id === '') return []
   const result = [] as ProductCommunityPost[]
   try {
