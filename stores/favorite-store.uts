@@ -15,7 +15,7 @@ export class FavoriteEntry {
   itemId: string = ''
   title: string = ''
   status: string = 'WISH'
-  /** 用户关注的发售批次（wishlist_items.release_id；历史数据为空时收藏页 fallback product.currentRelease） */
+  /** 用户关注的发售批次（user_interactions PRODUCT_FAVORITE；历史数据为空时收藏页 fallback product.currentRelease） */
   releaseId: string = ''
 }
 const FAVORITE_IDS_KEY = 'v2_library_favorite_ids'
@@ -26,7 +26,7 @@ export const FAVORITE_STATUS_LABELS = {
   WANT: '想买',
   WATCHING: '观望',
   WAIT_RELEASE: '等待开售',
-  WAIT_PRICE: '等待尾款',
+  WAIT_BALANCE: '等待尾款',
   PURCHASED: '已购买',
 }
 let _favoriteRevision = 0
@@ -355,7 +355,7 @@ export function reloadFavorite() {
     //   prd_hanfu_song  即将发售   → 等待开售
     const demoRows = [
       ['prd_jk_navy_45', '深蓝格裙 45cm', 'WANT'],
-      ['prd_lolita_moon', '月光曲 JSK', 'WAIT_PRICE'],
+      ['prd_lolita_moon', '月光曲 JSK', 'WAIT_BALANCE'],
       ['prd_hanfu_song', '宋制旋裙套装', 'WAIT_RELEASE'],
     ]
     const seeded: FavoriteEntry[] = []

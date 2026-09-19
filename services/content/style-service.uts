@@ -1,6 +1,8 @@
 /**
- * StyleService — 款式查询（Phase 2.1 Style Entity MVP）
- * GET /api/v1/styles/:id → 款式基础信息 + 关联商品
+ * StyleService — DEPRECATED in 12-table schema
+ *
+ * Styles table removed. Same-style grouping is now handled by product.groupKey.
+ * This file is kept as a stub for backward compatibility with any remaining imports.
  */
 import { StyleInfo, StyleItem } from '@/domain/content/style'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
@@ -16,36 +18,8 @@ function mapStyleItem(raw: UTSJSONObject): StyleItem {
   return item
 }
 
-/** 款式详情（含同款商品列表）；不存在返回 null */
+/** @deprecated Styles table removed in 12-table schema. Use product.groupKey instead. */
 export async function fetchStyle(styleId: string): Promise<StyleInfo | null> {
-  if (styleId === '') return null
-  const response = await apiGet(`/api/v1/styles/${encodeQuery(styleId)}`)
-  const raw = response.data
-  if (raw == null) return null
-  const obj = raw as UTSJSONObject
-  const style = new StyleInfo()
-  style.id = obj['id'] != null ? obj['id'] as string : ''
-  style.brandId = obj['brandId'] != null ? obj['brandId'] as string : ''
-  style.brandName = obj['brandName'] != null ? obj['brandName'] as string : ''
-  style.canonicalName = obj['canonicalName'] != null ? obj['canonicalName'] as string : ''
-  style.category = obj['category'] != null ? obj['category'] as string : ''
-  style.subCategory = obj['subCategory'] != null ? obj['subCategory'] as string : ''
-  style.description = obj['description'] != null ? obj['description'] as string : ''
-  style.productCount = obj['productCount'] != null ? obj['productCount'] as number : 0
-  const rawProducts = obj['products'] as any[] | null
-  if (rawProducts != null) {
-    const items: StyleItem[] = []
-    for (let i = 0; i < rawProducts.length; i++) {
-      const item = mapStyleItem(rawProducts[i] as UTSJSONObject)
-      if (item.id !== '') items.push(item)
-    }
-    style.products = items
-  }
-  const rawTags = obj['styleTags'] as any[] | null
-  if (rawTags != null) {
-    const tags: string[] = []
-    for (let i = 0; i < rawTags.length; i++) tags.push(rawTags[i] as string)
-    style.styleTags = tags
-  }
-  return style
+  // Styles table removed: always return null
+  return null
 }

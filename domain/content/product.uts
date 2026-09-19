@@ -4,6 +4,10 @@
  * WishItem.purchaseId 可关联此实体
  *
  * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
+ *
+ * ★ 12-table schema: images is ProductImage[] (JSONB objects), not string[].
+ *   coverUrl = images[0]?.url || '' (derived, never stored raw).
+ *   groupKey replaces styleId for same-style grouping.
  */
 
 // ====== 商品状态 (纯值) ======
@@ -14,6 +18,31 @@ export const PRODUCT_PRE_ORDER = 'PRE_ORDER'    // 预售中
 export const PRODUCT_SOLD_OUT = 'SOLD_OUT'      // 已售罄
 export const PRODUCT_ENDED = 'ENDED'            // 已下架
 
+// ====== 图片模型 (12-table: images JSONB) ======
+
+export class ProductImage {
+  url: string = ''
+  thumbnailUrl: string = ''
+  width: number = 0
+  height: number = 0
+  sizeBytes: number = 0
+  objectKey: string = ''
+}
+
+/** 从 images JSONB 数组安全提取 URL 字符串列表（兼容旧逻辑） */
+export function extractImageUrls(images: ProductImage[]): string[] {
+  const urls: string[] = []
+  for (let i = 0; i < images.length; i++) {
+    if (images[i].url !== '') urls.push(images[i].url)
+  }
+  return urls
+}
+
+/** 安全获取 coverUrl：images[0]?.url || '' */
+export function deriveCoverUrl(images: ProductImage[]): string {
+  return images.length > 0 ? images[0].url : ''
+}
+
 // ====== 数据模型 ======
 
 export class Product {
@@ -21,12 +50,12 @@ export class Product {
   name: string = ''
   brandId: string = ''
   brandName: string = ''      // 冗余，列表展示用
-  seriesId: string = ''
+  groupKey: string = ''       // 同款式商品分组 key（替代 styleId）
   category: string = ''       // JK / LOLITA / HANFU / OTHER
   subCategory: string = ''    // 格裙 / 衬衫 / KC / 发带 / 鞋 / 包
   status: string = 'UPCOMING'
-  coverImage: string = ''
-  images: string[] = []
+  images: ProductImage[] = [] // 12-table: images JSONB (full quality preserved)
+  coverUrl: string = ''       // derived = images[0]?.url || ''
   price: number = 0           // 当前价格 (分)
   originalPrice: number = 0   // 原价 (分)
   currency: string = 'CNY'
@@ -39,14 +68,4 @@ export class Product {
   isFavorited: boolean = false // 当前用户是否收藏
   createdAt: string = ''
   updatedAt: string = ''
-}
-
-// ====== 价格快照 (用于价格追踪) ======
-
-export class PriceSnapshot {
-  id: string = ''
-  productId: string = ''
-  price: number = 0
-  source: string = ''         // 官方店 / 闲鱼 / 代购
-  recordedAt: string = ''
 }

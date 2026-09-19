@@ -1,9 +1,9 @@
 <template>
   <view>
-    <view v-if="full != null && full.feedType === 'release_event'" class="feed-single-card" @tap="emit('tap', full)">
-      <ReleaseCard :title="full.title" :brand="full.brandName" :image="full.coverUrl" :overlay-text="formatRelativeTime(full.eventStartAt)" @tap="emit('tap', full)" @remind="emit('remind', full)" @view="emit('tap', full)" />
+    <view v-if="full != null && full.feedType === 'release_event'" class="feed-single-card">
+      <ReleaseCard :title="full.title" :brand="full.brandName" :image="full.coverUrl" :overlay-text="formatRelativeTime(full.eventStartAt)" @tap="emit('openItem', full)" @remind="emit('remind', full)" @view="emit('openItem', full)" />
     </view>
-    <view v-else-if="full != null && full.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="emit('tap', full)">
+    <view v-else-if="full != null && full.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="emit('openItem', full)">
       <view :style="imgWrap45">
         <AppImage :src="full.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
         <view :style="outfitInfoOverlay">
@@ -12,7 +12,7 @@
         </view>
       </view>
     </view>
-    <view v-else-if="full != null" class="feed-single-card" @tap="emit('tap', full)">
+    <view v-else-if="full != null" class="feed-single-card" @tap="emit('openItem', full)">
       <EditorialCard :title="full.title" :image="full.coverUrl" :source-label="full.sourceLabel !== '' ? full.sourceLabel : feedLabel(full.feedType)" :updated-text="formatRelativeTime(full.eventStartAt)" />
     </view>
   </view>
@@ -34,7 +34,7 @@ const props = withDefaults(defineProps<{
 }>(), { full: null })
 
 const emit = defineEmits<{
-  tap: [item: FeedItem]
+  openItem: [item: FeedItem]
   remind: [item: FeedItem]
 }>()
 
@@ -53,3 +53,4 @@ const outfitSub = { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.8)', margi
   margin-right: 32rpx;
 }
 </style>
+

@@ -165,10 +165,10 @@ export function enqueueLocalOperation(userId: string, entityType: string, entity
 export function readPendingOperations(): SyncOperation[] { const ids = readIds(); const result: SyncOperation[] = []; for (let i = 0; i < ids.length; i++) result.push(readOperation(ids[i])); return result }
 
 /**
- * 收藏（favorite）操作重放：直接作用于 /api/v1/wishlist 真实业务端点。
+ * 收藏（PRODUCT_FAVORITE）操作重放：直接作用于 /api/v1/wishlist 真实业务端点。
  * - create/upsert：POST 创建条目（status 必填 'WISH'，productId 关联商品）。
- * - update：按 entityId 定位 wishlist 条目后 PATCH 透传 status（不硬编码、不 POST，避免重复条目）。
- *   entityId 两种可能：wishlist itemId（已登录直更失败入队）或 productId（未登录入队）。
+ * - update：按 entityId 定位收藏条目后 PATCH 透传 status（不硬编码、不 POST，避免重复条目）。
+ *   entityId 两种可能：收藏 itemId（已登录直更失败入队）或 productId（未登录入队）。
  * - delete：按 productId 查服务端条目后 DELETE（幂等：不存在视为已删除）。
  */
 async function replayFavorite(op: SyncOperation): Promise<number> {

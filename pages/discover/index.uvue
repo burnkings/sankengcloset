@@ -28,15 +28,17 @@
         </scroll-view>
         </template>
 
+        </view>
         <SectionHeader title="品牌目录" action-text="全部品牌" @action="openBrandDirectory" />
-        <view v-if="brands.length === 0" :style="brandEmpty"><text :style="brandEmptyText">还没有收录品牌，稍后再来看看</text></view>
+        <PageSkeleton v-if="brandLoading && brandData.length === 0" />
+        <PageState v-else-if="brandError !== '' && brandData.length === 0" title="品牌加载失败" :message="brandError" action-text="重试" @action="reloadBrandPreview" />
+        <view v-else-if="brands.length === 0" :style="brandEmpty"><text :style="brandEmptyText">还没有收录品牌，稍后再来看看</text></view>
         <view v-else :style="brandGrid">
           <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="openBrand(item)">
             <view :style="brandMonogram"><text :style="brandInitial">{{ item.initial }}</text></view>
             <view :style="brandCopy"><text :style="brandName">{{ item.name }}</text><text v-if="item.meta !== ''" :style="brandMeta">{{ item.meta }}</text></view>
             <view :style="followAction(item.name)" @tap.stop="toggleBrand(item.name)"><text :style="followText(item.name)">{{ library.isFollowingBrand(item.name) ? '已关注' : '关注' }}</text></view>
           </view>
-        </view>
         </view>
 
         <SectionHeader title="发售日历" />
@@ -78,6 +80,10 @@
 </template>
 
 <script setup lang="uts">
+import { listBrands } from '@/services/content/brand-service'
+import { Brand } from '@/domain/content/brand'
+import { getPitTypeLabel } from '@/presentation/content/feed-presenter'
+
 import { openProductDetail } from '@/utils/content-navigation'
 import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
@@ -160,20 +166,28 @@ function onRetry() { feedStore.loadFirstPage() }
 const brandEmpty = computed((): any => ({ height: '96rpx', alignItems: 'center', justifyContent: 'center' }))
 const brandEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 
+const brandData = ref<Brand[]>([])
+const brandLoading = ref(false)
+const brandError = ref('')
+let brandPreviewLoadedAt = 0
+async function reloadBrandPreview() {
+  if (brandLoading.value || (brandPreviewLoadedAt > 0 && Date.now() - brandPreviewLoadedAt < 300000)) return
+  brandLoading.value = true
+  brandError.value = ''
+  try { brandData.value = await listBrands(); brandPreviewLoadedAt = Date.now() }
+  catch (e) { brandError.value = '品牌加载失败，请重试' }
+  finally { brandLoading.value = false }
+}
 const brands = computed((): BrandItem[] => {
   const result: BrandItem[] = []
-  const seen: string[] = []
-  const source = feedStore.allItems.filter((item) => item.feedType === FEED_BRAND_POST && !blacklist.isBlacklisted(item.brandName !== '' ? item.brandName : item.title))
+  const source = brandData.value.filter((item) => !blacklist.isBlacklisted(item.name))
   for (let i = 0; i < source.length && result.length < 4; i++) {
     const item = source[i]
-    const name = item.brandName !== '' ? item.brandName : item.title
-    if (name === '' || seen.indexOf(name) >= 0) continue
-    seen.push(name)
     const b = new BrandItem()
-    b.id = item.brandId !== '' ? item.brandId : name
-    b.name = name
-    b.initial = brandInitialOf(name)
-    b.meta = '精选品牌'
+    b.id = item.id
+    b.name = item.name
+    b.initial = brandInitialOf(item.name)
+    b.meta = getPitTypeLabel(item.category)
     result.push(b)
   }
   return result
@@ -326,7 +340,7 @@ onMounted(() => {
   calendarStore.loadMonth(calYear.value, calMonth.value)
   if (feedStore.state === 'idle' || feedStore.state === 'error') feedStore.loadFirstPage()
 })
-onPageShow(() => { initPageTheme(); library.reload() })
+onPageShow(() => { initPageTheme(); library.reload(); reloadBrandPreview() })
 // 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
 // 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
 onBackPress((): boolean => {
@@ -334,3 +348,5 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
+

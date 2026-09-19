@@ -1,3 +1,6 @@
+// #ifdef APP-ANDROID
+import { requestNotificationPermission } from '@/uni_modules/reminder-permission'
+// #endif
 /**
  * notify — 本地通知栏消息（uni-push 本地能力）
  * 不依赖服务器推送；仅用于「到点提醒」类本地通知。
@@ -40,18 +43,19 @@ function targetTimestamp(dateStr: string, timeStr: string): number {
 const lastScheduled = {} as UTSJSONObject
 export function scheduleReminderNotification(title: string, content: string, remindDate: string, remindTime: string, key: string = ''): void {
   if (title === '' || remindDate === '') return
-  if (!notificationAuthorized()) return
+  if (!notificationAuthorized()) { uni.showToast({ title: '提醒已保存，请在系统设置开启通知权限', icon: 'none' }); return }
   const when = targetTimestamp(remindDate, remindTime)
   if (when <= 0) return
   const now = Date.now()
   if (when <= now) return
   const delay = Math.floor((when - now) / 1000)
-  if (delay <= 0 || delay > 14 * 86400) return
+  if (delay <= 0) return
+  if (delay > 14 * 86400) { uni.showToast({ title: '提醒已保存，超出本地通知调度范围', icon: 'none' }); return }
   // 同 key 60s 内去重（平台无取消/去重接口，仅能避免重复调度）
   if (key !== '') {
     const prev = lastScheduled[key] != null ? lastScheduled[key] as number : 0
     if (now - prev < 60000) return
-    lastScheduled[key] = now
+
   }
   try {
     uni.createPushMessage({
@@ -60,8 +64,30 @@ export function scheduleReminderNotification(title: string, content: string, rem
       delay: delay,
       sound: 'system',
       payload: key !== '' ? { key, reminderId: key } as UTSJSONObject : { title: title } as UTSJSONObject,
-      success: () => {},
-      fail: () => {},
+      success: () => { if (key !== '') lastScheduled[key] = now },
+      fail: () => { uni.showToast({ title: '提醒已保存，系统通知未设置成功', icon: 'none' }) },
     })
-  } catch (e) {}
+  } catch (e) { uni.showToast({ title: '提醒已保存，当前环境不支持系统通知', icon: 'none' }) }
+}
+
+
+
+// Called by an explicit save action; no calendar access because no calendar event is written.
+export async function ensureReminderNotificationPermission(): Promise<boolean> {
+  if (notificationAuthorized()) return true
+  // #ifdef APP-ANDROID
+  try { await requestNotificationPermission() } catch (e) { /* Keep the in-app reminder available. */ }
+  if (notificationAuthorized()) return true
+  // #endif
+  // #ifdef APP
+  return new Promise<boolean>((resolve) => {
+    uni.showModal({ title: '开启提醒通知', content: '需要系统通知权限才能显示到点通知。你也可以先保存提醒。',
+      confirmText: '去设置', cancelText: '先保存',
+      success: (result) => { if (result.confirm) openNotificationSetting(); resolve(false) },
+      fail: () => { resolve(false) } })
+  })
+  // #endif
+  // #ifndef APP
+  return false
+  // #endif
 }

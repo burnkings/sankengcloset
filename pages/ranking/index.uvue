@@ -56,8 +56,8 @@ onLoad((options) => {
     if (tab === RANKING_TAB_NEW) activeTab.value = '上新榜'
     if (tab === RANKING_TAB_FAVORITE) activeTab.value = '收藏榜'
   }
-  reloadData()
 })
+onShow(() => { reloadData() })
 
 const activeTabCode = computed((): string => {
   if (activeTab.value === '上新榜') return RANKING_TAB_NEW
@@ -123,3 +123,4 @@ const bottomSpacer = { height: '32rpx' }
 
 <style>
 </style>
+

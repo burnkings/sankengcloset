@@ -1,16 +1,13 @@
 /**
- * ProductVariant — 商品规格变体
+ * ProductVariant — 商品规格变体 (12-table schema)
  * 同一 Product 的不同颜色/尺码组合
  *
  * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
+ *
+ * ★ 12-table schema: variants no longer carry skuCode, price, or stockStatus.
+ *   These fields are now on the product_releases table or derived elsewhere.
+ *   Variant only carries identity/descriptive fields: id, name, styleName, colorName, sizeName.
  */
-
-// ====== 库存状态 (纯值) ======
-
-export const STOCK_IN_STOCK = 'IN_STOCK'
-export const STOCK_LOW_STOCK = 'LOW_STOCK'
-export const STOCK_OUT_OF_STOCK = 'OUT_OF_STOCK'
-export const STOCK_PRE_ORDER = 'PRE_ORDER'
 
 // ====== 数据模型 ======
 
@@ -21,10 +18,4 @@ export class ProductVariant {
   colorName: string = ''      // 粉色、蓝色、白色
   sizeName: string = ''       // S / M / L / 均码
   styleName: string = ''      // 型别：JSK / OP / SK / 背带（Lolita 的一个链接可能同时卖 JSK+OP，所以挂在变体上）
-  skuCode: string = ''
-  price: number = 0           // 分
-  stockStatus: string = 'IN_STOCK'
-  imageUrl: string = ''
-  createdAt: string = ''
-  updatedAt: string = ''
 }

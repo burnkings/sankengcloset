@@ -18,13 +18,14 @@
       <AppImage :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
     </view>
 
+    <!-- 底部：点赞 -->
+    <view :style="footerRow">
     <!-- 商品关联标签 -->
     <view v-if="productId !== ''" :style="productTag" @tap.stop="emit('product')">
       <AppIcon name="shirt" :size="20" :active="true" /><text :style="productTagText">查看商品</text>
     </view>
 
-    <!-- 底部：点赞 -->
-    <view :style="footerRow">
+
       <view :style="likeWrap" @tap.stop="emit('toggleLike')">
         <AppIcon :name="liked ? 'heart' : 'heart'" :size="34" :active="liked" />
         <text :style="likeCountStyle">{{ likeCount }}</text>
@@ -76,12 +77,13 @@ const timeStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize,
 const moreWrap = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const captionStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: '40rpx', color: n.value.text, marginTop: '16rpx' }))
 const imageWrap = computed((): any => ({ width: '100%', height: '460rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, marginTop: '16rpx' }))
-const productTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink, marginTop: '12rpx' }))
+const productTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink }))
 const productTagText = computed((): any => ({ fontSize: '20rpx', fontWeight: 600, color: n.value.iconActive, marginLeft: '4rpx' }))
-const footerRow = { ...flexRow, alignItems: 'center', marginTop: '12rpx' }
+const footerRow = { flexDirection: 'row' as string, justifyContent: 'space-between', alignItems: 'center', marginTop: '12rpx' }
 const likeWrap = { ...flexRow, alignItems: 'center', minWidth: '64rpx', height: '56rpx' }
 const likeCountStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, marginLeft: '6rpx' }))
 </script>
 
 <style>
 </style>
+
