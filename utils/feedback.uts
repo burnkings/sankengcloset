@@ -4,7 +4,7 @@ const _feedback = reactive<{ visible: boolean; message: string }>({ visible: fal
 let feedbackSequence = 0
 let hideTimer: number | null = null
 
-export function showFeedback(message: string) {
+export function showFeedback(message: string, duration: number = 3000) {
   feedbackSequence += 1
   const currentSequence = feedbackSequence
   _feedback.message = message
@@ -16,7 +16,7 @@ export function showFeedback(message: string) {
   hideTimer = setTimeout(() => {
     hideTimer = null
     if (currentSequence === feedbackSequence) _feedback.visible = false
-  }, 1800)
+  }, duration)
 }
 
 export function hideFeedback() {
@@ -29,3 +29,4 @@ export function hideFeedback() {
 }
 
 export const feedbackState = _feedback
+
