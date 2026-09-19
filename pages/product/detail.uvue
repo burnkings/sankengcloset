@@ -425,7 +425,9 @@ async function loadDetail() {
       realBuyerPosts.value = posts
     }).catch(() => {})
     if (isLoggedIn()) {
-      await library.refreshRemoteFavorites()
+      library.refreshRemoteFavorites().catch(() => {
+        if (!unmounted) showFeedback('商品已加载，收藏状态暂未同步')
+      })
     }
   } catch (e) {
     if (unmounted) return
