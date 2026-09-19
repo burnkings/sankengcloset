@@ -1,12 +1,32 @@
-// 用户要求的两条对照商品；关闭此开关即可移除，永不写入生产库。
+import { listMockProducts, mockDateAfter } from '@/services/mock/mock-catalog'
 export const SHOW_COMPARISON_PRODUCTS = true
-export function isComparisonProduct(id: string): boolean { return id.startsWith('preview_') }
 export function canonicalProductId(id: string): string {
+  if (id === 'preview_spot') return 'prd_jk_navy_45'
+  if (id === 'preview_reservation') return 'prd_lolita_moon'
   return id.startsWith('feed_prd_') ? id.substring(5) : id
 }
+export function isComparisonProduct(id: string): boolean {
+  const key = canonicalProductId(id)
+  return key === 'prd_jk_navy_45' || key === 'prd_lolita_moon'
+}
+// Original catalog is the only source of fixture names, images, amounts and tags.
 export function comparisonProducts(): UTSJSONObject[] {
-  return [
-    { id: 'preview_spot', title: '【展示样例】深蓝格裙 45cm', shopName: '对照样例店铺', brandName: '兔缝缝', category: 'JK', subCategory: '格裙', priceCents: 12800, priceType: 'FULL', saleStatus: 'ON_SALE', description: '完整现货样例，用于对比真实商品字段和图片展示。', images: [{url: '/static/demo/prod-01.png'}, {url: '/static/demo/prod-editorial-01.jpg'}], colorTags: ['绀色', '白色'], materialTags: ['棉混纺'], variants: [{id: 'preview_s', name: '格裙', styleName: '格裙', sizeName: 'S'}, {id: 'preview_m', name: '格裙', sizeName: 'M'}], currentRelease: {id: 'preview_release_spot', releaseName: '现货样例', releaseType: 'spot', saleStatus: 'ON_SALE', fullPriceCents: 12800} } as UTSJSONObject,
-    { id: 'preview_reservation', title: '【展示样例】月光曲 JSK', shopName: '对照样例店铺', brandName: '星辰猫', category: 'LOLITA', subCategory: 'JSK', priceCents: 36800, priceType: 'DEPOSIT', depositCents: 9200, balanceCents: 27600, saleStatus: 'PRE_ORDER', description: '完整预约样例：定金92元，尾款276元，全款368元。仅供展示。', images: [{url: '/static/demo/prod-02.png'}, {url: '/static/demo/prod-editorial-02.jpg'}], colorTags: ['奶油白', '雾粉'], materialTags: ['提花', '里布'], variants: [{id: 'preview_jsk', name: 'JSK', styleName: 'JSK', sizeName: 'S'}, {id: 'preview_op', name: 'OP', styleName: 'OP', sizeName: 'M'}], currentRelease: {id: 'preview_release_reservation', releaseName: '预约样例', releaseType: 'reservation', saleStatus: 'PRE_ORDER', depositCents: 9200, balanceCents: 27600, fullPriceCents: 36800, startAt: '2026-09-01', endAt: '2026-10-01', balanceDueAt: '2026-11-01', shipAt: '2026-12-15'} } as UTSJSONObject
-  ]
+  const result: UTSJSONObject[] = []
+  const rows = listMockProducts().slice(0, 2)
+  for (let i = 0; i < rows.length; i++) {
+    const p = rows[i]
+    result.push({ id: p.id, title: p.title, brandId: p.brandId, brandName: p.brandName,
+      shopName: '', shopUrl: p.shopUrl, category: p.category, subCategory: p.subCategory,
+      priceCents: p.priceCents, priceType: p.priceType, depositCents: p.depositCents,
+      balanceCents: p.balanceCents, saleStatus: p.status, description: p.description,
+      images: [{ url: p.coverUrl }, { url: p.secondaryCoverUrl }],
+      colorTags: p.colorTags, materialTags: p.materialTags, featureTags: p.featureTags,
+      currentRelease: { id: 'mock_release_' + p.id, releaseName: p.status === 'PRE_ORDER' ? '预约批' : '现货批',
+        releaseType: p.releaseType, saleStatus: p.status, fullPriceCents: p.priceCents,
+        depositCents: p.depositCents, balanceCents: p.balanceCents,
+        startAt: mockDateAfter(2), endAt: mockDateAfter(9),
+        balanceDueAt: p.status === 'PRE_ORDER' ? mockDateAfter(30) : '', shipAt: mockDateAfter(60) }
+    } as UTSJSONObject)
+  }
+  return result
 }
