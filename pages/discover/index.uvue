@@ -30,8 +30,8 @@
 
         </view>
         <SectionHeader title="品牌目录" action-text="全部品牌" @action="openBrandDirectory" />
-        <PageSkeleton v-if="brandLoading" />
-        <PageState v-else-if="brandError !== ''" title="品牌加载失败" :message="brandError" action-text="重试" @action="reloadBrandPreview" />
+        <PageSkeleton v-if="brandLoading && brandData.length === 0" />
+        <PageState v-else-if="brandError !== '' && brandData.length === 0" title="品牌加载失败" :message="brandError" action-text="重试" @action="reloadBrandPreview" />
         <view v-else-if="brands.length === 0" :style="brandEmpty"><text :style="brandEmptyText">还没有收录品牌，稍后再来看看</text></view>
         <view v-else :style="brandGrid">
           <view v-for="(item, idx) in brands" :key="item.name" :style="brandCard(idx)" @tap="openBrand(item)">
@@ -169,11 +169,12 @@ const brandEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.va
 const brandData = ref<Brand[]>([])
 const brandLoading = ref(false)
 const brandError = ref('')
+let brandPreviewLoadedAt = 0
 async function reloadBrandPreview() {
-  if (brandLoading.value) return
+  if (brandLoading.value || (brandPreviewLoadedAt > 0 && Date.now() - brandPreviewLoadedAt < 300000)) return
   brandLoading.value = true
   brandError.value = ''
-  try { brandData.value = await listBrands() }
+  try { brandData.value = await listBrands(); brandPreviewLoadedAt = Date.now() }
   catch (e) { brandError.value = '品牌加载失败，请重试' }
   finally { brandLoading.value = false }
 }
@@ -347,4 +348,5 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
 
