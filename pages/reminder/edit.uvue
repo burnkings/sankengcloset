@@ -156,6 +156,7 @@ import { baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
+import { ensureReminderNotificationPermission } from '@/utils/notify'
 import { showFeedback } from '@/utils/feedback'
 import AppInput from '@/components/base/AppInput.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
@@ -348,7 +349,7 @@ function clearRelatedProduct() {
   relatedProductName.value = ''
 }
 
-function onSaveTap() {
+async function onSaveTap() {
   if (saving.value) return
   if (form.value.title.trim() === '') form.value.title = TYPE_LABELS[form.value.type] as string
   if (form.value.remindDate.trim() === '') { showFeedback('请选择提醒日期'); return }
@@ -357,6 +358,7 @@ function onSaveTap() {
     if (!canSetBalanceReminder(purchase)) { showFeedback('订单已结清、取消或不存在，无需尾款提醒'); return }
   }
   saving.value = true
+  const notificationsEnabled = await ensureReminderNotificationPermission()
   if (isEdit.value) {
     const data = new ReminderUpdateData()
     data.title = form.value.title.trim()
@@ -388,8 +390,8 @@ function onSaveTap() {
     item.relatedReleaseId = relatedReleaseId.value
     if (store.addItem(item) === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
   }
-  showFeedback(isEdit.value ? '修改已保存' : '创建成功')
-  backTimer = setTimeout(() => { uni.navigateBack() }, 300)
+  const message = notificationsEnabled ? '提醒已保存' : '提醒已保存，通知未开启'
+  uni.navigateBack({ success: () => { uni.showToast({ title: message, icon: 'none', duration: 3500 }) }, fail: () => { saving.value = false; showFeedback(message, 3500) } })
 }
 
 function onDeleteTap() { showDeleteDialog.value = true }
@@ -556,3 +558,4 @@ onBackPress((options) => {
   return false
 })
 </script>
+
