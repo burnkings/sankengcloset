@@ -16,12 +16,11 @@
         <text v-if="brand !== ''" :style="brandStyle">{{ brand }}</text>
         <view v-if="typeText !== ''" :style="typeChipStyle"><text :style="typeChipText">{{ typeText }}</text></view>
       </view>
-      <!-- 状态与价格同排；定金降级小字放在**状态 chip 下面**（左列），避免在主价下方独占一行留出空洞 -->
-      <view v-if="statusText !== '' || priceText !== ''" :style="metaRow">
-        <view :style="statusWrap">
+      <!-- 状态、定金和全款同一横排 -->
+      <view v-if="statusText !== '' || priceText !== '' || priceSubText !== ''" :style="metaRow">
+
           <StatusChip v-if="statusText !== ''" :label="statusText" :status="statusColor" size="sm" />
           <text v-if="priceSubText !== ''" :style="priceSubStyle">{{ priceSubText }}</text>
-        </view>
         <text v-if="priceText !== ''" :style="priceStyle">{{ priceText }}</text>
       </view>
     </view>
@@ -77,13 +76,13 @@ const typeChipStyle = computed((): any => ({ marginLeft: '8rpx', paddingLeft: '1
 // 必须 nowrap：否则窄空间下文字会逐字竖排（肉眼可见的渲染错误）
 const typeChipText = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, fontWeight: 500, color: n.value.textTertiary, whiteSpace: 'nowrap' }))
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text, lines: 2, textOverflow: 'ellipsis' }))
-const metaRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', marginTop: '8rpx' }))
-const statusWrap = { flex: 1, flexDirection: 'column' as string, alignItems: 'flex-start' as string }
+const metaRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'nowrap' as string, marginTop: '8rpx' }))
 // 卡片价格统一用品牌粉（用户拍板：所有卡片价格色统一品牌粉）——走主题 token，深色自动换 #E47A96
-const priceStyle = computed((): any => ({ fontSize: v3TextStyle.price.fontSize, lineHeight: v3TextStyle.price.lineHeight, fontWeight: 600, color: n.value.iconActive, marginLeft: '8rpx', flexShrink: 0 }))
+const priceStyle = computed((): any => ({ fontSize: '22rpx', lineHeight: '32rpx', fontWeight: 600, color: n.value.iconActive, marginLeft: '8rpx', flexShrink: 0 }))
 // 定金降级小字：跟随状态 chip 左对齐（原来放主价下方会独占一行留出空洞）
-const priceSubStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '6rpx', lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }))
+const priceSubStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginLeft: '6rpx', flexShrink: 0, lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }))
 </script>
 
 <style>
 </style>
+
