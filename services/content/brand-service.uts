@@ -42,12 +42,34 @@ export function mapBrandProduct(raw: UTSJSONObject): FeedItem {
   item.originalPrice = raw['originalPriceCents'] != null ? raw['originalPriceCents'] as number : item.price
   item.badgeText = raw['badgeText'] != null ? raw['badgeText'] as string : ''
   item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
-  item.sourceLabel = '服务端'
+  item.sourceLabel = raw['shopName'] != null ? raw['shopName'] as string : ''
+  item.priceType = raw['priceType'] != null ? raw['priceType'] as string : 'UNKNOWN'
+  item.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
+  item.pitType = item.category
+  item.subCategory = raw['subCategory'] != null ? raw['subCategory'] as string : ''
+  item.depositCents = raw['depositCents'] != null ? raw['depositCents'] as number : 0
+  item.balanceCents = raw['balanceCents'] != null ? raw['balanceCents'] as number : 0
+  item.fullPriceCents = raw['fullPriceCents'] != null ? raw['fullPriceCents'] as number : null
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
   return item
 }
 
+let brandsCache: Brand[] | null = null
+let brandsCachedAt = 0
+let brandsPending: Promise<Brand[]> | null = null
 export async function listBrands(): Promise<Brand[]> {
+  if (brandsCache != null && Date.now() - brandsCachedAt < 300000) return brandsCache!
+  if (brandsPending != null) return brandsPending!
+  const pending = loadBrands()
+  brandsPending = pending
+  try {
+    const rows = await pending
+    brandsCache = rows
+    brandsCachedAt = Date.now()
+    return rows
+  } finally { brandsPending = null }
+}
+async function loadBrands(): Promise<Brand[]> {
   try {
     const response = await apiGet('/api/v1/brands')
     const raw = response.data as any[]
