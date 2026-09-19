@@ -3,6 +3,14 @@
     <template #navbar><AppNavbar title="消费日志" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
+        <!-- 月份切换：页面级周期筛选 —— 预算进度、月度汇总、分类支出、逐笔流水都按此月过滤，
+             所以放在页面最上方（原先夹在分类卡与流水之间，看不出它在管谁；评审 P2） -->
+        <view :style="monthBar">
+          <view :style="monthArrow" @tap="prevMonth"><AppIcon name="month-left" :size="36" /></view>
+          <view :style="monthPickerButton" @tap="showMonthPicker = true"><text :style="monthTitle">{{ displayMonth }} ▾</text></view>
+          <view :style="monthArrow" @tap="nextMonth"><AppIcon name="month-right" :size="36" /></view>
+        </view>
+
         <view :style="budgetCard">
           <view :style="budgetHeader">
             <view :style="budgetCopy">
@@ -18,14 +26,6 @@
             <SegmentedControl :items="alertOptions" :active="alertLabel" @change="onAlertChange" />
             <view :style="budgetSave" @tap="saveBudget"><text :style="budgetSaveText">保存预算</text></view>
           </view>
-        </view>
-
-        <!-- 月份切换：页面级周期筛选 —— 预算进度、月度汇总、分类支出、逐笔流水都按此月过滤，
-             所以放在页面最上方（原先夹在分类卡与流水之间，看不出它在管谁；评审 P2） -->
-        <view :style="monthBar">
-          <view :style="monthArrow" @tap="prevMonth"><view :style="previousChevron" /></view>
-          <view :style="monthPickerButton" @tap="showMonthPicker = true"><text :style="monthTitle">{{ displayMonth }} ▾</text></view>
-          <view :style="monthArrow" @tap="nextMonth"><view :style="nextChevron" /></view>
         </view>
 
         <!-- 月度汇总 -->
@@ -261,8 +261,6 @@ const budgetSaveText = { fontSize: '26rpx', fontWeight: 600, color: baseColors.w
 // 页面级周期头：底部发丝线把它与下方卡片分开，明确「它在管这一屏」
 const monthBar = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginBottom: '20rpx', paddingBottom: '8rpx', borderBottomWidth: '1rpx', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider }))
 const monthPickerButton = { flex: 1, height: '88rpx', alignItems: 'center', justifyContent: 'center' }
-const previousChevron = computed((): any => ({ width: '16rpx', height: '16rpx', borderTopWidth: '0', borderRightWidth: '0', borderLeftWidth: '3rpx', borderBottomWidth: '3rpx', borderColor: n.value.textSecondary, borderStyle: 'solid', transform: 'rotate(45deg)' }))
-const nextChevron = computed((): any => ({ width: '16rpx', height: '16rpx', borderTopWidth: '0', borderRightWidth: '0', borderLeftWidth: '3rpx', borderBottomWidth: '3rpx', borderColor: n.value.textSecondary, borderStyle: 'solid', transform: 'rotate(225deg)' }))
 const monthArrow = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const monthTitle = computed((): any => ({ fontSize: '30rpx', fontWeight: fontWeight.semibold, color: n.value.text }))
 const summaryCard = { marginBottom: '24rpx' }
@@ -294,4 +292,5 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
 
