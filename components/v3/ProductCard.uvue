@@ -1,5 +1,5 @@
 <template>
-  <view :style="cardStyle" @tap="emit('tap')">
+  <view :style="cardStyle" @tap.stop="emit('tap')">
     <view :style="imageWrap">
       <AppImage v-if="image !== ''" :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
       <view v-else :style="imageFallbackStyle">
@@ -21,6 +21,7 @@
 
           <StatusChip v-if="statusText !== ''" :label="statusText" :status="statusColor" size="sm" />
           <text v-if="priceSubText !== ''" :style="priceSubStyle">{{ priceSubText }}</text>
+        <view :style="priceSpacer" />
         <text v-if="priceText !== ''" :style="priceStyle">{{ priceText }}</text>
       </view>
     </view>
@@ -78,6 +79,7 @@ const typeChipText = computed((): any => ({ fontSize: v3TextStyle.caption.fontSi
 const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text, lines: 2, textOverflow: 'ellipsis' }))
 const metaRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'nowrap' as string, marginTop: '8rpx' }))
 // 卡片价格统一用品牌粉（用户拍板：所有卡片价格色统一品牌粉）——走主题 token，深色自动换 #E47A96
+const priceSpacer = { flex: 1, minWidth: '8rpx' }
 const priceStyle = computed((): any => ({ fontSize: '22rpx', lineHeight: '32rpx', fontWeight: 600, color: n.value.iconActive, marginLeft: '8rpx', flexShrink: 0 }))
 // 定金降级小字：跟随状态 chip 左对齐（原来放主价下方会独占一行留出空洞）
 const priceSubStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginLeft: '6rpx', flexShrink: 0, lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }))
@@ -85,4 +87,5 @@ const priceSubStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontS
 
 <style>
 </style>
+
 
