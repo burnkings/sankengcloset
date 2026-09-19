@@ -1,3 +1,6 @@
+// #ifdef APP-ANDROID
+import { requestNotificationPermission } from '@/uni_modules/reminder-permission'
+// #endif
 /**
  * notify — 本地通知栏消息（uni-push 本地能力）
  * 不依赖服务器推送；仅用于「到点提醒」类本地通知。
@@ -67,3 +70,24 @@ export function scheduleReminderNotification(title: string, content: string, rem
   } catch (e) { uni.showToast({ title: '提醒已保存，当前环境不支持系统通知', icon: 'none' }) }
 }
 
+
+
+// Called by an explicit save action; no calendar access because no calendar event is written.
+export async function ensureReminderNotificationPermission(): Promise<boolean> {
+  if (notificationAuthorized()) return true
+  // #ifdef APP-ANDROID
+  try { await requestNotificationPermission() } catch (e) { /* Keep the in-app reminder available. */ }
+  if (notificationAuthorized()) return true
+  // #endif
+  // #ifdef APP
+  return new Promise<boolean>((resolve) => {
+    uni.showModal({ title: '开启提醒通知', content: '需要系统通知权限才能显示到点通知。你也可以先保存提醒。',
+      confirmText: '去设置', cancelText: '先保存',
+      success: (result) => { if (result.confirm) openNotificationSetting(); resolve(false) },
+      fail: () => { resolve(false) } })
+  })
+  // #endif
+  // #ifndef APP
+  return false
+  // #endif
+}
