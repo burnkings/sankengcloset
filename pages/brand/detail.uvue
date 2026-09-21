@@ -76,6 +76,8 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS_V3, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
+import { isComparisonProduct } from '@/services/mock/comparison-products'
+import { comparisonBrand } from '@/services/mock/comparison-brand'
 import { showFeedback } from '@/utils/feedback'
 import { safeParam } from '@/utils/route-params'
 import { shareByCopy } from '@/utils/share'
@@ -107,15 +109,17 @@ function onShareBrand() {
   shareByCopy(brandName.value, brandDescText.value)
 }
 function toggleBrand(name: string) {
+  if (name === comparisonBrand().name) { showFeedback('展示样例不保存关注'); return }
   const followed = library.toggleBrandFollow(name)
   showFeedback(followed ? `已关注 ${name}` : `已取消关注 ${name}`)
 }
 function toggleBlacklistBrand(name: string) {
+  if (name === comparisonBrand().name) { showFeedback('展示样例固定保留作对照'); return }
   const blocked = blacklist.toggleBlacklist(name)
   showFeedback(blocked ? `已屏蔽品牌：${name}` : `已恢复品牌：${name}`)
 }
 function openProduct(item: FeedItem) { openProductDetail(item.entityId) }
-function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
+function onToggleSave(item: FeedItem) { if (isComparisonProduct(item.entityId)) { showFeedback('展示样例不保存收藏'); return }; library.toggleFavorite(item.entityId, item.title) }
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
   return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
@@ -186,4 +190,5 @@ const productColumns = { ...flexRow, alignItems: 'flex-start' as string, padding
 const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
 const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
 </script>
+
 
