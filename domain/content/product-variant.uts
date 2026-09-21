@@ -4,14 +4,15 @@
  *
  * 展示层 Labels/Colors 见 presentation/content/feed-presenter.uts
  *
- * ★ 12-table schema: variants no longer carry skuCode, price, or stockStatus.
- *   These fields are now on the product_releases table or derived elsewhere.
+ * ★ 12-table schema: variants do not carry inventory or transactional SKU fields.
+ *   Optional referencePriceCents is a display quote only; absent quotes stay absent.
  *   Variant only carries identity/descriptive fields: id, name, styleName, colorName, sizeName.
  */
 
 // ====== 数据模型 ======
 
 export class ProductVariant {
+  referencePriceCents: number | null = null // Optional style quote for display, never inferred
   id: string = ''
   productId: string = ''
   name: string = ''           // "粉色 S" / "蓝色 M"
@@ -19,3 +20,4 @@ export class ProductVariant {
   sizeName: string = ''       // S / M / L / 均码
   styleName: string = ''      // 型别：JSK / OP / SK / 背带（Lolita 的一个链接可能同时卖 JSK+OP，所以挂在变体上）
 }
+
