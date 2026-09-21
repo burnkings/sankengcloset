@@ -1,9 +1,11 @@
+import { SHOW_COMPARISON_PRODUCTS, comparisonProducts, canonicalProductId, isComparisonProduct } from '@/services/mock/comparison-products'
 import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { ProductVariant } from '@/domain/content/product-variant'
+import { ProductImage, deriveCoverUrl, extractImageUrls } from '@/domain/content/product'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
-import { findMockProduct, mockDateAfter, MOCK_SOURCE_LABEL } from '@/services/mock/mock-catalog'
+// import { findMockProduct, mockDateAfter, MOCK_SOURCE_LABEL } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
 
 /** Phase 2.3-A：商品关联社区内容（「真实买家」模块条目，最小字段） */
 export class ProductCommunityPost {
@@ -21,14 +23,14 @@ export class ProductCommunityPost {
 export class ProductDetailModel {
   shopName: string = ''
   item: FeedItem = new FeedItem()
-  images: string[] = []
+  images: ProductImage[] = []
   description: string = ''
   shopUrl: string = ''
   requestId: string = ''
   /** 当前有效发售批次（后端 Product.currentRelease → 复用 ReleaseEvent Domain，非第二套模型） */
   currentRelease: ReleaseEvent | null = null
-  /** 所属款式 id（Phase 2.1；未归并商品为空串，详情页不显示同款式模块） */
-  styleId: string = ''
+  /** 同款式商品分组 key（替代 styleId；12-table schema） */
+  groupKey: string = ''
   // ====== Product V2 展示字段（Raw → Normalize → Product；前端只消费 Product 层） ======
   /** 价格语义：FULL/DEPOSIT/BALANCE/INTENTION/UNKNOWN（缺失保持 UNKNOWN，展示层不猜测） */
   priceType: string = 'UNKNOWN'
@@ -104,27 +106,49 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
   item.category = raw['category'] != null ? raw['category'] as string : ''
   item.price = raw['priceCents'] != null ? raw['priceCents'] as number : 0
+  // Note: price=0 with priceType=INTENTION means intention amount, not free
   item.originalPrice = raw['originalPriceCents'] != null ? raw['originalPriceCents'] as number : item.price
-  item.badgeText = statusLabel(raw['status'] != null ? raw['status'] as string : '')
-  item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
-  item.sourceLabel = '服务端'
+  item.badgeText = statusLabel(raw['saleStatus'] != null ? raw['saleStatus'] as string : '')
+  // coverUrl is derived from images[0]?.url below (12-table schema)
+  item.sourceLabel = raw['shopName'] != null ? raw['shopName'] as string : ''
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
   // ====== Product V2 展示字段透传（priceType 缺失保持 UNKNOWN，展示层不猜测） ======
   item.priceType = raw['priceType'] != null ? raw['priceType'] as string : 'UNKNOWN'
   item.depositCents = raw['depositCents'] != null ? raw['depositCents'] as number : 0
   item.balanceCents = raw['balanceCents'] != null ? raw['balanceCents'] as number : 0
-  item.saleStatus = raw['status'] != null ? raw['status'] as string : ''
+  item.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
   item.pitType = raw['category'] != null ? raw['category'] as string : ''
   item.subCategory = raw['subCategory'] != null ? raw['subCategory'] as string : ''
   item.colorTags = parseStringArray(raw['colorTags'])
   item.materialTags = parseStringArray(raw['materialTags'])
 
-  const images = raw['images'] as any[]
-  if (images != null) {
-    for (let i = 0; i < images.length; i++) addUniqueImage(result.images, images[i] as string)
+  // 12-table: images is array of ProductImage objects {url, thumbnailUrl, width, height, sizeBytes, objectKey}
+  const rawImages = raw['images'] as any[]
+  if (rawImages != null && Array.isArray(rawImages)) {
+    for (let i = 0; i < rawImages.length; i++) {
+      const img = rawImages[i]
+      if (img == null) continue
+      const obj = img as UTSJSONObject
+      const pi = new ProductImage()
+      pi.url = obj['url'] != null ? obj['url'] as string : ''
+      pi.thumbnailUrl = obj['thumbnailUrl'] != null ? obj['thumbnailUrl'] as string : ''
+      pi.width = obj['width'] != null ? obj['width'] as number : 0
+      pi.height = obj['height'] != null ? obj['height'] as number : 0
+      pi.sizeBytes = obj['sizeBytes'] != null ? obj['sizeBytes'] as number : 0
+      pi.objectKey = obj['objectKey'] != null ? obj['objectKey'] as string : ''
+      if (pi.url !== '') result.images.push(pi)
+    }
   }
-  addUniqueImage(result.images, item.coverUrl)
-  if (result.images.length > 1) item.secondaryCoverUrl = result.images[1]
+  if (result.images.length == 0 && raw['coverUrl'] != null) {
+    const cover = new ProductImage()
+    cover.url = raw['coverUrl'] as string
+    if (cover.url !== '') result.images.push(cover)
+  }
+  // Derive coverUrl from images[0] if available
+  result.item.coverUrl = deriveCoverUrl(result.images)
+  item.coverUrl = result.item.coverUrl
+  // Secondary cover: second image URL
+  if (result.images.length > 1) item.secondaryCoverUrl = result.images[1].url
 
   // 真实发售批次：currentRelease（存在时 eventEndAt 取 endAt，供截止时间展示）
   const currentRelease = mapCurrentRelease(raw['currentRelease'] as UTSJSONObject | null, item.id, item.brandId)
@@ -133,8 +157,8 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
 
   result.item = item
   result.description = raw['description'] != null ? raw['description'] as string : ''
-  result.shopUrl = raw['shopUrl'] != null ? raw['shopUrl'] as string : ''
-  result.styleId = raw['styleId'] != null ? raw['styleId'] as string : ''
+  result.shopUrl = raw['canonicalUrl'] != null ? raw['canonicalUrl'] as string : (raw['shopUrl'] != null ? raw['shopUrl'] as string : '')
+  result.groupKey = raw['groupKey'] != null ? raw['groupKey'] as string : ''
   // ====== Product V2 展示字段 ======
   result.priceType = item.priceType
   result.depositCents = item.depositCents
@@ -162,7 +186,7 @@ function parseStringArray(raw: any): string[] {
   return result
 }
 
-/** 解析规格变体数组（product_variants 行；缺失/空返回空数组，详情页不渲染款式模块） */
+/** 解析规格变体数组（12-table: product_variants 行；仅 identity 字段，无 skuCode/price/stockStatus） */
 function parseVariants(raw: any): ProductVariant[] {
   const result: ProductVariant[] = []
   if (raw == null || !Array.isArray(raw)) return result
@@ -174,96 +198,113 @@ function parseVariants(raw: any): ProductVariant[] {
     v.productId = r['productId'] != null ? r['productId'] as string : ''
     v.name = r['name'] != null ? r['name'] as string : ''
     v.colorName = r['colorName'] != null ? r['colorName'] as string : ''
+    v.referencePriceCents = r['referencePriceCents'] != null && typeof r['referencePriceCents'] === 'number' && (r['referencePriceCents'] as number) >= 0 ? r['referencePriceCents'] as number : null
     v.styleName = r['styleName'] != null ? r['styleName'] as string : ''
     v.sizeName = r['sizeName'] != null ? r['sizeName'] as string : ''
-    v.skuCode = r['skuCode'] != null ? r['skuCode'] as string : ''
-    v.price = r['priceCents'] != null ? r['priceCents'] as number : 0
-    v.stockStatus = r['stockStatus'] != null ? r['stockStatus'] as string : 'IN_STOCK'
     result.push(v)
   }
   return result
 }
 
 export async function fetchProductDetail(id: string, releaseId: string = ''): Promise<ProductDetailModel | null> {
+  id = canonicalProductId(id)
   if (id === '') return null
+  if (SHOW_COMPARISON_PRODUCTS && isComparisonProduct(id)) {
+    const samples = comparisonProducts()
+    for (let i = 0; i < samples.length; i++) {
+      if (samples[i]['id'] == id) return mapRemoteProduct(samples[i], 'comparison')
+    }
+    return null
+  }
   // releaseId 非空：后端优先返回该批次 currentRelease（不存在则回退最新一条）
   const query = releaseId !== '' ? `?releaseId=${encodeQuery(releaseId)}` : ''
-  if (!isLocalMockSession()) try {
+  try {
     const response = await apiGet(`/api/v1/products/${encodeQuery(id)}${query}`)
     if (response.data != null) return mapRemoteProduct(response.data as UTSJSONObject, response.requestId)
     return null
   } catch (e) { throw e }
-  const mock = findMockProduct(id)
-  if (mock == null) return null
-  const result = new ProductDetailModel()
-  const item = new FeedItem()
-  item.id = mock.id
-  item.entityId = mock.id
-  item.feedType = FEED_PRODUCT
-  item.title = mock.title
-  item.subtitle = mock.description
-  item.brandId = mock.brandId
-  item.brandName = mock.brandName
-  item.category = mock.category
-  item.pitType = mock.category
-  item.subCategory = mock.subCategory
-  item.price = mock.priceCents
-  item.originalPrice = mock.originalPriceCents
-  item.fullPriceCents = mock.priceCents
-  item.priceType = mock.priceType
-  item.depositCents = mock.depositCents
-  item.balanceCents = mock.balanceCents
-  item.saleStatus = mock.status
-  item.releaseType = mock.releaseType
-  item.badgeText = statusLabel(mock.status)
-  item.coverUrl = mock.coverUrl
-  item.secondaryCoverUrl = mock.secondaryCoverUrl
-  item.sourceLabel = MOCK_SOURCE_LABEL
-  item.colorTags = mock.colorTags
-  item.materialTags = mock.materialTags
-  const release = new ReleaseEvent()
-  release.id = 'mock_release_' + mock.id
-  release.productId = mock.id
-  release.brandId = mock.brandId
-  // 批次名不再拼接商品标题（会和上方大标题重复），改用批次性质区分
-  release.title = mock.releaseType == 'rerelease' ? '再贩批'
-    : (mock.releaseType == 'first_release' ? '首批'
-    : (mock.releaseType == 'reservation' ? '预约批' : '现货批'))
-  release.eventType = mock.releaseType
-  release.releaseType = mock.releaseType
-  release.saleStatus = mock.status
-  release.lifecycleStatus = mock.status == 'ON_SALE' ? 'active' : 'upcoming'
-  release.status = release.lifecycleStatus
-  release.depositAmount = mock.depositCents
-  release.finalPaymentAmount = mock.balanceCents
-  release.fullPrice = mock.priceCents
-  release.startAt = mockDateAfter(2)
-  release.endAt = mockDateAfter(9)
-  release.balanceDueAt = mock.status == 'PRE_ORDER' ? mockDateAfter(30) : ''
-  release.shipAt = mockDateAfter(60)
-  result.item = item
-  result.images = [mock.coverUrl, mock.secondaryCoverUrl]
-  result.description = mock.description
-  result.shopUrl = mock.shopUrl
-  result.currentRelease = release
-  result.priceType = mock.priceType
-  result.depositCents = mock.depositCents
-  result.balanceCents = mock.balanceCents
-  result.fullPriceCents = mock.priceCents
-  result.pitType = mock.category
-  result.subCategory = mock.subCategory
-  result.colorTags = mock.colorTags
-  result.materialTags = mock.materialTags
-  result.featureTags = mock.featureTags
-  result.requestId = 'mock_' + Date.now().toString()
-  return result
+
+  // [MOCK-DEBUG] 以下为 mock 数据回退，调试时可取消注释
+  // const mock = findMockProduct(id)
+  // if (mock == null) return null
+  // const result = new ProductDetailModel()
+  // const item = new FeedItem()
+  // item.id = mock.id
+  // item.entityId = mock.id
+  // item.feedType = FEED_PRODUCT
+  // item.title = mock.title
+  // item.subtitle = mock.description
+  // item.brandId = mock.brandId
+  // item.brandName = mock.brandName
+  // item.category = mock.category
+  // item.pitType = mock.category
+  // item.subCategory = mock.subCategory
+  // item.price = mock.priceCents
+  // item.originalPrice = mock.originalPriceCents
+  // item.fullPriceCents = mock.priceCents
+  // item.priceType = mock.priceType
+  // item.depositCents = mock.depositCents
+  // item.balanceCents = mock.balanceCents
+  // item.saleStatus = mock.status
+  // item.releaseType = mock.releaseType
+  // item.badgeText = statusLabel(mock.status)
+  // item.coverUrl = mock.coverUrl
+  // item.secondaryCoverUrl = mock.secondaryCoverUrl
+  // item.sourceLabel = MOCK_SOURCE_LABEL
+  // item.colorTags = mock.colorTags
+  // item.materialTags = mock.materialTags
+  // const release = new ReleaseEvent()
+  // release.id = 'mock_release_' + mock.id
+  // release.productId = mock.id
+  // release.brandId = mock.brandId
+  // release.title = mock.releaseType == 'rerelease' ? '再贩批'
+  //   : (mock.releaseType == 'first_release' ? '首批'
+  //   : (mock.releaseType == 'reservation' ? '预约批' : '现货批'))
+  // release.eventType = mock.releaseType
+  // release.releaseType = mock.releaseType
+  // release.saleStatus = mock.status
+  // release.lifecycleStatus = mock.status == 'ON_SALE' ? 'active' : 'upcoming'
+  // release.status = release.lifecycleStatus
+  // release.depositAmount = mock.depositCents
+  // release.finalPaymentAmount = mock.balanceCents
+  // release.fullPrice = mock.priceCents
+  // release.startAt = mockDateAfter(2)
+  // release.endAt = mockDateAfter(9)
+  // release.balanceDueAt = mock.status == 'PRE_ORDER' ? mockDateAfter(30) : ''
+  // release.shipAt = mockDateAfter(60)
+  // result.item = item
+  // if (mock.coverUrl !== '') {
+  //   const pi = new ProductImage()
+  //   pi.url = mock.coverUrl
+  //   result.images.push(pi)
+  // }
+  // if (mock.secondaryCoverUrl !== '') {
+  //   const pi2 = new ProductImage()
+  //   pi2.url = mock.secondaryCoverUrl
+  //   result.images.push(pi2)
+  // }
+  // result.description = mock.description
+  // result.shopUrl = mock.shopUrl
+  // result.currentRelease = release
+  // result.priceType = mock.priceType
+  // result.depositCents = mock.depositCents
+  // result.balanceCents = mock.balanceCents
+  // result.fullPriceCents = mock.priceCents
+  // result.pitType = mock.category
+  // result.subCategory = mock.subCategory
+  // result.colorTags = mock.colorTags
+  // result.materialTags = mock.materialTags
+  // result.featureTags = mock.featureTags
+  // result.requestId = 'mock_' + Date.now().toString()
+  // return result
 }
 
 /** Phase 2.3-A：商品关联社区内容（「真实买家」模块；后端默认 4 条，游客可读） */
 export async function fetchProductCommunity(id: string): Promise<ProductCommunityPost[]> {
+  if (isComparisonProduct(id)) return []
   if (id === '') return []
   const result = [] as ProductCommunityPost[]
-  if (!isLocalMockSession()) try {
+  try {
     const response = await apiGet(`/api/v1/products/${encodeQuery(id)}/community`)
     const values = response.data as any[] | null
     if (values != null) for (let i = 0; i < values.length; i++) {
@@ -282,20 +323,23 @@ export async function fetchProductCommunity(id: string): Promise<ProductCommunit
     }
     return result
   } catch (e) { throw e }
-  if (findMockProduct(id) != null) {
-    for (let i = 0; i < 2; i++) {
-      const post = new ProductCommunityPost()
-      post.id = 'mock_buyer_' + id + '_' + i.toString()
-      post.authorNickname = i == 0 ? '栗子同学' : '小鹿茶会'
-      post.imageUrl = i == 0 ? '/static/demo/outfit-01.png' : '/static/demo/outfit-02.png'
-      post.caption = i == 0 ? '日常搭配很轻松，尺码信息以实际商品为准。' : '换一件内搭就是另一套感觉。'
-      post.category = findMockProduct(id)!.category
-      post.topic = '日常穿搭'
-      post.likeCount = i == 0 ? 38 : 21
-      post.createdAt = mockDateAfter(-i - 1)
-      post.productId = id
-      result.push(post)
-    }
-  }
-  return result
+
+  // [MOCK-DEBUG] 以下为 mock 数据回退，调试时可取消注释
+  // if (findMockProduct(id) != null) {
+  //   for (let i = 0; i < 2; i++) {
+  //     const post = new ProductCommunityPost()
+  //     post.id = 'mock_buyer_' + id + '_' + i.toString()
+  //     post.authorNickname = i == 0 ? '栗子同学' : '小鹿茶会'
+  //     post.imageUrl = i == 0 ? '/static/demo/outfit-01.png' : '/static/demo/outfit-02.png'
+  //     post.caption = i == 0 ? '日常搭配很轻松，尺码信息以实际商品为准。' : '换一件内搭就是另一套感觉。'
+  //     post.category = findMockProduct(id)!.category
+  //     post.topic = '日常穿搭'
+  //     post.likeCount = i == 0 ? 38 : 21
+  //     post.createdAt = mockDateAfter(-i - 1)
+  //     post.productId = id
+  //     result.push(post)
+  //   }
+  // }
+  // return result
 }
+

@@ -54,7 +54,93 @@ function parseResponse(statusCode: number, raw: UTSJSONObject | null): ApiRespon
   return response
 }
 
-export function apiGet(path: string): Promise<ApiResponse> {
+
+// Process-local read cache. Never persist credentials or personal responses to disk.
+class ReadCacheEntry {
+  key: string = ''
+  expires: number = 0
+  json: string = ''
+}
+const readCache: ReadCacheEntry[] = []
+const readPending = new Map<string, Promise<ApiResponse>>()
+let cacheToken = ''
+let cacheBase = ''
+let cacheEpoch = 0
+export function clearApiReadCache() {
+  cacheEpoch += 1
+  readCache.splice(0, readCache.length)
+  readPending.clear()
+}
+function ensureCacheSession() {
+  const token = getCachedAccessToken()
+  const base = endpoint('/')
+  if (token !== cacheToken || base !== cacheBase) {
+    clearApiReadCache()
+    cacheToken = token
+    cacheBase = base
+  }
+}
+function readTTL(path: string): number {
+  if (path.indexOf('/health') >= 0 || path.indexOf('/sessions') >= 0 || path.indexOf('/sync') >= 0 || path.indexOf('/ai-') >= 0 || path.indexOf('/feed') >= 0) return 0
+  if (path.indexOf('/brands') >= 0 || path.indexOf('/calendar') >= 0) return 300000
+  return 30000
+}
+function copyResponse(response: ApiResponse): ApiResponse {
+  const result = new ApiResponse()
+  result.data = response.data == null ? null : JSON.parse(JSON.stringify(response.data))
+  result.page = response.page == null ? null : JSON.parse(JSON.stringify(response.page))
+  result.statusCode = response.statusCode
+  result.requestId = response.requestId
+  return result
+}
+export async function apiGet(path: string, force: boolean = false): Promise<ApiResponse> {
+  ensureCacheSession()
+  const ttl = readTTL(path)
+  if (ttl === 0) return await requestGet(path)
+  if (force) clearApiReadCache()
+  const key = endpoint(path)
+  const now = Date.now()
+  for (let i = 0; i < readCache.length; i++) {
+    const entry = readCache[i]
+    if (entry.key === key && entry.expires > now) {
+      const raw = JSON.parse(entry.json) as UTSJSONObject
+      const result = new ApiResponse()
+      result.data = raw['data']
+      result.page = raw['page']
+      result.statusCode = raw['statusCode'] as number
+      result.requestId = raw['requestId'] as string
+      return result
+    }
+  }
+  const pending = readPending.get(key)
+  if (pending != null) return copyResponse(await pending)
+  const epoch = cacheEpoch
+  const request = requestGet(path)
+  readPending.set(key, request)
+  try {
+    const response = await request
+    ensureCacheSession()
+    if (epoch === cacheEpoch) {
+      for (let i = readCache.length - 1; i >= 0; i--) {
+        if (readCache[i].key === key || readCache[i].expires <= now) readCache.splice(i, 1)
+      }
+      const json = JSON.stringify(response)
+      if (json.length < 200000) {
+        const entry = new ReadCacheEntry()
+        entry.key = key
+        entry.expires = Date.now() + ttl
+        entry.json = json
+        while (readCache.length >= 16) readCache.shift()
+        readCache.push(entry)
+      }
+    }
+    return copyResponse(response)
+  } finally {
+    if (epoch === cacheEpoch) readPending.delete(key)
+  }
+}
+
+function requestGet(path: string): Promise<ApiResponse> {
   return new Promise<ApiResponse>((resolve, reject) => {
     let url = ''
     try { url = endpoint(path) } catch (e) { reject(e); return }
@@ -83,7 +169,7 @@ export function apiPost(path: string, payload: any): Promise<ApiResponse> {
       data: payload,
       timeout: 15000,
       success: (res: RequestSuccess<UTSJSONObject>) => {
-        try { resolve(parseResponse(res.statusCode, res.data)) }
+        try { const response = parseResponse(res.statusCode, res.data); clearApiReadCache(); resolve(response) }
         catch (e) { reject(e) }
       },
       fail: (error: RequestFail) => reject(new Error(error.errMsg)),
@@ -101,7 +187,7 @@ export function apiDelete(path: string): Promise<ApiResponse> {
       header: headers(),
       timeout: 12000,
       success: (res: RequestSuccess<UTSJSONObject>) => {
-        try { resolve(parseResponse(res.statusCode, res.data)) }
+        try { const response = parseResponse(res.statusCode, res.data); clearApiReadCache(); resolve(response) }
         catch (e) { reject(e) }
       },
       fail: (error: RequestFail) => reject(new Error(error.errMsg)),
@@ -120,7 +206,7 @@ function apiMutation(path: string, method: string, payload: any): Promise<ApiRes
       data: payload,
       timeout: 15000,
       success: (res: RequestSuccess<UTSJSONObject>) => {
-        try { resolve(parseResponse(res.statusCode, res.data)) }
+        try { const response = parseResponse(res.statusCode, res.data); clearApiReadCache(); resolve(response) }
         catch (e) { reject(e) }
       },
       fail: (error: RequestFail) => reject(new Error(error.errMsg)),
@@ -223,7 +309,7 @@ export async function apiUploadBinary(path: string, data: ArrayBuffer, contentTy
       data,
       timeout: 30000,
       success: (res: RequestSuccess<UTSJSONObject>) => {
-        try { resolve(parseResponse(res.statusCode, res.data)) }
+        try { const response = parseResponse(res.statusCode, res.data); clearApiReadCache(); resolve(response) }
         catch (e) { reject(e) }
       },
       fail: (error: RequestFail) => reject(new Error(error.errMsg)),
@@ -258,3 +344,4 @@ export async function testApiConnection(): Promise<string> {
   if (data == null || data['status'] == null || data['status'] as string !== 'ok') throw new Error('服务健康检查未通过')
   return data['service'] != null ? data['service'] as string : 'sankengcloset-api'
 }
+

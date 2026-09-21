@@ -1,3 +1,4 @@
+import { isComparisonProduct } from '@/services/mock/comparison-products'
 /**
  * HomeFeedStore — 首页内容发现 Feed 状态管理
  * V2.6: 稳定性修复
@@ -127,7 +128,7 @@ function isLoading(): boolean { return _state.state == 'loading' }
  * 频道切换时 Store 已按频道重新请求，这里仅做轻量过滤兜底。
  */
 function displayItems(): FeedItem[] {
-  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
+  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => isComparisonProduct(item.entityId) || (!isBrandBlocked(item.brandName) && fitsPricePreference(item)))
 }
 
 function isEmpty(): boolean {
@@ -146,7 +147,7 @@ function isCardEligible(item: FeedItem): boolean {
  */
 function masonryBlocks(): MasonryBlock[] {
   const blocks: MasonryBlock[] = []
-  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
+  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => isComparisonProduct(item.entityId) || (!isBrandBlocked(item.brandName) && fitsPricePreference(item)))
   let i = 0
   while (i < channelItems.length) {
     const item = channelItems[i]
@@ -189,6 +190,27 @@ function notifyChanged() {}
 // ====== request generation：旧请求不得覆盖新频道数据 ======
 
 let _requestSeq = 0
+class ChannelSnapshot {
+  channel: string = ''
+  items: FeedItem[] = []
+  nextCursor: string = ''
+  hasMore: boolean = true
+  fetchedAt: number = 0
+}
+let channelCache: ChannelSnapshot[] = []
+let currentFetchedAt = 0
+function rememberChannel() {
+  if (_state.state !== 'loaded') return
+  const entry = new ChannelSnapshot()
+  entry.channel = _state.currentChannel
+  entry.items = _state.allItems.slice()
+  entry.nextCursor = _state.nextCursor
+  entry.hasMore = _state.hasMore
+  entry.fetchedAt = currentFetchedAt
+  channelCache = channelCache.filter((item) => item.channel !== entry.channel)
+  channelCache.push(entry)
+  if (channelCache.length > 4) channelCache.shift()
+}
 
 // ====== 模块级 action ======
 
@@ -207,10 +229,12 @@ async function loadFirstPage(silent: boolean = false) {
     _state.nextCursor = page.nextCursor
     _state.hasMore = page.hasMore
     _state.state = 'loaded'
+    currentFetchedAt = Date.now()
+    rememberChannel()
     invalidateBlocksCache()
   } catch (e) {
     if (seq !== _requestSeq) return
-    _state.state = 'error'
+    _state.state = _state.allItems.length > 0 ? 'loaded' : 'error'
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
   } finally {
     if (seq === _requestSeq) notifyChanged()
@@ -251,7 +275,22 @@ async function loadMore() {
 // 切换频道：重置 cursor/items/hasMore 并请求该频道第 1 页
 function setChannel(ch: string) {
   if (ch == _state.currentChannel) return
+  rememberChannel()
+  ++_requestSeq
+  _state.isLoadingMore = false
   _state.currentChannel = ch
+  const cached = channelCache.find((item) => item.channel === ch)
+  if (cached != null) {
+    _state.allItems = cached.items.slice()
+    _state.nextCursor = cached.nextCursor
+    _state.hasMore = cached.hasMore
+    _state.state = 'loaded'
+    _state.errorMessage = ''
+    currentFetchedAt = cached.fetchedAt
+    invalidateBlocksCache()
+    if (Date.now() - cached.fetchedAt >= 300000) loadFirstPage(true)
+    return
+  }
   _state.nextCursor = ''
   _state.allItems = []
   _state.hasMore = true
@@ -305,6 +344,8 @@ function refreshIfPreferencesChanged() {
   const sig = buildPrefSignature()
   if (sig == lastPrefSignature) return
   lastPrefSignature = sig
+  channelCache = []
+  _state.allItems = []
   loadFirstPage()
 }
 
@@ -336,3 +377,4 @@ export function useHomeFeedStore(): HomeFeedStoreHandle {
   if (_handle == null) _handle = new HomeFeedStoreHandle()
   return _handle!
 }
+

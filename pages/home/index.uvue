@@ -43,13 +43,13 @@
           <view v-for="block in store.masonryBlocks" :key="blockKey(block)">
             <view v-if="block.type === 'columns'" :style="waterfallRow">
               <view :style="masonryColLeft">
-                <FeedColumn :items="block.left" @tap="onTap" @toggle-save="onToggleSave" />
+                <FeedColumn :items="block.left" @open-item="onTap" @toggle-save="onToggleSave" />
               </view>
               <view :style="masonryColRight">
-                <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
+                <FeedColumn :items="block.right" @open-item="onTap" @toggle-save="onToggleSave" />
               </view>
             </view>
-          <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
+          <FeedBlock v-else :full="block.full" @open-item="onTap" @remind="onRemind" />
         </view>
 
         <view v-if="store.errorMessage !== ''" :style="loadErrorRow" @tap="onLoadMore"><text :style="loadErrorText">{{ store.errorMessage }} · 点击重试</text></view>
@@ -69,13 +69,13 @@
         <list-item v-for="block in store.masonryBlocks" :key="blockKey(block)">
           <view v-if="block.type === 'columns'" :style="waterfallRow">
             <view :style="masonryColLeft">
-              <FeedColumn :items="block.left" @tap="onTap" @toggle-save="onToggleSave" />
+              <FeedColumn :items="block.left" @open-item="onTap" @toggle-save="onToggleSave" />
             </view>
             <view :style="masonryColRight">
-              <FeedColumn :items="block.right" @tap="onTap" @toggle-save="onToggleSave" />
+              <FeedColumn :items="block.right" @open-item="onTap" @toggle-save="onToggleSave" />
             </view>
           </view>
-          <FeedBlock v-else :full="block.full" @tap="onTap" @remind="onRemind" />
+          <FeedBlock v-else :full="block.full" @open-item="onTap" @remind="onRemind" />
         </list-item>
 
         <list-item v-if="store.errorMessage !== ''"><view :style="loadErrorRow" @tap="onLoadMore"><text :style="loadErrorText">{{ store.errorMessage }} · 点击重试</text></view></list-item>
@@ -91,6 +91,8 @@
 </template>
 
 <script setup lang="uts">
+import { showFeedback } from '@/utils/feedback'
+import { isComparisonProduct } from '@/services/mock/comparison-products'
 import { nextTick } from 'vue'
 import { useHomeFeedStore, CHANNELS, MasonryBlock } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
@@ -108,6 +110,7 @@ import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import BackToTop from '@/components/base/BackToTop.uvue'
 import ChannelTabs from '@/components/v3/ChannelTabs.uvue'
+import { openProductDetail } from '@/utils/content-navigation'
 import FeedColumn from '@/components/v3/FeedColumn.uvue'
 import FeedBlock from '@/components/v3/FeedBlock.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
@@ -171,10 +174,10 @@ function onTap(item: FeedItem) {
     uni.navigateTo({ url: `/pages/editorial/detail?title=${encodeURIComponent(item.title)}&category=${encodeURIComponent(item.category)}&image=${encodeURIComponent(item.coverUrl)}` })
     return
   }
-  if (item.entityId == '') return
-  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+  openProductDetail(item.entityId)
 }
 function onToggleSave(item: FeedItem) {
+  if (isComparisonProduct(item.entityId)) { showFeedback('展示样例不保存收藏'); return }
   // 同步翻转服务端 saved（乐观更新，刷新后以服务端权威值为准）
   store.toggleSave(item.id)
   library.toggleFavorite(item.entityId, item.title)
@@ -209,7 +212,7 @@ let initialLoadDone = false
 onLoad(() => {
   nextTick(() => initPageTheme())
   refreshViewport()
-  if (!initialLoadDone) {
+  if (!initialLoadDone && store.state === 'idle') {
     initialLoadDone = true
     store.loadFirstPage()
   }
@@ -271,3 +274,5 @@ const loadErrorText = computed((): any => ({ fontSize: v3TextStyle.meta.fontSize
 const footerWrap = { ...flexCenter, paddingTop: '32rpx', paddingBottom: PAGE_BOTTOM_SAFE_SPACER }
 const footerTxt = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
 </script>
+
+

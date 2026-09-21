@@ -2,7 +2,7 @@ import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 import { mapFeedItem } from '@/services/content/feed-service'
-import { filterMockFeed } from '@/services/mock/mock-catalog'
+// import { filterMockFeed } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
 
 export class SearchResult {
   items: FeedItem[] = []
@@ -21,7 +21,7 @@ export class SearchFilters {
 
 /**
  * 服务端商品搜索：GET /api/v1/search?q=<关键词>&cursor=<游标>&limit=20
- * 后端使用参数化 ILIKE，并补充坑向别名匹配（如“洛丽塔”→ LOLITA）。
+ * 后端使用参数化 ILIKE，并补充坑向别名匹配（如"洛丽塔"→ LOLITA）。
  * 返回字段与 feed 相同（id/feedType/entityId/title/coverUrl/price 等），
  * 复用 feed-service 的 mapFeedItem 做 DTO 映射。
  */
@@ -40,7 +40,7 @@ export async function searchProducts(keyword: string, cursor: string = '', filte
     if (filters.minPrice > 0) path += '&minPrice=' + filters.minPrice
     if (filters.maxPrice > 0) path += '&maxPrice=' + filters.maxPrice
   }
-  if (!isLocalMockSession()) try {
+  try {
     const response = await apiGet(path)
     const rawItems = response.data
     if (rawItems != null && Array.isArray(rawItems)) {
@@ -55,14 +55,15 @@ export async function searchProducts(keyword: string, cursor: string = '', filte
   } catch (e) {
     throw e
   }
-  result.items = filterMockFeed('推荐', '全部', q).filter((item) => item.feedType == 'product')
-  // 没有精确命中时提供完整演示商品，保证搜索页可继续体验筛选与详情链路。
-  if (result.items.length == 0) result.items = filterMockFeed('推荐', '全部').filter((item) => item.feedType == 'product')
-  if (filters != null) {
-    if (filters.category !== '') result.items = result.items.filter((item) => item.category === filters.category)
-    if (filters.saleStatus !== '') result.items = result.items.filter((item) => item.saleStatus === filters.saleStatus)
-    if (filters.minPrice > 0) result.items = result.items.filter((item) => item.price >= filters.minPrice)
-    if (filters.maxPrice > 0) result.items = result.items.filter((item) => item.price <= filters.maxPrice)
-  }
-  return result
+
+  // [MOCK-DEBUG] 以下为 mock 数据回退，调试时可取消注释
+  // result.items = filterMockFeed('推荐', '全部', q).filter((item) => item.feedType == 'product')
+  // if (result.items.length == 0) result.items = filterMockFeed('推荐', '全部').filter((item) => item.feedType == 'product')
+  // if (filters != null) {
+  //   if (filters.category !== '') result.items = result.items.filter((item) => item.category === filters.category)
+  //   if (filters.saleStatus !== '') result.items = result.items.filter((item) => item.saleStatus === filters.saleStatus)
+  //   if (filters.minPrice > 0) result.items = result.items.filter((item) => item.price >= filters.minPrice)
+  //   if (filters.maxPrice > 0) result.items = result.items.filter((item) => item.price <= filters.maxPrice)
+  // }
+  // return result
 }

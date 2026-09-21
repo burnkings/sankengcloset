@@ -1,0 +1,13 @@
+import Build from 'android.os.Build'
+export function requestNotificationPermission(): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    if (Build.VERSION.SDK_INT < 33) { resolve(true); return }
+    const activity = UTSAndroid.getUniActivity()
+    if (activity == null) { resolve(false); return }
+    const permissions = ['android.permission.POST_NOTIFICATIONS']
+    if (UTSAndroid.checkSystemPermissionGranted(activity, permissions)) { resolve(true); return }
+    UTSAndroid.requestSystemPermission(activity, permissions,
+      (allRight: boolean, granted: string[]) => { resolve(allRight) },
+      (doNotAskAgain: boolean, granted: string[]) => { resolve(false) })
+  })
+}

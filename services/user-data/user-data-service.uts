@@ -152,9 +152,9 @@ export async function listFollowedBrandsRemote(): Promise<string[]> {
 
 // ─── 圈子发帖 + 图片上传 ───────────────────────────────────
 
-// ─── 心动收藏（统一数据源 /api/v1/wishlist）────────────────
+// ─── 心动收藏（user_interactions PRODUCT_FAVORITE，替代旧 wishlist_items 表）────────────────
 
-/** 拉取当前用户收藏列表（wishlist_items，含 id/title/productId/status） */
+/** 拉取当前用户收藏列表（user_interactions PRODUCT_FAVORITE，含 id/title/productId/status） */
 export async function listWishlistRemote(): Promise<UTSJSONObject[]> {
   const response = await apiGetAuthorized('/api/v1/wishlist')
   const values = response.data as any[] | null
@@ -168,8 +168,8 @@ export async function listWishlistRemote(): Promise<UTSJSONObject[]> {
 
 /**
  * 添加收藏（POST /api/v1/wishlist，status 必填）。返回新条目 id；失败抛错由调用方入队兜底。
- * status: WISH(收藏) / WANT(想买) / WATCHING / WAIT_RELEASE(等待开售) / WAIT_PRICE / PURCHASED
- * releaseId: 用户当前关注的发售批次（wishlist_items.release_id，后端已支持；空串不传）
+ * status: WISH(收藏) / WANT(想买) / WATCHING / WAIT_RELEASE(等待开售) / WAIT_BALANCE(等待尾款) / PURCHASED
+ * releaseId: 用户当前关注的发售批次（user_interactions PRODUCT_FAVORITE.release_id，后端已支持；空串不传）
  */
 export async function addWishlistRemote(productId: string, title: string, status: string = 'WISH', releaseId: string = ''): Promise<string> {
   const payload = { title, status, productId } as UTSJSONObject

@@ -1,0 +1,35 @@
+import { listMockProducts, mockDateAfter } from '@/services/mock/mock-catalog'
+export const SHOW_COMPARISON_PRODUCTS = true
+export function canonicalProductId(id: string): string {
+  if (id === 'preview_spot') return 'prd_jk_navy_45'
+  if (id === 'preview_reservation') return 'prd_lolita_moon'
+  return id.startsWith('feed_prd_') ? id.substring(5) : id
+}
+export function isComparisonProduct(id: string): boolean {
+  const key = canonicalProductId(id)
+  return key === 'prd_jk_navy_45' || key === 'prd_lolita_moon'
+}
+// Original catalog is the only source of fixture names, images, amounts and tags.
+export function comparisonProducts(): UTSJSONObject[] {
+  const result: UTSJSONObject[] = []
+  const rows = listMockProducts().slice(0, 2)
+  for (let i = 0; i < rows.length; i++) {
+    const p = rows[i]
+    result.push({ id: p.id, title: p.title, brandId: p.brandId, brandName: p.brandName,
+      shopName: '', shopUrl: p.shopUrl, category: p.category, subCategory: p.subCategory,
+      priceCents: p.priceCents, priceType: p.priceType, depositCents: p.depositCents,
+      balanceCents: p.balanceCents, saleStatus: p.status, description: p.description,
+      images: [{ url: p.coverUrl }, { url: p.secondaryCoverUrl }],
+      variants: i === 0 ? [{ id: 'demo_sk_s', styleName: '45cm格裙', sizeName: 'S', referencePriceCents: 12800 }, { id: 'demo_sk_m', styleName: '55cm格裙', sizeName: 'M', referencePriceCents: 14800 }] : [{ id: 'demo_jsk_s', styleName: 'JSK', sizeName: 'S' }, { id: 'demo_jsk_m', styleName: 'JSK', sizeName: 'M' }],
+      colorTags: p.colorTags, materialTags: p.materialTags, featureTags: p.featureTags,
+      currentRelease: { id: 'mock_release_' + p.id, releaseName: '',
+        releaseType: p.releaseType, saleStatus: p.status, fullPriceCents: p.priceCents,
+        depositCents: p.depositCents, balanceCents: p.balanceCents,
+        startAt: mockDateAfter(2), endAt: mockDateAfter(9),
+        balanceDueAt: p.status === 'PRE_ORDER' ? mockDateAfter(30) : '', shipAt: mockDateAfter(60) }
+    } as UTSJSONObject)
+  }
+  return result
+}
+
+

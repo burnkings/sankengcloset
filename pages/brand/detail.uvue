@@ -7,9 +7,10 @@
 
       <template v-else>
         <view :style="brandHeader">
-          <view :style="brandAvatar"><text :style="brandAvatarText">{{ initialOf(brandName) }}</text></view>
+          <view :style="brandAvatar"><AppImage v-if="brandDetail != null && brandDetail.logo !== ''" :src="brandDetail!.logo" width="96rpx" height="96rpx" mode="aspectFill" /><text v-else :style="brandAvatarText">{{ initialOf(brandName) }}</text></view>
           <view :style="brandHeaderCopy">
             <text :style="brandTitle">{{ brandName }}</text>
+            <text v-if="brandDetail != null && brandDetail.category !== ''" :style="brandDescStyle">{{ getPitTypeLabel(brandDetail!.category) }}</text>
             <text v-if="brandDescText !== ''" :style="brandDescStyle">{{ brandDescText }}</text>
           </view>
           <view :style="followBtn" @tap="toggleBrand(brandName)"><text :style="followBtnText">{{ library.isFollowingBrand(brandName) ? '已关注' : '关注' }}</text></view>
@@ -25,7 +26,7 @@
             <view v-for="item in productLeft" :key="item.id">
               <ProductCard
                 :image="item.coverUrl"
-                :brand="item.brandName"
+                :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                 :title="item.title"
                 :type-text="pitTypeLabel(item)"
                 :status-text="saleStatusText(item)"
@@ -42,7 +43,7 @@
             <view v-for="item in productRight" :key="item.id">
               <ProductCard
                 :image="item.coverUrl"
-                :brand="item.brandName"
+                :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                 :title="item.title"
                 :type-text="pitTypeLabel(item)"
                 :status-text="saleStatusText(item)"
@@ -75,6 +76,8 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS_V3, PAGE_GUTTER_V3, PRODUCT_CARD_WIDTH_V3, COLUMN_GAP_V3, FEED_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
+import { isComparisonProduct } from '@/services/mock/comparison-products'
+import { comparisonBrand } from '@/services/mock/comparison-brand'
 import { showFeedback } from '@/utils/feedback'
 import { safeParam } from '@/utils/route-params'
 import { shareByCopy } from '@/utils/share'
@@ -82,6 +85,7 @@ import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import ProductCard from '@/components/v3/ProductCard.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 
 const library = useContentLibraryStore()
@@ -105,15 +109,17 @@ function onShareBrand() {
   shareByCopy(brandName.value, brandDescText.value)
 }
 function toggleBrand(name: string) {
+  if (name === comparisonBrand().name) { showFeedback('展示样例不保存关注'); return }
   const followed = library.toggleBrandFollow(name)
   showFeedback(followed ? `已关注 ${name}` : `已取消关注 ${name}`)
 }
 function toggleBlacklistBrand(name: string) {
+  if (name === comparisonBrand().name) { showFeedback('展示样例固定保留作对照'); return }
   const blocked = blacklist.toggleBlacklist(name)
   showFeedback(blocked ? `已屏蔽品牌：${name}` : `已恢复品牌：${name}`)
 }
 function openProduct(item: FeedItem) { openProductDetail(item.entityId) }
-function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
+function onToggleSave(item: FeedItem) { if (isComparisonProduct(item.entityId)) { showFeedback('展示样例不保存收藏'); return }; library.toggleFavorite(item.entityId, item.title) }
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
   return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
@@ -184,3 +190,5 @@ const productColumns = { ...flexRow, alignItems: 'flex-start' as string, padding
 const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
 const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
 </script>
+
+

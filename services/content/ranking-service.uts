@@ -5,7 +5,7 @@ import { isLocalMockSession } from '@/config/runtime'
  */
 import { RankingItem } from '@/domain/ranking/ranking-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
-import { listMockRanking } from '@/services/mock/mock-catalog'
+// import { listMockRanking } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
 
 function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
   const item = new RankingItem()
@@ -26,11 +26,47 @@ function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
   return item
 }
 
-export async function fetchRankingRemote(tab: string): Promise<RankingItem[]> {
-  if (isLocalMockSession()) return listMockRanking(tab)
-  const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab))
+class RankingCacheEntry {
+  tab: string = ''
+  rows: RankingItem[] = []
+  fetchedAt: number = 0
+  pending: Promise<RankingItem[]> | null = null
+}
+const rankingCache: RankingCacheEntry[] = []
+function cacheEntry(tab: string): RankingCacheEntry {
+  const found = rankingCache.find((entry) => entry.tab === tab)
+  if (found != null) return found
+  const entry = new RankingCacheEntry()
+  entry.tab = tab
+  rankingCache.push(entry)
+  if (rankingCache.length > 3) rankingCache.shift()
+  return entry
+}
+export function peekRanking(tab: string): RankingItem[] | null {
+  const entry = cacheEntry(tab)
+  return entry.fetchedAt > 0 ? entry.rows : null
+}
+export async function fetchRankingRemote(tab: string, force: boolean = false): Promise<RankingItem[]> {
+  const entry = cacheEntry(tab)
+  if (entry.pending != null) return entry.pending!
+  if (!force && entry.fetchedAt > 0 && Date.now() - entry.fetchedAt < 60000) return entry.rows
+  const pending = loadRanking(tab, force)
+  entry.pending = pending
+  try {
+    const rows = await pending
+    entry.rows = rows
+    entry.fetchedAt = Date.now()
+    return rows
+  } finally { entry.pending = null }
+}
+async function loadRanking(tab: string, force: boolean): Promise<RankingItem[]> {
+  const response = await apiGet('/api/v1/ranking?tab=' + encodeQuery(tab), force)
   const raw = response.data as any[] | null
   const result: RankingItem[] = []
   if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapRemoteRanking(raw[i] as UTSJSONObject))
   return result
+
+  // [MOCK-DEBUG] 以下为 mock 数据回退，调试时可取消注释
+  // if (isLocalMockSession()) return listMockRanking(tab)
 }
+

@@ -1,0 +1,16 @@
+{
+  "id": "reminder-permission",
+  "displayName": "Reminder notification permission",
+  "version": "1.0.0",
+  "description": "Android notification runtime permission",
+  "uni_modules": {
+    "dependencies": [],
+    "encrypt": []
+  },
+  "engines": {
+    "HBuilderX": "^5.21"
+  },
+  "dcloudext": {
+    "type": "uts"
+  }
+}

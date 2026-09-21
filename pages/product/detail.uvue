@@ -49,7 +49,7 @@
             <SectionHeader title="发售信息" />
             <view :style="releaseCard">
               <view v-if="releaseStatusText !== ''" :style="releaseRow"><text :style="releaseLabel">当前状态</text><text :style="releaseValue">{{ releaseStatusText }}</text></view>
-              <view v-if="release !== null && release!.title !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ release!.title }}</text></view>
+              <view v-if="releaseBatchText !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ releaseBatchText }}</text></view>
               <view v-if="releaseStartText !== ''" :style="releaseRow"><text :style="releaseLabel">预售时间</text><text :style="releaseValue">{{ releaseStartText }}</text></view>
               <view v-if="shipDateText !== ''" :style="releaseRow"><text :style="releaseLabel">出货时间</text><text :style="releaseValue">{{ shipDateText }}</text></view>
             </view>
@@ -61,7 +61,7 @@
               <view v-if="styleOptions.length > 0" :style="specRow">
                 <text :style="specLabel">款式</text>
                 <view :style="specChips">
-                  <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ st }}</text></view>
+                  <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ styleQuote(st) }}</text></view>
                 </view>
               </view>
               <view v-if="colorTags.length > 0" :style="specRow">
@@ -82,6 +82,11 @@
           <template v-if="materialSummary !== ''">
             <SectionHeader title="材质" />
             <view :style="detailCard"><text :style="detailText">{{ materialSummary }}</text></view>
+          </template>
+
+          <template v-if="descriptionText !== ''">
+            <SectionHeader title="商品说明" />
+            <view :style="detailCard"><text :style="detailText">{{ descriptionText }}</text></view>
           </template>
 
           <template v-if="sameStyle !== null && sameStyle.products.length > 0">
@@ -144,9 +149,11 @@
 </template>
 
 <script setup lang="uts">
+import { isComparisonProduct } from '@/services/mock/comparison-products'
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
+import { extractImageUrls } from '@/domain/content/product'
 import { StyleInfo } from '@/domain/content/style'
 import { ProductVariant } from '@/domain/content/product-variant'
 import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel } from '@/presentation/content/feed-presenter'
@@ -191,7 +198,7 @@ const isSaved = computed((): boolean => item.value !== null && library.isFavorit
 const currentRelease = ref(null) as Ref<ReleaseEvent | null>
 const release = computed((): ReleaseEvent | null => currentRelease.value)
 const currentImageIndex = ref(0)
-// Phase 2.1 同款式：商品绑定 styleId 时加载款式信息（未归并商品保持 null，模块不显示）
+// Phase 2.1 同款式：商品绑定 groupKey 时加载款式信息（12-table: styles 表已废弃，保持 null，模块不显示）
 const sameStyle = ref(null) as Ref<StyleInfo | null>
 // Phase 2.3-A 真实买家：商品关联社区返图（空数组 = 模块不显示；失败静默不阻塞详情）
 const realBuyerPosts = ref([]) as Ref<ProductCommunityPost[]>
@@ -217,6 +224,18 @@ const pitTypeLabel = computed((): string => getPitTypeLabel(pitType.value))
 /** 可选款式：规格变体提取去重。
  *  Lolita 一个链接常同时卖 JSK + OP —— 对这类商品，款式是**规格**（与颜色/尺码同级、可多选），不是分类标签。
  *  命名用「款式」：用户明确否掉了「型别」（口语书面都不会这么说），也去掉了「可选」前缀（规格卡里已有多余）。 */
+function styleQuote(style: string): string {
+  const prices: number[] = []
+  for (let i = 0; i < variants.value.length; i++) {
+    const v = variants.value[i]
+    if (v.styleName === style && v.referencePriceCents != null && prices.indexOf(v.referencePriceCents!) < 0) prices.push(v.referencePriceCents!)
+  }
+  if (prices.length === 0) return style
+  prices.sort((a: number, b: number): number => a - b)
+  const low = (prices[0] / 100).toString()
+  const high = (prices[prices.length - 1] / 100).toString()
+  return style + ' · 参考价 ¥' + low + (low === high ? '' : '–' + high)
+}
 const styleOptions = computed((): string[] => {
   const list: string[] = []
   for (let i = 0; i < variants.value.length; i++) {
@@ -238,6 +257,20 @@ const sizeOptions = computed((): string[] => {
 const materialSummary = computed((): string => {
   if (materialTags.value.length === 0) return ''
   return materialTags.value.join('、')
+})
+const releaseBatchText = computed((): string => {
+  const r = currentRelease.value
+  if (r == null) return ''
+  const text = r.title.trim()
+  if (['预约批', '现货批', '预售批', '预约', '现货', '预售'].indexOf(text) >= 0 || text === releaseStatusText.value) return ''
+  return text
+})
+/** 商品说明（description；无数据不显示） */
+const descriptionText = computed((): string => {
+  if (item.value === null) return ''
+  const text = item.value!.subtitle.trim()
+  if (text.indexOf('展示价格、发售、收藏、提醒和购买记录。') >= 0) return ''
+  return text
 })
 /** 出货时间（release.shipAt；无数据不显示） */
 const shipDateText = computed((): string => {
@@ -289,6 +322,7 @@ function isLoggedIn(): boolean {
 }
 
 function toggleSaved() {
+  if (isComparisonProduct(itemId.value)) { showFeedback('展示样例不保存收藏'); return }
   if (item.value === null) return
   const entityId = item.value!.entityId
   if (entityId === '') return
@@ -356,16 +390,15 @@ function dateOnly(value: string): string {
 function encoded(value: string): string { return encodeURIComponent(value) ?? '' }
 
 function createReminder() {
+  if (isComparisonProduct(itemId.value)) { showFeedback('展示样例不创建提醒'); return }
   if (item.value === null) return
   const r = currentRelease.value
   // 尾款期 → 尾款提醒；其余 → 发售提醒（基于真实 release 状态，非 badgeText）
   const type = releaseStatusText.value === '尾款' ? 'BALANCE' : 'RELEASE'
   const title = `${item.value!.title} ${releaseStatusText.value !== '' ? releaseStatusText.value : '发售'}`
   const note = `${item.value!.brandName} · 来源于商品详情`
-  // 时间优先级：尾款截止 > 发售结束 > 商品截止
-  const date = r != null && r.balanceDueAt !== '' ? dateOnly(r.balanceDueAt)
-    : (r != null && r.endAt !== '' ? dateOnly(r.endAt) : dateOnly(item.value!.eventEndAt))
-  uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${date}&note=${encoded(note)}` })
+  const date = r != null ? (type === 'BALANCE' ? r.balanceDueAt : r.startAt) : ''
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${encoded(date)}&note=${encoded(note)}&productId=${encoded(itemId.value)}&releaseId=${encoded(r != null ? r.id : '')}` })
 }
 
 
@@ -378,9 +411,10 @@ async function loadDetail() {
     if (unmounted) return
     if (result === null) { item.value = null; errorMessage.value = '商品信息不存在'; return }
     item.value = result.item
-    detailImages.value = result.images
+    // 12-table: images is ProductImage[], extract URL strings for swiper
+    detailImages.value = extractImageUrls(result.images)
     // 浏览足迹：加载成功即记入本机（不同步服务器），供「我的 → 浏览历史」找回
-    recordBrowse(result.item.entityId, result.item.title, result.item.brandName, result.item.coverUrl)
+    if (!isComparisonProduct(itemId.value)) recordBrowse(result.item.entityId, result.item.title, result.item.brandName, result.item.coverUrl)
     shopUrl.value = result.shopUrl
     shopName.value = result.shopName
     currentRelease.value = result.currentRelease
@@ -396,8 +430,9 @@ async function loadDetail() {
     variants.value = result.variants
     // 同款式：仅当商品已归并（styleId 非空）时加载；失败静默（不阻塞详情）
     sameStyle.value = null
-    if (result.styleId !== '') {
-      fetchStyle(result.styleId).then((style: StyleInfo | null) => {
+    if (result.groupKey !== '') {
+      // 12-table: styles table removed; sameStyle UI gracefully hidden (fetchStyle returns null)
+      fetchStyle(result.groupKey).then((style: StyleInfo | null) => {
         if (unmounted) return
         sameStyle.value = style
       }).catch(() => {})
@@ -409,7 +444,9 @@ async function loadDetail() {
       realBuyerPosts.value = posts
     }).catch(() => {})
     if (isLoggedIn()) {
-      await library.refreshRemoteFavorites()
+      library.refreshRemoteFavorites().catch(() => {
+        if (!unmounted) showFeedback('商品已加载，收藏状态暂未同步')
+      })
     }
   } catch (e) {
     if (unmounted) return
@@ -446,15 +483,15 @@ const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PAD
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
 const priceText = computed((): any => ({ fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: n.value.iconActive }))
 const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
-const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', marginRight: '12rpx', flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
+const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '12rpx', minWidth: '0', flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
 // 品牌 / 坑向 / 子分类同排：允许换行 + 统一 12rpx 间隔，避免"一个内容紧接下一个内容"（用户反馈）
-const brandRow = { flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'wrap' as string }
+const brandRow = { flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'nowrap' as string, marginTop: '12rpx' }
 // 品牌行内小标签：坑向（品牌浅底）+ 子分类（中性底），与商品卡 typeChip 同构
-const pitChip = computed((): any => ({ marginRight: '12rpx', marginBottom: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const pitChip = computed((): any => ({ marginRight: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 // 品牌色文字/前景一律走主题 token（n.value.iconActive），不再用模块级 brand[600]
 // —— 模块常量在深色下不刷新，暖黑底上对比度只有约 2.7:1，等于"看不清"。
 const pitChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.iconActive }))
-const subChip = computed((): any => ({ marginRight: '12rpx', marginBottom: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const subChip = computed((): any => ({ marginRight: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 const subChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 const blacklistBtn = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }))
 const blacklistBtnText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.iconActive }))
@@ -474,7 +511,7 @@ const specLabel = computed((): any => ({ width: '148rpx', flexShrink: 0, padding
 const specChips = { flex: 1, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
 const specChip = computed((): any => ({ height: '48rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginBottom: '10rpx' }))
 const specChipText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text }))
-// Phase 2.1 同款式：款式名 + 横向滚动同款商品（无 styleId 时不渲染）
+// Phase 2.1 同款式：款式名 + 横向滚动同款商品（无 groupKey / styles 表已废弃时不渲染）
 const sameStyleCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const sameStyleHeader = { ...flexRow, alignItems: 'center', marginBottom: '16rpx' }
 const sameStyleName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
@@ -510,3 +547,6 @@ const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const goBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }))
 const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
+
+
+

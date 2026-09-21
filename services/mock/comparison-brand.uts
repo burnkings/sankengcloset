@@ -1,0 +1,15 @@
+import { Brand } from '@/domain/content/brand'
+export const COMPARISON_BRAND_ID = 'preview_brand_starcat'
+export function comparisonBrand(): Brand {
+  const b = new Brand()
+  b.id = COMPARISON_BRAND_ID
+  b.name = '星辰猫 · 展示样例'
+  b.nameEn = 'Star Cat'
+  b.category = 'LOLITA'
+  b.logo = '/static/demo/prod-02.png'
+  b.description = '甜系与古典 Lolita 展示品牌。月光曲系列以提花面料、刺绣和可拆蝴蝶结为设计元素。此条为固定对照样例，下面继续展示真实品牌。'
+  return b
+}
+export function withComparisonBrand(rows: Brand[]): Brand[] {
+  return [comparisonBrand()].concat(rows.filter((b) => b.id !== COMPARISON_BRAND_ID))
+}

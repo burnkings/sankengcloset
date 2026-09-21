@@ -1,7 +1,7 @@
 <template>
   <view :style="layoutStyle">
     <slot name="navbar" />
-    <scroll-view v-if="scrollable" :style="bodyStyle" :scroll-top="scrollTop" @scrolltolower="emit('scrolltolower')" @scroll="onScroll">
+    <scroll-view v-if="scrollable" direction="vertical" scroll-y :style="bodyStyle" :scroll-top="scrollTop" @scrolltolower="emit('scrolltolower')" @scroll="onScroll">
       <view :style="statusSpacerStyle" />
       <view :style="navbarSpacerStyle" />
       <slot />
@@ -70,3 +70,4 @@ const navbarSpacerStyle = computed((): any => ({ height: props.navbarContentHeig
 
 const safeBottomStyle = computed((): any => ({ height: props.bottomSpacer, flexShrink: 0, backgroundColor: n.value.bg }))
 </script>
+
