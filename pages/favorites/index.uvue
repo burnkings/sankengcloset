@@ -34,7 +34,7 @@
               <view v-for="item in productLeft" :key="item.id" :style="cardWrap(item.entityId)" @longpress="enterSelectMode(item.entityId)">
                 <ProductCard
                   :image="item.coverUrl"
-                  :brand="item.brandName !== "" ? item.brandName : item.sourceLabel"
+                  :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                   :title="item.title"
                   :type-text="pitTypeLabel(item)"
                   :status-text="saleStatusText(item)"
@@ -53,9 +53,9 @@
                 <view v-if="!selectMode" :style="decisionRow">
                   <view :style="decisionLeft" @tap.stop="openStatusPicker(item)">
                     <text :style="decisionStatusText">{{ favoriteStatusLabel(item) }}</text>
-                    <text :style="decisionReleaseText">{{ favoriteReleaseText(item) }}</text>
+                    <text v-if="favoriteReleaseText(item) !== ''" :style="decisionReleaseText">{{ favoriteReleaseText(item) }}</text>
                   </view>
-                  <view :style="reminderActionWrap" @tap.stop="onEnableReminder(item)"><text :style="reminderActionStyle">{{ reminderActionText(item) }}</text></view>
+                  <view v-if="canOfferReminder(item)" :style="reminderActionWrap" @tap.stop="onEnableReminder(item)"><text :style="reminderActionStyle">{{ reminderActionText(item) }}</text></view>
                 </view>
               </view>
             </view>
@@ -63,7 +63,7 @@
               <view v-for="item in productRight" :key="item.id" :style="cardWrap(item.entityId)" @longpress="enterSelectMode(item.entityId)">
                 <ProductCard
                   :image="item.coverUrl"
-                  :brand="item.brandName !== "" ? item.brandName : item.sourceLabel"
+                  :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                   :title="item.title"
                   :type-text="pitTypeLabel(item)"
                   :status-text="saleStatusText(item)"
@@ -82,9 +82,9 @@
                 <view v-if="!selectMode" :style="decisionRow">
                   <view :style="decisionLeft" @tap.stop="openStatusPicker(item)">
                     <text :style="decisionStatusText">{{ favoriteStatusLabel(item) }}</text>
-                    <text :style="decisionReleaseText">{{ favoriteReleaseText(item) }}</text>
+                    <text v-if="favoriteReleaseText(item) !== ''" :style="decisionReleaseText">{{ favoriteReleaseText(item) }}</text>
                   </view>
-                  <view :style="reminderActionWrap" @tap.stop="onEnableReminder(item)"><text :style="reminderActionStyle">{{ reminderActionText(item) }}</text></view>
+                  <view v-if="canOfferReminder(item)" :style="reminderActionWrap" @tap.stop="onEnableReminder(item)"><text :style="reminderActionStyle">{{ reminderActionText(item) }}</text></view>
                 </view>
               </view>
             </view>
@@ -343,19 +343,28 @@ function sameAsSaleStatus(releaseStatus: string, item: FeedItem): boolean {
 }
 function favoriteReleaseText(item: FeedItem): string {
   const release = library.favoriteReleaseOf(item.entityId)
-  if (release == null) return '暂无发售信息'
-  const statusText = deriveReleaseStatusText(release)
-  const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
-  const datePart = date !== '' ? shortReleaseDate(date) : ''
-  // 已与卡片 chip 同义 → 只留日期；否则「状态 + 日期」一次说清
-  if (statusText === '' || sameAsSaleStatus(statusText, item)) return datePart !== '' ? datePart : statusText
-  return datePart !== '' ? `${statusText} ${datePart}` : statusText
+  if (release == null) return ''
+  const status = library.favoriteStatusOf(item.entityId)
+  const date = reminderDateFor(release, status)
+  if (date === '') return ''
+  let purpose = '开售'
+  if (status === 'WAIT_BALANCE' && release.balanceDueAt !== '') purpose = '尾款'
+  else if ((release.releaseType === 'reservation' || release.releaseType === 'lottery') && release.endAt !== '') purpose = release.releaseType === 'lottery' ? '抽选截止' : '截定'
+  else if (!(['first_release', 'rerelease', 'spot'].indexOf(release.releaseType) >= 0 && release.startAt !== '')) {
+    purpose = release.balanceDueAt !== '' ? '尾款' : release.endAt !== '' ? '截止' : '开售'
+  }
+  return `${shortReleaseDate(date)}${purpose}`
+}
+function canOfferReminder(item: FeedItem): boolean {
+  const status = library.favoriteStatusOf(item.entityId)
+  if (status === 'PURCHASED' || status === 'CANCELED') return false
+  return favoriteReleaseText(item) !== ''
 }
 
 /** 提醒按钮文案：已提醒 / 可开启 / 无有效提醒时间 */
 function reminderActionText(item: FeedItem): string {
   const reminders = reminderStore.remindersForProduct(item.entityId)
-  if (reminders.length > 0) return '已提醒'
+  if (reminders.length > 0) return '已设提醒'
   const release = library.favoriteReleaseOf(item.entityId)
   if (release == null) return '开启提醒'
   const date = reminderDateFor(release, library.favoriteStatusOf(item.entityId))
@@ -425,7 +434,7 @@ function favoriteStatusLabel(item: FeedItem): string {
   const status = library.favoriteStatusOf(item.entityId)
   const label = FAVORITE_STATUS_LABELS[status]
   if (status === 'WISH' || status === '') return '设置待购状态'
-  return label != null ? label as string : '设置待购状态'
+  return label != null ? `我·${label as string} ›` : '设置待购状态'
 }
 function statusOptionText(value: string): any {
   const active = statusPickerCurrent.value == value
@@ -485,7 +494,7 @@ const productColumns = { ...flexRow, alignItems: 'flex-start' as string, padding
 const productColLeft = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string, marginRight: COLUMN_GAP_V3 }
 const productColRight = { width: PRODUCT_CARD_WIDTH_V3, flexShrink: 0, flexDirection: 'column' as string }
 // 收藏决策行：待购状态 + 发售日期/提醒按钮合并为一行，左右各留内边距（原两行且贴边框）
-const decisionRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx', marginBottom: '20rpx', paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', paddingBottom: '12rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
+const decisionRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'space-between', marginTop: '8rpx', marginBottom: '20rpx', paddingLeft: '16rpx', paddingRight: '16rpx', paddingTop: '12rpx', paddingBottom: '12rpx', borderTopWidth: '1rpx', borderTopStyle: 'solid' as string, borderTopColor: n.value.border }))
 // 两行结构：上行购买状态、下行发售/截止信息，避免三段挤一行把日期拦腰斩断
 const decisionLeft = { flex: 1, justifyContent: 'center' }
 const decisionStatusText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
@@ -546,3 +555,4 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
