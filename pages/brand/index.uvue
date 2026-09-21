@@ -2,14 +2,14 @@
   <DetailLayout title="品牌目录">
     <view :style="contentWrap">
       <view :style="categoryRow"><view v-for="category in categories" :key="category" :style="categoryChip(category)" @tap="activeCategory = category"><text :style="categoryText(category)">{{ category }}</text></view></view>
-      <view v-if="loading" :style="emptyWrap"><PageSkeleton variant="list" /></view>
-      <PageState v-else-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadBrands" />
+      <view v-if="loading && brands.length === 0" :style="emptyWrap"><PageSkeleton variant="list" /></view>
+      <PageState v-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadBrands" />
 
-      <view v-else-if="visibleBrands.length === 0" :style="emptyWrap">
+      <view v-if="!loading && visibleBrands.length === 0" :style="emptyWrap">
         <PageState icon="grid" title="当前分类暂无品牌" message="可切换其他分类查看" />
       </view>
 
-      <view v-else :style="brandGrid">
+      <view v-if="visibleBrands.length > 0" :style="brandGrid">
         <view v-for="(item, idx) in visibleBrands" :key="item.id" :style="brandCard(idx)" @tap="openBrand(item)">
           <view :style="brandMonogram"><text :style="brandInitial">{{ initialOf(item.name) }}</text></view>
           <view :style="brandCopy">
@@ -33,6 +33,7 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
+import { COMPARISON_BRAND_ID, comparisonBrand } from '@/services/mock/comparison-brand'
 import { showFeedback } from '@/utils/feedback'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
@@ -40,13 +41,12 @@ import PageState from '@/components/v3/PageState.uvue'
 
 const library = useContentLibraryStore()
 const brandStore = useBrandStore()
-const brands = ref<Brand[]>([])
-const categories = ['全部', 'JK', 'Lolita', '汉服', '其他']
+const brands = ref<Brand[]>([comparisonBrand()])
+const categories = ['全部', 'JK', 'Lolita', '汉服']
 const activeCategory = ref('全部')
 const visibleBrands = computed((): Brand[] => brands.value.filter((item) => {
-  if (activeCategory.value === '全部') return true
+  if (item.id === COMPARISON_BRAND_ID || activeCategory.value === '全部') return true
   const category = item.category.toUpperCase()
-  if (activeCategory.value === '其他') return category !== 'JK' && category !== 'LOLITA' && category !== 'HANFU'
   const code = activeCategory.value === 'Lolita' ? 'LOLITA' : activeCategory.value === '汉服' ? 'HANFU' : 'JK'
   return category === code
 }))
@@ -64,6 +64,7 @@ function brandMetaOf(item: Brand): string {
 }
 function openBrand(item: Brand) { uni.navigateTo({ url: `/pages/brand/detail?id=${item.id}&name=${encodeURIComponent(item.name)}` }) }
 function toggleBrand(name: string) {
+  if (name === comparisonBrand().name) { showFeedback('展示样例不保存关注'); return }
   const followed = library.toggleBrandFollow(name)
   showFeedback(followed ? `已关注 ${name}` : `已取消关注 ${name}`)
 }
@@ -99,4 +100,5 @@ function followText(name: string) {
   return { fontSize: fontSize['2xs'], fontWeight: fontWeight.semibold, color: followed ? n.value.textTertiary : n.value.iconActive }
 }
 </script>
+
 
