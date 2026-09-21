@@ -96,6 +96,7 @@ import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { useCalendarStore } from '@/stores/calendar-store'
 import { CalendarEvent } from '@/services/content/calendar-service'
 import { FEED_EDITORIAL, FEED_BRAND_POST } from '@/domain/content/feed-item'
+import { comparisonBrand } from '@/services/mock/comparison-brand'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -131,6 +132,7 @@ function openRanking(tab: string) { uni.navigateTo({ url: `/pages/ranking/index?
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
 function toggleBrand(brandName: string) {
+  if (brandName === comparisonBrand().name) { showFeedback('展示样例不保存关注'); return }
   const followed = library.toggleBrandFollow(brandName)
   showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
 }
@@ -348,5 +350,6 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
 
 
