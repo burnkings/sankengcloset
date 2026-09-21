@@ -268,10 +268,11 @@ function cancelTimePanel() {
   form.value.isAllDay = timePanelSnapshot.allDay
   showTimePanel.value = false
 }
+const validationNow = ref(Date.now())
 const timeError = computed((): string => {
   if (form.value.remindDate === '') return ''
   const timestamp = new Date(form.value.remindDate + 'T' + (form.value.isAllDay ? '09:00' : form.value.remindTime) + ':00').getTime()
-  return !Number.isFinite(timestamp) ? '请选择有效的日期和时间' : timestamp <= Date.now() ? '该时间已过去，请重新选择' : ''
+  return !Number.isFinite(timestamp) ? '请选择有效的日期和时间' : timestamp <= validationNow.value ? '该时间已过去，请重新选择' : ''
 })
 const remindTimeDisplay = computed((): string => form.value.remindTime !== '' ? form.value.remindTime : '选择时间')
 
@@ -384,6 +385,7 @@ async function onSaveTap() {
     const purchase = usePurchaseStore().getPurchaseById(relatedPurchaseId.value)
     if (!canSetBalanceReminder(purchase)) { showFeedback('订单已结清、取消或不存在，无需尾款提醒'); return }
   }
+  validationNow.value = Date.now()
   if (timeError.value !== '' && form.value.status === 'PENDING') { showFeedback(timeError.value); return }
   saving.value = true
   const notificationsEnabled = await ensureReminderNotificationPermission()
