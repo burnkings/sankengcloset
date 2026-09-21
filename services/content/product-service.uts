@@ -198,6 +198,7 @@ function parseVariants(raw: any): ProductVariant[] {
     v.productId = r['productId'] != null ? r['productId'] as string : ''
     v.name = r['name'] != null ? r['name'] as string : ''
     v.colorName = r['colorName'] != null ? r['colorName'] as string : ''
+    v.referencePriceCents = r['referencePriceCents'] != null && typeof r['referencePriceCents'] === 'number' && (r['referencePriceCents'] as number) >= 0 ? r['referencePriceCents'] as number : null
     v.styleName = r['styleName'] != null ? r['styleName'] as string : ''
     v.sizeName = r['sizeName'] != null ? r['sizeName'] as string : ''
     result.push(v)
@@ -341,3 +342,4 @@ export async function fetchProductCommunity(id: string): Promise<ProductCommunit
   // }
   // return result
 }
+
