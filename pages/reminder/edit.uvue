@@ -20,6 +20,12 @@
           </FormSection>
 
           <FormSection title="提醒时间">
+            <view :style="timeFieldRow" @tap="openTimePanel">
+              <text :style="timeValue">{{ remindDateDisplay }} {{ form.isAllDay ? '全天 · 09:00通知' : remindTimeDisplay }}</text>
+              <AppIcon name="chevron-right" :size="28" />
+            </view>
+            <text v-if="timeError !== ''" :style="optionalHint">{{ timeError }}</text>
+            <AppDialog :visible="showTimePanel" title="提醒时间" @confirm="showTimePanel = false" @cancel="cancelTimePanel">
             <!-- 日期与时间改用**系统弹层**（<picker mode="date"> / mode="time">）。
                  原自绘 picker-view 面板在深色下出现"上下白中间灰"，系统弹层在用户环境显示正常。 -->
             <picker mode="date" :value="remindDateValue" :start="minRemindDate" :end="maxRemindDate" @change="onRemindDateChange">
@@ -31,7 +37,7 @@
                 </view>
               </view>
             </picker>
-            <picker mode="time" :value="remindTimeValue" @change="onRemindTimeChange">
+            <picker v-if="!form.isAllDay" mode="time" :value="remindTimeValue" @change="onRemindTimeChange">
               <view :style="timeFieldRow">
                 <text :style="timeFieldLabel">时间</text>
                 <view :style="timeRight">
@@ -40,6 +46,10 @@
                 </view>
               </view>
             </picker>
+              <view :style="timeFieldRow" @tap="form.isAllDay = !form.isAllDay">
+                <text :style="timeValue">{{ form.isAllDay ? '✓ 全天提醒（当天09:00通知）' : '设为全天提醒（当天09:00通知）' }}</text>
+              </view>
+            </AppDialog>
           </FormSection>
 
           <FormSection title="关联商品">
@@ -246,6 +256,23 @@ const remindDateDisplay = computed((): string => {
   const wd = ['日', '一', '二', '三', '四', '五', '六']
   return `${parseInt(parts[1])}月${parseInt(parts[2])}日 周${wd[d.getDay()]}`
 })
+const showTimePanel = ref(false)
+let timePanelSnapshot = { date: '', time: '', allDay: false }
+function openTimePanel() {
+  timePanelSnapshot = { date: form.value.remindDate, time: form.value.remindTime, allDay: form.value.isAllDay }
+  showTimePanel.value = true
+}
+function cancelTimePanel() {
+  form.value.remindDate = timePanelSnapshot.date
+  form.value.remindTime = timePanelSnapshot.time
+  form.value.isAllDay = timePanelSnapshot.allDay
+  showTimePanel.value = false
+}
+const timeError = computed((): string => {
+  if (form.value.remindDate === '') return ''
+  const timestamp = new Date(form.value.remindDate + 'T' + (form.value.isAllDay ? '09:00' : form.value.remindTime) + ':00').getTime()
+  return !Number.isFinite(timestamp) ? '请选择有效的日期和时间' : timestamp <= Date.now() ? '该时间已过去，请重新选择' : ''
+})
 const remindTimeDisplay = computed((): string => form.value.remindTime !== '' ? form.value.remindTime : '选择时间')
 
 function pad2(value: number): string { return value < 10 ? '0' + value.toString() : value.toString() }
@@ -357,6 +384,7 @@ async function onSaveTap() {
     const purchase = usePurchaseStore().getPurchaseById(relatedPurchaseId.value)
     if (!canSetBalanceReminder(purchase)) { showFeedback('订单已结清、取消或不存在，无需尾款提醒'); return }
   }
+  if (timeError.value !== '' && form.value.status === 'PENDING') { showFeedback(timeError.value); return }
   saving.value = true
   const notificationsEnabled = await ensureReminderNotificationPermission()
   if (isEdit.value) {
@@ -391,7 +419,15 @@ async function onSaveTap() {
     if (store.addItem(item) === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
   }
   const message = notificationsEnabled ? '提醒已保存' : '提醒已保存，通知未开启'
-  uni.navigateBack({ success: () => { uni.showToast({ title: message, icon: 'none', duration: 3500 }) }, fail: () => { saving.value = false; showFeedback(message, 3500) } })
+  initialFormSnapshot = { ...form.value }
+  uni.showModal({
+    title: '已保存提醒',
+    content: notificationsEnabled ? '提醒已保存。到时通知仍需系统允许应用运行。' : '提醒已保存，但通知权限未开启。请在系统设置中允许通知。',
+    showCancel: false,
+    confirmText: '知道了',
+    success: () => { uni.navigateBack({ fail: () => { saving.value = false } }) },
+    fail: () => { saving.value = false; showFeedback(message, 6000) },
+  })
 }
 
 function onDeleteTap() { showDeleteDialog.value = true }
@@ -452,6 +488,15 @@ onLoad((options) => {
     const typeRaw = options['type'] != null ? options['type'] as string : ''
     form.value.type = reminderTypeFromContext(typeRaw, options['purchaseId'] != null ? options['purchaseId'] as string : '')
     form.value.remindDate = options['date'] != null ? safeParam(options['date'] as string) : ''
+    const sourceDate = form.value.remindDate
+    if (sourceDate.length > 10) {
+      const instant = new Date(sourceDate)
+      if (Number.isFinite(instant.getTime())) {
+        form.value.remindDate = instant.getFullYear().toString() + '-' + pad2(instant.getMonth() + 1) + '-' + pad2(instant.getDate())
+        form.value.remindTime = pad2(instant.getHours()) + ':' + pad2(instant.getMinutes())
+      }
+    }
+    if (options['time'] != null) form.value.remindTime = safeParam(options['time'] as string)
     form.value.note = options['note'] != null ? safeParam(options['note'] as string) : ''
     relatedPurchaseId.value = options['purchaseId'] != null ? options['purchaseId'] as string : ''
     relatedWishId.value = options['wishId'] != null ? options['wishId'] as string : ''
@@ -548,6 +593,7 @@ const dialogWardrobeBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.
 // （日期/时间已改用系统弹层，不再需要在这里关自绘面板）
 // 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回会触发。
 onBackPress((options) => {
+  if (showTimePanel.value) { cancelTimePanel(); return true }
   if (showProductPicker.value) { showProductPicker.value = false; return true }
   if (showWardrobePicker.value) { showWardrobePicker.value = false; return true }
   if (showDeleteDialog.value) { showDeleteDialog.value = false; return true }
@@ -558,4 +604,5 @@ onBackPress((options) => {
   return false
 })
 </script>
+
 
