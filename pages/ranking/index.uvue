@@ -1,5 +1,6 @@
 <template>
   <DetailLayout title="三坑榜单" show-back>
+    <template #right><view :style="refreshButton" @tap="reloadData(true)"><text :style="refreshText">刷新</text></view></template>
     <view :style="contentWrap">
       <!-- 一级筛选：榜单类型 -->
       <view :style="tabBar">
@@ -20,8 +21,8 @@
         <view :style="listWrap">
           <RankingCard v-for="item in visibleItems" :key="item.entityId" :item="item" :variant="activeTabCode" @tap="openProduct(item)" />
           <PageState v-if="loading" icon="info" title="榜单加载中" message="正在整理近期关注与上新" />
-          <PageState v-else-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadData" />
-          <PageState v-else-if="visibleItems.length === 0" icon="info" title="暂无榜单数据" message="筛选条件下暂无内容" action-text="重新加载" @action="reloadData" />
+          <PageState v-else-if="errorMessage !== ''" icon="info" title="加载失败" :message="errorMessage" action-text="重试" @action="reloadData(true)" />
+          <PageState v-else-if="visibleItems.length === 0" icon="info" title="暂无榜单数据" message="筛选条件下暂无内容" action-text="重新加载" @action="reloadData(true)" />
           <view :style="bottomSpacer" />
         </view>
       </scroll-view>
@@ -36,12 +37,14 @@ import SegmentedControl from '@/components/v3/SegmentedControl.uvue'
 import RankingCard from '@/components/v3/RankingCard.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW, RANKING_TAB_FAVORITE } from '@/domain/ranking/ranking-item'
-import { fetchRankingRemote } from '@/services/content/ranking-service'
+import { peekRanking, fetchRankingRemote } from '@/services/content/ranking-service'
 import { PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
 import { fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { n, initPageTheme } from '@/theme/use-theme'
 
+const refreshButton = { minWidth: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
+const refreshText = computed((): any => ({ fontSize: '26rpx', color: n.value.iconActive }))
 const tabItems = ['热榜', '上新榜', '收藏榜']
 const activeTab = ref('热榜')
 const activeCategory = ref('全部')
@@ -78,13 +81,14 @@ function onFilterTap(opt: string) {
 }
 
 let requestSequence = 0
-async function reloadData() {
+async function reloadData(force: boolean = false) {
   const seq = ++requestSequence
-  loading.value = true
+  const cached = peekRanking(activeTabCode.value)
+  rankingData.value = cached != null ? cached : []
+  loading.value = cached == null
   errorMessage.value = ''
-  rankingData.value = []
   try {
-    const items = await fetchRankingRemote(activeTabCode.value)
+    const items = await fetchRankingRemote(activeTabCode.value, force)
     if (seq === requestSequence) rankingData.value = items
   } catch (e) { if (seq === requestSequence) errorMessage.value = '榜单加载失败，请重试' } finally { if (seq === requestSequence) loading.value = false }
 }
@@ -123,4 +127,5 @@ const bottomSpacer = { height: '32rpx' }
 
 <style>
 </style>
+
 
