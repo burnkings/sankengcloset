@@ -3,14 +3,6 @@
     <template #navbar><AppNavbar title="消费日志" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <!-- 月份切换：页面级周期筛选 —— 预算进度、月度汇总、分类支出、逐笔流水都按此月过滤，
-             所以放在页面最上方（原先夹在分类卡与流水之间，看不出它在管谁；评审 P2） -->
-        <view :style="monthBar">
-          <view :style="monthArrow" @tap="prevMonth"><AppIcon name="month-left" :size="36" /></view>
-          <view :style="monthPickerButton" @tap="showMonthPicker = true"><text :style="monthTitle">{{ displayMonth }} ▾</text></view>
-          <view :style="monthArrow" @tap="nextMonth"><AppIcon name="month-right" :size="36" /></view>
-        </view>
-
         <view :style="budgetCard">
           <view :style="budgetHeader">
             <view :style="budgetCopy">
@@ -26,6 +18,14 @@
             <SegmentedControl :items="alertOptions" :active="alertLabel" @change="onAlertChange" />
             <view :style="budgetSave" @tap="saveBudget"><text :style="budgetSaveText">保存预算</text></view>
           </view>
+        </view>
+
+        <!-- 月份切换：页面级周期筛选 —— 预算进度、月度汇总、分类支出、逐笔流水都按此月过滤，
+             放在预算卡下方、月度汇总上方 -->
+        <view :style="monthBar">
+          <view :style="monthArrow" @tap="prevMonth"><AppIcon name="month-left" :size="36" /></view>
+          <view :style="monthPickerButton" @tap="showMonthPicker = true"><text :style="monthTitle">{{ displayMonth }} ▾</text></view>
+          <view :style="monthArrow" @tap="nextMonth"><AppIcon name="month-right" :size="36" /></view>
         </view>
 
         <!-- 月度汇总 -->
@@ -292,5 +292,6 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
 
 
