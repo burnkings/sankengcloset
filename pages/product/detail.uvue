@@ -61,7 +61,7 @@
               <view v-if="styleOptions.length > 0" :style="specRow">
                 <text :style="specLabel">款式</text>
                 <view :style="specChips">
-                  <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ st }}</text></view>
+                  <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ styleQuote(st) }}</text></view>
                 </view>
               </view>
               <view v-if="colorTags.length > 0" :style="specRow">
@@ -224,6 +224,18 @@ const pitTypeLabel = computed((): string => getPitTypeLabel(pitType.value))
 /** 可选款式：规格变体提取去重。
  *  Lolita 一个链接常同时卖 JSK + OP —— 对这类商品，款式是**规格**（与颜色/尺码同级、可多选），不是分类标签。
  *  命名用「款式」：用户明确否掉了「型别」（口语书面都不会这么说），也去掉了「可选」前缀（规格卡里已有多余）。 */
+function styleQuote(style: string): string {
+  const prices: number[] = []
+  for (let i = 0; i < variants.value.length; i++) {
+    const v = variants.value[i]
+    if (v.styleName === style && v.referencePriceCents != null && prices.indexOf(v.referencePriceCents!) < 0) prices.push(v.referencePriceCents!)
+  }
+  if (prices.length === 0) return style
+  prices.sort((a: number, b: number): number => a - b)
+  const low = (prices[0] / 100).toString()
+  const high = (prices[prices.length - 1] / 100).toString()
+  return style + ' · 参考价 ¥' + low + (low === high ? '' : '–' + high)
+}
 const styleOptions = computed((): string[] => {
   const list: string[] = []
   for (let i = 0; i < variants.value.length; i++) {
@@ -385,10 +397,8 @@ function createReminder() {
   const type = releaseStatusText.value === '尾款' ? 'BALANCE' : 'RELEASE'
   const title = `${item.value!.title} ${releaseStatusText.value !== '' ? releaseStatusText.value : '发售'}`
   const note = `${item.value!.brandName} · 来源于商品详情`
-  // 时间优先级：尾款截止 > 发售结束 > 商品截止
-  const date = r != null && r.balanceDueAt !== '' ? dateOnly(r.balanceDueAt)
-    : (r != null && r.endAt !== '' ? dateOnly(r.endAt) : dateOnly(item.value!.eventEndAt))
-  uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${date}&note=${encoded(note)}` })
+  const date = r != null ? (type === 'BALANCE' ? r.balanceDueAt : r.startAt) : ''
+  uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${encoded(date)}&note=${encoded(note)}&productId=${encoded(itemId.value)}&releaseId=${encoded(r != null ? r.id : '')}` })
 }
 
 
@@ -537,5 +547,6 @@ const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const goBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }))
 const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
+
 
 
