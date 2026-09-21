@@ -49,7 +49,7 @@
             <SectionHeader title="发售信息" />
             <view :style="releaseCard">
               <view v-if="releaseStatusText !== ''" :style="releaseRow"><text :style="releaseLabel">当前状态</text><text :style="releaseValue">{{ releaseStatusText }}</text></view>
-              <view v-if="release !== null && release!.title !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ release!.title }}</text></view>
+              <view v-if="releaseBatchText !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ releaseBatchText }}</text></view>
               <view v-if="releaseStartText !== ''" :style="releaseRow"><text :style="releaseLabel">预售时间</text><text :style="releaseValue">{{ releaseStartText }}</text></view>
               <view v-if="shipDateText !== ''" :style="releaseRow"><text :style="releaseLabel">出货时间</text><text :style="releaseValue">{{ shipDateText }}</text></view>
             </view>
@@ -246,10 +246,19 @@ const materialSummary = computed((): string => {
   if (materialTags.value.length === 0) return ''
   return materialTags.value.join('、')
 })
+const releaseBatchText = computed((): string => {
+  const r = currentRelease.value
+  if (r == null) return ''
+  const text = r.title.trim()
+  if (['预约批', '现货批', '预售批', '预约', '现货', '预售'].indexOf(text) >= 0 || text === releaseStatusText.value) return ''
+  return text
+})
 /** 商品说明（description；无数据不显示） */
 const descriptionText = computed((): string => {
   if (item.value === null) return ''
-  return item.value!.subtitle
+  const text = item.value!.subtitle.trim()
+  if (text.indexOf('展示价格、发售、收藏、提醒和购买记录。') >= 0) return ''
+  return text
 })
 /** 出货时间（release.shipAt；无数据不显示） */
 const shipDateText = computed((): string => {
@@ -464,15 +473,15 @@ const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PAD
 const priceRow = { ...flexRow, alignItems: 'flex-end' }
 const priceText = computed((): any => ({ fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: n.value.iconActive }))
 const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
-const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx', marginRight: '12rpx', flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
+const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '12rpx', minWidth: '0', flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
 // 品牌 / 坑向 / 子分类同排：允许换行 + 统一 12rpx 间隔，避免"一个内容紧接下一个内容"（用户反馈）
-const brandRow = { flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'wrap' as string }
+const brandRow = { flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'nowrap' as string, marginTop: '12rpx' }
 // 品牌行内小标签：坑向（品牌浅底）+ 子分类（中性底），与商品卡 typeChip 同构
-const pitChip = computed((): any => ({ marginRight: '12rpx', marginBottom: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const pitChip = computed((): any => ({ marginRight: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 // 品牌色文字/前景一律走主题 token（n.value.iconActive），不再用模块级 brand[600]
 // —— 模块常量在深色下不刷新，暖黑底上对比度只有约 2.7:1，等于"看不清"。
 const pitChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.iconActive }))
-const subChip = computed((): any => ({ marginRight: '12rpx', marginBottom: '8rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
+const subChip = computed((): any => ({ marginRight: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 const subChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 const blacklistBtn = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }))
 const blacklistBtnText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.iconActive }))
@@ -528,4 +537,5 @@ const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const goBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }))
 const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
+
 
