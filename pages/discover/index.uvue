@@ -265,7 +265,7 @@ function calendarReminderType(evt: CalendarEvent): string {
 }
 function onAddReleaseReminder(evt: CalendarEvent) {
   const title = encodeURIComponent(evt.title)
-  const date = evt.dateKey
+  const date = encodeURIComponent(evt.startAt !== '' ? evt.startAt : evt.dateKey)
   showDayRelease.value = false
   const type = calendarReminderType(evt)
   const releaseId = encodeURIComponent(evt.id)
@@ -350,6 +350,7 @@ onBackPress((): boolean => {
   return false
 })
 </script>
+
 
 
 
