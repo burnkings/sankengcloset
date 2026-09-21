@@ -20,8 +20,9 @@ export function comparisonProducts(): UTSJSONObject[] {
       priceCents: p.priceCents, priceType: p.priceType, depositCents: p.depositCents,
       balanceCents: p.balanceCents, saleStatus: p.status, description: p.description,
       images: [{ url: p.coverUrl }, { url: p.secondaryCoverUrl }],
+      variants: i === 0 ? [{ id: 'demo_sk_s', styleName: '45cm格裙', sizeName: 'S' }, { id: 'demo_sk_m', styleName: '45cm格裙', sizeName: 'M' }] : [{ id: 'demo_jsk_s', styleName: 'JSK', sizeName: 'S' }, { id: 'demo_jsk_m', styleName: 'JSK', sizeName: 'M' }],
       colorTags: p.colorTags, materialTags: p.materialTags, featureTags: p.featureTags,
-      currentRelease: { id: 'mock_release_' + p.id, releaseName: p.status === 'PRE_ORDER' ? '预约批' : '现货批',
+      currentRelease: { id: 'mock_release_' + p.id, releaseName: '',
         releaseType: p.releaseType, saleStatus: p.status, fullPriceCents: p.priceCents,
         depositCents: p.depositCents, balanceCents: p.balanceCents,
         startAt: mockDateAfter(2), endAt: mockDateAfter(9),
@@ -30,3 +31,4 @@ export function comparisonProducts(): UTSJSONObject[] {
   }
   return result
 }
+
