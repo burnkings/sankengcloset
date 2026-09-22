@@ -25,27 +25,31 @@
               <AppIcon name="chevron-right" :size="28" />
             </view>
             <text v-if="timeError !== ''" :style="optionalHint">{{ timeError }}</text>
-            <AppDialog :visible="showTimePanel" title="提醒时间" @confirm="showTimePanel = false" @cancel="cancelTimePanel">
-            <!-- 日期与时间改用**系统弹层**（<picker mode="date"> / mode="time">）。
-                 原自绘 picker-view 面板在深色下出现"上下白中间灰"，系统弹层在用户环境显示正常。 -->
-            <picker mode="date" :value="remindDateValue" :start="minRemindDate" :end="maxRemindDate" @change="onRemindDateChange">
-              <view :style="timeFieldRow">
-                <text :style="timeFieldLabel">日期</text>
-                <view :style="timeRight">
-                  <text :style="timeValue">{{ remindDateDisplay }}</text>
-                  <AppIcon name="chevron-right" :size="28" />
-                </view>
+            <AppDialog :visible="showTimePanel" title="选择提醒时间" @confirm="showTimePanel = false" @cancel="cancelTimePanel">
+              <view :style="dateTimePickerHeader">
+                <text :style="dateTimePickerHeaderText">年</text>
+                <text :style="dateTimePickerHeaderText">月</text>
+                <text :style="dateTimePickerHeaderText">日</text>
+                <text v-if="!form.isAllDay" :style="dateTimePickerHeaderText">时</text>
+                <text v-if="!form.isAllDay" :style="dateTimePickerHeaderText">分</text>
               </view>
-            </picker>
-            <picker v-if="!form.isAllDay" mode="time" :value="remindTimeValue" @change="onRemindTimeChange">
-              <view :style="timeFieldRow">
-                <text :style="timeFieldLabel">时间</text>
-                <view :style="timeRight">
-                  <text :style="timeValue">{{ remindTimeDisplay }}</text>
-                  <AppIcon name="chevron-right" :size="28" />
-                </view>
-              </view>
-            </picker>
+              <picker-view :value="dateTimePickerValue" :style="dateTimePickerStyle" indicator-style="height: 88rpx;" @change="onDateTimePickerChange">
+                <picker-view-column>
+                  <view v-for="year in pickerYears" :key="year" :style="dateTimePickerItem"><text :style="dateTimePickerText">{{ year }}</text></view>
+                </picker-view-column>
+                <picker-view-column>
+                  <view v-for="month in pickerMonths" :key="month" :style="dateTimePickerItem"><text :style="dateTimePickerText">{{ pad2(month) }}</text></view>
+                </picker-view-column>
+                <picker-view-column>
+                  <view v-for="day in pickerDays" :key="day" :style="dateTimePickerItem"><text :style="dateTimePickerText">{{ pad2(day) }}</text></view>
+                </picker-view-column>
+                <picker-view-column v-if="!form.isAllDay">
+                  <view v-for="hour in pickerHours" :key="hour" :style="dateTimePickerItem"><text :style="dateTimePickerText">{{ pad2(hour) }}</text></view>
+                </picker-view-column>
+                <picker-view-column v-if="!form.isAllDay">
+                  <view v-for="minute in pickerMinutes" :key="minute" :style="dateTimePickerItem"><text :style="dateTimePickerText">{{ pad2(minute) }}</text></view>
+                </picker-view-column>
+              </picker-view>
               <view :style="timeFieldRow" @tap="form.isAllDay = !form.isAllDay">
                 <text :style="timeValue">{{ form.isAllDay ? '✓ 全天提醒（当天09:00通知）' : '设为全天提醒（当天09:00通知）' }}</text>
               </view>
@@ -281,25 +285,48 @@ function todayText(): string {
   const now = new Date()
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
 }
-// 系统 picker 的 value 必须是合法日期/时间串；空值时回落，避免弹层定位错乱
-const remindDateValue = computed((): string => form.value.remindDate !== '' ? form.value.remindDate : todayText())
-const remindTimeValue = computed((): string => form.value.remindTime !== '' ? form.value.remindTime : '12:00')
-// 可选范围：过去 5 年 ~ 未来 5 年（编辑一条旧提醒时年份必须选得回来）
 const remindYearBase = new Date().getFullYear()
-const minRemindDate = `${remindYearBase - 5}-01-01`
-const maxRemindDate = `${remindYearBase + 5}-12-31`
-
-function onRemindDateChange(e: any) {
-  const eObj = e as UTSJSONObject
-  const detail = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
-  const val = (detail != null && detail['value'] != null) ? detail['value'] as string : ''
-  if (val !== '') form.value.remindDate = val
+const pickerYears: number[] = []
+const pickerMonths: number[] = []
+const pickerHours: number[] = []
+const pickerMinutes: number[] = []
+for (let i = remindYearBase - 5; i <= remindYearBase + 5; i++) pickerYears.push(i)
+for (let i = 1; i <= 12; i++) pickerMonths.push(i)
+for (let i = 0; i < 24; i++) pickerHours.push(i)
+for (let i = 0; i < 60; i++) pickerMinutes.push(i)
+function selectedDateParts(): number[] {
+  const parts = (form.value.remindDate !== '' ? form.value.remindDate : todayText()).split('-')
+  return [parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2])]
 }
-function onRemindTimeChange(e: any) {
+const pickerDays = computed((): number[] => {
+  const parts = selectedDateParts()
+  const count = new Date(parts[0], parts[1], 0).getDate()
+  const days: number[] = []
+  for (let i = 1; i <= count; i++) days.push(i)
+  return days
+})
+const dateTimePickerValue = computed((): number[] => {
+  const parts = selectedDateParts()
+  const timeParts = (form.value.remindTime !== '' ? form.value.remindTime : getDefaultTime()).split(':')
+  const yearIndex = Math.max(0, pickerYears.indexOf(parts[0]))
+  const value = [yearIndex, Math.max(0, parts[1] - 1), Math.max(0, Math.min(parts[2], pickerDays.value.length) - 1)]
+  if (!form.value.isAllDay) {
+    value.push(Math.max(0, parseInt(timeParts[0])))
+    value.push(Math.max(0, parseInt(timeParts[1])))
+  }
+  return value
+})
+function onDateTimePickerChange(e: any) {
   const eObj = e as UTSJSONObject
   const detail = eObj['detail'] != null ? eObj['detail'] as UTSJSONObject : null
-  const val = (detail != null && detail['value'] != null) ? detail['value'] as string : ''
-  if (val !== '') form.value.remindTime = val
+  const values = detail != null && detail['value'] != null ? detail['value'] as number[] : []
+  if (values.length < 3) return
+  const year = pickerYears[values[0]]
+  const month = values[1] + 1
+  const maxDay = new Date(year, month, 0).getDate()
+  const day = Math.min(values[2] + 1, maxDay)
+  form.value.remindDate = year.toString() + '-' + pad2(month) + '-' + pad2(day)
+  if (!form.value.isAllDay && values.length >= 5) form.value.remindTime = pad2(values[3]) + ':' + pad2(values[4])
 }
 
 
@@ -521,6 +548,11 @@ const timeFieldRow = computed((): any => ({ flexDirection: 'row', alignItems: 'c
 const timeValue = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '8rpx' }))
 const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
+const dateTimePickerStyle = computed((): any => ({ width: '100%', height: '440rpx', backgroundColor: n.value.surface }))
+const dateTimePickerHeader = { flexDirection: 'row', alignItems: 'center', height: '56rpx' }
+const dateTimePickerHeaderText = computed((): any => ({ flex: 1, textAlign: 'center', fontSize: fontSize.xs, color: n.value.textTertiary }))
+const dateTimePickerItem = { height: '88rpx', alignItems: 'center', justifyContent: 'center' }
+const dateTimePickerText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text }))
 
 const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: fontSize.base, color: n.value.text, lineHeight: '40rpx' }))
@@ -606,5 +638,4 @@ onBackPress((options) => {
   return false
 })
 </script>
-
 
