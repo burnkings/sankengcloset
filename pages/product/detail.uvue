@@ -59,9 +59,15 @@
             <SectionHeader title="规格" />
             <view :style="specCard">
               <view v-if="styleOptions.length > 0" :style="specRow">
-                <text :style="specLabel">款式</text>
-                <view :style="specChips">
-                  <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ styleQuote(st) }}</text></view>
+                <text :style="specLabel">{{ hasStylePrices ? '款式价格' : '款式' }}</text>
+                <view v-if="hasStylePrices" :style="stylePriceList">
+                  <view v-for="st in styleOptions" :key="st" :style="stylePriceRow">
+                    <text :style="stylePriceName">{{ st }}</text>
+                    <text v-if="stylePriceText(st) !== ''" :style="stylePriceAmount">{{ stylePriceText(st) }}</text>
+                  </view>
+                </view>
+                <view v-else :style="specChips">
+                  <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ st }}</text></view>
                 </view>
               </view>
               <view v-if="colorTags.length > 0" :style="specRow">
@@ -224,17 +230,25 @@ const pitTypeLabel = computed((): string => getPitTypeLabel(pitType.value))
 /** 可选款式：规格变体提取去重。
  *  Lolita 一个链接常同时卖 JSK + OP —— 对这类商品，款式是**规格**（与颜色/尺码同级、可多选），不是分类标签。
  *  命名用「款式」：用户明确否掉了「型别」（口语书面都不会这么说），也去掉了「可选」前缀（规格卡里已有多余）。 */
-function styleQuote(style: string): string {
+function stylePrices(style: string): number[] {
   const prices: number[] = []
   for (let i = 0; i < variants.value.length; i++) {
     const v = variants.value[i]
     if (v.styleName === style && v.referencePriceCents != null && prices.indexOf(v.referencePriceCents!) < 0) prices.push(v.referencePriceCents!)
   }
-  if (prices.length === 0) return style
   prices.sort((a: number, b: number): number => a - b)
+  return prices
+}
+const hasStylePrices = computed((): boolean => {
+  for (let i = 0; i < variants.value.length; i++) if (variants.value[i].referencePriceCents != null) return true
+  return false
+})
+function stylePriceText(style: string): string {
+  const prices = stylePrices(style)
+  if (prices.length === 0) return ''
   const low = (prices[0] / 100).toString()
   const high = (prices[prices.length - 1] / 100).toString()
-  return style + ' · 参考价 ¥' + low + (low === high ? '' : '–' + high)
+  return '¥' + low + (low === high ? '' : '–' + high)
 }
 const styleOptions = computed((): string[] => {
   const list: string[] = []
@@ -511,6 +525,10 @@ const specLabel = computed((): any => ({ width: '148rpx', flexShrink: 0, padding
 const specChips = { flex: 1, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
 const specChip = computed((): any => ({ height: '48rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginBottom: '10rpx' }))
 const specChipText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text }))
+const stylePriceList = { flex: 1 }
+const stylePriceRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: '48rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, marginBottom: '10rpx' }))
+const stylePriceName = computed((): any => ({ flex: 1, fontSize: fontSize.xs, color: n.value.text }))
+const stylePriceAmount = computed((): any => ({ marginLeft: '16rpx', fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 // Phase 2.1 同款式：款式名 + 横向滚动同款商品（无 groupKey / styles 表已废弃时不渲染）
 const sameStyleCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const sameStyleHeader = { ...flexRow, alignItems: 'center', marginBottom: '16rpx' }
@@ -547,6 +565,4 @@ const botLabel = computed((): any => ({ fontSize: '20rpx', color: n.value.textSe
 const goBtn = computed((): any => ({ ...flexFill, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '24rpx' }))
 const goBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 </script>
-
-
 
