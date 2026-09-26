@@ -337,6 +337,7 @@ const hotRank: HotItem[] = [
   { keyword: '梦境蝴蝶结 Lolita裙', heat: '编辑推荐' },
   { keyword: '绮灵AI 搭配方案', heat: '编辑推荐' },
   { keyword: '汉服明制 上新', heat: '编辑推荐' },
+  { keyword: '汉洋折衷 混搭', heat: '编辑推荐' },
   { keyword: '甜系 JK小物', heat: '编辑推荐' },
 ]
 

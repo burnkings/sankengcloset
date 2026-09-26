@@ -163,8 +163,8 @@ const summaryItems = computed(() => [
 ])
 
 const categoryRows = computed((): Array<{ label: string; value: string }> => {
-  const codes = ['JK', 'LOLITA', 'HANFU', 'OTHER']
-  const names = ['JK', 'Lolita', '汉服', '其他']
+  const codes = ['JK', 'LOLITA', 'HANFU', 'MIXED', 'OTHER']
+  const names = ['JK', 'Lolita', '汉服', '混搭', '其他']
   const rows: Array<{ label: string; value: string }> = []
   let total = 0
   for (let i = 0; i < codes.length; i++) {
@@ -223,7 +223,7 @@ function categoryAbbr(item: PurchaseRecord): string {
   return 'J'
 }
 function categoryPalette(category: string): any {
-  const table = isDark.value ? categoryDotColorsDark : categoryDotColors
+  const table = isDark() ? categoryDotColorsDark : categoryDotColors
   if (category == 'LOLITA') return table['LOLITA']
   if (category == 'HANFU') return table['HANFU']
   if (category == 'OTHER') return table['OTHER']

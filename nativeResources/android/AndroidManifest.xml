@@ -16,6 +16,22 @@
     <!-- Android 12 及以下兼容：旧存储权限（仅对 Android 12 及以下生效） -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- Android 11+ (API 30) 包可见性：允许探测淘宝/天猫 scheme 与浏览器，
+         供「打开原店链接」唤起对应 App / 浏览器（uts-openSchema 的 canOpenURL 依赖此项） -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="taobao" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tmall" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
     <application
         android:networkSecurityConfig="@xml/sankeng_network_security_config"
         tools:replace="android:networkSecurityConfig" />

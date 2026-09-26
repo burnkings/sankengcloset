@@ -1,4 +1,4 @@
-<template><AppLoading text="加载中" /></template>
+<template><AppLoading text="加载中" :fill="true" /></template>
 <script setup lang="uts">
 import AppLoading from '@/components/base/AppLoading.uvue'
 withDefaults(defineProps<{ variant?: string }>(), { variant: 'list' })

@@ -5,6 +5,7 @@ import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { fetchProductDetail } from '@/services/content/product-service'
+import { apiErrorStatus } from '@/services/platform/api-client'
 import { listWishlistRemote } from '@/services/user-data/user-data-service'
 
 import { showFeedback } from '@/utils/feedback'
@@ -257,6 +258,42 @@ export function hasPendingFavorite(ops: SyncOperation[], productId: string): boo
   return false
 }
 
+/** 单条收藏详情的加载结果 */
+class FavoriteLoadResult {
+  /** 0=成功 1=已下架/失效（404/410 或 200 空数据） 2=瞬时失败（网络断/超时/5xx） */
+  status: number = 0
+  item: FeedItem | null = null
+  release: ReleaseEvent | null = null
+}
+
+function findFavoriteProduct(productId: string): FeedItem | null {
+  for (let i = 0; i < favoriteState.favoriteProducts.length; i++) {
+    if (favoriteState.favoriteProducts[i].entityId == productId) return favoriteState.favoriteProducts[i]
+  }
+  return null
+}
+
+async function loadFavoriteOnce(productId: string, releaseId: string): Promise<FavoriteLoadResult> {
+  const result = new FavoriteLoadResult()
+  try {
+    const detail = await fetchProductDetail(productId, releaseId)
+    if (detail != null) {
+      result.status = 0
+      result.item = detail.item
+      result.release = detail.currentRelease
+    } else {
+      result.status = 1                       // HTTP 200 但没有数据 ⇒ 服务端已无此商品
+    }
+  } catch (e) {
+    const code = apiErrorStatus(e)
+    // ⚠️ 404/410 必须归到「已下架」而不是「瞬时失败」——
+    //    下架商品永远 404，若算瞬时失败，收藏页就会**每次进来都**挂着「部分商品加载失败」，
+    //    而且 invalidFavoriteIds 永远为空，「清除失效」入口不出现（2026-09-27 第 3 条根因）。
+    result.status = (code == 404 || code == 410) ? 1 : 2
+  }
+  return result
+}
+
 export async function refreshFavorites(): Promise<void> {
   await refreshRemoteFavorites()
   // 首次加载才显示骨架屏；之后进入静默刷新。
@@ -266,25 +303,33 @@ export async function refreshFavorites(): Promise<void> {
   const releases: ReleaseEvent[] = []
   const entries = favoriteState.favoriteEntries
   const invalid: string[] = []
+  let transient = 0
   for (let i = 0; i < entries.length; i++) {
-    try {
-      const detail = await fetchProductDetail(entries[i].productId, entries[i].releaseId)
-      if (detail != null) {
-        products.push(detail.item)
-        if (detail.currentRelease != null) releases.push(detail.currentRelease)
-      } else invalid.push(entries[i].productId)
-    } catch (e) {
-      // 单条失败不中断整列表：保留本地收藏条目，稍后可整体重试
-      const cached = favoriteState.favoriteProducts.find((item) => item.entityId === entries[i].productId)
-      if (cached != null) products.push(cached!)
-      favoriteState.favoritesError = '部分商品加载失败，请重试'
+    const entry = entries[i]
+    let res = await loadFavoriteOnce(entry.productId, entry.releaseId)
+    // 瞬时失败先**静默重试一次** —— 单次网络抖动不该把整页打成「部分加载失败」
+    if (res.status == 2) res = await loadFavoriteOnce(entry.productId, entry.releaseId)
+    if (res.status == 0) {
+      if (res.item != null) products.push(res.item!)
+      if (res.release != null) releases.push(res.release!)
+      continue
     }
+    if (res.status == 1) invalid.push(entry.productId)
+    else transient += 1
+    // 已下架 / 暂时取不到：保留本地缓存卡片，不中断整列表
+    const cached = findFavoriteProduct(entry.productId)
+    if (cached != null) products.push(cached!)
   }
   favoriteState.favoriteProducts = products
   favoriteState.favoriteReleases = releases
   favoriteState.invalidFavoriteIds = invalid
+  // 两种提示分开，别混为一谈：
+  //   · 已下架（404/410）→ 稳定状态，给「清除失效」入口，不要催着重试
+  //   · 瞬时失败 → 重试一次仍失败才提示；全好了就不显示任何红字
   if (invalid.length > 0) {
-    favoriteState.favoritesError = `有 ${invalid.length} 个收藏的商品详情加载失败，可清除失效收藏`
+    favoriteState.favoritesError = `有 ${invalid.length} 个收藏的商品已下架，可清除失效收藏`
+  } else if (transient > 0) {
+    favoriteState.favoritesError = `有 ${transient} 个收藏加载超时，可下拉重试`
   }
   favoriteState.favoritesLoading = false
   favoriteState.favoritesLoadedOnce = true

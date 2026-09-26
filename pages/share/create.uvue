@@ -226,6 +226,7 @@ function wardrobeName(id: string): string {
 function wardrobeCategory(category: string): string {
   if (category === 'LOLITA') return 'Lolita'
   if (category === 'HANFU') return '汉服'
+  if (category === 'MIXED') return '混搭'
   if (category === 'JK') return 'JK制服'
   return '其他'
 }

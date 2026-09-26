@@ -59,11 +59,11 @@
             <SectionHeader title="规格" />
             <view :style="specCard">
               <view v-if="styleOptions.length > 0" :style="specRow">
-                <text :style="specLabel">{{ hasStylePrices ? '款式价格' : '款式' }}</text>
-                <view v-if="hasStylePrices" :style="stylePriceList">
-                  <view v-for="st in styleOptions" :key="st" :style="stylePriceRow">
-                    <text :style="stylePriceName">{{ st }}</text>
-                    <text v-if="stylePriceText(st) !== ''" :style="stylePriceAmount">{{ stylePriceText(st) }}</text>
+                <text :style="specLabel">款式</text>
+                <view v-if="hasStylePrices" :style="specChips">
+                  <view v-for="st in styleOptions" :key="st" :style="styleChip">
+                    <text :style="styleChipName">{{ st }}</text>
+                    <text v-if="stylePriceText(st) !== ''" :style="styleChipPrice">{{ stylePriceText(st) }}</text>
                   </view>
                 </view>
                 <view v-else :style="specChips">
@@ -88,11 +88,6 @@
           <template v-if="materialSummary !== ''">
             <SectionHeader title="材质" />
             <view :style="detailCard"><text :style="detailText">{{ materialSummary }}</text></view>
-          </template>
-
-          <template v-if="descriptionText !== ''">
-            <SectionHeader title="商品说明" />
-            <view :style="detailCard"><text :style="detailText">{{ descriptionText }}</text></view>
           </template>
 
           <template v-if="sameStyle !== null && sameStyle.products.length > 0">
@@ -176,8 +171,9 @@ import { CARD_PADDING, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
 import { zIndex } from '@/theme/tokens/z-index'
 import { getSafeBottomInset, upx2px } from '@/utils/window-info'
+import { splitSizeOptions } from '@/utils/size-option'
 import { recordBrowse } from '@/stores/browse-history-store'
-import { shareByCopy } from '@/utils/share'
+import { shareByCopy, openExternalUrl } from '@/utils/share'
 import { showFeedback } from '@/utils/feedback'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
@@ -258,14 +254,19 @@ const styleOptions = computed((): string[] => {
   }
   return list
 })
-/** 可选尺码：款式变体提取去重（variants 无数据则不显示尺码模块） */
+/**
+ * 可选尺码：款式变体提取 → **拆分 + 白名单过滤 + 规范排序**（variants 无数据则不显示尺码模块）。
+ * ⚠️ 不能直接拿 sizeName 当 chip：采集下来的 sizeName 常是 `"S\nM\nL\nXL"` 一条承载多码，
+ *    原样渲染会出现「一个标签里 M 和 L 上下堆着」；还会混进「定金须先确认收货」这类噪声。
+ *    拆分逻辑在 utils/size-option.uts（含体重区间、「码」后缀、垃圾项处理）。
+ */
 const sizeOptions = computed((): string[] => {
-  const sizes: string[] = []
+  const raw: string[] = []
   for (let i = 0; i < variants.value.length; i++) {
     const s = variants.value[i].sizeName
-    if (s !== '' && sizes.indexOf(s) < 0) sizes.push(s)
+    if (s !== '') raw.push(s)
   }
-  return sizes
+  return splitSizeOptions(raw)
 })
 /** 材质摘要（只展示 material_summary，不搬淘宝详情页） */
 const materialSummary = computed((): string => {
@@ -277,13 +278,6 @@ const releaseBatchText = computed((): string => {
   if (r == null) return ''
   const text = r.title.trim()
   if (['预约批', '现货批', '预售批', '预约', '现货', '预售'].indexOf(text) >= 0 || text === releaseStatusText.value) return ''
-  return text
-})
-/** 商品说明（description；无数据不显示） */
-const descriptionText = computed((): string => {
-  if (item.value === null) return ''
-  const text = item.value!.subtitle.trim()
-  if (text.indexOf('展示价格、发售、收藏、提醒和购买记录。') >= 0) return ''
   return text
 })
 /** 出货时间（release.shipAt；无数据不显示） */
@@ -342,7 +336,7 @@ function toggleSaved() {
   if (entityId === '') return
 
   if (!isLoggedIn()) {
-    showFeedback('请先登录后收藏')
+    showFeedback('请先登录后收藏（在「我的」页登录）')
     return
   }
 
@@ -381,12 +375,8 @@ function onToggleBlacklist() {
 
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录原店链接'); return }
-  // #ifdef APP
-  plus.runtime.openURL(shopUrl.value)
-  return
-  // #endif
-  // 小程序/H5 无统一外部浏览器能力，复制链接作为可靠降级。
-  uni.setClipboardData({ data: shopUrl.value, success: () => { showFeedback('原店链接已复制，可在浏览器打开') } })
+  // uni-app x 不支持 plus.runtime.openURL：降级为复制链接（全平台可用）
+  openExternalUrl(shopUrl.value)
 }
 
 /** 分享：复制标题 + 价格/品牌 + 原店链接（有则带上） */
@@ -525,10 +515,10 @@ const specLabel = computed((): any => ({ width: '148rpx', flexShrink: 0, padding
 const specChips = { flex: 1, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
 const specChip = computed((): any => ({ height: '48rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '10rpx', marginBottom: '10rpx' }))
 const specChipText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text }))
-const stylePriceList = { flex: 1 }
-const stylePriceRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: '48rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, marginBottom: '10rpx' }))
-const stylePriceName = computed((): any => ({ flex: 1, fontSize: fontSize.xs, color: n.value.text }))
-const stylePriceAmount = computed((): any => ({ marginLeft: '16rpx', fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
+// 款式价格 chip：与颜色/尺码 chip 同构（灰底圆角），价格红色区分
+const styleChip = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', height: '48rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, marginRight: '10rpx', marginBottom: '10rpx' }))
+const styleChipName = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text }))
+const styleChipPrice = computed((): any => ({ marginLeft: '10rpx', fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 // Phase 2.1 同款式：款式名 + 横向滚动同款商品（无 groupKey / styles 表已废弃时不渲染）
 const sameStyleCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const sameStyleHeader = { ...flexRow, alignItems: 'center', marginBottom: '16rpx' }

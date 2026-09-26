@@ -95,10 +95,12 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx', 
 const filterWrap = { marginBottom: '20rpx' }
 const readAllText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.iconActive }))
 // V3 §6.7 行结构：类型图标、标题、摘要、时间、未读点；分割线分组
-function noticeRow(read: boolean) { return { ...flexRow, flexDirection: 'row', alignItems: 'center', paddingTop: '22rpx', paddingBottom: '22rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: read ? n.value.surface : (isDark.value ? n.value.surfaceWarm : brand[50]), borderRadius: CARD_RADIUS_V3, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '14rpx', position: 'relative' as string } }
+// 未读高亮：浅色 brand[50] 浅粉 / 深色 n.surfacePink 暖粉黑。两侧都必须是主题 token ——
+// 深色曾因 isDark 被冻结成 false 而写死浅色底，出现「深色页面里的白卡片」。
+function noticeRow(read: boolean) { return { ...flexRow, flexDirection: 'row', alignItems: 'center', paddingTop: '22rpx', paddingBottom: '22rpx', paddingLeft: LIST_GROUP_HORIZONTAL_V3, paddingRight: LIST_GROUP_HORIZONTAL_V3, backgroundColor: read ? n.value.surface : (isDark() ? n.value.surfacePink : brand[50]), borderRadius: CARD_RADIUS_V3, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginBottom: '14rpx', position: 'relative' as string } }
 function noticeIcon(type: string) {
   const v = noticeVisual(type)
-  return { width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }
+  return { width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: isDark() ? n.value.surfaceRaised : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }
 }
 const noticeCopy = { ...flexFill }
 const noticeTop = { ...flexRow, flexDirection: 'row', alignItems: 'center' }

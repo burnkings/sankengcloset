@@ -1,77 +1,83 @@
 {
-    "name" : "sankengcloset",
-    "appid" : "__UNI__5E07E1E",
-    "description" : "",
-    "versionName" : "2.5.0-beta.2",
-    "versionCode" : "25002",
-    "uni-app-x" : {
-        "styleIsolationVersion" : "2",
-        "vapor" : true
-    },
-    /* 快应用特有相关 */
-    "quickapp" : {},
-    /* 小程序特有相关 */
-    "mp-weixin" : {
-        "appid" : "wx976f673896c8b565",
-        "setting" : {
-            "urlCheck" : true
-        },
-        "usingComponents" : true,
-        "darkmode" : true,
-        "themeLocation" : "theme.json"
-    },
-    "mp-alipay" : {
-        "usingComponents" : true
-    },
-    "mp-baidu" : {
-        "usingComponents" : true
-    },
-    "mp-toutiao" : {
-        "usingComponents" : true
-    },
-    "uniStatistics" : {
-        "enable" : false
-    },
-    "vueVersion" : "3",
-    "app" : {
-        "distribute" : {
-            "icons" : {
-                "android" : {
-                    "hdpi" : "",
-                    "xhdpi" : "",
-                    "xxhdpi" : "",
-                    "xxxhdpi" : ""
-                }
-            }
-        }
-    },
-    "app-android" : {
-        "distribute" : {
-            "android" : {
-                "packageName" : "com.sankeng.closet"
-            },
-            "screenOrientation" : "portrait",
-            "modules" : {
-                "Push" : {}
-            },
-            "icons" : {
-                "hdpi" : "static/app-icon.png",
-                "xhdpi" : "static/app-icon.png",
-                "xxhdpi" : "static/app-icon.png",
-                "xxxhdpi" : "static/app-icon.png"
-            },
-            "splashScreens" : {
-                "default" : {}
-            }
-        }
-    },
-    "app-ios" : {
-        "distribute" : {
-            "modules" : {
-                "Push" : {}
-            },
-            "icons" : {},
-            "splashScreens" : {}
-        }
-    }
+	"name": "sankengcloset",
+	"appid": "__UNI__5E07E1E",
+	"description": "",
+	"versionName": "2.5.0-beta.4",
+	"versionCode": "25004",
+	"uni-app-x": {
+		"styleIsolationVersion": "2",
+		"vapor": true,
+		"vapor-render-target": "bytecode"
+	},
+	/* 快应用特有相关 */
+	"quickapp": {},
+	/* 小程序特有相关 */
+	"mp-weixin": {
+		"appid": "wx976f673896c8b565",
+		"setting": {
+			"urlCheck": true
+		},
+		"usingComponents": true,
+		"darkmode": true,
+		"themeLocation": "theme.json"
+	},
+	"mp-alipay": {
+		"usingComponents": true
+	},
+	"mp-baidu": {
+		"usingComponents": true
+	},
+	"mp-toutiao": {
+		"usingComponents": true
+	},
+	"uniStatistics": {
+		"enable": false
+	},
+	"vueVersion": "3",
+	"app": {
+		"distribute": {
+			"icons": {
+				"android": {
+					"hdpi": "",
+					"xhdpi": "",
+					"xxhdpi": "",
+					"xxxhdpi": ""
+				}
+			}
+		}
+	},
+	"app-android": {
+		"distribute": {
+			"android": {
+				"packageName": "com.sankeng.closet"
+			},
+			"screenOrientation": "portrait",
+			"modules": {
+				"Push": {}
+			},
+			"icons": {
+				"hdpi": "static/app-icon.png",
+				"xhdpi": "static/app-icon.png",
+				"xxhdpi": "static/app-icon.png",
+				"xxxhdpi": "static/app-icon.png"
+			},
+			"splashScreens": {
+				"default": {}
+			}
+		}
+	},
+	"app-ios": {
+		"distribute": {
+			"modules": {
+				"Push": {}
+			},
+			"icons": {},
+			"splashScreens": {}
+		}
+	},
+	"web": {
+		"router": {
+			"mode": ""
+		}
+	}
 }

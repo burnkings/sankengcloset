@@ -129,9 +129,15 @@ function loginWechat() {
   })
 }
 function openLoginOptions() {
+  // 微信登录入口只在平台具备条件时出现：
+  // 小程序端凭据齐全；App 端需微信开放平台「移动应用」AppID，未配置前不放这个必然失败的入口。
+  const items: string[] = session.canWechatLogin ? ['微信登录', '仅在本机使用'] : ['仅在本机使用']
   uni.showActionSheet({
-    itemList: ['微信登录', '仅在本机使用'],
-    success: (res) => { if (res.tapIndex == 0) loginWechat(); else loginMock() },
+    itemList: items,
+    success: (res) => {
+      if (session.canWechatLogin && res.tapIndex == 0) loginWechat()
+      else loginMock()
+    },
   })
 }
 function logout() { session.logout(); showFeedback('已退出，设备数据仍保留') }
@@ -191,7 +197,7 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER
 
 // V3 §6.6 无外层卡片的紧凑个人头部：头像、昵称、Mock/同步状态、编辑入口
 const profileCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', paddingTop: '8rpx', paddingBottom: '24rpx', marginBottom: '8rpx' }))
-const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark.value ? n.value.surfaceRaised : brand[100] as string, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0, position: 'relative', borderWidth: '2rpx', borderStyle: 'solid', borderColor: baseColors.white }))
+const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark() ? n.value.surfaceRaised : brand[100] as string, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0, position: 'relative', borderWidth: '2rpx', borderStyle: 'solid', borderColor: baseColors.white }))
 const avatarText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.bold, color: n.value.iconActive }))
 const cameraBadge = computed((): any => ({ position: 'absolute', bottom: '-2rpx', right: '-2rpx', width: '24rpx', height: '24rpx', borderRadius: '12rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))

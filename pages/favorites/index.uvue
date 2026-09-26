@@ -105,11 +105,11 @@
         </view>
 
         <view v-else-if="activeTab === '动态' && likedLooks.length > 0" :style="likedLookList">
-          <PostCard v-for="look in likedLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption" :author="look.authorNickname" :avatar-text="look.initial" :time-text="'已收藏'" :like-count="look.likeCount" :liked="true" :product-id="look.productId" @tap="openLook(look.id)" @toggle-like="unlikeLook(look.id)" @more="openLook(look.id)" @product="openLookProduct(look.productId)" />
+          <PostCard v-for="look in likedLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption" :author="look.authorNickname" :avatar-text="look.initial" :time-text="'已点赞'" :like-count="look.likeCount" :liked="true" :product-id="look.productId" @tap="openLook(look.id)" @toggle-like="unlikeLook(look.id)" @more="openLook(look.id)" @product="openLookProduct(look.productId)" />
         </view>
 
         <view v-else :style="emptyContainer">
-          <PageState :icon="emptyIcon" :title="emptyTitleText" :message="emptyDescText" action-text="去发现" @action="goDiscover" />
+          <PageState :icon="emptyIcon" :title="emptyTitleText" :message="emptyDescText" :action-text="emptyActionText" @action="onEmptyAction" />
         </view>
 
         <AppDialog :visible="showStatusPicker" title="待购状态" @cancel="showStatusPicker = false">
@@ -154,6 +154,7 @@ import { useBrandStore } from '@/stores/brand-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { deriveReleaseStatusText, formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { useBlacklistStore } from '@/stores/blacklist-store'
+import { useSessionStore } from '@/stores/session-store'
 import { brand, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -179,6 +180,7 @@ const library = useContentLibraryStore()
 const brandStore = useBrandStore()
 const reminderStore = useReminderStore()
 const blacklist = useBlacklistStore()
+const session = useSessionStore()
 
 const likedLooks = computed(() => library.publicPosts.filter((post) => library.isPostLiked(post.id) && !blacklist.isBlacklisted(post.authorNickname)))
 function openLook(id: string) { uni.navigateTo({ url: `/pages/community/detail?id=${id}` }) }
@@ -201,14 +203,24 @@ function backToTop() {
 
 const emptyTitleText = computed((): string => {
   if (activeTab.value === '品牌') return '还没有关注喜欢的品牌'
-  if (activeTab.value === '动态') return '暂无收藏的动态'
+  if (activeTab.value === '动态') return '还没有点赞过的动态'
   return '还没有收藏心动小裙子'
 })
 const emptyDescText = computed((): string => {
   if (activeTab.value === '品牌') return '在发现页关注品牌，动态会优先来到这里'
-  if (activeTab.value === '动态') return '收藏的动态会显示在这里'
-  return '从新品和预约里慢慢挑选'
+  // 动态 tab 的入口是「点赞」不是「收藏」——这里必须说清，否则会以为收藏功能坏了
+  // （2026-09-25 反馈：动态和商品都只有一个心，分不清点赞和收藏）。
+  if (activeTab.value === '动态') return '在圈子里点赞过的动态会汇集到这里'
+  // 游客的收藏会写入本机并排队等待同步，不是"不保存"（2026-09-25 更正：旧文案与实现不符）
+  if (!session.isLoggedIn) return '当前是游客状态，收藏只存在本机；登录后可在多端同步'
+  return '在商品卡或详情页点心形按钮，就会收进这里'
 })
+// 未登录时空态主按钮去登录（「我的」页顶部即登录入口），已登录时保持「去发现」
+const emptyActionText = computed((): string => (activeTab.value === '商品' && !session.isLoggedIn) ? '去登录' : '去发现')
+function onEmptyAction() {
+  if (activeTab.value === '商品' && !session.isLoggedIn) { openPrimaryTab('/pages/profile/index'); return }
+  goDiscover()
+}
 
 // 切 tab 时退出选择态，避免跨 tab 残留勾选
 function onTabTap(tab: string) { exitSelectMode(); activeTab.value = tab }
@@ -420,7 +432,7 @@ function onSelectStatus(status: string) {
   showStatusPicker.value = false
   if (status == 'PURCHASED' && product != null) {
     const amount = product.price > 0 ? (product.price / 100).toString() : ''
-    const category = product.category == 'LOLITA' ? 'LOLITA' : product.category == 'HANFU' ? 'HANFU' : 'JK'
+    const category = product.category == 'LOLITA' ? 'LOLITA' : (product.category == 'HANFU' ? 'HANFU' : (product.category == 'MIXED' ? 'MIXED' : (product.category == 'JK' ? 'JK' : 'OTHER')))
     const wishId = entry != null && entry.itemId != '' ? entry.itemId : productId
     const releaseId = entry != null ? entry.releaseId : ''
     uni.navigateTo({ url: `/pages/purchase/edit?name=${encodeURIComponent(product.title)}&brand=${encodeURIComponent(product.brandName)}&amount=${amount}&category=${category}&wishId=${encodeURIComponent(wishId)}&productId=${encodeURIComponent(productId)}&releaseId=${encodeURIComponent(releaseId)}` })

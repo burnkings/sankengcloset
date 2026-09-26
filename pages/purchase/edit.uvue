@@ -133,12 +133,12 @@ function selectBrand(b: string) {
   brandSuggestions.value = []
 }
 
-const categoryLabels = ['JK', 'Lolita', '汉服', '其他']
+const categoryLabels = ['JK', 'Lolita', '汉服', '混搭', '其他']
 const statusLabels = ['预售中', '已付定金', '待付款', '已完成', '已取消']
-const activeCategoryLabel = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'OTHER' ? '其他' : 'JK')))
+const activeCategoryLabel = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'MIXED' ? '混搭' : (form.value.category === 'OTHER' ? '其他' : 'JK'))))
 const activeStatusLabel = computed((): string => form.value.paymentStatus === 'DEPOSIT_PAID' ? '已付定金' : (form.value.paymentStatus === 'BALANCE_PENDING' ? '待付款' : (form.value.paymentStatus === 'COMPLETED' ? '已完成' : (form.value.paymentStatus === 'CANCELLED' ? '已取消' : '预售中'))))
 
-function onCategoryChange(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK')) }
+function onCategoryChange(label: string) { form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '混搭' ? 'MIXED' : (label === '其他' ? 'OTHER' : 'JK'))) }
 function onStatusChange(label: string) {
   form.value.paymentStatus = label === '已付定金' ? 'DEPOSIT_PAID' : (label === '待付款' ? 'BALANCE_PENDING' : (label === '已完成' ? 'COMPLETED' : (label === '已取消' ? 'CANCELLED' : 'PRE_ORDER')))
 }

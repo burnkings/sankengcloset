@@ -37,7 +37,7 @@ export class FeedItem {
   wished: boolean = false
   sourceLabel: string = ''      // 来源标签 ("淘宝" / "官方" / "用户投稿")
   rankingScore: number = 0      // 排序分数
-  category: string = ''         // JK / LOLITA / HANFU (用于频道筛选)
+  category: string = ''         // JK / LOLITA / HANFU / MIXED / OTHER（分类筛选与频道用）
 
   // ====== 业务字段（Phase 1.1-B：后端 ContentFeedItem 完整透传，UI 暂不强制展示） ======
   pitType: string = ''          // 主要品类标签（与 category 同值，保留后端语义）

@@ -1,0 +1,107 @@
+import Build from 'android.os.Build'
+import Context from 'android.content.Context'
+import NotificationManager from 'android.app.NotificationManager'
+import NotificationChannel from 'android.app.NotificationChannel'
+import Notification from 'android.app.Notification'
+import { LocalNotificationOptions } from '../interface.uts'
+
+// 前台版本地通知：仅在 App 存活期间生效。
+// 不申请精确闹钟、不注册开机广播、不使用三方 SDK，故包体增量极小。
+const CHANNEL_ID = 'sankeng_local_reminder'
+const CHANNEL_NAME = '到点提醒'
+const CHANNEL_DESC = '提醒事项到点通知'
+
+let seq : Int = 9100
+const pendingTimeouts = new Map<number, number>()
+let scheduledTimeoutIds : number[] = []
+
+function ensureChannel(manager : NotificationManager) : void {
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    const channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH)
+    channel.setDescription(CHANNEL_DESC)
+    manager.createNotificationChannel(channel)
+  }
+}
+
+@Suppress("DEPRECATION")
+function createBuilder(context : Context) : Notification.Builder {
+  let builder : Notification.Builder
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    builder = new Notification.Builder(context, CHANNEL_ID)
+  } else {
+    builder = new Notification.Builder(context)
+  }
+  builder.setSmallIcon(context.getApplicationInfo().icon)
+  return builder
+}
+
+function deliver(title : string, content : string, id : Int) : void {
+  try {
+    const context = UTSAndroid.getAppContext() as Context
+    const manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    ensureChannel(manager)
+    const builder = createBuilder(context)
+    builder.setContentTitle(title)
+    builder.setContentText(content)
+    builder.setAutoCancel(true)
+    builder.setWhen(System.currentTimeMillis())
+    manager.notify(id, builder.build())
+  } catch (e) {
+    // 标准基座不含本插件时可能抛错，交由调用方降级提示，不阻断业务
+    console.error('[local-notify] deliver failed')
+  }
+}
+
+export function showLocalNotification(options : LocalNotificationOptions) : number {
+  const title = options.title !== '' ? options.title : '提醒'
+  const content = options.content
+
+  let delay = 0
+  const rawDelay = options.delaySeconds
+  if (rawDelay != null) {
+    const v = rawDelay! as number
+    if (v > 0) delay = v
+  }
+
+  seq += 1
+  const id = seq
+  if (delay <= 0) {
+    deliver(title, content, id)
+    return id
+  }
+  const timeoutId = setTimeout(() => {
+    pendingTimeouts.delete(id)
+    deliver(title, content, id)
+  }, delay * 1000)
+  pendingTimeouts.set(id, timeoutId)
+  scheduledTimeoutIds.push(timeoutId)
+  return id
+}
+
+export function cancelLocalNotification(id : number) : void {
+  const timeoutId = pendingTimeouts.get(id)
+  if (timeoutId != null) {
+    clearTimeout(timeoutId!)
+    pendingTimeouts.delete(id)
+  }
+  try {
+    const context = UTSAndroid.getAppContext() as Context
+    const manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    manager.cancel(id.toInt())
+  } catch (e) {
+  }
+}
+
+export function cancelAllLocalNotifications() : void {
+  for (let i = 0; i < scheduledTimeoutIds.length; i++) {
+    clearTimeout(scheduledTimeoutIds[i])
+  }
+  scheduledTimeoutIds = []
+  pendingTimeouts.clear()
+  try {
+    const context = UTSAndroid.getAppContext() as Context
+    const manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    manager.cancelAll()
+  } catch (e) {
+  }
+}

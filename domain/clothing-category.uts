@@ -1,6 +1,6 @@
 /**
  * ClothingCategory — 服装类别
- * 三坑：JK / Lolita / 汉服
+ * 三坑：JK / Lolita / 汉服；MIXED = 汉洋折衷混搭（汉服 × Lolita，与前三者同级的一级大类）
  *
  * ★★★★★ Android 规范：string union → class 常量；any → 具体类型
  */
@@ -8,12 +8,14 @@
 export const CATEGORY_JK = 'JK'
 export const CATEGORY_LOLITA = 'LOLITA'
 export const CATEGORY_HANFU = 'HANFU'
+export const CATEGORY_MIXED = 'MIXED'
 export const CATEGORY_OTHER = 'OTHER'
 
 export class CATEGORY_LABELS_CLASS {
   static readonly JK = 'JK制服'
   static readonly LOLITA = 'Lolita'
   static readonly HANFU = '汉服'
+  static readonly MIXED = '混搭'
   static readonly OTHER = '其他'
 }
 
@@ -21,6 +23,7 @@ export const CATEGORY_LABELS = {
   JK: 'JK制服',
   LOLITA: 'Lolita',
   HANFU: '汉服',
+  MIXED: '混搭',
   OTHER: '其他',
 }
 
@@ -28,6 +31,7 @@ export const CATEGORY_EMOJI = {
   JK: '🎒',
   LOLITA: '🎀',
   HANFU: '🏯',
+  MIXED: '🎐',
   OTHER: '👗',
 }
 
@@ -48,4 +52,5 @@ export const ALL_CATEGORIES: CategoryOption[] = [
   createCategoryOption('JK制服', 'JK'),
   createCategoryOption('Lolita', 'LOLITA'),
   createCategoryOption('汉服', 'HANFU'),
+  createCategoryOption('混搭', 'MIXED'),
 ]

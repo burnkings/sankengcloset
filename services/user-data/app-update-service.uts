@@ -1,31 +1,178 @@
 /**
  * app-update-service — 版本检查
- * 远端 GET /api/v1/app/version；失败时安全回退为当前版本。
+ *
+ * 链路：GET /api/v1/app/version → 与本地版本比较 → 返回 AppVersionInfo。
+ * 三条硬规则：
+ *  1. **本地比较**：hasUpdate 由客户端用 compareVersion() 算，不直接信服务端布尔值
+ *     （服务端算子写错或缓存脏数据时，会把「没有更新」说成「有更新」）。
+ *  2. **失败安全**：接口不可达、返回空、版本号为空时一律回退当前版本、hasUpdate=false，不误报更新。
+ *  3. **强制更新**：服务端给 minVersionCode（数字比较，最准）或 minVersion（字符串比较）时，
+ *     本地低于该版本即 forceUpdate=true，该版本不允许「稍后」。
+ *  4. **下载地址前端兜底**：服务端 updateUrl 为空时用 config/app-update.uts 的平台配置，
+ *     两者都空才算「未配置」（页面提示「更新地址待配置」，不给点不动的按钮）。
  */
-import { APP_VERSION } from '@/config/app-version'
+import { APP_VERSION, APP_VERSION_CODE } from '@/config/app-version'
+import { UPDATE_ENABLED, UPDATE_FORCE_ENABLED, resolveUpdateUrl } from '@/config/app-update'
 import { apiGet } from '@/services/platform/api-client'
 
 export class AppVersionInfo {
+  /** 服务端最新版本号（原样；带 V 前缀也兼容） */
   latestVersion: string = ''
+  /** 服务端最新 versionCode（0 = 未提供） */
+  latestVersionCode: number = 0
+  /** 服务端要求的最低可运行 versionCode（0 = 未提供；本地低于它即强制更新） */
+  minVersionCode: number = 0
+  /** 本地比较结果：是否真的有更新 */
   hasUpdate: boolean = false
+  /** 是否强制更新（不允许「稍后」） */
+  forceUpdate: boolean = false
+  /** 更新页地址 / APK 下载地址（空 = 未配置，弹窗提示「更新地址待配置」） */
   updateUrl: string = ''
+  /** 更新说明（弹窗正文） */
   releaseNote: string = ''
+  /** 发布时间（可选，ISO 字符串） */
+  publishedAt: string = ''
+  /** 本次检查是否请求失败（网络/服务不可达）——用于区分「已是最新」和「检查失败」两种提示 */
+  requestFailed: boolean = false
 }
 
-/** 检查最新版本；后端不可达时回退当前版本，不误报更新。 */
+/** 版本号规范化：去掉前缀 v/V、去掉构建元数据（+build）与空白 */
+export function normalizeVersion(raw: string): string {
+  let value = raw.trim()
+  if (value.indexOf('V') == 0 || value.indexOf('v') == 0) value = value.slice(1)
+  const plus = value.indexOf('+')
+  if (plus >= 0) value = value.slice(0, plus)
+  return value.trim()
+}
+
+class VersionParts {
+  core: number[] = []
+  suffix: string = ''
+}
+
+function parseVersion(raw: string): VersionParts {
+  const parts = new VersionParts()
+  const value = normalizeVersion(raw)
+  const dash = value.indexOf('-')
+  const coreText = dash >= 0 ? value.slice(0, dash) : value
+  parts.suffix = dash >= 0 ? value.slice(dash + 1) : ''
+  const tokens = coreText.split('.')
+  for (let i = 0; i < tokens.length; i++) {
+    const num = parseInt(tokens[i])
+    parts.core.push(isNaN(num) ? 0 : num)
+  }
+  if (parts.core.length == 0) parts.core.push(0)
+  return parts
+}
+
+/**
+ * 比较版本号：a > b 返回 1，a < b 返回 -1，相等返回 0。
+ * 规则：先比主体数字段（长度不同按 0 补），再比预发布后缀 ——
+ *   无后缀 > 有后缀（2.5.0 > 2.5.0-beta.4）；
+ *   后缀首段不同按字典序（beta > alpha）；
+ *   首段相同则逐段比数字（beta.10 > beta.4 —— 不能拿整串做字符串比较）。
+ */
+export function compareVersion(a: string, b: string): number {
+  const pa = parseVersion(a)
+  const pb = parseVersion(b)
+  const len = Math.max(pa.core.length, pb.core.length)
+  for (let i = 0; i < len; i++) {
+    const left = i < pa.core.length ? pa.core[i] : 0
+    const right = i < pb.core.length ? pb.core[i] : 0
+    if (left != right) return left > right ? 1 : -1
+  }
+  if (pa.suffix == pb.suffix) return 0
+  if (pa.suffix == '') return 1
+  if (pb.suffix == '') return -1
+  const ta = pa.suffix.split('.')
+  const tb = pb.suffix.split('.')
+  if (ta[0] != tb[0]) return ta[0] > tb[0] ? 1 : -1
+  const segLen = Math.max(ta.length, tb.length)
+  for (let i = 1; i < segLen; i++) {
+    const leftText = i < ta.length ? ta[i] : '0'
+    const rightText = i < tb.length ? tb[i] : '0'
+    const leftParsed = parseInt(leftText)
+    const rightParsed = parseInt(rightText)
+    const left = isNaN(leftParsed) ? 0 : leftParsed
+    const right = isNaN(rightParsed) ? 0 : rightParsed
+    if (left != right) return left > right ? 1 : -1
+  }
+  return 0
+}
+
+function readString(data: UTSJSONObject, key: string): string {
+  const value = data[key]
+  return value == null ? '' : value as string
+}
+
+function readNumber(data: UTSJSONObject, key: string): number {
+  const value = data[key]
+  if (value == null) return 0
+  const num = value as number
+  return isNaN(num) ? 0 : num
+}
+
+/** 在途检查请求（单飞）：并发调用共用同一次请求 */
+let _checkInFlight: Promise<AppVersionInfo> | null = null
+
+/** 检查最新版本；后端不可达 / 数据不完整时回退当前版本，不误报更新。 */
 export async function checkUpdateRemote(): Promise<AppVersionInfo> {
+  // 连点「检查更新」时复用同一次在途请求，不重复打后端
+  const pending = _checkInFlight
+  if (pending != null) return await pending
+  const started = doCheckUpdate()
+  _checkInFlight = started
+  try {
+    return await started
+  } finally {
+    _checkInFlight = null
+  }
+}
+
+/** 平台串（uni.getSystemInfoSync().platform）；取不到返回空串，交由 normalizePlatform 归类 other */
+function currentPlatform(): string {
+  try {
+    const value = uni.getSystemInfoSync().platform
+    return value == null ? '' : value as string
+  } catch (e) {
+    return ''
+  }
+}
+
+async function doCheckUpdate(): Promise<AppVersionInfo> {
   const info = new AppVersionInfo()
+  info.latestVersion = APP_VERSION
+  info.latestVersionCode = APP_VERSION_CODE
+  // 总开关关闭：不发请求，直接当作「已是最新」，避免故障期反复超时
+  if (!UPDATE_ENABLED) return info
   try {
     const response = await apiGet('/api/v1/app/version')
     const data = response.data != null ? response.data as UTSJSONObject : null
-    if (data != null) {
-      info.latestVersion = data['latestVersion'] != null ? data['latestVersion'] as string : APP_VERSION
-      info.hasUpdate = data['hasUpdate'] == true
-      info.updateUrl = data['updateUrl'] != null ? data['updateUrl'] as string : ''
-      info.releaseNote = data['releaseNote'] != null ? data['releaseNote'] as string : ''
-      return info
+    if (data == null) { info.requestFailed = true; return info }
+    const latest = readString(data, 'latestVersion')
+    // 服务端没给出可用版本号 → 保持「已是最新」，绝不误报
+    if (latest == '') return info
+    info.latestVersion = latest
+    info.latestVersionCode = readNumber(data, 'latestVersionCode')
+    info.minVersionCode = readNumber(data, 'minVersionCode')
+    info.releaseNote = readString(data, 'releaseNote')
+    info.publishedAt = readString(data, 'publishedAt')
+    // 本地比较：信版本号，不信服务端布尔
+    info.hasUpdate = compareVersion(latest, APP_VERSION) > 0
+    if (UPDATE_FORCE_ENABLED) {
+      if (info.minVersionCode > 0) info.forceUpdate = APP_VERSION_CODE < info.minVersionCode
+      else {
+        const minVersion = readString(data, 'minVersion')
+        if (minVersion != '') info.forceUpdate = compareVersion(minVersion, APP_VERSION) > 0
+      }
     }
-  } catch (e) {}
-  info.latestVersion = APP_VERSION
-  return info
+    if (info.forceUpdate) info.hasUpdate = true
+    // 下载地址：服务端优先，空则用前端平台配置兜底
+    info.updateUrl = resolveUpdateUrl(readString(data, 'updateUrl'), currentPlatform())
+    return info
+  } catch (e) {
+    // 网络/服务失败：标记失败原因，让页面能说清是「检查失败」而不是「已是最新」
+    info.requestFailed = true
+    return info
+  }
 }

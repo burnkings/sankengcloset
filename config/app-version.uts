@@ -1,6 +1,16 @@
-/** app-version — 应用版本常量（唯一来源，about/profile 页共用） */
+/**
+ * app-version — 应用版本常量（检查更新比较 + 关于页展示共用的唯一来源）
+ *
+ * ⚠️ APP_VERSION / APP_VERSION_CODE 必须与 manifest.json 的 versionName / versionCode 一致：
+ * 两处漂移会让「检查更新」把当前版本比小，从而对已是最新的用户误报「发现新版本」。
+ * 该一致性由单元测试强制校验（tests/app-update.test.cjs 的「版本常量与 manifest.json 一致」用例），
+ * 发版时改 manifest.json 后同步改这里即可，不一致时 `npm run verify` 直接 FAIL。
+ */
 
 export const APP_NAME = '三坑绮橱'
-export const APP_VERSION = 'V2.5.0-beta.2'
+/** 与 manifest.json versionName 对齐 */
+export const APP_VERSION = 'V2.5.0-beta.4'
+/** 与 manifest.json versionCode 对齐（服务端 minVersionCode 用它做强制更新判断） */
+export const APP_VERSION_CODE = 25004
 // 构建标识保留给更新比较；界面仅展示产品版本。
 export const APP_DISPLAY_VERSION = APP_VERSION.split('-')[0]

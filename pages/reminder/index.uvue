@@ -178,12 +178,12 @@ const summaryItems = computed(() => [
 const groupHeader = { paddingTop: '24rpx', paddingBottom: '12rpx' }
 const groupHeaderText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.textTertiary }))
 
-const typeColors = computed((): any => isDark.value ? TYPE_COLORS_DARK : TYPE_COLORS)
+const typeColors = computed((): any => isDark() ? TYPE_COLORS_DARK : TYPE_COLORS)
 
 // V3 §6.22 列表按日期分组，左侧时间/状态点轻时间轴；完成提供撤销
 function itemCard(item: ReminderDisplayModel): any {
   // 已完成卡：深色下用 surface（干净的卡面），不再用 bgTertiary —— 后者在暖黑底上偏灰、显脏（用户反馈）
-  const doneBg = isDark.value ? n.value.surface : n.value.bgTertiary
+  const doneBg = isDark() ? n.value.surface : n.value.bgTertiary
   const bgColor = item.statusText === '已完成' ? doneBg : (typeColors.value[item.type] != null ? typeColors.value[item.type] as string : n.value.surface)
   return {
     flexDirection: 'row',

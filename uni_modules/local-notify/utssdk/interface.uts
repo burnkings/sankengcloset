@@ -1,0 +1,29 @@
+/**
+ * local-notify —— 前台系统通知栏消息（Android）对外接口声明
+ * 说明：本插件仅在 Android 平台有实现；其它平台调用方需自行做条件编译。
+ */
+
+export type LocalNotificationOptions = {
+  /**
+   * 通知标题
+   */
+  title : string
+  /**
+   * 通知内容
+   */
+  content : string
+  /**
+   * 延迟秒数；<= 0 表示立即显示（仅 App 存活期间生效）
+   * @defaultValue 0
+   */
+  delaySeconds ?: number | null
+}
+
+/** 显示一条本地通知，返回通知 id（可用于取消） */
+export type ShowLocalNotification = (options : LocalNotificationOptions) => number
+
+/** 取消指定 id 的本地通知（含尚未到点的延迟通知） */
+export type CancelLocalNotification = (id : number) => void
+
+/** 取消本插件发出的全部本地通知 */
+export type CancelAllLocalNotifications = () => void

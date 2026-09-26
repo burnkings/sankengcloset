@@ -1,0 +1,148 @@
+/**
+ * size-option — 把采集到的「合并尺码」拆成可展示的单个尺码。
+ *
+ * 背景（2026-09-27 用户第 9 条）：
+ *   淘宝 sku 的 `sizeName` 常常是**一条记录承载多个码**，采集下来就是
+ *   `"S\nM\nL\nXL"`（366 条）、`"S\nM\nL"`（99 条）、`"XS\nS\nM\nL"`。
+ *   详情页原来把这个字符串原样当成一个 chip，于是**一个标签里 M 和 L 上下堆着显示**。
+ *   另外 `sizeName` 里还混进了非尺码内容（「定金须先确认收货」「下单备注」「软妹风」
+ *   「XS选购热点洛丽塔」），以及「码」后缀与「【65-80斤】」这类体重区间。
+ *
+ * 处理：按分隔符拆开 → 去括号内容与「码」后缀 → **白名单校验**（不是真尺码就丢）→
+ *       去重 → 按 XXS/XS/S/M/L/XL/2XL…/均码 规范排序。
+ *
+ * 为什么敢用白名单严格过滤：详情页的尺码只做**展示**（没有选择态、不影响下单），
+ * 所以宁缺毋滥 —— 用户看到的应该是尺码，而不是「定金须先确认收货」。
+ *
+ * ⚠️ 这里刻意不用正则 split：UTS 各端对 `split(RegExp)` / `replace(带 g 的正则)` 支持不一致，
+ *    改用逐字符扫描，行为确定。
+ */
+
+/** 分隔符：换行 + 各种斜杠/竖线/顿号/逗号/分号 */
+const SIZE_SEP = '\n\r/|｜\\,，、;；～~'
+
+/** 字母码展示顺序（数字码与均码类排在后面） */
+const SIZE_ORDER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL',
+                    '2XL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL', '9XL']
+
+/** 逐字符切分（不用正则，避开 UTS 各端差异） */
+function splitBySeparators(raw: string): string[] {
+  const parts: string[] = []
+  let buf = ''
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw.charAt(i)
+    if (SIZE_SEP.indexOf(ch) >= 0) {
+      parts.push(buf)
+      buf = ''
+    } else {
+      buf += ch
+    }
+  }
+  parts.push(buf)
+  return parts
+}
+
+/** 去掉成对括号及其内容：「均码【通用】」→「均码」、「S(60-90斤)」→「S」 */
+function stripBrackets(s: string): string {
+  let out = ''
+  let depth = 0
+  for (let i = 0; i < s.length; i++) {
+    const ch = s.charAt(i)
+    if (ch == '（' || ch == '(' || ch == '【' || ch == '[' || ch == '{') { depth += 1; continue }
+    if (ch == '）' || ch == ')' || ch == '】' || ch == ']' || ch == '}') { if (depth > 0) depth -= 1; continue }
+    if (depth == 0) out += ch
+  }
+  return out
+}
+
+function isAlphaSize(up: string): boolean {
+  if (up == 'XXS' || up == 'XS' || up == 'S' || up == 'M' || up == 'L'
+      || up == 'XL' || up == 'XXL' || up == 'XXXL') return true
+  // 2XL ~ 9XL
+  if (up.length == 3 && up.charAt(1) == 'X' && up.charAt(2) == 'L') {
+    const d = up.charAt(0)
+    return d >= '2' && d <= '9'
+  }
+  return false
+}
+
+/** 数字码：35/36/37… 或 90/100/110（童装与身高码） */
+function isNumericSize(s: string): boolean {
+  if (s.length < 2 || s.length > 3) return false
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charAt(i)
+    if (c < '0' || c > '9') return false
+  }
+  return true
+}
+
+function isFreeSize(up: string): boolean {
+  if (up == '均码' || up == '通码' || up == '均码通用' || up == '小物均码' || up == '均码二件套') return true
+  if (up == 'F' || up == 'FREE' || up == 'ONESIZE' || up == 'ONE SIZE') return true
+  if (up == '小码' || up == '中码' || up == '大码' || up == '加大码' || up == '加小码') return true
+  return false
+}
+
+function isSizeLike(s: string): boolean {
+  const up = s.toUpperCase()
+  return isAlphaSize(up) || isNumericSize(s) || isFreeSize(up)
+}
+
+/** 取开头的 ASCII 尺码记号（≤3 位）：把「S送发箍送徽章」「XS选购热点」里的 S / XS 捞出来 */
+function leadingSizeToken(s: string): string {
+  let head = ''
+  for (let i = 0; i < s.length && i < 3; i++) {
+    const ch = s.charAt(i)
+    const isUp = ch >= 'A' && ch <= 'Z'
+    const isLow = ch >= 'a' && ch <= 'z'
+    const isDig = ch >= '0' && ch <= '9'
+    if (isUp || isLow || isDig) head += ch
+    else break
+  }
+  return head
+}
+
+function sizeRank(s: string): number {
+  const up = s.toUpperCase()
+  const i = SIZE_ORDER.indexOf(up)
+  if (i >= 0) return i
+  if (isNumericSize(s)) return 20          // 数字码排在字母码之后
+  return 30                                // 均码类垫底
+}
+
+/**
+ * @param rawSizes 变体的 sizeName 原始值（可能含换行/斜杠，可能含非尺码噪声）
+ * @returns 去重、排序后的尺码列表；没有真尺码时返回空数组
+ */
+export function splitSizeOptions(rawSizes: string[]): string[] {
+  const seen: string[] = []
+  for (let i = 0; i < rawSizes.length; i++) {
+    const raw = rawSizes[i]
+    if (raw == '') continue
+    const parts = splitBySeparators(raw)
+    for (let j = 0; j < parts.length; j++) {
+      let s = stripBrackets(parts[j]).trim()
+      // 去掉「码」后缀，但**只在剥完还是有效尺码时**才剥 ——
+      // 否则「均码」会被削成「均」、「小码」削成「小」，直接被白名单丢掉（实测 52 条「均码」中招）。
+      if (s.length > 1 && s.endsWith('码')) {
+        const head = s.substring(0, s.length - 1).trim()
+        if (isAlphaSize(head.toUpperCase()) || isNumericSize(head)) s = head
+      }
+      if (s == '') continue
+      if (!isSizeLike(s)) {
+        // 兜底：从「S送发箍送徽章」这类脏值里取开头的尺码记号
+        const head = leadingSizeToken(s)
+        if (head != '' && isSizeLike(head)) s = head
+      }
+      if (!isSizeLike(s)) continue
+      if (seen.indexOf(s) < 0) seen.push(s)
+    }
+  }
+  const sorted: string[] = []
+  for (let rank = 0; rank <= 30; rank++) {
+    for (let i = 0; i < seen.length; i++) {
+      if (sizeRank(seen[i]) == rank) sorted.push(seen[i])
+    }
+  }
+  return sorted
+}

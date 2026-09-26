@@ -96,6 +96,7 @@ function channelCode(channel: string): string {
 function categoryCode(category: string): string {
   if (category == 'Lolita') return 'LOLITA'
   if (category == '汉服') return 'HANFU'
+  if (category == '混搭') return 'MIXED'
   return category == '全部' ? '' : category
 }
 

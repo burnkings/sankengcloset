@@ -1,0 +1,33 @@
+/**
+ * wechat — 微信登录 · 前端配置
+ *
+ * ⚠️ 这里只允许出现 **AppID**，绝不能出现 **AppSecret**。
+ *    AppSecret 是服务端密钥：写进小程序包 / APK 等于公开（两者都能被反编译提取），
+ *    微信也明令禁止在客户端保存 AppSecret —— 泄露会被平台处罚并可能导致小程序被封禁。
+ *    code2Session（code → openid/session_key）必须在 api.sankengcloset.icu 上完成，
+ *    契约与 env 变量名见 docs/architecture/V2.5-WECHAT-LOGIN-CONTRACT.md。
+ *
+ * 能力边界（2026-09-25 实测）：
+ *  - 小程序端（MP-WEIXIN）：走 wx.login（uni.login）拿 code，凭据齐全，后端实现即可通。
+ *  - App 端（Android / iOS）：需要「微信开放平台 · 移动应用」的 AppID，**与小程序 AppID 不是同一套**，
+ *    且要登记包名 + 应用签名。未配置前 App 端微信登录不可用，登录入口会明确提示而不是静默失败。
+ */
+
+/** 小程序 AppID（与 manifest.json 的 mp-weixin.appid 必须一致，由单测守护） */
+export const WECHAT_MP_APPID = 'wx976f673896c8b565'
+
+/** 小程序端微信登录开关（后端 /api/v1/sessions/wechat 就绪后置 true 才有意义） */
+export const WECHAT_MP_LOGIN_ENABLED = true
+
+/**
+ * App 端微信登录是否已在 manifest.json 里配好
+ * （app-plus.distribute.sdkConfigs.oauth.weixin 的 appid/appsecret + 开放平台登记的包名与签名）。
+ * 仍未配置 → App 端走「微信登录」时直接给明确提示，不让用户对着一个必然失败的按钮点。
+ */
+export const WECHAT_APP_LOGIN_CONFIGURED = false
+
+/** 平台归一：判断当前是否小程序端（与 config/app-update.uts 的 normalizePlatform 同风格） */
+export function isMiniProgramPlatform(platform: string): boolean {
+  const value = platform.toLowerCase()
+  return value.indexOf('mp-') >= 0 || value.indexOf('mini') >= 0
+}

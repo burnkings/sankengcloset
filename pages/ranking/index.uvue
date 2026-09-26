@@ -68,7 +68,7 @@ const activeTabCode = computed((): string => {
   return RANKING_TAB_HOT
 })
 
-const categories = ['全部', 'JK', 'Lolita', '汉服']
+const categories = ['全部', 'JK', 'Lolita', '汉服', '混搭']
 
 function onTabChange(tab: string) {
   activeTab.value = tab

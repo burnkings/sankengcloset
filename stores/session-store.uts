@@ -2,7 +2,8 @@ import { reloadFavorite, refreshRemoteFavorites } from '@/stores/favorite-store'
 /** V2.6 会话 Store：内测阶段默认使用本机 Mock 会话，保留正式微信登录实现。 */
 import { reactive } from 'vue'
 import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
-import { apiPost, apiGet, apiGetAuthorized } from '@/services/platform/api-client'
+import { WECHAT_MP_LOGIN_ENABLED, WECHAT_APP_LOGIN_CONFIGURED } from '@/config/wechat'
+import { apiPost, apiGet, apiGetAuthorized, apiErrorStatus } from '@/services/platform/api-client'
 import { flushLocalOperations } from '@/services/sync/local-sync-queue'
 import { bumpFetchSeq as bumpWardrobeFetch } from '@/stores/wardrobe-store'
 import { bumpFetchSeq as bumpPurchaseFetch } from '@/stores/purchase-store'
@@ -102,9 +103,35 @@ async function loginMock(): Promise<boolean> {
 }
 
 /**
+ * 当前平台能否走微信登录。
+ * - 小程序端：凭据齐全（AppID 在 manifest.json mp-weixin.appid），后端就绪即可用。
+ * - App 端：需要微信开放平台「移动应用」的 AppID/AppSecret 与包名+签名登记，
+ *   与小程序 AppID 不是同一套；未配置前直接给出明确提示，不让用户对必然失败的按钮白点。
+ */
+function wechatLoginSupported(): boolean {
+  let supported = WECHAT_APP_LOGIN_CONFIGURED
+  // #ifdef MP-WEIXIN
+  supported = WECHAT_MP_LOGIN_ENABLED
+  // #endif
+  return supported
+}
+
+/** 把后端/网络的失败翻译成用户能照做的提示（不暴露 HTTP 细节） */
+function wechatLoginErrorMessage(error: any, statusCode: number): string {
+  if (statusCode == 404) return '微信登录服务尚未上线，请稍后再试'
+  if (statusCode == 400) return '微信登录参数有误，请更新到最新版本后重试'
+  if (statusCode == 401 || statusCode == 403) return '微信授权已失效，请重新点击登录'
+  if (statusCode >= 500) return '登录服务暂时不可用，请稍后重试'
+  if (statusCode == 0) return '网络连接失败，请检查网络后重试'
+  const message = error instanceof Error ? error.message : ''
+  return message != '' ? message : '微信登录失败，请重试'
+}
+
+/**
  * 微信登录流程：
- * 1. uni.login 获取微信临时 code
- * 2. POST /api/v1/sessions/wechat { code, deviceId }
+ * 1. uni.login 获取微信临时 code（小程序端即 wx.login，code 有效期 5 分钟）
+ * 2. POST /api/v1/sessions/wechat { code, deviceId } —— code2Session 在服务端完成，
+ *    AppSecret 只存在于后端环境变量，绝不下发到客户端
  * 3. 保存 accessToken / refreshToken
  * 4. GET /api/v1/me 恢复用户会话信息
  *
@@ -115,6 +142,9 @@ async function loginWithWechat(): Promise<boolean> {
   _state.loggingIn = true
   _state.errorMessage = ''
   try {
+    if (!wechatLoginSupported()) {
+      throw new Error('App 端微信登录尚未配置（需微信开放平台移动应用 AppID），可先用「仅在本机使用」')
+    }
     // 1. 获取微信授权 code
     const loginResult = await new Promise<LoginSuccess>((resolve, reject) => {
       uni.login({
@@ -124,7 +154,7 @@ async function loginWithWechat(): Promise<boolean> {
       })
     })
     const code: string = loginResult.code != null ? loginResult.code : ''
-    if (code === '') throw new Error('微信授权未返回临时 code')
+    if (code === '') throw new Error('微信授权未返回临时 code，请重试')
 
     // 2. 获取设备标识
     let deviceId = ''
@@ -159,9 +189,8 @@ async function loginWithWechat(): Promise<boolean> {
     flushLocalOperations().then(() => refreshRemoteFavorites()).catch(() => { /* 队列保留，网络恢复后再同步 */ })
     return true
   } catch (e) {
-    const message = e instanceof Error ? e.message : '登录失败，请重试'
-    _state.errorMessage = message
-    // 显式抛出异常，调用方根据 errorMessage 展示错误状态与重试按钮
+    _state.errorMessage = wechatLoginErrorMessage(e, apiErrorStatus(e))
+    // 显式返回 false，调用方根据 errorMessage 展示错误状态与重试按钮
     return false
   } finally {
     _state.loggingIn = false
@@ -214,6 +243,8 @@ class SessionStoreHandle {
   get isMock(): boolean { return isMock() }
   get loggingIn(): boolean { return _state.loggingIn }
   get errorMessage(): string { return _state.errorMessage }
+  /** 当前平台是否具备微信登录条件（App 端需开放平台移动应用凭据，未配置即 false） */
+  get canWechatLogin(): boolean { return wechatLoginSupported() }
   reload(): void { reload() }
   loginWithWechat(): Promise<boolean> { return loginWithWechat() }
   loginMock(): Promise<boolean> { return loginMock() }

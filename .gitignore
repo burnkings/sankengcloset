@@ -35,6 +35,8 @@ desktop.ini
 *.pem
 *.p12
 *.keystore
+*.keystore.bak
+*.keystore.info.txt
 *.jks
 .env
 .env.*
@@ -46,3 +48,12 @@ desktop.ini
 
 # ====== Agent 工作数据（本地记忆/计划，不进仓库）======
 .workbuddy/
+
+# ====== 数据采集脚本与运行产物（体积大，不进仓库）======
+#   仓库只承载 App（uni-app x）源码与文档。
+#   下面这些是淘宝数据采集链路，本地体积 2.5 GB，含 Chrome 登录态与采集原始数据。
+_archive-2026-09-26/
+scripts/_chromeprof/
+scripts/gui-automation/
+scripts/product-enrich/
+scripts/taobao-backfill/

@@ -6,7 +6,7 @@
  * 颜色值引用 theme tokens，不硬编码
  */
 
-import { brand, accent, semantic, jkColors, lolitaColors, hanfuColors } from '@/theme/tokens/colors'
+import { brand, accent, semantic, jkColors, lolitaColors, hanfuColors, mixedColors } from '@/theme/tokens/colors'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { formatPriceCents } from '@/utils/format'
 
@@ -90,6 +90,11 @@ export function deriveReleaseStatusText(release: ReleaseEvent | null): string {
   if (release == null) return ''
   const t = release.releaseType
   const sale = release.saleStatus
+  // ⚠️ 「售罄 / 已结束」必须先判：`saleStatus` 比 `releaseType` 更具体。
+  //    否则 `spot + SOLD_OUT` 会先命中 `t === 'spot'` 显示成「现货」，
+  //    把已经卖完的商品说成有货（数据里实测 14 条 spot/first_release + SOLD_OUT 中招）。
+  if (sale === 'SOLD_OUT') return '售罄'
+  if (sale === 'ENDED') return '已结束'
   // 尾款期：有尾款金额且尾款截止时间在未来
   if (release.finalPaymentAmount > 0 && release.balanceDueAt !== '') {
     const due = new Date(release.balanceDueAt).getTime()
@@ -104,8 +109,6 @@ export function deriveReleaseStatusText(release: ReleaseEvent | null): string {
   if (sale === 'ON_SALE') return '开售'
   if (sale === 'PRE_ORDER') return '预售'
   if (sale === 'UPCOMING') return '预告'
-  if (sale === 'SOLD_OUT') return '售罄'
-  if (sale === 'ENDED') return '已结束'
   return ''
 }
 
@@ -134,11 +137,12 @@ export const PRICE_TYPE_BALANCE = 'BALANCE'
 export const PRICE_TYPE_INTENTION = 'INTENTION'
 export const PRICE_TYPE_UNKNOWN = 'UNKNOWN'
 
-/** 坑向展示名（三坑类型：JK/LOLITA/HANFU/OTHER） */
+/** 坑向展示名（JK/LOLITA/HANFU/MIXED/OTHER；MIXED=汉洋折衷混搭） */
 export function getPitTypeLabel(pitType: string): string {
   if (pitType === 'JK') return 'JK'
   if (pitType === 'LOLITA') return 'Lolita'
   if (pitType === 'HANFU') return '汉服'
+  if (pitType === 'MIXED') return '混搭'
   if (pitType === 'OTHER') return '其他'
   return pitType
 }
@@ -268,6 +272,7 @@ export function getCategoryPlaceholderBg(category: string): string {
   if (category === 'JK') return jkColors.bg
   if (category === 'LOLITA') return lolitaColors.bg
   if (category === 'HANFU') return hanfuColors.bg
+  if (category === 'MIXED') return mixedColors.bg
   return '#FFF8E1'
 }
 
@@ -276,5 +281,6 @@ export function getCategoryAccent(category: string): string {
   if (category === 'JK') return jkColors.primary
   if (category === 'LOLITA') return lolitaColors.primary
   if (category === 'HANFU') return hanfuColors.primary
+  if (category === 'MIXED') return mixedColors.primary
   return brand[500]
 }

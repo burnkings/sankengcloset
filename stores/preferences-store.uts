@@ -38,15 +38,20 @@ function readPreferences(): PreferencesData {
           target = 'Lolita'
         } else if (v === 'HANFU') {
           target = '汉服'
+        } else if (v === 'MIXED') {
+          target = '混搭'
         }
         // 去重：老版本 toggle 可能产生重复条目（如 'LOLITA' 与 'Lolita' 并存），迁移后需收敛
         if (normalized.indexOf(target) === -1) normalized.push(target)
       }
-      // 旧存量恰好同时包含 JK/Lolita/汉服 → 视为「全部」，转换为空数组
+      // 旧存量恰好把可见的四类坑向全选中 → 视为「全部」，转换为空数组
+      // （必须把「混搭」也算进来：它是与 JK/Lolita/汉服 同级的一级大类，
+      //   漏掉会让「四项全选」被当成「只选了前三项」，首页推荐少掉混搭内容）
       const hasJK = normalized.indexOf('JK') >= 0
       const hasLolita = normalized.indexOf('Lolita') >= 0
       const hasHanfu = normalized.indexOf('汉服') >= 0
-      if (hasJK && hasLolita && hasHanfu) {
+      const hasMixed = normalized.indexOf('混搭') >= 0
+      if (hasJK && hasLolita && hasHanfu && hasMixed) {
         data.pitTypes = [] as string[]
       } else {
         data.pitTypes = normalized
@@ -100,6 +105,7 @@ function loadPreferences() {
 function toRemotePitType(value: string): string {
   if (value == 'Lolita') return 'LOLITA'
   if (value == '汉服') return 'HANFU'
+  if (value == '混搭') return 'MIXED'
   return value
 }
 

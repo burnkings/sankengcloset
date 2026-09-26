@@ -105,6 +105,7 @@ export function findMockProduct(id: string): MockCatalogProduct | null {
 function categoryLabel(code: string): string {
   if (code == 'LOLITA') return 'Lolita'
   if (code == 'HANFU') return '汉服'
+  if (code == 'MIXED') return '混搭'
   return code
 }
 

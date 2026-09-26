@@ -34,7 +34,7 @@ import { showFeedback } from '@/utils/feedback'
 import { usePreferencesStore } from '@/stores/preferences-store'
 
 const prefs = usePreferencesStore()
-const pitItems = ['JK', 'Lolita', '汉服']
+const pitItems = ['JK', 'Lolita', '汉服', '混搭']
 class PriceOption { label: string = ''; value: string = '' }
 function priceOption(label: string, value: string): PriceOption { const item = new PriceOption(); item.label = label; item.value = value; return item }
 const priceItems = [priceOption('不限', 'all'), priceOption('¥300 内', '0-300'), priceOption('¥300–600', '300-600'), priceOption('¥600+', '600+')]

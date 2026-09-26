@@ -1,10 +1,12 @@
 // #ifdef APP-ANDROID
 import { requestNotificationPermission } from '@/uni_modules/reminder-permission'
+import { showLocalNotification } from '@/uni_modules/local-notify'
 // #endif
 /**
- * notify — 本地通知栏消息（uni-push 本地能力）
- * 不依赖服务器推送；仅用于「到点提醒」类本地通知。
- * 注意：完整可靠的通知需要打包 push 模块（自定义基座）；标准基座可体验本地通知。
+ * notify — 本地通知栏消息
+ * 说明：Android 走自研 UTS 插件 `local-notify`（前台生效，不依赖 uni-push）；
+ *       其它平台降级为应用内 Toast 提示。
+ * 注意：自研 UTS 插件需自定义基座才能在真机生效，标准基座下会走降级提示。
  */
 
 export function notificationAuthorized(): boolean {
@@ -37,40 +39,33 @@ function targetTimestamp(dateStr: string, timeStr: string): number {
 
 /**
  * 调度一条本地通知：在 remindDate + remindTime 时刻弹出。
- * 未授权通知权限或目标时刻已过则跳过。应用被杀后依赖厂商推送通道，标准基座可能不可靠。
+ * 未授权通知权限或目标时刻已过则静默跳过（权限流程由页面在保存前处理）。
  * key 用于去重：同一 key 在 60s 内仅调度一次，避免提醒编辑/联动反复叠加相同通知。
  */
 const lastScheduled = {} as UTSJSONObject
 export function scheduleReminderNotification(title: string, content: string, remindDate: string, remindTime: string, key: string = ''): void {
   if (title === '' || remindDate === '') return
-  if (!notificationAuthorized()) { uni.showToast({ title: '提醒已保存，请在系统设置开启通知权限', icon: 'none' }); return }
+  if (!notificationAuthorized()) return
   const when = targetTimestamp(remindDate, remindTime)
   if (when <= 0) return
   const now = Date.now()
   if (when <= now) return
   const delay = Math.floor((when - now) / 1000)
   if (delay <= 0) return
-  if (delay > 14 * 86400) { uni.showToast({ title: '提醒已保存，超出本地通知调度范围', icon: 'none' }); return }
   // 同 key 60s 内去重（平台无取消/去重接口，仅能避免重复调度）
   if (key !== '') {
     const prev = lastScheduled[key] != null ? lastScheduled[key] as number : 0
     if (now - prev < 60000) return
-
   }
+  // #ifdef APP-ANDROID
   try {
-    uni.createPushMessage({
-      title: title,
-      content: content,
-      delay: delay,
-      sound: 'system',
-      payload: key !== '' ? { key, reminderId: key } as UTSJSONObject : { title: title } as UTSJSONObject,
-      success: () => { if (key !== '') lastScheduled[key] = now },
-      fail: () => { uni.showToast({ title: '提醒已保存，系统通知未设置成功', icon: 'none' }) },
-    })
-  } catch (e) { uni.showToast({ title: '提醒已保存，当前环境不支持系统通知', icon: 'none' }) }
+    showLocalNotification({ title: title, content: content, delaySeconds: delay })
+    if (key !== '') lastScheduled[key] = now
+  } catch (e) {
+    // 标准基座不含该插件：静默跳过，避免多余浮层
+  }
+  // #endif
 }
-
-
 
 // Called by an explicit save action; no calendar access because no calendar event is written.
 export async function ensureReminderNotificationPermission(): Promise<boolean> {

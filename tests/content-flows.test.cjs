@@ -30,7 +30,8 @@ function harness() {
     '@/stores/preferences-store':{usePreferencesStore:()=>({preferences:{pitTypes:[],followedBrands:[],priceRange:''}})},
     '@/stores/blacklist-store':{useBlacklistStore:()=>({brands:[],isBlacklisted:()=>false})},
     '@/utils/format':{formatPriceCents:String,formatRelativeTime:String,formatDeadline:String},
-    '@/services/mock/mock-catalog':{filterMockFeed:()=>[{id:'demo',category:'JK'}],listMockRanking:()=>[{entityId:'demo'}]},
+    // 注意：不要给 '@/services/mock/mock-catalog' 打桩 —— 它只依赖 domain 类型，可直接执行；
+    // 打桩后每加一个导出（listMockProducts / mockDateAfter …）都会让这里过期并误判为失败。
   }
   const context=vm.createContext({console,Map,Set,Date,Math,JSON:Object.assign(Object.create(JSON),{parseArray:JSON.parse}),Error,Promise,uni:{getStorageSync:k=>storage.get(k)??'',setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),getNetworkType:o=>o.success({networkType:'wifi'})}})
   function load(id) {
@@ -99,15 +100,26 @@ test('detail transport failure does not mark favorite safe to delete',async()=>{
  const h=harness(),f=h.favorites();f.toggleFavorite('A');await f.refreshFavorites()
  assert.equal(f.favoriteState.invalidFavoriteIds.length,0);assert.match(f.favoriteState.favoritesError,/重试/)
 })
-test('real feed empty remains empty, failure rejects, demo never calls network',async()=>{
- const h=harness(),s=h.load('@/services/content/feed-service');assert.equal((await s.fetchFeedPage('')).items.length,0)
+// 2026-09-24 决策：内测期推荐首页固定前置 2 条「展示样例」商品（SHOW_COMPARISON_PRODUCTS）是正常现象，
+// 因此「real feed empty remains empty」的旧契约作废；同时 feed-service 的 mock 回退早已注释掉
+// （产品要求：远端失败必须真实失败，禁止伪造商品），所以 demo 分支不再断言。
+test('推荐首页前置 2 条展示样例、非首页不前置、远端失败直接 reject',async()=>{
+ const h=harness(),s=h.load('@/services/content/feed-service')
+ h.response={data:[{id:'A',entityId:'A',title:'远端商品A'}]}
+ const first=await s.fetchFeedPage('')
+ assert.equal(first.items.length,3)
+ assert.equal(first.items[0].sourceLabel,'展示样例')
+ assert.equal(first.items[2].title,'远端商品A')
+ const rest=await s.fetchFeedPage('cursor')
+ assert.equal(rest.items.length,1);assert.equal(rest.items[0].title,'远端商品A')
  h.fail=true;await assert.rejects(s.fetchFeedPage(''));await assert.rejects(s.fetchFeedPage('cursor'))
- h.demo();const count=h.requests.length;assert.equal((await s.fetchFeedPage('')).items[0].id,'demo');assert.equal(h.requests.length,count)
 })
 test('ranking uses independent favorite endpoint and never invents growth',async()=>{
  const h=harness(),s=h.load('@/services/content/ranking-service');h.response={data:[{entityId:'A',favoriteCount:99}]}
  const rows=await s.fetchRankingRemote('favorite');assert.equal(h.requests[0],'/api/v1/ranking?tab=favorite');assert.equal(rows[0].favoriteGrowth,0)
- h.fail=true;await assert.rejects(s.fetchRankingRemote('favorite'))
+ // TTL 内（60s）二次调用命中缓存、不发请求，因此不会 reject；绕过缓存才应把网络错误抛出来
+ assert.equal((await s.fetchRankingRemote('favorite')).length,1)
+ h.fail=true;await assert.rejects(s.fetchRankingRemote('favorite',true))
 })
 test('home pagination failure preserves cursor/items and retry fetches same page',async()=>{
  const h=harness();h.response={data:[{id:'A',entityId:'A'}],page:{nextCursor:'page2',hasMore:true}}
@@ -134,7 +146,8 @@ test('late pagination error cannot overwrite a refreshed channel',async()=>{
  const s=h.load('@/stores/home-feed-store').useHomeFeedStore();await s.loadFirstPage()
  const g=deferred();h.get=p=>p.includes('cursor=old')?g.promise:Promise.resolve({data:[{id:'new'}],page:{hasMore:false}})
  const old=s.loadMore();await s.loadFirstPage();g.reject(Error('old error'));await old
- assert.equal(s.errorMessage,'');assert.equal(s.allItems[0].id,'new');assert.equal(s.isLoadingMore,false)
+ // 首页会前置 2 条展示样例，因此不能再用 allItems[0] 断言刷新结果；改为断言「刷新后的数据在、旧错误没覆盖」
+ assert.equal(s.errorMessage,'');assert.ok(s.allItems.some((i)=>i.id==='new'));assert.equal(s.isLoadingMore,false)
 })
 
 

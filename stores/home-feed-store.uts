@@ -116,6 +116,7 @@ function pitTypesToCategories(): string {
     const t = types[i]
     if (t == 'Lolita') codes.push('LOLITA')
     else if (t == '汉服') codes.push('HANFU')
+    else if (t == '混搭') codes.push('MIXED')
     else codes.push(t)
   }
   return codes.join(',')

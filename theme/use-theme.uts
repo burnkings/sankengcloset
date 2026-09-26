@@ -285,13 +285,19 @@ export function toggleDarkMode(): boolean {
   return _state.isDark as boolean
 }
 
-export function useTheme() {
+/**
+ * useTheme 的返回载体：必须是 **class getter**（与 stores/*-store.uts 的 XxxStoreHandle 同一模式）。
+ * 禁止用对象字面量 getter —— UTS 会把它包成 UTSJSONObject 并当场求值冻结（见文件末尾说明）。
+ */
+export class ThemeUse {
+  get isDark(): boolean { return _state.isDark as boolean }
+  get themeMode(): ThemeMode { return _state.themeMode as ThemeMode }
+  get neutral(): NeutralPalette { return (_state.isDark as boolean) ? neutralDark : neutralLight }
+}
+
+export function useTheme(): ThemeUse {
   syncFromGlobal()
-  return {
-    get isDark(): boolean { return _state.isDark as boolean },
-    get themeMode(): ThemeMode { return _state.themeMode as ThemeMode },
-    get neutral(): NeutralPalette { return (_state.isDark as boolean) ? neutralDark : neutralLight },
-  }
+  return new ThemeUse()
 }
 
 export function getThemeLabel(): string {
@@ -301,7 +307,21 @@ export function getThemeLabel(): string {
   return '浅色'
 }
 
-/** Vapor 兼容：n 直接指向单一 reactive（n.value = _state.value 响应）；isDark/themeMode 用 getter 读 _state 字段 */
+/**
+ * Vapor 兼容：n 直接指向单一 reactive（n.value = _state.value 响应）。
+ *
+ * ⚠️ 2026-09-24 修复（深色模式「白卡片」根因）：
+ * isDark / themeMode 曾导出为对象字面量 getter —— `{ get value() { return _state.isDark } }`。
+ * UTS 会把对象字面量编译成 `new UTSJSONObject({ ... })`，而 UTSJSONObject 的构造函数是
+ * `for (const key in content) this[key] = content[key]`（见 unpackage/dist/dev/mp-weixin/common/vendor.js），
+ * 这会**立刻求值一次 getter**，把结果当成普通数据属性复制进去 —— getter 本身没有被保留。
+ * 于是 theme 模块加载时（_state.isDark 初始为 false）`isDark.value` 被永久冻结为 `false`：
+ * 深色模式下所有 `isDark.value ? 深色 token : 浅色 token` 永远走**浅色分支**。
+ * 表现：通知页未读卡片在深色下仍是 brand[50] 浅粉白底，标记已读后（走实时 n.value.surface）才是深色。
+ * 结论：跨模块读取响应式状态**只能**用函数或 reactive 对象本身，禁止对象字面量 getter。
+ */
 export const n = _state
-export const isDark = { get value(): boolean { return _state.isDark as boolean } }
-export const themeMode = { get value(): ThemeMode { return _state.themeMode as ThemeMode } }
+/** 当前是否深色：每次调用都真实读 _state.isDark，渲染 effect 内可正常收集依赖 */
+export function isDark(): boolean { return _state.isDark as boolean }
+/** 当前三态偏好：system / light / dark（同上，禁止改回 getter 对象） */
+export function themeMode(): ThemeMode { return _state.themeMode as ThemeMode }

@@ -29,8 +29,8 @@ const btnStyle = computed((): any => ({
   height: '96rpx',
   borderRadius: '48rpx',
   // 深色下 35% 黑圆在暖黑底上几乎不可见 → 换成实面色卡 + 发丝描边
-  backgroundColor: isDark.value ? n.value.surfaceRaised : 'rgba(0,0,0,0.35)',
-  borderWidth: isDark.value ? '1rpx' : '0rpx',
+  backgroundColor: isDark() ? n.value.surfaceRaised : 'rgba(0,0,0,0.35)',
+  borderWidth: isDark() ? '1rpx' : '0rpx',
   borderStyle: 'solid',
   borderColor: n.value.border,
   alignItems: 'center',

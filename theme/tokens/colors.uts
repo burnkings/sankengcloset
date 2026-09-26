@@ -168,10 +168,19 @@ export const hanfuColors = {
   accent: '#AA7830',
 }
 
+/** 混搭类别色（汉洋折衷：汉服 × Lolita）—— 取青玉色，与前三类拉开区分 */
+export const mixedColors = {
+  primary: '#5E8C86',
+  secondary: '#9DBDB6',
+  bg: '#ECF4F1',
+  accent: '#47706B',
+}
+
 export const categoryColors = {
   jk: jkColors,
   lolita: lolitaColors,
   hanfu: hanfuColors,
+  mixed: mixedColors,
 }
 
 /** 预算分类圆点色 — 浅/深成对照表（禁止页面硬编码 hex，否则深色模式下浅底会发光） */
@@ -179,6 +188,7 @@ export const categoryDotColors = {
   JK:     { text: '#D45F7E', bg: '#F7E7EC' },
   LOLITA: { text: '#9B6FAE', bg: '#F3F0F7' },
   HANFU:  { text: '#C4924A', bg: '#FBF2E8' },
+  MIXED:  { text: '#5E8C86', bg: '#ECF4F1' },
   OTHER:  { text: '#8A8184', bg: '#F0E6E8' },
 }
 

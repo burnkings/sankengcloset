@@ -1,0 +1,16 @@
+{
+  "id": "local-notify",
+  "displayName": "本地通知（前台，Android）",
+  "version": "1.0.0",
+  "description": "App 前台运行时发送系统通知栏消息，不依赖 uni-push",
+  "uni_modules": {
+    "dependencies": [],
+    "encrypt": []
+  },
+  "engines": {
+    "HBuilderX": "^5.21"
+  },
+  "dcloudext": {
+    "type": "uts"
+  }
+}

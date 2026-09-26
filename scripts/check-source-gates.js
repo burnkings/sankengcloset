@@ -270,3 +270,49 @@ for (const dir of ['pages', 'components']) {
 if (failed) process.exit(1)
 console.log('[PASS] uvue binding gates — template styles declared, no scroll-x/scroll-y on scroll-view, no :lines attribute / maxLines style')
 
+// ---------- 6. 响应式访问器不得用对象字面量 getter ----------
+// 背景（2026-09-24 实测）：UTS 会把对象字面量编译成 `new UTSJSONObject({...})`，而 UTSJSONObject 的
+// 构造函数是 `for (const key in content) this[key] = content[key]`（见 unpackage/dist/dev/mp-weixin/common/vendor.js），
+// 这会**立即求值一次 getter**，把结果当成普通数据属性复制进去 —— getter 本身不被保留、值被永久冻结。
+// theme/use-theme.uts 的 isDark 曾因此恒为 false（模块加载时为浅色），导致深色模式下所有
+// `isDark.value ? 深色 token : 浅色 token` 走浅色分支：通知页未读卡片在深色下仍是浅粉白底。
+// 正确写法：函数（每次调用真实读取）或 class getter（与 stores/*-store.uts 的 XxxStoreHandle 一致）。
+function objectLiteralBodies(src) {
+  const bodies = []
+  const re = /(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*\{|return\s*\{/g
+  let m
+  while ((m = re.exec(src)) !== null) {
+    const start = src.indexOf('{', m.index + m[0].length - 1)
+    if (start < 0) continue
+    let depth = 0
+    let i = start
+    while (i < src.length) {
+      const c = src[i]
+      if (c === '"' || c === "'" || c === '`') {
+        const q = c
+        i++
+        while (i < src.length && src[i] !== q) { if (src[i] === '\\') i++; i++ }
+      } else if (c === '{') depth++
+      else if (c === '}') { depth--; if (depth === 0) break }
+      i++
+    }
+    bodies.push(src.slice(start, i + 1))
+    re.lastIndex = i + 1
+  }
+  return bodies
+}
+for (const dir of srcDirs) {
+  for (const file of walk(dir)) {
+    const src = stripComments(fs.readFileSync(file, 'utf8'))
+    for (const body of objectLiteralBodies(src)) {
+      const hit = body.match(/\bget\s+[A-Za-z_$][\w$]*\s*\(/)
+      if (hit != null) {
+        fail(`${file} 用对象字面量 getter（${hit[0].trim()}) 做响应式访问器：会被 UTSJSONObject 当场求值冻结，请改用函数或 class getter`)
+      }
+    }
+  }
+}
+
+if (failed) process.exit(1)
+console.log('[PASS] reactive accessor gates — no object-literal getters (UTSJSONObject freezes them); use functions or class getters')
+

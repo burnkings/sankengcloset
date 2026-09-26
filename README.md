@@ -14,7 +14,8 @@ npm run verify:watch   # 同上，但监听文件变化自动重跑 —— 保�
 npm run verify -- --only=gates      # 只跑某一项（gates / runtime / sync / android / tests）
 ```
 
-包含：源码门禁（v2 引用禁令 / 主题响应式 / pages.json 路由与图标 / uvue 绑定规则 6 条）、
+包含：源码门禁（v2 引用禁令 / 主题响应式 / pages.json 路由与图标 / uvue 绑定规则 6 条 /
+响应式访问器：禁止对象字面量 getter，会被 UTSJSONObject 当场求值冻结）、
 运行时契约、同步一致性、Android 静态、单元测试（`tests/*.test.cjs` 自动发现，新增用例无需改脚本）。
 
 ```bash

@@ -1,7 +1,7 @@
 <template>
   <view :style="layoutStyle">
     <slot name="navbar" />
-    <scroll-view v-if="scrollable" direction="vertical" scroll-y :style="bodyStyle" :scroll-top="scrollTop" @scrolltolower="emit('scrolltolower')" @scroll="onScroll">
+    <scroll-view v-if="scrollable" direction="vertical" :style="bodyStyle" :scroll-top="scrollTop" @scrolltolower="emit('scrolltolower')" @scroll="onScroll">
       <view :style="statusSpacerStyle" />
       <view :style="navbarSpacerStyle" />
       <slot />

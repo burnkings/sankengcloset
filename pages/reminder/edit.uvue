@@ -33,7 +33,7 @@
                 <text v-if="!form.isAllDay" :style="dateTimePickerHeaderText">时</text>
                 <text v-if="!form.isAllDay" :style="dateTimePickerHeaderText">分</text>
               </view>
-              <picker-view :value="dateTimePickerValue" :style="dateTimePickerStyle" indicator-style="height: 88rpx;" @change="onDateTimePickerChange">
+              <picker-view :value="dateTimePickerValue" :style="dateTimePickerStyle" :indicator-style="pickerIndicatorStyle" @change="onDateTimePickerChange">
                 <picker-view-column>
                   <view v-for="year in pickerYears" :key="year" :style="dateTimePickerItem"><text :style="dateTimePickerText">{{ year }}</text></view>
                 </picker-view-column>
@@ -170,6 +170,7 @@ import { baseColors, semantic } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_PADDING, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
+import { upx2px } from '@/utils/window-info'
 import { ensureReminderNotificationPermission } from '@/utils/notify'
 import { showFeedback } from '@/utils/feedback'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -381,6 +382,7 @@ function getWardrobeCat(cat: string): string {
   if (cat === 'JK') return 'JK制服'
   if (cat === 'LOLITA') return 'Lolita'
   if (cat === 'HANFU') return '汉服'
+  if (cat === 'MIXED') return '混搭'
   return '其他'
 }
 
@@ -415,7 +417,7 @@ async function onSaveTap() {
   validationNow.value = Date.now()
   if (timeError.value !== '' && form.value.status === 'PENDING') { showFeedback(timeError.value); return }
   saving.value = true
-  const notificationsEnabled = await ensureReminderNotificationPermission()
+  await ensureReminderNotificationPermission()
   if (isEdit.value) {
     const data = new ReminderUpdateData()
     data.title = form.value.title.trim()
@@ -447,16 +449,10 @@ async function onSaveTap() {
     item.relatedReleaseId = relatedReleaseId.value
     if (store.addItem(item) === null) { saving.value = false; showFeedback('保存失败，请重试'); return }
   }
-  const message = notificationsEnabled ? '提醒已保存' : '提醒已保存，通知未开启'
+  // 保存成功：常规提示后返回（原「已保存提醒」弹窗内容冗长，已移除）
+  showFeedback('保存成功')
   initialFormSnapshot = { ...form.value }
-  uni.showModal({
-    title: '已保存提醒',
-    content: notificationsEnabled ? '提醒已保存。到时通知仍需系统允许应用运行。' : '提醒已保存，但通知权限未开启。请在系统设置中允许通知。',
-    showCancel: false,
-    confirmText: '知道了',
-    success: () => { uni.navigateBack({ fail: () => { saving.value = false } }) },
-    fail: () => { saving.value = false; showFeedback(message, 6000) },
-  })
+  setTimeout(() => { uni.navigateBack({ fail: () => { saving.value = false } }) }, 300)
 }
 
 function onDeleteTap() { showDeleteDialog.value = true }
@@ -548,11 +544,16 @@ const timeFieldRow = computed((): any => ({ flexDirection: 'row', alignItems: 'c
 const timeValue = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, marginRight: '8rpx' }))
 const timeFieldLabel = computed((): any => ({ fontSize: fontSize.sm, color: n.value.text, flexShrink: 0 }))
 const timeRight = { flexDirection: 'row', alignItems: 'center' }
-const dateTimePickerStyle = computed((): any => ({ width: '100%', height: '440rpx', backgroundColor: n.value.surface }))
+// picker 行高统一用 px：indicator-style 是直传给原生的 CSS 字符串，rpx 不保证被换算，
+// 只有「行高 / 文字行高 / 指示器高度」三者同单位同值，选中行才会与指示器严格对齐。
+const PICKER_ROW_PX = Math.round(upx2px(88))
+const PICKER_ROW = `${PICKER_ROW_PX}px`
+const pickerIndicatorStyle = `height: ${PICKER_ROW};`
+const dateTimePickerStyle = computed((): any => ({ width: '100%', height: `${PICKER_ROW_PX * 3}px`, backgroundColor: n.value.surface }))
 const dateTimePickerHeader = { flexDirection: 'row', alignItems: 'center', height: '56rpx' }
 const dateTimePickerHeaderText = computed((): any => ({ flex: 1, textAlign: 'center', fontSize: fontSize.xs, color: n.value.textTertiary }))
-const dateTimePickerItem = { height: '88rpx', alignItems: 'center', justifyContent: 'center' }
-const dateTimePickerText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text }))
+const dateTimePickerItem = { height: PICKER_ROW, alignItems: 'center', justifyContent: 'center' }
+const dateTimePickerText = computed((): any => ({ fontSize: fontSize.base, color: n.value.text, lineHeight: PICKER_ROW, textAlign: 'center' }))
 
 const noteShell = computed((): any => ({ minHeight: '160rpx', padding: CARD_PADDING, borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '120rpx', fontSize: fontSize.base, color: n.value.text, lineHeight: '40rpx' }))

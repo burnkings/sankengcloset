@@ -8,6 +8,9 @@
  * 后续接入分享 SDK 后，把 shareByCopy 内部替换为拉起分享面板，各调用方不用改。
  */
 import { showFeedback } from './feedback'
+// #ifdef APP
+import { openSchema, canOpenURL } from '@/uni_modules/uts-openSchema'
+// #endif
 
 /** 组装分享文案：标题必有，补充信息与链接可选 */
 export function buildShareText(title: string, detail: string = '', url: string = ''): string {
@@ -25,5 +28,35 @@ export function shareByCopy(title: string, detail: string = '', url: string = ''
     data: buildShareText(title, detail, url),
     success: () => { showFeedback('分享文案已复制，粘贴给好友吧') },
     fail: () => { showFeedback('复制失败，请重试') },
+  })
+}
+
+/**
+ * 打开外部链接（商品原店链接 / 应用更新地址）。
+ *
+ * App 端用官方 UTS 插件 uts-openSchema（替代已被移除的 plus.runtime.openURL）：
+ * 淘宝/天猫优先唤起对应 App，其余链接交给系统默认浏览器；跳转失败或非 App 平台，
+ * 降级为复制链接，保证任何环境都有可用出口。
+ */
+export function openExternalUrl(url: string) {
+  const target = url.trim()
+  if (target === '') { showFeedback('暂无可打开的链接'); return }
+  // #ifdef APP
+  try {
+    // 淘宝/天猫：先尝试 taobao:// scheme 唤起 App（需安装对应 App）
+    if (target.indexOf('taobao.com') >= 0 || target.indexOf('tmall.com') >= 0) {
+      const schemeUrl = target.replace(/^https?:\/\//, 'taobao://')
+      if (canOpenURL('taobao://')) { openSchema(schemeUrl); return }
+    }
+    // 其它链接：系统浏览器 / 已注册该 scheme 的应用
+    if (canOpenURL(target)) { openSchema(target); return }
+  } catch (e) {
+    // 标准基座不含该插件时会抛错，走下面的复制兜底
+  }
+  // #endif
+  uni.setClipboardData({
+    data: target,
+    success: () => { showFeedback('链接已复制，可在浏览器打开') },
+    fail: () => { showFeedback('链接打开失败，请重试') },
   })
 }

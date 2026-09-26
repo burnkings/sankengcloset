@@ -19,7 +19,7 @@
           <view :style="summaryWrap">
             <SummaryStrip :items="summaryItems" />
             <view :style="categoryFilterRow">
-              <view v-for="chip in categoryFilterOptions" :key="chip.value" :style="categoryFilterStyle(chip.value)" @tap="onFilter(chip.value)">
+              <view v-for="(chip, i) in categoryFilterOptions" :key="chip.value" :style="categoryFilterStyle(chip.value, i)" @tap="onFilter(chip.value)">
                 <text :style="categoryFilterLabel(chip.value)">{{ chip.value === '全部' ? chip.label : chip.label + '（' + chip.count + '）' }}</text>
               </view>
             </view>
@@ -126,7 +126,6 @@ import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
 import BackToTop from '@/components/base/BackToTop.uvue'
-import { categoryLabelToCode } from '@/utils/category'
 
 const store = useWardrobeStore()
 const searchValue = ref('')
@@ -164,9 +163,12 @@ function onEmptyAction() {
   store.setCategory('')
   store.setStatus('')
 }
-function onFilter(label: string) {
-  activeFilter.value = label
-  store.setCategory(label === '全部' ? '' : categoryLabelToCode(label))
+function onFilter(category: string) {
+  activeFilter.value = category
+  // category 现在直接就是分类码（'JK'/'LOLITA'/'HANFU'/'MIXED'），与 store 里 item.category 同一口径。
+  // 以前这里传中文 label 再用 categoryLabelToCode 转，而那个函数当时返回的还是 label，
+  // 导致任何品类 chip 都筛出 0 条。**别再改成传 label。**
+  store.setCategory(category === '全部' ? '' : category)
 }
 
 // ====== 长按多选删除（与提醒/购买记录同一套交互：长按进入选择态 → 勾选 → 底部删除 + 二次确认）======
@@ -247,7 +249,7 @@ const sortLabels = ['最近加入', '最早加入', '价格高到低', '价格�
 function showSortSheet() {
   uni.showActionSheet({ itemList: sortLabels, success: (res) => { store.setSort(sortOptions[res.tapIndex]) } })
 }
-function catLabel(c: string): string { return c === 'LOLITA' ? 'Lolita' : (c === 'HANFU' ? '汉服' : (c === 'JK' ? 'JK' : '其他')) }
+function catLabel(c: string): string { return c === 'LOLITA' ? 'Lolita' : (c === 'HANFU' ? '汉服' : (c === 'MIXED' ? '混搭' : (c === 'JK' ? 'JK' : '其他'))) }
 function wearLabel(s: string): string { return s === 'UNWORN' ? '未穿' : (s === 'WORN' ? '已穿' : '常穿') }
 function wearStatusClass(s: string): string {
   if (s === 'WORN') return 'positive'
@@ -303,17 +305,25 @@ const categoryFilterOptions = computed((): CategoryFilterOption[] => {
   const counts = store.categoryCounts
   const list: CategoryFilterOption[] = []
   const all = new CategoryFilterOption(); all.label = '全部'; all.value = '全部'; all.count = store.itemCount; list.push(all)
+  // value 一律用分类码（与 store.categoryCounts 的 key、item.category 同口径）
   const jk = new CategoryFilterOption(); jk.label = 'JK'; jk.value = 'JK'; jk.count = counts['JK'] as number; list.push(jk)
-  const lol = new CategoryFilterOption(); lol.label = 'Lolita'; lol.value = 'Lolita'; lol.count = counts['LOLITA'] as number; list.push(lol)
-  const han = new CategoryFilterOption(); han.label = '汉服'; han.value = '汉服'; han.count = counts['HANFU'] as number; list.push(han)
+  const lol = new CategoryFilterOption(); lol.label = 'Lolita'; lol.value = 'LOLITA'; lol.count = counts['LOLITA'] as number; list.push(lol)
+  const han = new CategoryFilterOption(); han.label = '汉服'; han.value = 'HANFU'; han.count = counts['HANFU'] as number; list.push(han)
+  // 混搭：只有衣橱里真有混搭单品才出这个 chip，避免多数用户看到恒为 0 的噪声分类
+  const mixedCount = counts['MIXED'] != null ? counts['MIXED'] as number : 0
+  if (mixedCount > 0) {
+    const mix = new CategoryFilterOption(); mix.label = '混搭'; mix.value = 'MIXED'; mix.count = mixedCount; list.push(mix)
+  }
   return list
 })
 const categoryFilterRow = { ...flexRow, flexDirection: 'row', marginTop: '16rpx' }
-function categoryFilterStyle(value: string): any {
+function categoryFilterStyle(value: string, idx: number): any {
   const active = activeFilter.value === value
-  return { flex: 1, height: '72rpx', alignItems: 'center', justifyContent: 'center', borderRadius: '16rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginRight: value === '汉服' ? '0' : '8rpx' }
+  const last = idx === categoryFilterOptions.value.length - 1
+  // 字号 20rpx + flex:1：5 片时每片约 131rpx，「Lolita（12）」在这个字号下不会溢出
+  return { flex: 1, height: '72rpx', alignItems: 'center', justifyContent: 'center', borderRadius: '16rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginRight: last ? '0' : '8rpx' }
 }
-function categoryFilterLabel(value: string): any { return { fontSize: '22rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? n.value.iconActive : n.value.textSecondary } }
+function categoryFilterLabel(value: string): any { return { fontSize: '20rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? n.value.iconActive : n.value.textSecondary } }
 
 const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: '16rpx', marginBottom: '16rpx' }
 const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))

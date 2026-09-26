@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<{
 }>(), { label: '', status: 'neutral', size: 'sm' })
 
 function pick(status: string): { text: string; bg: string } {
-  const colors = isDark.value ? statusColorsDark : statusColors
+  const colors = isDark() ? statusColorsDark : statusColors
   if (status === 'positive') return colors.positive
   if (status === 'pending') return colors.pending
   if (status === 'error') return colors.error

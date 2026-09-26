@@ -101,7 +101,10 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   item.entityId = item.id
   item.feedType = FEED_PRODUCT
   item.title = raw['title'] != null ? raw['title'] as string : ''
-  item.subtitle = raw['description'] != null ? raw['description'] as string : ''
+  // ⚠️ 2026-09-27 第 3 轮：商品说明（description）字段已废弃 —— 不再接进 App。
+  //    用户口径「删除商品说明字段和模块，不需要保留」：
+  //    ① 服务端该列已置 NULL；② 详情页「商品说明」模块已删除。
+  //    所以这里不再把 description 塞进 FeedItem.subtitle。
   item.brandId = raw['brandId'] != null ? raw['brandId'] as string : ''
   item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
   item.category = raw['category'] != null ? raw['category'] as string : ''
@@ -156,7 +159,7 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   if (currentRelease != null && currentRelease.endAt !== '') item.eventEndAt = currentRelease.endAt
 
   result.item = item
-  result.description = raw['description'] != null ? raw['description'] as string : ''
+  // 商品说明已废弃（2026-09-27 第 3 轮）：不再从 API 取 description
   result.shopUrl = raw['canonicalUrl'] != null ? raw['canonicalUrl'] as string : (raw['shopUrl'] != null ? raw['shopUrl'] as string : '')
   result.groupKey = raw['groupKey'] != null ? raw['groupKey'] as string : ''
   // ====== Product V2 展示字段 ======

@@ -1,0 +1,50 @@
+/**
+ * app-update — 检查更新 · 前端策略配置（唯一来源）
+ *
+ * 与后端的字段分工（完整契约见 docs/architecture/V2.4-APP-UPDATE-CONTRACT.md）：
+ *  - 后端只负责「版本事实」：latestVersion / latestVersionCode / minVersionCode / releaseNote / publishedAt
+ *  - 前端负责「分发与策略」：下载地址兜底、平台差异、强制更新开关
+ *    下载地址放前端，是因为它跟分发渠道绑定（Android APK 直链 / 各应用商店 / iOS App Store），
+ *    后端不必知道、也不该知道；服务端若给了 updateUrl 仍以服务端为准（可随版本变化）。
+ */
+
+/** 总开关：false 时「检查更新」直接返回「已是最新」，不发任何请求（灰度期 / 接口故障期可用） */
+export const UPDATE_ENABLED = true
+
+/** 强制更新开关：false 时忽略服务端 minVersionCode / minVersion，一律允许「稍后」（出问题时可一键回滚） */
+export const UPDATE_FORCE_ENABLED = true
+
+/**
+ * 兜底下载地址（服务端 updateUrl 为空时生效）。
+ * 留空 = 未配置：页面会提示「更新地址待配置」，而不是给一个点不动的按钮。
+ * 待填示例：'https://sankengcloset.icu/download/app-release.apk'
+ */
+export const UPDATE_URL_ANDROID = ''
+export const UPDATE_URL_IOS = ''
+/** 平台识别不出来时的兜底（如鸿蒙、Web） */
+export const UPDATE_URL_DEFAULT = ''
+
+/** 平台归一：把 uni 的平台串收敛成 android / ios / other，认不出的一律 other（不猜） */
+export function normalizePlatform(raw: string): string {
+  const value = raw.toLowerCase()
+  if (value.indexOf('android') >= 0) return 'android'
+  if (value.indexOf('ios') >= 0) return 'ios'
+  return 'other'
+}
+
+/**
+ * 选最终下载地址：服务端优先 → 平台兜底 → default。
+ * 返回空串代表「未配置」，调用方必须据此走提示分支。
+ */
+export function pickUpdateUrl(remoteUrl: string, platform: string, androidUrl: string, iosUrl: string, fallbackUrl: string): string {
+  if (remoteUrl != '') return remoteUrl
+  const key = normalizePlatform(platform)
+  if (key == 'android') return androidUrl != '' ? androidUrl : fallbackUrl
+  if (key == 'ios') return iosUrl != '' ? iosUrl : fallbackUrl
+  return fallbackUrl
+}
+
+/** pickUpdateUrl 的便捷封装：直接绑定本文件的三个常量 */
+export function resolveUpdateUrl(remoteUrl: string, platform: string): string {
+  return pickUpdateUrl(remoteUrl, platform, UPDATE_URL_ANDROID, UPDATE_URL_IOS, UPDATE_URL_DEFAULT)
+}

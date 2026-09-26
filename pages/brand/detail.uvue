@@ -176,7 +176,7 @@ const emptyWrap = { paddingTop: '48rpx' }
 // 导航栏右侧分享按钮：88×88rpx 热区（V3 §3.5）
 const navShareBtn = { width: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
 const brandHeader = computed((): any => ({ ...flexRow, alignItems: 'center', padding: '24rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginBottom: '24rpx' }))
-const brandAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '48rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
+const brandAvatar = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: '48rpx', backgroundColor: isDark() ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0 }))
 const brandAvatarText = computed((): any => ({ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: n.value.iconActive }))
 const brandHeaderCopy = { ...flexFill }
 const brandTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))

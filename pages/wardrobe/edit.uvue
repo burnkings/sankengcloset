@@ -112,9 +112,9 @@ type WardrobeFormState = {
   note: string
 }
 const form = ref<WardrobeFormState>({ name: '', category: 'JK', style: '', silhouette: '', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
-const categories = ['JK', 'Lolita', '汉服', '其他']
+const categories = ['JK', 'Lolita', '汉服', '混搭', '其他']
 const wearLabels = ['未穿', '已穿', '常穿']
-const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'OTHER' ? '其他' : 'JK')))
+const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'MIXED' ? '混搭' : (form.value.category === 'OTHER' ? '其他' : 'JK'))))
 const activeWearLabel = computed((): string => form.value.wearStatus === 'WORN' ? '已穿' : (form.value.wearStatus === 'FREQUENT' ? '常穿' : '未穿'))
 
 // ====== 未保存离开确认 ======
@@ -157,7 +157,7 @@ function handleBack() {
 function handleLeave() { showLeaveDialog.value = false; uni.navigateBack() }
 
 function onCategory(label: string) {
-  form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '其他' ? 'OTHER' : 'JK'))
+  form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '混搭' ? 'MIXED' : (label === '其他' ? 'OTHER' : 'JK')))
   // 换坑向后：款式不在新词表就清空；离开汉服则清掉形制（避免留下"JK + 明制"这类脏数据）
   const list = stylePresets.value
   if (form.value.style !== '' && list.indexOf(form.value.style) < 0) form.value.style = ''

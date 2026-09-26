@@ -95,7 +95,7 @@ import { useBlacklistStore } from '@/stores/blacklist-store'
 import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { useCalendarStore } from '@/stores/calendar-store'
 import { CalendarEvent } from '@/services/content/calendar-service'
-import { FEED_EDITORIAL, FEED_BRAND_POST } from '@/domain/content/feed-item'
+import { FEED_EDITORIAL } from '@/domain/content/feed-item'
 import { comparisonBrand } from '@/services/mock/comparison-brand'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -299,7 +299,7 @@ const featureDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value
 const endPad = { width: '32rpx', flexShrink: 0 }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid' as string, borderColor: n.value.border, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
-const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark() ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
 const brandInitial = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))

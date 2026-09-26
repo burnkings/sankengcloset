@@ -42,12 +42,12 @@ import PageState from '@/components/v3/PageState.uvue'
 const library = useContentLibraryStore()
 const brandStore = useBrandStore()
 const brands = ref<Brand[]>([comparisonBrand()])
-const categories = ['全部', 'JK', 'Lolita', '汉服']
+const categories = ['全部', 'JK', 'Lolita', '汉服', '混搭']
 const activeCategory = ref('全部')
 const visibleBrands = computed((): Brand[] => brands.value.filter((item) => {
   if (item.id === COMPARISON_BRAND_ID || activeCategory.value === '全部') return true
   const category = item.category.toUpperCase()
-  const code = activeCategory.value === 'Lolita' ? 'LOLITA' : activeCategory.value === '汉服' ? 'HANFU' : 'JK'
+  const code = activeCategory.value === 'Lolita' ? 'LOLITA' : (activeCategory.value === '汉服' ? 'HANFU' : (activeCategory.value === '混搭' ? 'MIXED' : 'JK'))
   return category === code
 }))
 const categoryRow = { flexDirection: 'row' as string, flexWrap: 'wrap' as string, marginBottom: '20rpx' }
@@ -84,7 +84,7 @@ const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingR
 const emptyWrap = { paddingTop: '48rpx' }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
-const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark.value ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark() ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
 const brandInitial = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
