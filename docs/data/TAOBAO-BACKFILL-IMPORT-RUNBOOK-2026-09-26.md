@@ -1037,7 +1037,7 @@ docker exec -i sankeng_pg_postgres_1 psql -U postgres -d sankeng \
 | 层 | 处理 |
 |---|---|
 | 采集字段白名单 | `COLLECT_KEYS` 移除 `description` ⇒ 新 JSON 不再产出该字段（实测 JSON 里 `"description"` 键 **0 个**）|
-| 数据库 | SQL 第 1 步 `SET description = NULL`（**无条件清空**）。⚠️ 绝不能写 `COALESCE(s.description, p.description)` —— 新 JSON 没这个键，COALESCE 会把库里旧的推荐位脏值原样留下来 |
+| 数据库 | SQL 第 1 步 `SET description = ''`（**无条件清空**）。⚠️ 绝不能写 `COALESCE(s.description, p.description)` —— 新 JSON 没这个键，COALESCE 会把库里旧的推荐位脏值原样留下来。⚠️ 也不能写 `NULL` —— 该列是 **NOT NULL**，详见 §9.15 |
 | App 详情页 | 删除「商品说明」模块（模板块 + `descriptionText` computed）|
 | App 数据接入 | `product-service.uts` 不再把 `description` 接进 `FeedItem.subtitle` 与 `Product.description` |
 
@@ -1151,6 +1151,35 @@ TITLE_DROP_EXCEPT = {'设计': '感'}      # 唯一例外，见下
 `[9] sqlglot 语法复核通过，可以上传`。
 
 **App 侧本轮无代码改动，不需要重新打包。**
+
+### 9.15 2026-09-27 修：`description` 是 NOT NULL，清空必须写 `''` 不是 `NULL`
+
+云端执行报错原文：
+
+```
+ERROR:  null value in column "description" of relation "products" violates not-null constraint
+DETAIL:  Failing row contains (prd_taobao_1068554345525, 再贩意向金【雏菊诗】lolita洋装连衣裙cla优雅..., ...)
+```
+
+**根因**：`products.description` 是 **NOT NULL DEFAULT `''::text`**。§9.12 B 里写的 `SET description = NULL`
+违反约束，整个事务回滚（第 1 步那 3010 条 UPDATE 全部白跑）。
+
+**修法**：`SET description = NULL` → **`SET description = ''`**（第 252 行）。空串同样达到「清空」语义，
+且**不需要** `ALTER TABLE ... DROP NOT NULL` 动 schema。
+（不选 ALTER 方案的理由：改约束是 DDL、影响面大且不可轻易回滚，而空串与 NULL 在业务上等价 ——
+App 侧判的是 `raw['description'] != null`，空串一样不显示。）
+
+**顺手加固**：SQL 前置自检（第 -1 步）新增一段，把两张表的 **NOT NULL 列连同默认值**打印出来：
+
+```sql
+RAISE NOTICE 'NOT NULL 列（不能用 NULL 赋值，清空请写零值）：%', (...)
+```
+
+这样以后凡是「清空某个列」的场景，跑一遍就能先看到该列能不能写 NULL。
+**通用规则**：清空 NOT NULL 列 → 写该类型的零值（`text` 写 `''`、`jsonb` 写 `'[]'::jsonb`、数组写 `'{}'`），
+**永远不要写 `NULL`**。
+
+修订后产物：`import-full.sql` **5,195,378 B** ｜ `import-dryrun.sql` 5,195,531 B（sqlglot 通过、静态 lint 通过）。
 
 ## 10. 待你决策
 
