@@ -202,6 +202,7 @@ export function createCommunityPostRemote(payload: UTSJSONObject) {
 const UPLOAD_MAX_BYTES = 2 * 1024 * 1024
 export async function uploadOutfitImageRemote(localPath: string): Promise<string> {
   const size = await getLocalFileSize(localPath)
+  if (size <= 0) throw new Error('无法读取图片大小，请重新选择图片')
   if (size > UPLOAD_MAX_BYTES) throw new Error('图片超过 2MB，请先压缩后重试')
   const contentType = localPath.endsWith('.png') ? 'image/png' : localPath.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
   const prepared = await apiPostAuthorized('/api/v1/uploads:prepare', { purpose: 'outfit', contentType })
@@ -212,20 +213,21 @@ export async function uploadOutfitImageRemote(localPath: string): Promise<string
   const uploadId = preparedData['uploadId'] as string
   const mediaId = preparedData['mediaId'] as string
   const binary = await readFileAsArrayBuffer(localPath)
+  if (binary.byteLength > UPLOAD_MAX_BYTES) throw new Error('图片超过 2MB，请先压缩后重试')
   await apiUploadBinary('/api/v1/uploads/' + encodeQuery(uploadId) + '/content', binary, contentType)
   return mediaId
 }
 
 function getLocalFileSize(localPath: string): Promise<number> {
-  return new Promise<number>((resolve) => {
+  return new Promise<number>((resolve, reject) => {
     try {
       uni.getFileInfo({
         filePath: localPath,
         success: (res) => resolve(res.size),
-        fail: () => resolve(0),
+        fail: () => reject(new Error('无法读取图片大小，请重新选择图片')),
       })
     } catch (e) {
-      resolve(0)
+      reject(new Error('无法读取图片大小，请重新选择图片'))
     }
   })
 }
