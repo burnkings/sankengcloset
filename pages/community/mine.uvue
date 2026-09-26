@@ -43,14 +43,10 @@ function previewPostImage(url: string) { if (url != '') uni.previewImage({ curre
 function openProduct(id: string) { if (id !== '') uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(id)}` }) }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function deletePost(id: string) {
-  uni.showActionSheet({ itemList: ['查看动态', '删除动态'], success: (res) => {
-    if (res.tapIndex === 0) { uni.navigateTo({ url: `/pages/community/detail?id=${encodeURIComponent(id)}` }); return }
-    if (res.tapIndex !== 1) return
-    uni.showModal({ title: '删除动态？', content: '删除后无法恢复，确定删除这条动态吗？', confirmText: '删除', cancelText: '取消', success: (answer) => {
-      if (!answer.confirm) return
-      library.removeOutfit(id)
-      showFeedback('动态已删除')
-    } })
+  uni.showModal({ title: '删除动态？', content: '删除后无法恢复，确定删除这条动态吗？', confirmText: '删除', cancelText: '取消', success: (answer) => {
+    if (!answer.confirm) return
+    library.removeOutfit(id)
+    showFeedback('动态已删除')
   } })
 }
 function postTime(createdAt: string): string {

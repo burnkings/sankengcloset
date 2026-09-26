@@ -16,10 +16,15 @@ const detailStore = fs.readFileSync('stores/product-detail-store.uts', 'utf8')
 const service = fs.readFileSync('services/content/product-service.uts', 'utf8')
 const layout = fs.readFileSync('components/layout/MainLayout.uvue', 'utf8')
 const theme = fs.readFileSync('theme/use-theme.uts', 'utf8')
+const appVersion = fs.readFileSync('config/app-version.uts', 'utf8')
+const versionName = manifest.match(/"versionName"\s*:\s*"([^"]+)"/)?.[1]
+const versionCode = manifest.match(/"versionCode"\s*:\s*"?(\d+)"?/)?.[1]
+const declaredVersion = appVersion.match(/APP_VERSION\s*=\s*'([^']+)'/)?.[1]
+const declaredCode = appVersion.match(/APP_VERSION_CODE\s*=\s*(\d+)/)?.[1]
 
 const checks = [
-  ['beta version', manifest.includes('"versionName" : "2.5.0-beta.2"') && manifest.includes('"versionCode" : "25002"')],
-  ['Vapor enabled', manifest.includes('"vapor" : true')],
+  ['version matches app constants', versionName != null && versionCode != null && declaredVersion === `V${versionName}` && declaredCode === versionCode],
+  ['Vapor enabled', /"vapor"\s*:\s*true/.test(manifest)],
   ['Android network permission', nativeManifest.includes('android.permission.INTERNET')],
   ['release cleartext disabled', !nativeManifest.includes('android:usesCleartextTraffic="true"')],
   ['release uses secure network config', nativeManifest.includes('@xml/sankeng_network_security_config')],

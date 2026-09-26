@@ -117,10 +117,19 @@ function formatTimeDisplay(timeStr: string, isAllDay: boolean): string {
 function diffDays(dateStr: string): number {
   if (dateStr === '') return 999
   try {
-    const target = new Date(dateStr).getTime()
+    const parts = dateStr.split('-')
+    if (parts.length !== 3) return 999
+    const year = parseInt(parts[0])
+    const month = parseInt(parts[1])
+    const day = parseInt(parts[2])
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return 999
+    // Parse the calendar date in the device's local timezone, like the reminder store.
+    // Date('YYYY-MM-DD') is parsed as UTC and moves today's reminders into yesterday
+    // in UTC/negative timezones. Round whole calendar days to survive DST changes.
+    const target = new Date(year, month - 1, day).getTime()
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-    return Math.floor((target - today) / (1000 * 60 * 60 * 24))
+    return Math.round((target - today) / (1000 * 60 * 60 * 24))
   } catch {
     return 999
   }
