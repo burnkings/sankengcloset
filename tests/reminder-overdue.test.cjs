@@ -6,9 +6,7 @@
  * 2. **状态优先于日期**：DONE 一律进「已完成」；MISSED 一律进「已过期」
  * 3. **分组渲染顺序**：已完成排最后，不与待办抢注意力
  *
- * 注意：domain 的 diffDays 用 new Date('YYYY-MM-DD')（按 UTC 解析）与本地零点比较，
- * 在 UTC+8 下等价于「按日期比较」（今天 +8h → floor(8/24)=0）。本测试按 UTC+8 编写，
- * 若将来出现负时区场景需同步调整。
+ * 使用设备本地日历日期分组；在 UTC、正负时区和夏令时切换时口径保持一致。
  */
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
