@@ -997,6 +997,74 @@ docker exec -i sankeng_pg_postgres_1 psql -U postgres -d sankeng \
 - 附带：标题含空格 **25 条**（中文之间 **0**）—— 比上轮多 2 条，来自 `lo JSK` 这类
   拉丁与拉丁之间的空格，符合「只保留拉丁/数字之间的空格」规则。
 
+### 9.12 2026-09-27 第三轮（定稿）：标题只删品牌名 + 商品说明整体下线
+
+#### A. 标题清洗**仅针对品牌名**
+
+用户口径：「算了，标题清洗仅针对品牌名称吧，其余都不变」。
+
+`clean_title()` 重写为**只做一件事**：把品牌词（`build_brand_words` 从店铺名提取）整词删掉，末尾 `strip()`。
+
+**不再做**的事（全部原样保留）：
+
+- 品类词删除（`lolita / 洛丽塔 / 汉服 / JK制服 / lo裙 / lo娘`…）
+- SEO 引流词删除（`原创 / 设计 / 正版 / 专拍 / 链接 / 包邮 / 秒杀`…）
+- 发售状态词删除（`现货 / 定金 / 意向金 / 尾款 / 预售`…）
+- 空格 / 符号 / 括号 / 孤立单字母规整，以及 `lo` 检测
+
+⚠️ 一个必须处理的细节：**删品牌名时要连带吃掉两侧空白**。
+店铺名「Alice girl原创工作室」去后缀后会被切成 `Alice` / `girl` 两个词，
+若逐个 `replace(w, '')`，中间的空白会留在标题里：
+
+```
+【意向金1元抵10元】Alice girl原创新款…  →  【意向金1元抵10元】 原创新款…   ← 多一个空格（旧实现）
+【意向金1元抵10元】Alice girl原创新款…  →  【意向金1元抵10元】原创新款…    ← 正确
+```
+
+改法：`re.sub(r'[\s\u3000]*' + re.escape(w) + r'[\s\u3000]*', '', s)`，末尾再兜底合并连续空白。
+
+实测：3247 条源标题里 **2544 条**发生变化（都是删掉了品牌名）；
+`lolita 270 / Lolita 331 / 洛丽塔 294 / 现货 134 / 定金 59 / 意向金 75 / 尾款 42 / 孤立 lo 91`
+全部**原样保留**。
+
+词表（`CATEGORY` / `SEO` / `RELEASE_WORDS` / `SEASON` / `BRACKET` / `DESC_*` / `clean_description`）
+全部转为**不再调用**，保留在 `_text_clean.py` 仅供回溯与将来可能的恢复。
+
+#### B. 商品说明（`description`）整体下线
+
+用户口径：「删除商品说明字段和模块，不需要保留」。
+
+| 层 | 处理 |
+|---|---|
+| 采集字段白名单 | `COLLECT_KEYS` 移除 `description` ⇒ 新 JSON 不再产出该字段（实测 JSON 里 `"description"` 键 **0 个**）|
+| 数据库 | SQL 第 1 步 `SET description = NULL`（**无条件清空**）。⚠️ 绝不能写 `COALESCE(s.description, p.description)` —— 新 JSON 没这个键，COALESCE 会把库里旧的推荐位脏值原样留下来 |
+| App 详情页 | 删除「商品说明」模块（模板块 + `descriptionText` computed）|
+| App 数据接入 | `product-service.uts` 不再把 `description` 接进 `FeedItem.subtitle` 与 `Product.description` |
+
+⚠️ 数据模型里的字段**定义保留**：`FeedItem.subtitle` 是跨实体通用字段（feed/brand 共用），
+`Product.description` 被 mock 引用，删定义会牵连编译且收益为零 —— 它们现在恒为空串。
+
+#### C. 本轮产物（2026-09-27 01:36）
+
+`import-full.sql` **5,165,736 B** ｜ `import-dryrun.sql` 5,165,889 B ｜
+`all_shops_products.updated.json` **6,083,213 B**（比上轮大 —— 标题保留了更多内容）｜
+`标题-清洗对照.csv` 2386 行 ｜ `[9] sqlglot 语法复核通过，可以上传`。
+门禁 `check-source-gates.js` 全 PASS ｜ `tests/*.test.cjs` 7 个全 OK。
+
+#### D. App 代码已推远程
+
+```
+git@github.com:burnkings/sankengcloset.git   main   c27795d → b1908c8
+84 files changed, 4153 insertions(+), 295 deletions(-)
+```
+
+本机原先**没有 `.git`**，需先 `git init` → `git remote add origin` → `git fetch`
+→ `git reset --mixed origin/main` 建立基线（`--soft` 不会填充 index，会误判成 454 项全新文件）。
+
+`.gitignore` 新增排除（本地 2.5 GB 采集数据不进仓库）：
+`_archive-2026-09-26/`、`scripts/_chromeprof/`、`scripts/gui-automation/`、
+`scripts/product-enrich/`、`scripts/taobao-backfill/`。
+
 ## 10. 待你决策
 
 | # | 事项 | 现状 |
@@ -1008,8 +1076,8 @@ docker exec -i sankeng_pg_postgres_1 psql -U postgres -d sankeng \
 | 5 | `brands` 表的店铺分类是否也要标 MIXED | 按 §8.5 的画像，只有 3 家「专营」够格（十二时 / 年禧 / 叁肆喜）。当前**只改商品，不动 brand** |
 | 6 | 中信号 5 条（新中式 Lo 裙）以后要不要另立细分类 | 已按你的要求**排除出 MIXED**；若以后想收，可挂 `sub_category` 而不是大类 |
 | 7 | 标题清洗后的零星残留要不要再收一遍 | 现状（3010 条中）：孤立单字 101 条（多为 `【预】` 这类店铺自己写的 1 字段）、孤立「店」10 条、叹号 9 条、波浪号 1 条。**已判定不值得为它加规则**（再加规则伤及正常标题的风险高于收益）；如你想要，可以按白名单逐条改 |
-| 8 | **`description` 现在 0 条**（286 条全是「涉及其他商品」被整条删掉） | 见 §9.11 A。App 详情页「商品说明」模块会是空的。**要不要重采这个字段**，待你定 |
-| 9 | `lo` 已全面保留，但 `lolita / 洛丽塔 / Lolita裙` 等**完整品类词仍照删** | 见 §9.11 B。如果你要连完整品类词也保留，改 `_text_clean.py` 的 `CATEGORY` 即可 |
+| 8 | ~~`description` 说明字段~~ | **已定稿：整体下线** —— 字段 + 模块全删，库里置 NULL（见 §9.12 B）|
+| 9 | ~~`lo` / 品类词保留范围~~ | **已定稿：标题只删品牌名，其余（品类词/状态词/空格/符号）全部原样保留**（见 §9.12 A）|
 
 ## 附：最终交付清单（2026-09-27 更新）
 
