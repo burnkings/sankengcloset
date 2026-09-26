@@ -105,7 +105,7 @@
         </view>
 
         <view v-else-if="activeTab === '动态' && likedLooks.length > 0" :style="likedLookList">
-          <PostCard v-for="look in likedLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption" :author="look.authorNickname" :avatar-text="look.initial" :time-text="'已点赞'" :like-count="look.likeCount" :liked="true" :product-id="look.productId" @tap="openLook(look.id)" @toggle-like="unlikeLook(look.id)" @more="openLook(look.id)" @product="openLookProduct(look.productId)" />
+          <PostCard v-for="look in likedLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption" :author="look.authorNickname" :avatar-text="look.initial" :time-text="'已点赞'" :like-count="look.likeCount" :liked="true" :product-id="look.productId" @tap="openLook(look.id)" @toggle-like="unlikeLook(look.id)" @more="shareLook(look.id)" @product="openLookProduct(look.productId)" />
         </view>
 
         <view v-else :style="emptyContainer">
@@ -146,6 +146,7 @@
 import { openProductDetail } from '@/utils/content-navigation'
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { showFeedback } from '@/utils/feedback'
+import { shareByCopy } from '@/utils/share'
 import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { feedImageHeight } from '@/stores/home-feed-store'
@@ -183,7 +184,18 @@ const blacklist = useBlacklistStore()
 const session = useSessionStore()
 
 const likedLooks = computed(() => library.publicPosts.filter((post) => library.isPostLiked(post.id) && !blacklist.isBlacklisted(post.authorNickname)))
-function openLook(id: string) { uni.navigateTo({ url: `/pages/community/detail?id=${id}` }) }
+function openLook(id: string) {
+  const look = likedLooks.value.find((item) => item.id === id)
+  if (look != null && look.imageUrl !== '') uni.previewImage({ current: look.imageUrl, urls: [look.imageUrl] })
+}
+function shareLook(id: string) {
+  const look = likedLooks.value.find((item) => item.id === id)
+  if (look == null) return
+  uni.showActionSheet({ itemList: ['分享这条动态', '取消点赞'], success: (res) => {
+    if (res.tapIndex === 0) shareByCopy(look.caption !== '' ? look.caption : '穿搭动态', `作者：${look.authorNickname}`)
+    else if (res.tapIndex === 1) unlikeLook(id)
+  } })
+}
 function openLookProduct(id: string) { if (id !== '') openProductDetail(id) }
 function unlikeLook(id: string) { library.togglePostLike(id) }
 
@@ -567,4 +579,3 @@ onBackPress((): boolean => {
   return false
 })
 </script>
-

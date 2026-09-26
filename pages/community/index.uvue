@@ -81,6 +81,7 @@ import { useCommunityBlacklistStore } from '@/stores/community-blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
 import { submitCommunityReport } from '@/services/user-data/community-report-service'
+import { shareByCopy } from '@/utils/share'
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
@@ -100,11 +101,13 @@ let pendingLook: PublicLookPost | null = null
 function onMoreTap(look: PublicLookPost) {
   pendingLook = look
   uni.showActionSheet({
-    itemList: ['屏蔽该作者', '举报这条动态'],
+    itemList: ['分享这条动态', '屏蔽该作者', '举报这条动态'],
     success: (res) => {
       if (pendingLook == null) return
-      if (res.tapIndex === 0) showBlacklistDialog.value = true
-      else if (res.tapIndex === 1) showReportDialog.value = true
+      if (res.tapIndex === 0) {
+        shareByCopy(pendingLook.caption !== '' ? pendingLook.caption : '穿搭动态', `作者：${pendingLook.authorNickname}`)
+      } else if (res.tapIndex === 1) showBlacklistDialog.value = true
+      else if (res.tapIndex === 2) showReportDialog.value = true
     },
   })
 }
@@ -159,9 +162,8 @@ function openPitPicker() {
 }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
-// Phase 2.3-A：帖子 tap —— 有商品关联时跳商品详情，否则保持原行为（预览大图）
 function onLookTap(look: PublicLookPost) {
-  uni.navigateTo({ url: `/pages/community/detail?id=${look.id}` })
+  previewPostImage(look.imageUrl)
 }
 // Phase 2.3-A：商品关联入口 → Product Detail
 function openLinkedProduct(productId: string) {

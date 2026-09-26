@@ -34,12 +34,6 @@
       }
     },
     {
-      "path": "pages/community/detail",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/profile/index",
       "style": {
         "navigationStyle": "custom",
