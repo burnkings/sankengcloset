@@ -1,0 +1,35 @@
+/**
+ * Feed 图片取图策略 —— **唯一分类出口**
+ *
+ * ⚠️ 为什么要有这个文件：
+ *   首页的「预取分类」（pages/home/index.uvue）与「实际渲染分类」
+ *   （stores/home-feed-store.uts 的 isCardEligible / FeedBlock 的分支）
+ *   曾经各写一套判断，结果两处结论相反：
+ *     - 预取把 FEED_OUTFIT 当全宽（800 档），实际 FeedColumn 渲染的是 500 档双列
+ *     - 预取把 release_event 当双列（500 档），实际 FeedBlock 走全宽 800 档
+ *   ⇒ 预取的 URL 和列表真实请求的 URL 对不上，**预取完全白做**。
+ *   ⇒ 凡是「判断某个 feedType 属于哪种卡片」的地方，**一律 import 本文件**。
+ *
+ * 分档依据（与 tests/image-tier-contract.test.cjs 的 LIST_CONSUMERS 一致）：
+ *   - product / outfit → 双列错落卡 → 500（337rpx 卡宽，@3x 需 506px）
+ *   - release_event / editorial → 全宽块 → 800（FeedBlock 718rpx）
+ *   - 榜单小缩略图 → 400
+ */
+import { FEED_PRODUCT, FEED_OUTFIT } from '@/domain/content/feed-item'
+
+/** 双列错落卡（商品 / 穿搭） */
+export function isFeedCardType(feedType: string): boolean {
+  return feedType == FEED_PRODUCT || feedType == FEED_OUTFIT
+}
+
+/** 全宽块（专题 / 发售事件等运营内容） */
+export function isFeedFullWidthType(feedType: string): boolean {
+  return !isFeedCardType(feedType)
+}
+
+/** 双列卡取图档位（与 ProductCard / FeedColumn 的 :list-width 保持同源） */
+export const FEED_CARD_LIST_WIDTH = 500
+/** 全宽块取图档位（与 FeedBlock 的 :list-width 保持同源） */
+export const FEED_FULL_LIST_WIDTH = 800
+/** 榜单小缩略图取图档位 */
+export const FEED_THUMB_LIST_WIDTH = 400

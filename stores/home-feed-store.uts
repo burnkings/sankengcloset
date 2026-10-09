@@ -8,7 +8,8 @@
  */
 
 import { reactive, nextTick } from 'vue'
-import { FeedItem, FEED_PRODUCT, FEED_OUTFIT } from '@/domain/content/feed-item'
+import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
+import { isFeedCardType } from '@/utils/feed-image-policy'
 import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { bumpWishCount, wishCountOf } from '@/services/content/wish-count'
@@ -136,9 +137,11 @@ function isEmpty(): boolean {
   return _state.state == 'loaded' && displayItems().length == 0
 }
 
-/** 双列错落卡片：商品/穿搭归入两列，运营内容全宽 */
+/** 双列错落卡片：商品/穿搭归入两列，运营内容全宽。
+ *  ⚠️ 分类口径统一走 utils/feed-image-policy —— 预取与本文件的判断必须同源，
+ *     否则「预取 A 档、渲染 B 档」白下载（曾真实发生）。 */
 function isCardEligible(item: FeedItem): boolean {
-  return item.feedType == FEED_PRODUCT || item.feedType == FEED_OUTFIT
+  return isFeedCardType(item.feedType)
 }
 
 /**
@@ -253,14 +256,14 @@ function rememberChannel() {
 
 // ====== 模块级 action ======
 
-// 首屏加载（silent=true 用于下拉刷新，不切 loading 态）
-async function loadFirstPage(silent: boolean = false) {
+// 首屏加载（silent=true 用于下拉刷新，不切 loading 态；force=true 跳过缓存强拉）
+async function loadFirstPage(silent: boolean = false, force: boolean = false) {
   _state.isLoadingMore = false
   const seq = ++_requestSeq
   if (!silent) _state.state = 'loading'
   _state.errorMessage = ''
   try {
-    const page = await fetchFeedPage('', _state.currentChannel, '全部', pitTypesToCategories())
+    const page = await fetchFeedPage('', _state.currentChannel, '全部', pitTypesToCategories(), force)
     if (seq !== _requestSeq) return // 过期请求（已切频道/已刷新），丢弃
     await nextTick()
     if (seq !== _requestSeq) return
@@ -293,19 +296,32 @@ async function loadMore() {
     if (seq !== _requestSeq) return // 期间已切频道，丢弃
     await nextTick()
     if (seq !== _requestSeq) return
-    // 防御：游标没前进就不再往下翻（否则会把同一页反复追加成无限列表）
-    const cursorAdvanced = page.nextCursor !== '' && page.nextCursor !== _state.nextCursor
-    if (page.items.length == 0 || !cursorAdvanced) {
-      _state.hasMore = false
-    } else {
-      let merged = [..._state.allItems, ...page.items]
-      // 内存保护：最多保留最新 200 条，避免持续上拉无限膨胀
-      if (merged.length > MAX_FEED_ITEMS) merged = merged.slice(merged.length - MAX_FEED_ITEMS)
-      _state.allItems = merged
-      _state.nextCursor = page.nextCursor
-      _state.hasMore = page.hasMore
-      invalidateBlocksCache()
+    // ⚠️ 必须先「接收本页有效项」，再独立决定是否继续翻页。
+    //    曾把「nextCursor 为空」与「本页无效」混为一谈 ⇒ 合法末页
+    //    （items 非空 + hasMore=false + nextCursor=''）被整页丢弃（2026-10-09 评审 P1-5）。
+    const previousCursor = _state.nextCursor
+    if (page.items.length > 0) {
+      const seen: Set<string> = new Set<string>()
+      for (let i = 0; i < _state.allItems.length; i++) seen.add(_state.allItems[i].id)
+      const incoming: FeedItem[] = []
+      for (let i = 0; i < page.items.length; i++) {
+        const item = page.items[i]
+        if (seen.has(item.id)) continue
+        seen.add(item.id)
+        incoming.push(item)
+      }
+      if (incoming.length > 0) {
+        let merged = [..._state.allItems, ...incoming]
+        // 内存保护：最多保留最新 200 条，避免持续上拉无限膨胀
+        if (merged.length > MAX_FEED_ITEMS) merged = merged.slice(merged.length - MAX_FEED_ITEMS)
+        _state.allItems = merged
+        invalidateBlocksCache()
+      }
     }
+    // 终止判定独立于「是否接收本页」：本页为空 / 服务端说没了 / 游标没前进 都停
+    const cursorAdvanced = page.nextCursor !== '' && page.nextCursor !== previousCursor
+    _state.nextCursor = page.nextCursor
+    _state.hasMore = page.items.length > 0 && page.hasMore && cursorAdvanced
   } catch (e) {
     if (seq !== _requestSeq) return
     _state.errorMessage = e instanceof Error ? e.message : '加载失败'
@@ -412,7 +428,7 @@ class HomeFeedStoreHandle {
   get masonryBlocks(): MasonryBlock[] { return buildBlocks() }
   get isLoadingMore(): boolean { return _state.isLoadingMore }
   get hasMore(): boolean { return _state.hasMore }
-  loadFirstPage(silent: boolean = false): Promise<void> { return loadFirstPage(silent) }
+  loadFirstPage(silent: boolean = false, force: boolean = false): Promise<void> { return loadFirstPage(silent, force) }
   loadMore(): Promise<void> { return loadMore() }
   setChannel(ch: string): void { setChannel(ch) }
   retry(): void { retry() }

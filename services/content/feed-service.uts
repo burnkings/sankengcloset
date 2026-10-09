@@ -104,7 +104,7 @@ function categoryCode(category: string): string {
  * @param cursor 服务端返回的 opaque cursor（首屏传 ''）；禁止用页号×每页条数伪造。
  * @param channel 频道名（推荐/上新/预约/现货）
  */
-async function fetchRemoteFeed(cursor: string, channel: string, category: string, categories: string = ''): Promise<FeedPage> {
+async function fetchRemoteFeed(cursor: string, channel: string, category: string, categories: string = '', force: boolean = false): Promise<FeedPage> {
   let path = '/api/v1/feed'
   let hasQuery = false
   // 只传前端真实设置的值：cursor 首页(0)不传、channel 默认推荐不传、category/categories 空不传；limit 由后端默认 20
@@ -115,7 +115,8 @@ async function fetchRemoteFeed(cursor: string, channel: string, category: string
   const cat = categoryCode(category)
   if (cat != '') { path += (hasQuery ? '&' : '?') + 'category=' + encodeQuery(cat); hasQuery = true }
   if (categories != '') { path += (hasQuery ? '&' : '?') + 'categories=' + encodeQuery(categories); hasQuery = true }
-  const response = await apiGet(path)
+  // force=true 时跳过进程内/磁盘新鲜缓存（用户主动下拉刷新必须真的发请求）
+  const response = await apiGet(path, force)
   const result = new FeedPage()
   result.requestId = response.requestId
   const rawItems = response.data
@@ -128,8 +129,8 @@ async function fetchRemoteFeed(cursor: string, channel: string, category: string
   return result
 }
 
-export async function fetchFeedPage(cursor: string, channel: string = '推荐', category: string = '全部', categories: string = ''): Promise<FeedPage> {
-  const page = await fetchRemoteFeed(cursor, channel, category, categories)
+export async function fetchFeedPage(cursor: string, channel: string = '推荐', category: string = '全部', categories: string = '', force: boolean = false): Promise<FeedPage> {
+  const page = await fetchRemoteFeed(cursor, channel, category, categories, force)
   return page
   // 2026-10-09：「推荐」频道首屏插入 2 条「展示样例」的逻辑已整体删除（用户要求去掉假数据）。
 

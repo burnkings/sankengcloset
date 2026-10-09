@@ -126,6 +126,7 @@ import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import ImagePreloader from '@/components/base/ImagePreloader.uvue'
 import { LIST_WIDTH_CARD, LIST_WIDTH_FULL } from '@/utils/image-url'
+import { isFeedFullWidthType } from '@/utils/feed-image-policy'
 
 const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
@@ -207,7 +208,9 @@ function onRetry() { store.retry() }
 const isRefreshing = ref(false)
 async function onRefresh() {
   isRefreshing.value = true
-  try { await store.loadFirstPage(true) }
+  // 第二个参数 force=true：用户主动下拉刷新必须**真的发一次请求**，
+  // 不能被 1h 新鲜缓存拦掉（否则「刷新结束」但价格/发售状态还是旧的）。
+  try { await store.loadFirstPage(true, true) }
   finally { isRefreshing.value = false }
 }
 // Footer 文案：加载中 / 上拉加载更多 / 已显示全部
@@ -240,9 +243,10 @@ function runImagePreload() {
   for (let i = PRELOAD_SKIP_FIRST; i < items.length; i++) {
     const it = items[i]
     if (it.coverUrl == null || it.coverUrl === '') continue
-    // 单卡大图（FeedBlock）走 800 档；其余走双列卡 500 档
-    const isFullWidth = it.feedType === FEED_OUTFIT || it.feedType === 'release_event'
-    if (isFullWidth) {
+    // ⚠️ 分类必须与**实际渲染**同源（isFeedFullWidthType 来自共享策略文件）。
+    //    曾在这里手写 `outfit || release_event`，与 FeedColumn/FeedBlock 的真实分支相反
+    //    ⇒ 预取 URL 与列表请求 URL 对不上，预取白做。
+    if (isFeedFullWidthType(it.feedType)) {
       if (fullUrls.length < PRELOAD_TAKE) fullUrls.push(it.coverUrl)
     } else {
       if (cardUrls.length < PRELOAD_TAKE) cardUrls.push(it.coverUrl)

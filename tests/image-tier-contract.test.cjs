@@ -30,6 +30,7 @@ const ROOT = path.resolve(__dirname, '..');
 const APP_IMAGE = path.join(ROOT, 'components', 'base', 'AppImage.uvue');
 const IMAGE_URL_UTIL = path.join(ROOT, 'utils', 'image-url.uts');
 const PRELOADER = path.join(ROOT, 'components', 'base', 'ImagePreloader.uvue');
+const FEED_IMAGE_POLICY = path.join(ROOT, 'utils', 'feed-image-policy.uts');
 
 function read(rel) {
   return fs.readFileSync(path.isAbsolute(rel) ? rel : path.join(ROOT, rel), 'utf8');
@@ -140,6 +141,12 @@ const LIST_CONSUMERS = [
   ['pages/wardrobe/index.uvue', ['500']],
   ['pages/history/index.uvue', ['400']],
   ['pages/discover/index.uvue', ['800']],
+  // ⚠️ 以下三张卡曾漏网（2026-10-09 评审 P0-2）：
+  //    RankingCard 完全没传 ⇒ 默认 0 ⇒ 请求原图；
+  //    Release/EditorialCard 用原生 <image> 直出 URL ⇒ 完全绕过 AppImage 的分档。
+  ['components/v3/RankingCard.uvue', ['400']],
+  ['components/v3/ReleaseCard.uvue', ['800']],
+  ['components/v3/EditorialCard.uvue', ['800']],
 ];
 
 test('列表侧 AppImage 必须传 :list-width（否则列表仍在下巨图，触发客户端降采样）', () => {
@@ -173,6 +180,67 @@ test('列表图档位与卡片宽度匹配（500 档用于 337rpx 双列卡；80
   assert.ok(
     /:list-width="800"/.test(feedBlock),
     'FeedBlock（718rpx 单卡大图）必须用 800 档，不能用列表卡的 500 档'
+  );
+});
+
+// ── 2b. 分类必须同源（预取分类 vs 实际渲染分类） ─────────────────────────────
+
+test('预取分类与实际渲染分类必须同源（否则预取 URL 与列表请求 URL 对不上，预取白做）', () => {
+  // 2026-10-09 评审 P0-2：首页预取曾手写 `feedType === FEED_OUTFIT || feedType === 'release_event'`，
+  // 而实际渲染是 FeedColumn 的 outfit→500 双列、FeedBlock 的 release_event→800 全宽 —— **结论相反**。
+  // 修法：分类判断全部收敛到 utils/feed-image-policy，各调用点只 import。
+  const policy = stripComments(read(FEED_IMAGE_POLICY));
+  assert.ok(
+    /export function isFeedCardType/.test(policy),
+    'utils/feed-image-policy.uts 必须 export isFeedCardType（唯一分类出口）',
+  );
+  assert.ok(
+    /export function isFeedFullWidthType/.test(policy),
+    'utils/feed-image-policy.uts 必须 export isFeedFullWidthType',
+  );
+
+  // 首页预取必须用共享函数，不得再手写 feedType 相等比较
+  const home = stripComments(read('pages/home/index.uvue'));
+  assert.ok(
+    /isFeedFullWidthType\(/.test(home),
+    'pages/home/index.uvue 的预取分类必须调用 isFeedFullWidthType，不得手写 feedType 比较',
+  );
+  assert.ok(
+    !/feedType\s*===\s*'release_event'/.test(home),
+    "首页预取不得手写 `feedType === 'release_event'` —— 该判断曾与实际渲染相反，导致预取白做",
+  );
+
+  // store 的双列分类也必须走共享函数
+  const store = stripComments(read('stores/home-feed-store.uts'));
+  assert.ok(
+    /isFeedCardType\(/.test(store),
+    'stores/home-feed-store.uts 的 isCardEligible 必须调用 isFeedCardType',
+  );
+});
+
+test('分类函数的档位常量必须与各卡片的 :list-width 取值一致', () => {
+  const policy = stripComments(read(FEED_IMAGE_POLICY));
+  assert.ok(/FEED_CARD_LIST_WIDTH\s*=\s*500/.test(policy), '双列卡档位常量必须是 500');
+  assert.ok(/FEED_FULL_LIST_WIDTH\s*=\s*800/.test(policy), '全宽块档位常量必须是 800');
+  assert.ok(/FEED_THUMB_LIST_WIDTH\s*=\s*400/.test(policy), '小缩略图档位常量必须是 400');
+});
+
+// ── 2c. 列表卡不得绕过 AppImage 直出 <image> ─────────────────────────────────
+
+test('列表卡片不得用原生 <image> 直出封面（会绕过按尺寸取图）', () => {
+  // Release/EditorialCard 曾用 <image :src="image"> 直出，完全绕过 AppImage 的 tieredSrc
+  const offenders = [];
+  for (const [file] of LIST_CONSUMERS) {
+    const src = stripComments(read(file));
+    const nativeImgs = [...src.matchAll(/<image\b[^>]*:src=/g)];
+    for (const m of nativeImgs) {
+      offenders.push(`${file}: ${m[0].slice(0, 60)}`);
+    }
+  }
+  assert.deepStrictEqual(
+    offenders,
+    [],
+    `以下列表卡片仍在用原生 <image> 直出封面（应改用 AppImage 并传 :list-width）：\n  ${offenders.join('\n  ')}`,
   );
 });
 
