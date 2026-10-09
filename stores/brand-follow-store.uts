@@ -1,7 +1,8 @@
 import { reactive } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId, readPendingOperations } from '@/services/sync/local-sync-queue'
 import { SyncOperation } from '@/domain/sync/sync-operation'
-import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
+import { getCachedAccessToken } from '@/config/runtime'
+import { invalidateCatalog } from '@/services/platform/catalog-cache'
 
 import { followBrandRemote, unfollowBrandRemote, listFollowedBrandsRemote } from '@/services/user-data/user-data-service'
 
@@ -33,12 +34,13 @@ export function toggleBrandFollow(brandName: string): boolean {
   else values.unshift(brandName)
   brandState.followedBrands = values
   writeList(FOLLOWED_BRANDS_KEY, values)
-  if (isLocalMockSession()) return idx < 0
   // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
   if (getCachedAccessToken() != '') {
     const following = idx < 0
     const remote = following ? followBrandRemote(brandName) : unfollowBrandRemote(brandName)
-    remote.catch(() => {
+    // 品牌目录走 24h 长缓存（catalog-cache），关注数 / isFollowed 这类聚合字段会因此变旧。
+    // 写入成功就作废品牌前缀下的快照，下次读回来的是新的。
+    remote.then(() => { invalidateCatalog('/api/v1/brands') }).catch(() => {
       enqueueLocalOperation(getCurrentSyncUserId(), 'brand_follow', brandName, idx < 0 ? 'upsert' : 'delete', '')
     })
   } else {
@@ -48,7 +50,7 @@ export function toggleBrandFollow(brandName: string): boolean {
 }
 
 export async function refreshRemoteBrands(): Promise<void> {
-  if (getCachedAccessToken() == '' || isLocalMockSession()) return
+  if (getCachedAccessToken() == '') return
   try {
     const remote = await listFollowedBrandsRemote()
     const pending = readPendingOperations()
@@ -77,10 +79,6 @@ export function hasPendingBrandFollow(ops: SyncOperation[], brandName: string): 
 }
 
 export function reloadBrand() {
-  let followed = readList(FOLLOWED_BRANDS_KEY)
-  if (isLocalMockSession() && followed.length === 0) {
-    followed = ['兔缝缝', '月夜花园']
-    writeList(FOLLOWED_BRANDS_KEY, followed)
-  }
+  const followed = readList(FOLLOWED_BRANDS_KEY)
   brandState.followedBrands = followed
 }

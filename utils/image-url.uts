@@ -1,0 +1,49 @@
+/**
+ * image-url — 图片地址归一化的**唯一出口**
+ *
+ * 为什么要抽成公共文件（2026-10-09）：
+ *   预加载（`ImagePreloader`）必须预取**列表里真正会请求的那个地址**。
+ *   如果预加载和 `AppImage` 各算一遍 `tieredSrc`，两处口径一漂移，就会
+ *   「预取了 A、列表用 B」⇒ 白下载一遍，用户反而更慢。
+ *   ⇒ 两边**必须调同一个函数**。
+ *
+ * 口径见 `tests/image-tier-contract.test.cjs` 与 `.workbuddy/memory/MEMORY.md` 规则 51/52。
+ */
+
+/** 是否 alicdn 图（只有它认 `_WxHqQ` 后缀；本地路径/后端相对路径不能拼） */
+export function isAliCdn(u: string): boolean {
+  return u.indexOf('alicdn.com') >= 0
+}
+
+/**
+ * 是否应跳过取图（两种 CDN 不认后缀的源图，追加会 404）：
+ *   1. 末尾已带 `_WxHqQ.ext` —— 已规范过，重复追加会 404（幂等）
+ *   2. 源图是 `.heic` —— alicdn 不对 heic 做后缀变换，追加必 404
+ *      （实测 5/5 heic 图 `+_500x500q75` → 404；它们多已自带 580 档、体积本就小）
+ * ⚠️ 注意：**含 `~crop,...~` 修饰段的地址必须照常追加**（不是跳过条件）——
+ *     实测 3024×3024 的 `~crop` 图追加后 1278KB → 52KB。曾误判为跳过，会漏掉最大的一批巨图。
+ */
+export function shouldSkipResize(u: string): boolean {
+  if (/_\d+x\d+q\d+\.[a-z]+$/i.test(u)) return true
+  if (/\.heic(_\d+x\d+q\d+\.[a-z]+)?$/i.test(u)) return true
+  return false
+}
+
+/**
+ * 按列表显示宽度规范化地址：非 alicdn / 已规范 / heic / 非 http(s) 一律原样返回。
+ * `listWidth <= 0` ⇒ 原图（详情页 hero、预览大图走这条路）。
+ */
+export function tieredSrc(u: string, listWidth: number): string {
+  if (u === '' || listWidth <= 0) return u
+  if (u.indexOf('http') !== 0) return u
+  if (!isAliCdn(u)) return u
+  if (shouldSkipResize(u)) return u
+  return `${u}_${listWidth}x${listWidth}q75`
+}
+
+/** 列表卡片档位（337rpx 双列卡 ≈ 168.5 逻辑px，@3x ≈ 506px ⇒ 500 精确命中） */
+export const LIST_WIDTH_CARD = 500
+/** 单卡大图档位（718rpx ≈ 359 逻辑px，@3x ≈ 1077px） */
+export const LIST_WIDTH_FULL = 800
+/** 小缩略图档位（160rpx ≈ 80 逻辑px，@3x ≈ 240px） */
+export const LIST_WIDTH_THUMB = 400

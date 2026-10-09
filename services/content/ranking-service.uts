@@ -1,20 +1,20 @@
-import { isLocalMockSession } from '@/config/runtime'
 /**
  * ranking-service — 三坑榜单数据
  * 真实模式使用 GET /api/v1/ranking；仅显式模拟登录使用演示目录。
  */
 import { RankingItem } from '@/domain/ranking/ranking-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
-// import { listMockRanking } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
 
 function mapRemoteRanking(raw: UTSJSONObject): RankingItem {
   const item = new RankingItem()
   item.rank = raw['rank'] != null ? raw['rank'] as number : 0
   item.entityId = raw['entityId'] != null ? raw['entityId'] as string : ''
   item.title = raw['title'] != null ? raw['title'] as string : ''
+  // 展示名口径与 feed-service 一致：名称只有一个来源 = 品牌名（不再回退店铺名）
   item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
   item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
   item.priceCents = raw['priceCents'] != null ? raw['priceCents'] as number : 0
+  item.maxPriceCents = raw['maxPriceCents'] != null ? raw['maxPriceCents'] as number : 0
   const category = raw['category'] != null ? raw['category'] as string : ''
   item.category = category == 'LOLITA' ? 'Lolita' : (category == 'HANFU' ? '汉服' : (category == 'MIXED' ? '混搭' : category))
   item.viewCount = raw['viewCount'] != null ? raw['viewCount'] as number : 0
@@ -49,7 +49,9 @@ export function peekRanking(tab: string): RankingItem[] | null {
 export async function fetchRankingRemote(tab: string, force: boolean = false): Promise<RankingItem[]> {
   const entry = cacheEntry(tab)
   if (entry.pending != null) return entry.pending!
-  if (!force && entry.fetchedAt > 0 && Date.now() - entry.fetchedAt < 60000) return entry.rows
+  // 1 小时窗口，与 catalog-cache 的榜单档（RANKING_MEMORY_MS）对齐。
+  // 沿革：60 秒 → 10 分钟 → 1 小时。榜单是按天才明显变动的数据，不该每次进页面都等网络。
+  if (!force && entry.fetchedAt > 0 && Date.now() - entry.fetchedAt < 60 * 60 * 1000) return entry.rows
   const pending = loadRanking(tab, force)
   entry.pending = pending
   try {

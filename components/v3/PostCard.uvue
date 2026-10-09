@@ -2,7 +2,10 @@
   <view :style="cardStyle">
     <!-- 头部：头像 + 昵称/时间 + 更多 -->
     <view :style="headerRow">
-      <view :style="avatarWrap"><text :style="avatarTextStyle">{{ props.avatarText }}</text></view>
+      <view :style="avatarWrap">
+        <AppImage v-if="avatarUrl !== ''" :src="avatarUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+        <text v-else :style="avatarTextStyle">{{ props.avatarText }}</text>
+      </view>
       <view :style="headerCopy">
         <text :style="authorStyle">{{ author }}</text>
         <text :style="timeStyle">{{ timeText }}</text>
@@ -14,19 +17,37 @@
     <text v-if="caption !== ''" :style="captionStyle">{{ caption }}</text>
 
     <!-- 图片 -->
-    <view v-if="image !== ''" :style="imageWrap" @tap="emit('tap')">
-      <AppImage :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+    <view v-if="image !== ''" :style="imageWrap" @tap.stop="emit('tap')">
+      <AppImage :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" :list-width="800" />
     </view>
 
-    <!-- 底部：点赞 -->
+    <!-- 底部一行：左侧「标签（#tags 插槽）+ 商品入口」，右侧点赞。
+         标签与点赞同排，点赞**永远贴最右**（用户反馈：点赞图标应该在标签的最右侧）；
+         调用方不传 #tags 时左侧就只剩商品入口，不会有空行。 -->
     <view :style="footerRow">
-    <!-- 商品关联标签：图标改用 shopping-bag 线性图标，尺寸对齐 22rpx 正文
-         （原来是 shirt 图标 + 20rpx —— 24×24 的 2px 描边图缩到 ~10px 只剩一团糊） -->
-    <view v-if="productId !== ''" :style="productTag" @tap.stop="emit('product')">
-      <AppIcon name="bag" :size="24" :active="true" /><text :style="productTagText">查看商品</text>
-    </view>
-
-
+      <view :style="footerLeft">
+        <!-- 商品关联标签：图标改用 shopping-bag 线性图标，尺寸对齐 22rpx 正文
+             （原来是 shirt 图标 + 20rpx —— 24×24 的 2px 描边图缩到 ~10px 只剩一团糊） -->
+        <view v-if="productId !== ''" :style="productTag" @tap.stop="emit('product')">
+          <AppIcon name="bag" :size="24" :active="true" /><text :style="productTagText">查看商品</text>
+        </view>
+        <slot name="tags" />
+      </view>
+      <!-- #ifdef MP-WEIXIN -->
+      <!-- 微信原生转发（方案 A）。三点说明：
+           ① 小程序**禁止程序化**拉起分享，只能由 <button open-type="share"> 的用户点击触发；
+           ② 因此按钮必须是单独的可点区域，不能复用「更多」里的 actionSheet 项；
+           ③ uni-app x 没有页面级 onShareAppMessage，分享内容取微信默认值（页面标题 + 当前路径）——
+              做不到自定义标题/配图，这是「能用原生转发」换来的代价。
+           视觉上用一个**不透明覆盖层**承载按钮：button 自身的背景/边框（含 ::after 那圈）全部
+           由 `opacity: 0` 隐去，看得见的始终是下面那个和点赞同款的图标。
+           ④ 外层 shareWrap **必须 `.stop`**（见 onShareTapBlocked 的注释）：否则这次 tap 会继续
+              冒泡到页面级 `@tap`，把「分享」变成「顺手预览了一张图」。 -->
+      <view :style="shareWrap" @tap.stop="onShareTapBlocked">
+        <AppIcon name="share" :size="34" />
+        <button open-type="share" :style="shareHit" />
+      </view>
+      <!-- #endif -->
       <view :style="likeWrap" @tap.stop="emit('toggleLike')">
         <AppIcon :name="liked ? 'heart' : 'heart'" :size="34" :active="liked" />
         <text :style="likeCountStyle">{{ likeCount }}</text>
@@ -50,11 +71,13 @@ const props = withDefaults(defineProps<{
   caption?: string
   author?: string
   avatarText?: string
+  /** 作者头像地址；为空时回退到 avatarText 的文字首字（老数据/未设头像的作者） */
+  avatarUrl?: string
   timeText?: string
   likeCount?: number
   liked?: boolean
   productId?: string
-}>(), { image: '', caption: '', author: '', avatarText: '同', timeText: '', likeCount: 0, liked: false, productId: '' })
+}>(), { image: '', caption: '', author: '', avatarText: '同', avatarUrl: '', timeText: '', likeCount: 0, liked: false, productId: '' })
 
 const emit = defineEmits<{
   tap: []
@@ -63,6 +86,18 @@ const emit = defineEmits<{
   product: []
 }>()
 
+/**
+ * 分享区的「吞掉冒泡」处理器（空实现，只为 `.stop`）。
+ *
+ * 为什么必须要有（2026-10-06 用户报的「我没点图片，图片自己放大了」）：
+ *   微信小程序里 `<PostCard @tap="onLookTap(look)">` 这种**自定义组件上的 bind:tap
+ *   会同时接住组件内部冒泡上来的原生 tap**。卡片里每个可点区域都写了 `.stop`（更多/点赞/商品入口），
+ *   唯独新加的 `<button open-type="share">` 漏了 ⇒ 用户点分享 → 先弹出「小程序未认证无法分享」，
+ *   紧接着那次 tap 继续冒泡到页面 → `onLookTap` → `uni.previewImage` → **图片莫名其妙放大**。
+ *   注意：`.stop` 只挡冒泡，**不影响 button 自身的转发行为**（open-type=share 由微信原生处理）。
+ */
+function onShareTapBlocked(): void {}
+
 const cardStyle = computed((): any => ({
   backgroundColor: n.value.surface,
   borderRadius: CARD_RADIUS_V3,
@@ -70,7 +105,7 @@ const cardStyle = computed((): any => ({
   marginBottom: '20rpx',
 }))
 const headerRow = { ...flexRow, alignItems: 'center' }
-const avatarWrap = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', backgroundColor: isDark() ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }))
+const avatarWrap = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '36rpx', overflow: 'hidden', backgroundColor: isDark() ? n.value.surfaceRaised : brand[100], alignItems: 'center', justifyContent: 'center', marginRight: '16rpx', flexShrink: 0 }))
 const avatarTextStyle = computed((): any => ({ fontSize: '30rpx', fontWeight: 600, color: n.value.iconActive }))
 const headerCopy = { flex: 1 }
 const authorStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, fontWeight: 500, color: n.value.text, lines: 1, textOverflow: 'ellipsis' }))
@@ -78,10 +113,16 @@ const timeStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize,
 const moreWrap = { width: '64rpx', height: '64rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const captionStyle = computed((): any => ({ fontSize: v3TextStyle.body.fontSize, lineHeight: '40rpx', color: n.value.text, marginTop: '16rpx' }))
 const imageWrap = computed((): any => ({ width: '100%', height: '460rpx', borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, marginTop: '16rpx' }))
-const productTag = computed((): any => ({ ...flexRow, alignItems: 'center', alignSelf: 'flex-start', height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink }))
+const productTag = computed((): any => ({ ...flexRow, alignItems: 'center', height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.surfacePink, marginRight: '10rpx', marginTop: '6rpx' }))
 const productTagText = computed((): any => ({ fontSize: '22rpx', fontWeight: 600, color: n.value.iconActive, marginLeft: '6rpx' }))
-const footerRow = { flexDirection: 'row' as string, justifyContent: 'space-between', alignItems: 'center', marginTop: '12rpx' }
-const likeWrap = { ...flexRow, alignItems: 'center', minWidth: '64rpx', height: '56rpx' }
+const footerRow = { flexDirection: 'row' as string, alignItems: 'center', marginTop: '12rpx' }
+// 左侧承载标签与商品入口；flex:1 把点赞挤到最右。允许换行，标签多了不会把点赞顶出卡片
+const footerLeft = { flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'wrap', flex: 1, minWidth: '0' }
+const likeWrap = { ...flexRow, alignItems: 'center', justifyContent: 'flex-end', minWidth: '64rpx', height: '56rpx', flexShrink: 0 }
+// 分享：外层负责视觉（与点赞图标同尺寸同色），内层 button 负责触发原生转发
+const shareWrap = { ...flexRow, alignItems: 'center', justifyContent: 'center', width: '64rpx', height: '56rpx', marginRight: '8rpx', flexShrink: 0, position: 'relative' }
+// opacity:0 而不是 display/visibility —— 前者仍然接收点击，同时把 button 的默认背景与 ::after 边框一起隐掉
+const shareHit = { position: 'absolute', top: '0', left: '0', width: '64rpx', height: '56rpx', padding: '0', margin: '0', borderWidth: '0', backgroundColor: 'transparent', opacity: 0 }
 const likeCountStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textSecondary, marginLeft: '6rpx' }))
 </script>
 

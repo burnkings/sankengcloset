@@ -3,14 +3,14 @@
     <view v-for="item in items" :key="item.id">
       <view v-if="item.feedType === FEED_OUTFIT" :style="outfitFlowCard" @tap="emit('openItem', item)">
         <view :style="outfitFlowImgWrap(item)">
-          <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+          <AppImage :src="item.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" :list-width="500" />
           <view :style="outfitInfoOverlay">
             <text :style="outfitTitle">{{ item.title }}</text>
             <text :style="outfitSub">{{ item.subtitle }}</text>
           </view>
         </view>
       </view>
-      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName !== '' ? item.brandName : item.sourceLabel" :title="item.title" :type-text="pitTypeLabel(item)" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" @tap="emit('openItem', item)" @toggle-save="emit('toggleSave', item)" />
+      <ProductCard v-else :image="item.coverUrl" :brand="item.brandName !== '' ? item.brandName : item.sourceLabel" :title="item.title" :status-text="saleStatusText(item)" :status-color="saleStatusColor(item)" :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)" :image-height="feedImageHeight(item)" :saved="item.saved" :wish-count="item.wishCount" @tap="emit('openItem', item)" @toggle-save="emit('toggleSave', item)" />
     </view>
   </view>
 </template>
@@ -23,7 +23,7 @@ import { feedImageHeight } from '@/stores/home-feed-store'
 import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { CARD_RADIUS_V3 } from '@/theme/tokens/responsive'
-import { formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { formatPriceCard, formatPriceSecondary, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 
 const props = withDefaults(defineProps<{
   items: FeedItem[]
@@ -36,9 +36,13 @@ const emit = defineEmits<{
 
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 
-/** 价格摘要：FULL「¥368」/ DEPOSIT「¥368」+ 降级小字「定金 ¥100」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空 */
+/**
+ * 价格行（2026-10-09 起为「最低价～最高价」区间）：
+ *   有区间 → 「¥199–359」；无区间（最高价缺省）→ 回落到 price_type 摘要
+ *   （FULL「¥368」/ DEPOSIT「¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空）
+ */
 function priceSummaryText(item: FeedItem): string {
-  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPriceCard(item.priceType, item.price, item.maxPriceCents, item.fullPriceCents, item.depositCents, item.balanceCents)
 }
 
 /** 双价降级小字（仅定金场景非空） */
@@ -46,11 +50,6 @@ function priceSubText(item: FeedItem): string {
   return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
 }
 
-/** 三坑类型标签（JK / Lolita / 汉服 / 其他） */
-function pitTypeLabel(item: FeedItem): string {
-  const pit = item.pitType !== '' ? item.pitType : item.category
-  return getPitTypeLabel(pit)
-}
 
 /** 销售状态文案（在售/预售/售罄…；无状态不显示，不伪造） */
 function saleStatusText(item: FeedItem): string {

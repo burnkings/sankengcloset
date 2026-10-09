@@ -21,14 +21,18 @@
           <FeedSkeleton />
         </view>
         <view v-else-if="activeTab === '商品' && library.favoritesError !== '' && library.favoriteProducts.length === 0" :style="emptyContainer">
-          <PageState icon="info" title="收藏加载失败" :message="library.favoritesError" action-text="重新加载" @action="reloadFavorites" />
+          <PageState icon="info" title="收藏加载失败" :message="failureMessage" action-text="重新加载" @action="reloadFavorites" />
         </view>
         <view v-else-if="activeTab === '商品' && visibleFavoriteProducts.length > 0" :style="contentTop">
+          <!-- 顶部提示条：「已下架」是稳定状态（卡片仍在列表里，只是灰色标注），只有拉取失败/超时才需要重试 -->
           <view v-if="library.favoritesError !== ''" :style="partialErrorWrap">
             <text :style="partialErrorText">{{ library.favoritesError }}</text>
-            <text :style="partialErrorAction" @tap="reloadFavorites">重新加载</text>
             <text v-if="library.invalidFavoriteIds.length > 0" :style="partialErrorAction" @tap="clearInvalidFavorites">清除失效</text>
+            <text v-else :style="partialErrorAction" @tap="reloadFavorites">重新加载</text>
           </view>
+          <!-- 收藏页的每一张卡都已经是收藏，卡面再挂一个心形「收藏」按钮纯属重复，
+               而且误触就静默取消收藏（用户 2026-09-30 反馈）。这里统一 show-save=false：
+               移除走长按多选删除，语义清晰、不会误触。 -->
           <view :style="productColumns">
             <view :style="productColLeft">
               <view v-for="item in productLeft" :key="item.id" :style="cardWrap(item.entityId)" @longpress="enterSelectMode(item.entityId)">
@@ -36,14 +40,14 @@
                   :image="item.coverUrl"
                   :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                   :title="item.title"
-                  :type-text="pitTypeLabel(item)"
                   :status-text="saleStatusText(item)"
                   :status-color="saleStatusColor(item)"
                   :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                   :image-height="feedImageHeight(item)"
                   :margin-bottom="'0rpx'"
                   :saved="library.isFavorite(item.entityId)"
-                  :show-save="!selectMode"
+                  :show-save="false"
+                  :wish-count="item.wishCount"
                   @tap="selectMode ? toggleItem(item.entityId) : openProduct(item)"
                   @toggle-save="onToggleSave(item)"
                 />
@@ -65,14 +69,14 @@
                   :image="item.coverUrl"
                   :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                   :title="item.title"
-                  :type-text="pitTypeLabel(item)"
                   :status-text="saleStatusText(item)"
                   :status-color="saleStatusColor(item)"
                   :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                   :image-height="feedImageHeight(item)"
                   :margin-bottom="'0rpx'"
                   :saved="library.isFavorite(item.entityId)"
-                  :show-save="!selectMode"
+                  :show-save="false"
+                  :wish-count="item.wishCount"
                   @tap="selectMode ? toggleItem(item.entityId) : openProduct(item)"
                   @toggle-save="onToggleSave(item)"
                 />
@@ -153,7 +157,7 @@ import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore, FAVORITE_STATUS_LABELS } from '@/stores/content-library-store'
 import { useBrandStore } from '@/stores/brand-store'
 import { useReminderStore } from '@/stores/reminder-store'
-import { deriveReleaseStatusText, formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { deriveReleaseStatusText, formatPriceCard, formatPriceSecondary, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { useSessionStore } from '@/stores/session-store'
 import { brand, semantic } from '@/theme/tokens/colors'
@@ -191,7 +195,9 @@ function openLook(id: string) {
 function shareLook(id: string) {
   const look = likedLooks.value.find((item) => item.id === id)
   if (look == null) return
-  uni.showActionSheet({ itemList: ['分享这条动态', '取消点赞'], success: (res) => {
+  // 同 pages/community/index：actionSheet 里做不到微信原生转发（必须用户直接点 button open-type=share），
+  // 所以这一项是复制兜底，名字照实写「复制文案」。
+  uni.showActionSheet({ itemList: ['复制文案', '取消点赞'], success: (res) => {
     if (res.tapIndex === 0) shareByCopy(look.caption !== '' ? look.caption : '穿搭动态', `作者：${look.authorNickname}`)
     else if (res.tapIndex === 1) unlikeLook(id)
   } })
@@ -237,7 +243,7 @@ function onEmptyAction() {
 // 切 tab 时退出选择态，避免跨 tab 残留勾选
 function onTabTap(tab: string) { exitSelectMode(); activeTab.value = tab }
 
-// ====== 长按多选删除（与提醒 / 衣橱 / 购买记录同一套交互：长按进入选择态 → 勾选 → 底部删除 + 二次确认）======
+// ====== 长按多选删除（与提醒 / 衣柜 / 购买记录同一套交互：长按进入选择态 → 勾选 → 底部删除 + 二次确认）======
 const selectMode = ref(false)
 const selectedIds = ref<string[]>([])
 const showDeleteConfirm = ref(false)
@@ -286,15 +292,11 @@ function batchRemove() {
 }
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
-  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPriceCard(item.priceType, item.price, item.maxPriceCents, item.fullPriceCents, item.depositCents, item.balanceCents)
 }
 /** 双价降级小字（仅定金场景非空） */
 function priceSubText(item: FeedItem): string {
   return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
-}
-function pitTypeLabel(item: FeedItem): string {
-  const pit = item.pitType !== '' ? item.pitType : item.category
-  return getPitTypeLabel(pit)
 }
 function saleStatusText(item: FeedItem): string {
   if (item.saleStatus === '') return ''
@@ -305,8 +307,16 @@ function saleStatusColor(item: FeedItem): string {
   return getSaleStatusChipStatus(item.saleStatus)
 }
 function goDiscover() { openPrimaryTab('/pages/discover/index') }
-function openProduct(item: FeedItem) { openProductDetail(item.entityId) }
-function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title) }
+function openProduct(item: FeedItem) {
+  // 已下架的收藏仍然展示（用户要求「就算失效也要给我看」），但点进去必然是 404，
+  // 那就别让用户白点一次再看到错误页 —— 直接说清，并告诉他怎么把它从列表里去掉。
+  if (library.invalidFavoriteIds.indexOf(item.entityId) >= 0) {
+    showFeedback('这件商品已下架，仍为你保留在收藏里；长按卡片可移除')
+    return
+  }
+  openProductDetail(item.entityId)
+}
+function onToggleSave(item: FeedItem) { library.toggleFavorite(item.entityId, item.title, '', item) }
 
 // ====== Phase 1.1-C：发售状态 + 一键提醒（Favorite → Release → Reminder）======
 
@@ -491,6 +501,17 @@ async function openBrand(brandName: string) {
 }
 function reloadFavorites() { library.refreshFavorites() }
 function clearInvalidFavorites() { library.removeInvalidFavorites(); showFeedback('已清除失效收藏') }
+
+/**
+ * 整页失败态的文案：把后端 requestId 一起给出来。
+ * 收藏列表拉不到时，「请检查网络后重试」对用户和后端都一样无从下手；
+ * 有 requestId 就能一条命令捞出那次请求的原始错误（与登录页同一套做法）。
+ */
+const failureMessage = computed((): string => {
+  const base = library.favoritesError
+  const rid = library.favoritesRequestId
+  return rid !== '' ? `${base}（请求 ID ${rid}）` : base
+})
 onLoad(() => { initPageTheme() })
 // 网络请求 30s TTL：频繁切 tab 不重复拉取（本地 reload 每次仍执行）
 let lastFavoritesFetchAt = 0

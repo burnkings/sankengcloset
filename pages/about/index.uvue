@@ -21,6 +21,10 @@
         <view v-if="showCheckUpdate" :style="shell(2, legalRowCount)" @tap="onCheckUpdateTap">
           <ListRow title="检查更新" :value="APP_DISPLAY_VERSION" />
         </view>
+        <!-- ICP 备案号：微信要求小程序展示，放在「关于」页最稳；点了复制，方便审核/用户核对 -->
+        <view :style="shell(showCheckUpdate ? 3 : 2, legalRowCount)" @tap="copyIcpLicense">
+          <ListRow title="备案号" :value="ICP_LICENSE" />
+        </view>
       </ListGroup>
 
       <text :style="copyright">© 2026 三坑绮橱 · 昆山三坑绮橱工作室</text>
@@ -41,6 +45,7 @@ import { n, initPageTheme } from '@/theme/use-theme'
 import { showFeedback } from '@/utils/feedback'
 import { openExternalUrl } from '@/utils/share'
 import { APP_DISPLAY_VERSION } from '@/config/app-version'
+import { ICP_LICENSE } from '@/pages/about/legal-content'
 import { checkUpdateRemote, AppVersionInfo } from '@/services/user-data/app-update-service'
 
 const showUpdateDialog = ref(false)
@@ -57,7 +62,8 @@ let showCheckUpdate = true
 // #ifdef MP-WEIXIN
 showCheckUpdate = false
 // #endif
-const legalRowCount = showCheckUpdate ? 3 : 2
+// 行数变了必须同步：`shell(idx, total)` 靠它决定「最后一行不画分隔线」
+const legalRowCount = showCheckUpdate ? 4 : 3
 
 onLoad(() => { initPageTheme() })
 
@@ -71,6 +77,13 @@ function shell(idx: number, total: number) {
 
 function openLegal(type: string) {
   uni.navigateTo({ url: `/pages/about/legal?type=${type}` })
+}
+
+function copyIcpLicense() {
+  uni.setClipboardData({
+    data: ICP_LICENSE,
+    success: () => showFeedback('备案号已复制'),
+  })
 }
 
 async function onCheckUpdateTap() {

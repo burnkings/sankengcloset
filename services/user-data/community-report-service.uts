@@ -1,18 +1,35 @@
-const COMMUNITY_REPORTS_KEY = 'v26_community_reports'
+import { apiPostAuthorized, encodeQuery } from '@/services/platform/api-client'
 
-export async function submitCommunityReport(postId: string, reason: string = '不适当内容'): Promise<boolean> {
-  if (postId === '') return false
+/**
+ * community-report-service — 动态举报
+ *
+ * 2026-10-04 第三版。演进过程值得记一下，因为每一步解决的问题不同：
+ *   ① 初版只往本机 storage 塞一条 `PENDING_MOCK_REVIEW`，**没有任何人能看到** ⇒ 点了没反应；
+ *   ② 第二版改成客户端拼好内容再提交反馈接口 ⇒ 落库了，但**内容是客户端说了算**
+ *      （作者名、正文、图片都能被伪造），而且运营拿到后信息太薄；
+ *   ③ 现在：客户端只提交「举报哪条 + 原因」，**内容由服务端按 postId 自己查**
+ *      （作者当前昵称 + 用户 id + 发布当时昵称 + 正文 + 图片 + 时间 + 可见性）。
+ *
+ * 为什么服务端生成才对：
+ *   · 举报是**证据**，证据不能由被怀疑方之外的任意客户端自行拼装；
+ *   · 客户端也不需要再去拼一堆字段，少一处能写错的地方；
+ *   · 顺带把 `author_nickname_snapshot` 用起来了 —— 对方改名后仍能说清「发布时叫什么」。
+ */
+
+/** 运营收件邮箱：举报/反馈的兜底联络方式，同时用于失败提示 */
+export const REPORT_INBOX = '1542269660@qq.com'
+
+/** 举报原因。选完才提交，避免所有举报都是同一句「不适当内容」而无法分诊 */
+export const REPORT_REASONS = ['色情低俗', '广告营销', '人身攻击', '虚假信息', '侵权盗图', '其他']
+
+/**
+ * 提交举报。返回 true 表示服务端已受理（记录已落库，飞书通知另行异步推送）。
+ * 失败返回 false，由页面提示用户改用邮箱。
+ */
+export async function submitCommunityReport(postId: string, reason: string): Promise<boolean> {
+  if (postId === '' || reason === '') return false
   try {
-    const raw = uni.getStorageSync(COMMUNITY_REPORTS_KEY) as string
-    const reports = raw !== '' ? JSON.parse(raw) as UTSJSONObject[] : [] as UTSJSONObject[]
-    reports.unshift({
-      id: `report_${Date.now()}`,
-      postId,
-      reason,
-      status: 'PENDING_MOCK_REVIEW',
-      createdAt: new Date().toISOString(),
-    } as UTSJSONObject)
-    uni.setStorageSync(COMMUNITY_REPORTS_KEY, JSON.stringify(reports))
+    await apiPostAuthorized('/api/v1/community/posts/' + encodeQuery(postId) + '/report', { reason: reason })
     return true
   } catch (e) {
     return false

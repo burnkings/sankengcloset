@@ -32,6 +32,14 @@ const _state = reactive<WardrobeState>({
   currentStatus: '',
 })
 
+// 冷启动先把本地缓存倒进内存列表。
+//
+// 之前三张列表都只从 `[]` 起步、等 fetchItems() 回来才填，于是「我的」页里
+// 衣柜/购买记录/提醒这几个计数每次冷启动都先显示 0 再跳成真实值 —— 用户看到的就是
+// 「第一次进来还在刷新加载」。repo 本来就是这三个 store 的离线兜底数据源，
+// 提前读一次不改变任何口径，只是把「有数据」提前到首帧。
+_state.items = repo.getAll()
+
 function categoryLabel(c: string): string { return categoryCodeToLabel(c) }
 
 function filteredItems(): WardrobeItem[] {
@@ -59,7 +67,6 @@ function sortedItems(): WardrobeItem[] {
   if (_state.currentSort == 'earliest') result.sort((a, b) => createdAtTime(a) - createdAtTime(b))
   else if (_state.currentSort == 'priceHigh') result.sort((a, b) => b.purchasePrice - a.purchasePrice)
   else if (_state.currentSort == 'priceLow') result.sort((a, b) => a.purchasePrice - b.purchasePrice)
-  else if (_state.currentSort == 'name') result.sort((a, b) => (a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)))
   else result.sort((a, b) => createdAtTime(b) - createdAtTime(a))
   return result
 }
@@ -109,12 +116,18 @@ function categoryCounts(): UTSJSONObject {
 }
 
 function activeFilterCount(): number { let count = 0; if (_state.currentCategory != '') count++; if (_state.currentStatus != '') count++; return count }
+/**
+ * 排序标签。
+ *
+ * 2026-09-30：**去掉「名称」排序**（字母序对衣柜没有意义，中英文混排结果也很怪）。
+ * 同时明确一件事：**「默认排序」和「最近加入」是同一个东西，不是两种排序** ——
+ * `_state.currentSort` 的初值就是 `SortType.NEWEST`（见上方 `_state` 初始化），
+ * 下面末行 `return '最近加入'` 只是把空串/未知值也归到它身上，并不存在第三种兜底顺序。
+ */
 function sortLabel(): string {
-  if (_state.currentSort == 'newest') return '最近加入'
   if (_state.currentSort == 'earliest') return '最早加入'
   if (_state.currentSort == 'priceHigh') return '价格高→低'
   if (_state.currentSort == 'priceLow') return '价格低→高'
-  if (_state.currentSort == 'name') return '名称'
   return '最近加入'
 }
 
@@ -165,7 +178,7 @@ async function fetchItems() {
       _state.items = restored
     } else {
       if (seq !== _fetchSeq) return
-      repo.initMockData()
+      // 游客（未登录）：只展示本机已存数据，不再播种 demo 假衣柜
       _state.items = repo.getAll()
     }
   } catch (err) {

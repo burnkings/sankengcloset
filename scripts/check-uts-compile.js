@@ -9,13 +9,15 @@
  *   3. stores/home-feed-store.js 以 reactive 模块级单例编译产出（不再要求 defineStore）
  *
  * 用法：node scripts/check-uts-compile.js [dist-directory]
- * 默认路径 unpackage/dist/dev/mp-weixin；传参可指向 build/mp-weixin。
+ * 默认路径 unpackage/dist/build/mp-weixin（发行版）；传参可指向别处。
+ * ⚠️ 2026-10-06 由 dev 改为 build：dev 产物已按「每类只留最新版」清理掉，
+ *    继续默认 dev 会 [FAIL] missing compiled file —— 那是目录不存在，不是代码坏了。
  */
 
 const fs = require('fs')
 const path = require('path')
 
-const root = path.resolve(process.argv[2] || 'unpackage/dist/dev/mp-weixin')
+const root = path.resolve(process.argv[2] || 'unpackage/dist/build/mp-weixin')
 
 // V3 当前页面路由（pages.json 26 个页面）
 const pages = [

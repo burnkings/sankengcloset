@@ -36,7 +36,7 @@
 
         <!-- 公开 Gallery 帖子：单列 PostCard 动态流（头像/昵称/时间/更多菜单） -->
         <view v-if="viewMode !== 'mine' && visibleLooks.length > 0" :style="postList">
-          <PostCard v-for="look in visibleLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :avatar-text="look.initial" :time-text="postTime(look.createdAt)" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" :product-id="look.productId" @tap="onLookTap(look)" @toggle-like="togglePublicLike(look.id)" @more="onMoreTap(look)" @product="openLinkedProduct(look.productId)" />
+          <PostCard v-for="look in visibleLooks" :key="look.id" :image="look.imageUrl" :caption="look.caption !== '' ? look.caption : '今天也认真搭配了'" :author="look.authorNickname" :avatar-text="look.initial" :avatar-url="look.avatarUrl" :time-text="postTime(look.createdAt)" :like-count="publicLikeCount(look)" :liked="library.isPostLiked(look.id)" :product-id="look.productId" @tap="onLookTap(look)" @toggle-like="togglePublicLike(look.id)" @more="onMoreTap(look)" @product="openLinkedProduct(look.productId)" />
         </view>
         <text v-if="viewMode !== 'mine' && library.publicLoadingMore" :style="loadMoreText">正在加载更多…</text>
         <text v-else-if="viewMode !== 'mine' && library.publicLoadedOnce && visibleLooks.length > 0 && !library.publicHasMore" :style="loadMoreText">已经到底了</text>
@@ -58,7 +58,6 @@
   </MainLayout>
 
   <AppDialog :visible="showBlacklistDialog" title="屏蔽该作者" message="屏蔽后不再看到 TA 的动态，确定屏蔽吗？" confirm-text="屏蔽" :show-cancel="true" cancel-text="取消" @confirm="confirmBlacklist" @cancel="showBlacklistDialog = false" />
-  <AppDialog :visible="showReportDialog" title="举报这条动态" message="举报后我们会尽快处理，感谢你的反馈。" confirm-text="举报" :show-cancel="true" cancel-text="取消" @confirm="confirmReport" @cancel="showReportDialog = false" />
 </view>
 </template>
 
@@ -80,8 +79,10 @@ import { useContentLibraryStore, SavedOutfitPost, PublicLookPost } from '@/store
 import { useCommunityBlacklistStore } from '@/stores/community-blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
 import { showFeedback } from '@/utils/feedback'
-import { submitCommunityReport } from '@/services/user-data/community-report-service'
+import { openProductDetail } from '@/utils/content-navigation'
+import { submitCommunityReport, REPORT_REASONS, REPORT_INBOX } from '@/services/user-data/community-report-service'
 import { shareByCopy } from '@/utils/share'
+import { COMMUNITY_TOPICS } from '@/domain/content/community-topics'
 
 const activeTopic = ref('全部')
 const activePitType = ref('全部')
@@ -90,24 +91,35 @@ const viewMode = ref('') // '' | 'mine'
 const pageHeight = getWindowHeight()
 const library = useContentLibraryStore()
 const userBlacklist = useCommunityBlacklistStore()
-const topics = ['全部', '今日穿搭', '茶会搭配', '通勤三坑']
+// 与发布页共用同一份话题清单（`domain/content/community-topics.uts`）。
+// 之前这里写死成另一套，结果发布时选的话题在筛选里根本找不到。
+const topics = ((): string[] => {
+  const list: string[] = ['全部']
+  for (let i = 0; i < COMMUNITY_TOPICS.length; i++) list.push(COMMUNITY_TOPICS[i])
+  return list
+})()
 const pitTypes = ['全部', 'JK', 'Lolita', '汉服', '混搭']
 
 // 更多菜单：拉黑 / 举报
 const showBlacklistDialog = ref(false)
-const showReportDialog = ref(false)
 let pendingLook: PublicLookPost | null = null
 
 function onMoreTap(look: PublicLookPost) {
   pendingLook = look
+  // ⚠️ 这里**不可能**做成微信原生转发：小程序禁止程序化拉起分享面板，
+  //    原生转发只能由用户直接点 `<button open-type="share">`（就是卡片右下角那个图标）触发，
+  //    actionSheet 的某个选项永远做不到。所以这一项是**复制文案兜底**，
+  //    名字就必须老实叫「复制文案」—— 原来写「分享这条动态」，
+  //    点了却是复制，用户只会觉得是 bug（2026-10-06 反馈）。
+  //    另外它在「未认证 → 原生转发被微信拦掉」期间反而是唯一能用的分享方式。
   uni.showActionSheet({
-    itemList: ['分享这条动态', '屏蔽该作者', '举报这条动态'],
+    itemList: ['复制文案', '屏蔽该作者', '举报这条动态'],
     success: (res) => {
       if (pendingLook == null) return
       if (res.tapIndex === 0) {
         shareByCopy(pendingLook.caption !== '' ? pendingLook.caption : '穿搭动态', `作者：${pendingLook.authorNickname}`)
       } else if (res.tapIndex === 1) showBlacklistDialog.value = true
-      else if (res.tapIndex === 2) showReportDialog.value = true
+      else if (res.tapIndex === 2) pickReportReason()
     },
   })
 }
@@ -120,11 +132,28 @@ function confirmBlacklist() {
   showFeedback('已屏蔽该用户，其动态将不再显示')
 }
 
-async function confirmReport() {
-  showReportDialog.value = false
-  if (pendingLook == null) return
-  const ok = await submitCommunityReport(pendingLook.id)
-  showFeedback(ok ? '举报已记录，我们会尽快处理' : '举报记录失败，请重试')
+/**
+ * 举报：先选原因再提交。
+ * 原因不是走形式的 —— 不选原因的举报运营没法分诊，只能一条条点开看。
+ */
+function pickReportReason() {
+  uni.showActionSheet({
+    itemList: REPORT_REASONS,
+    success: (res) => {
+      const reason = REPORT_REASONS.length > res.tapIndex ? REPORT_REASONS[res.tapIndex] : ''
+      if (reason !== '') doReport(reason)
+    },
+    fail: () => { /* 用户取消 */ },
+  })
+}
+
+async function doReport(reason: string) {
+  const look = pendingLook
+  if (look == null) return
+  // 只提交「举报哪条 + 原因」；作者/正文/图片/时间全部由服务端按 postId 自己查
+  // （举报是证据，不能由客户端拼内容）
+  const ok = await submitCommunityReport(look.id, reason)
+  showFeedback(ok ? '举报已提交，我们会尽快处理' : `举报提交失败，可发邮件到 ${REPORT_INBOX}`)
 }
 
 // 公开 Gallery：仅筛选作用于公开帖子
@@ -162,13 +191,20 @@ function openPitPicker() {
 }
 function goCreate() { uni.navigateTo({ url: '/pages/share/create' }) }
 function previewPostImage(url: string) { if (url != '') uni.previewImage({ current: url, urls: [url] }) }
+/** 多图：把整条动态的图都交给 previewImage，用户左右滑即可，不需要另做详情页 */
+function previewPostImages(look: PublicLookPost) {
+  const urls = look.imageUrls.length > 0 ? look.imageUrls : (look.imageUrl != '' ? [look.imageUrl] : [])
+  if (urls.length === 0) return
+  uni.previewImage({ current: urls[0], urls })
+}
 function onLookTap(look: PublicLookPost) {
-  previewPostImage(look.imageUrl)
+  previewPostImages(look)
 }
 // Phase 2.3-A：商品关联入口 → Product Detail
 function openLinkedProduct(productId: string) {
+  // 统一入口：带 navigateOnce 防重入 + canonical id 映射
   if (productId === '') return
-  uni.navigateTo({ url: `/pages/product/detail?id=${productId}` })
+  openProductDetail(productId)
 }
 function reloadPublic() { library.refreshPublicPosts() }
 function loadMorePublic() { if (viewMode.value !== 'mine') library.loadMorePublicPosts() }
@@ -285,7 +321,6 @@ const loadMoreText = computed((): any => ({ fontSize: fontSize.xs, color: n.valu
 // 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
 // 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
 onBackPress((): boolean => {
-  if (showReportDialog.value) { showReportDialog.value = false; return true }
   if (showBlacklistDialog.value) { showBlacklistDialog.value = false; return true }
   return false
 })

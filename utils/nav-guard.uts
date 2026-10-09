@@ -1,0 +1,27 @@
+/**
+ * nav-guard — 导航重入保护
+ *
+ * 背景（2026-09-30 用户反馈）：衣柜页点一次悬浮「+」，会**连着进入两次**添加页，
+ * 返回时必须退两层。原因是悬浮按钮「组件根节点的 tap 监听」与「父级 @tap」在部分端会各触发
+ * 一次，`uni.navigateTo` 就被调了两遍。列表项快速连点也是同类问题。
+ *
+ * 处置：模块级时间戳锁。窗口内重复调用直接丢弃，不报错、不排队 —— 对用户而言
+ * 「点了一次只进一页」才是正确行为。
+ */
+
+/** 重入窗口（毫秒）：覆盖页面推入动画 + 一次误触的间隔 */
+const NAV_GUARD_MS = 700
+
+let lastNavAt = 0
+
+/**
+ * 带重入保护的 navigateTo。
+ * @returns true = 本次真的发起了导航；false = 被判定为重复点击而丢弃
+ */
+export function navigateOnce(url: string): boolean {
+  const now = Date.now()
+  if (now - lastNavAt < NAV_GUARD_MS) return false
+  lastNavAt = now
+  uni.navigateTo({ url })
+  return true
+}

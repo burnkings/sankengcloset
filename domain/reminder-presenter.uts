@@ -18,7 +18,7 @@ function getTypeText(type: string): string {
   if (type === 'RELEASE') return '上新发售'
   if (type === 'OUTFIT') return '穿搭计划'
   if (type === 'PHOTO') return '拍照日程'
-  if (type === 'ORGANIZE') return '整理衣橱'
+  if (type === 'ORGANIZE') return '整理衣柜'
   if (type === 'WISH') return '蹲新品'
   return '打卡'
 }

@@ -1,4 +1,4 @@
-import { apiGet, apiGetAuthorized, apiPostAuthorized, apiPutAuthorized, apiPatchAuthorized, apiDeleteAuthorized, encodeQuery, apiUploadBinary, apiErrorStatus, readFileAsArrayBuffer } from '@/services/platform/api-client'
+import { apiGet, apiGetAuthorized, apiPostAuthorized, apiPutAuthorized, apiPatchAuthorized, apiDeleteAuthorized, encodeQuery, apiUploadBinary, apiErrorStatus, readFileAsArrayBuffer, resolveApiUrl } from '@/services/platform/api-client'
 
 function asObject(value: any): UTSJSONObject | null {
   return value != null ? value as UTSJSONObject : null
@@ -12,8 +12,14 @@ export class CommunityPostRemote {
   id: string = ''
   authorUserId: string = ''
   authorNickname: string = ''
+  /** 作者头像地址（空 = 作者未设头像，卡片回退文字首字） */
+  authorAvatarUrl: string = ''
   mediaId: string = ''
   imageUrl: string = ''
+  /** 全部图片的 mediaId（顺序即展示顺序，第 0 张 = 封面）。老数据为空数组 */
+  mediaIds: string[] = []
+  /** 全部图片的可展示地址，与 mediaIds 一一对应；老数据为空数组 */
+  imageUrls: string[] = []
   caption: string = ''
   category: string = ''
   topic: string = ''
@@ -21,8 +27,31 @@ export class CommunityPostRemote {
   liked: boolean = false
   /** Phase 2.3-A：关联商品 id（空 = 普通内容） */
   productId: string = ''
+  /** 'public' | 'private'（仅自己可见）。老数据/未返回时按 public 处理 */
+  visibility: string = 'public'
   createdAt: string = ''
   updatedAt: string = ''
+}
+
+/** 把一组后端相对地址整体补成绝对地址（见 resolveApiUrl 的说明） */
+function resolveApiUrlList(values: string[]): string[] {
+  const result: string[] = []
+  for (let i = 0; i < values.length; i++) result.push(resolveApiUrl(values[i]))
+  return result
+}
+
+function asStringArray(value: any): string[] {
+  const result: string[] = []
+  if (value == null) return result
+  const list = value as any[]
+  if (list == null) return result
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i]
+    if (item == null) continue
+    const text = item as string
+    if (text != '') result.push(text)
+  }
+  return result
 }
 
 export class CommunityPostPageRemote {
@@ -36,14 +65,19 @@ export function mapCommunityPost(raw: UTSJSONObject): CommunityPostRemote {
   post.id = asString(raw['id'])
   post.authorUserId = asString(raw['authorUserId'])
   post.authorNickname = asString(raw['authorNickname'])
+  post.authorAvatarUrl = resolveApiUrl(asString(raw['authorAvatarUrl']))
   post.mediaId = asString(raw['mediaId'])
-  post.imageUrl = asString(raw['imageUrl'])
+  // 后端给的是相对路径（/api/v1/media/<id>），必须补成绝对地址才能被 <image> 加载
+  post.imageUrl = resolveApiUrl(asString(raw['imageUrl']))
+  post.mediaIds = asStringArray(raw['mediaIds'])
+  post.imageUrls = resolveApiUrlList(asStringArray(raw['imageUrls']))
   post.caption = asString(raw['caption'])
   post.category = asString(raw['category'])
   post.topic = asString(raw['topic'])
   post.likeCount = asNumber(raw['likeCount'])
   post.liked = asBoolean(raw['liked'])
   post.productId = asString(raw['productId'])
+  post.visibility = asString(raw['visibility']) != '' ? asString(raw['visibility']) : 'public'
   post.createdAt = asString(raw['createdAt'])
   post.updatedAt = asString(raw['updatedAt'])
   return post
@@ -194,15 +228,20 @@ export function createCommunityPostRemote(payload: UTSJSONObject) {
   return apiPostAuthorized('/api/v1/community/posts', payload)
 }
 
+/** 由本地路径推断上传用的 content-type（后端 prepareSchema 只放行这三种） */
+export function imageContentType(localPath: string): string {
+  return localPath.endsWith('.png') ? 'image/png' : localPath.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
+}
+
 /**
- * 上传图片并返回 mediaId。
- * 流程：POST /api/v1/uploads:prepare（purpose=outfit）→ PUT content（原始二进制）
+ * 上传图片并返回 mediaId（通用：圈子穿搭图 / 头像都走这一条）。
+ * 流程：POST /api/v1/uploads:prepare（purpose）→ PUT content（原始二进制）
  */
-export async function uploadOutfitImageRemote(localPath: string): Promise<string> {
+export async function uploadImageRemote(localPath: string, purpose: string): Promise<string> {
   const binary = await readFileAsArrayBuffer(localPath)
   if (binary.byteLength === 0) throw new Error('图片为空，请重新选择图片')
-  const contentType = localPath.endsWith('.png') ? 'image/png' : localPath.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
-  const prepared = await apiPostAuthorized('/api/v1/uploads:prepare', { purpose: 'outfit', contentType })
+  const contentType = imageContentType(localPath)
+  const prepared = await apiPostAuthorized('/api/v1/uploads:prepare', { purpose: purpose, contentType: contentType })
   const preparedData = asObject(prepared.data)
   if (preparedData == null || preparedData['uploadId'] == null || preparedData['mediaId'] == null) {
     throw new Error('上传准备失败，请重试')
@@ -216,4 +255,62 @@ export async function uploadOutfitImageRemote(localPath: string): Promise<string
     throw e
   }
   return mediaId
+}
+
+/** 上传圈子穿搭图（保留旧签名，调用方零改动） */
+export function uploadOutfitImageRemote(localPath: string): Promise<string> {
+  return uploadImageRemote(localPath, 'outfit')
+}
+
+/** 上传头像图，返回可用于 PATCH /api/v1/me 的 mediaId */
+export function uploadAvatarImageRemote(localPath: string): Promise<string> {
+  return uploadImageRemote(localPath, 'avatar')
+}
+
+/**
+ * 上传反馈/举报的截图，返回**运营可直接打开的公开地址**。
+ *
+ * 为什么返回完整地址而不是 mediaId：反馈与举报的附件是给运营看的（飞书通知里点开），
+ * 运营不在 App 里，拿不到 mediaId → 必须给可直接访问的 URL。
+ * 服务端把 `feedback` 用途归到公开可读组（否则 `GET /api/v1/media/:id` 会 404）。
+ */
+export async function uploadFeedbackImageRemote(localPath: string): Promise<string> {
+  const mediaId = await uploadImageRemote(localPath, 'feedback')
+  return resolveApiUrl('/api/v1/media/' + encodeQuery(mediaId))
+}
+
+/**
+ * 更新个人资料（PATCH /api/v1/me）。
+ * 只传要改的字段：nickname 非空才带；avatarMediaId 非空才带（空串表示清空头像）。
+ * 返回服务端回带的资料（含重新拼好的绝对 avatarUrl），失败返回 null。
+ */
+export async function updateProfileRemote(nickname: string, avatarMediaId: string): Promise<UTSJSONObject | null> {
+  const payload = {} as UTSJSONObject
+  const name = nickname.trim()
+  if (name !== '') payload['nickname'] = name
+  if (avatarMediaId !== '') payload['avatarMediaId'] = avatarMediaId
+  if (name === '' && avatarMediaId === '') return null
+  const response = await apiPatchAuthorized('/api/v1/me', payload)
+  return asObject(response.data)
+}
+
+/**
+ * 注销账号（POST /api/v1/me/deactivate）。
+ *
+ * 服务端会删掉这个用户的全部个人数据（动态/收藏/衣柜/订单/提醒/上传的文件）并删除账号，
+ * 反馈与举报记录**匿名化保留**（去掉 user_id，内容作为审核历史留下）。
+ * 这是不可逆操作，调用方必须先做二次确认。
+ */
+export function deactivateAccountRemote(): Promise<ApiResponse> {
+  return apiPostAuthorized('/api/v1/me/deactivate', {} as UTSJSONObject)
+}
+
+/** 读取当前账号资料（GET /api/v1/me），未登录/失败返回 null */
+export async function fetchProfileRemote(): Promise<UTSJSONObject | null> {
+  try {
+    const response = await apiGetAuthorized('/api/v1/me')
+    return asObject(response.data)
+  } catch (_) {
+    return null
+  }
 }

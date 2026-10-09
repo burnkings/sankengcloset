@@ -73,6 +73,11 @@ function notifyChanged() {}
 // ====== 模块级 action ======
 
 function reload() {
+  // ⚠️ 已登录用户**不得**注入本机假通知。
+  // 本机那三条（月光曲定金/晒搭被喜欢/通知服务已开启）是给游客看的占位内容；
+  // 如果登录用户也拿到它们，就会出现「不属于这个账号的消息」和「假红点」。
+  // 已登录时本函数是 no-op，列表等 refreshRemote 的云端结果。
+  if (getCachedAccessToken() != '') return
   const savedReadIds = readIds()
   const next = mockNotifications()
   for (let i = 0; i < next.length; i++) next[i].read = savedReadIds.indexOf(next[i].id) >= 0
@@ -101,11 +106,14 @@ async function refreshRemote(): Promise<void> {
     const raw = await listNotificationsRemote()
     const result: AppNotification[] = []
     for (let i = 0; i < raw.length; i++) result.push(mapRemote(raw[i]))
-    if (result.length > 0) _state.items = result
-    else reload()
+    // ⚠️ 已登录时**云端说什么就是什么**：真实账号一条通知都没有，就该显示空列表。
+    // 原来这里 `result.length > 0 ? result : reload()` —— 空列表会退回本机假通知，
+    // 用户会收到并不属于自己账号的「月光曲 JSK 定金即将开始」这类内容。
+    // 本机假通知只服务「游客/未登录」这一种情况（见上面 accessToken 为空的早退分支）。
+    _state.items = result
   } catch (e) {
     _state.error = e instanceof Error ? e.message : '通知加载失败'
-    reload()
+    // 拉取失败同样不回退假通知：宁可在页面上说「加载失败 + 重新加载」，也不要展示假消息。
   } finally {
     _state.loading = false
     notifyChanged()

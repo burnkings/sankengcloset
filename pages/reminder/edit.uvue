@@ -155,7 +155,7 @@
 import { fetchProductDetail } from '@/services/content/product-service'
 const relatedProductName = ref('')
 function openRelatedProduct() {
-  if (relatedProductId.value !== '') uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(relatedProductId.value)}` })
+  if (relatedProductId.value !== '') openProductDetail(relatedProductId.value)
 }
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
@@ -163,6 +163,7 @@ import { useContentLibraryStore } from '@/stores/content-library-store'
 import { FeedItem } from '@/domain/content/feed-item'
 import { reminderTypeFromContext } from '@/utils/reminder-context'
 import { safeParam } from '@/utils/route-params'
+import { openProductDetail } from '@/utils/content-navigation'
 import { canSetBalanceReminder } from '@/utils/purchase-reminder'
 import { usePurchaseStore } from '@/stores/purchase-store'
 import { Reminder, ReminderUpdateData, TYPE_LABELS, TYPE_PLACEHOLDERS } from '@/domain/reminder'
@@ -238,7 +239,7 @@ const typeOptions = [
   { label: '到货提醒', value: 'ARRIVAL' },
   { label: '穿搭计划', value: 'OUTFIT' },
   { label: '拍照日程', value: 'PHOTO' },
-  { label: '整理衣橱', value: 'ORGANIZE' },
+  { label: '整理衣柜', value: 'ORGANIZE' },
   { label: '蹲新品', value: 'WISH' },
   { label: '打卡', value: 'CHECKIN' },
 ]

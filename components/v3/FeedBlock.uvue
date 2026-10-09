@@ -5,7 +5,8 @@
     </view>
     <view v-else-if="full != null && full.feedType === FEED_OUTFIT" class="feed-single-card" :style="outfitCard" @tap="emit('openItem', full)">
       <view :style="imgWrap45">
-        <AppImage :src="full.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+        <!-- 单卡大图（718rpx ≈ 359 逻辑px，@3x 需约 1077px）⇒ 用 800 档，不是列表卡的 500 档 -->
+        <AppImage :src="full.coverUrl" width="100%" height="100%" mode="aspectFill" :lazy-load="true" :list-width="800" />
         <view :style="outfitInfoOverlay">
           <text :style="outfitTitle">{{ full.title }}</text>
           <text :style="outfitSub">{{ full.subtitle }}</text>

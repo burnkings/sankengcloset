@@ -25,7 +25,7 @@
           <PageSkeleton variant="list" v-if="store.loading && store.itemCount === 0" />
 
           <template v-else-if="store.groupedItems.length === 0">
-            <PageState icon="reminder" title="暂无提醒" message="添加提醒，不再错过补款与到货" action-text="新建提醒" @action="goAdd" />
+            <PageState icon="reminder" title="暂无提醒" message="点右下角 + 添加提醒，不再错过补款与到货" />
           </template>
 
           <view v-else>
@@ -99,6 +99,7 @@ import FilterChips from '@/components/v3/FilterChips.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
+import { navigateOnce } from '@/utils/nav-guard'
 import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = useReminderStore()
@@ -112,7 +113,8 @@ function onFilter(label: string) {
   activeFilter.value = label
   store.setFilterStatus(label === '全部' ? '' : (label === '待提醒' ? 'PENDING' : (label === '已过期' ? 'MISSED' : 'DONE')))
 }
-function goAdd() { uni.navigateTo({ url: '/pages/reminder/edit' }) }
+// 悬浮「+」在部分端会触发两次 tap ⇒ 走重入保护，避免一次点击 push 两个页面
+function goAdd() { navigateOnce('/pages/reminder/edit') }
 function openItem(id: string) { if (!selectMode.value) uni.navigateTo({ url: `/pages/reminder/edit?id=${id}` }) }
 function onQuickToggle(item: ReminderDisplayModel) {
   if (item.statusText === '已完成') { store.markUndone(item.id); showFeedback('已恢复提醒') }

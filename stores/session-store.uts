@@ -1,10 +1,19 @@
 import { reloadFavorite, refreshRemoteFavorites } from '@/stores/favorite-store'
-/** V2.6 会话 Store：内测阶段默认使用本机 Mock 会话，保留正式微信登录实现。 */
+/**
+ * V2.7 会话 Store：**只保留微信登录**（+ 未登录的游客态）。
+ *
+ * 2026-09-30 删除「仅在本机使用」（mock 会话）：
+ *   它是一个没有 token 的假登录态 —— 界面显示「已登录」，但所有云端数据都拿不到，
+ *   收藏/衣柜/提醒只会写本机，还会把一批 demo_* 假商品（prd_jk_navy_45…）当成收藏，
+ *   在收藏页全部 404 显示成「已下架」。用户口径：这种旧东西删掉。
+ *   现在的两条路：微信一键登录（真实账号）／先逛逛（游客，数据只在本机且会排队等登录后同步）。
+ */
 import { reactive } from 'vue'
-import { clearSessionTokens, saveSessionTokens } from '@/config/runtime'
+import { clearSessionTokens, saveSessionTokens, getCachedAccessToken } from '@/config/runtime'
 import { WECHAT_MP_LOGIN_ENABLED, WECHAT_APP_LOGIN_CONFIGURED } from '@/config/wechat'
-import { apiPost, apiGet, apiGetAuthorized, apiErrorStatus } from '@/services/platform/api-client'
+import { apiPost, apiGet, apiGetAuthorized, apiErrorStatus, apiErrorCode, apiErrorRequestId } from '@/services/platform/api-client'
 import { flushLocalOperations } from '@/services/sync/local-sync-queue'
+import { uploadAvatarImageRemote, updateProfileRemote, fetchProfileRemote } from '@/services/user-data/user-data-service'
 import { bumpFetchSeq as bumpWardrobeFetch } from '@/stores/wardrobe-store'
 import { bumpFetchSeq as bumpPurchaseFetch } from '@/stores/purchase-store'
 import { bumpFetchSeq as bumpWishlistFetch } from '@/stores/wishlist-store'
@@ -14,9 +23,8 @@ const STATE_KEY = 'v21_session_state'
 const USER_ID_KEY = 'v21_session_user_id'
 const NICKNAME_KEY = 'v21_session_nickname'
 const AVATAR_KEY = 'v25_session_avatar'
-const MODE_KEY = 'v26_session_mode'
-const SESSION_MODE_MOCK = 'mock'
-const SESSION_MODE_WECHAT = 'wechat'
+/** 已废弃：旧「仅在本机使用」写的会话模式键（v26_session_mode）。仅用于清理残留。 */
+const LEGACY_MODE_KEY = 'v26_session_mode'
 
 export class SessionProfile {
   userId: string = ''
@@ -29,77 +37,144 @@ function readString(key: string): string {
   try { const value = uni.getStorageSync(key); return value == null ? '' : value as string } catch (e) { return '' }
 }
 
+/**
+ * 没设头像时的默认头像文字 = **账号昵称首字**。
+ *
+ * 之前这里写死 'SK'，所以登录后头像位永远显示 "SK"，看起来像「没用上账号信息」。
+ * 微信登录只回 code（头像昵称能力 2022 年已回收），后端 `users.avatar_url` 一开始就是空的，
+ * 所以「默认头像」只能是昵称首字，不是微信头像。
+ */
+function nicknameInitial(nickname: string): string {
+  const name = nickname.trim()
+  if (name === '') return '三'
+  // 与社区卡片（`PublicLookPost.initial`）取首字的口径保持一致：substring(0,1)。
+  // emoji 昵称会被切成半个代理对，但那是全站统一的既有取舍，不在这里单独搞一套。
+  return name.substring(0, 1)
+}
+
 // ====== 模块级 reactive 状态（单例）======
 
 type SessionState = {
   state: string
-  mode: string
   profile: SessionProfile
   loggingIn: boolean
   errorMessage: string
+  /**
+   * 上一次登录失败的后端 requestId（无则空串）。
+   * 后端对 401 只给笼统一句话，真正的病因（微信 errcode）只在他的日志里；
+   * 把这个 id 显示给用户，就能一条命令捞出那次请求的原始错误。
+   */
+  errorRequestId: string
 }
 
 const _state = reactive<SessionState>({
-  state: readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest',
-  mode: readString(MODE_KEY),
+  state: 'guest',
   profile: new SessionProfile(),
   loggingIn: false,
   errorMessage: '',
+  errorRequestId: '',
 })
 
 function isLoggedIn(): boolean { return _state.state === 'logged_in' }
 function userId(): string { return isLoggedIn() ? _state.profile.userId : '' }
-function isMock(): boolean { return isLoggedIn() && _state.mode === SESSION_MODE_MOCK }
+
+/**
+ * 清空登录错误。message 与 requestId **必须成对清**：
+ * 只清 message 会让下一次失败之前的界面上还挂着上一次失败的 requestId，
+ * 那是个比没有更坏的误导（用户会拿着错的 id 去问后端）。
+ */
+function clearLoginError() {
+  _state.errorMessage = ''
+  _state.errorRequestId = ''
+}
 
 function notifyChanged() {}
 
 // ====== 模块级 action ======
 
+/**
+ * 本机上属于**某个账号的个人数据**。退出登录/注销时必须一起清掉。
+ *
+ * ⚠️ 2026-10-05 用户反馈「注销后重新登录，还看得到之前的点赞、浏览、收藏、反馈记录」——
+ * 根因就是 `clearStoredSession()` 只清了会话 key，这些业务缓存全留在手机上：
+ * 服务端其实已经按注销清干净了（复核过：interactions/posts 都是 0），
+ * 但本机残留让用户以为没注销。**换一台手机上同一个号不会有这些数据，正是证据。**
+ *
+ * 为什么用**显式清单**而不是按前缀扫：前缀扫容易误伤设备级数据
+ * （`v21_device_id` 是设备标识、`v27_catalog_cache` 是公共内容缓存、隐私同意是微信侧权威记录）。
+ */
+const USER_SCOPED_KEYS: string[] = [
+  // 收藏 / 心愿单 / 关注
+  'v2_library_favorite_ids', 'v2_library_favorite_entries', 'v2_library_favorite_snapshots',
+  'v2_library_wish_ids', 'v2_library_followed_brands',
+  // 互动与浏览
+  'v2_library_liked_post_ids', 'v2_browse_history', 'v21_notification_read_ids',
+  // 反馈 / 发布草稿
+  'v2_feedback_records', 'v26_mock_published_posts',
+  // 黑名单 / 预算 / 内容偏好
+  'v2_blacklist_users', 'v2_blacklist_brands',
+  'v2_budget_monthly_limit', 'v2_budget_alert_percent', 'v2_user_preferences',
+  // 待同步队列与水印：**绝不能带到下一个账号**
+  'v21_sync_queue_ids', 'v21_sync_dropped', 'v21_sync_last_success_at',
+  // 搜索与列表的本地偏历史
+  'search_recent', 'pending_search_keyword', 'community_topic', 'community_view',
+]
+
+/** 清掉上一个账号在本机留下的一切（退出登录与注销都走这里） */
+export function clearUserScopedStorage() {
+  for (let i = 0; i < USER_SCOPED_KEYS.length; i++) {
+    try { uni.removeStorageSync(USER_SCOPED_KEYS[i]) } catch (e) { /* 单个 key 失败不阻塞退出 */ }
+  }
+}
+
+/** 清掉本机会话痕迹（不含业务数据）。旧 mock 会话迁移与 logout 共用。 */
+function clearStoredSession() {
+  clearSessionTokens()
+  uni.removeStorageSync(STATE_KEY)
+  uni.removeStorageSync(USER_ID_KEY)
+  uni.removeStorageSync(NICKNAME_KEY)
+  uni.removeStorageSync(AVATAR_KEY)
+  uni.removeStorageSync(LEGACY_MODE_KEY)
+}
+
+function resetToGuest() {
+  _state.state = 'guest'
+  _state.profile = new SessionProfile()
+  clearLoginError()
+}
+
 function reload() {
-  _state.state = readString(STATE_KEY) === 'logged_in' ? 'logged_in' : 'guest'
-  _state.mode = readString(MODE_KEY)
+  const stored = readString(STATE_KEY)
+  // 旧「仅在本机使用」残留迁移：那些会话（含 v26_session_mode=mock）从来没有 token，
+  // 留着就是「假登录」——界面显示已登录，但云端数据一个都拿不到。
+  // 判断依据不要用 mode 键：**有没有 accessToken 才是登录态的唯一凭据**。
+  if (stored === 'logged_in' && getCachedAccessToken() === '') {
+    clearStoredSession()
+    resetToGuest()
+    notifyChanged()
+    return
+  }
+  _state.state = stored === 'logged_in' ? 'logged_in' : 'guest'
+  // mode 键已废弃，见到就清（它只会让残留设备继续被识别成 mock）
+  if (readString(LEGACY_MODE_KEY) !== '') uni.removeStorageSync(LEGACY_MODE_KEY)
   const next = new SessionProfile()
   next.userId = readString(USER_ID_KEY)
   next.nickname = readString(NICKNAME_KEY)
-  if (_state.mode === SESSION_MODE_MOCK && next.nickname === '内测体验账号') {
-    next.nickname = '本机用户'
-    uni.setStorageSync(NICKNAME_KEY, next.nickname)
-  }
   next.avatarUrl = readString(AVATAR_KEY)
   if (next.nickname === '') next.nickname = '三坑女孩'
+  next.avatarText = nicknameInitial(next.nickname)
   _state.profile = next
   // 进入登录页后清除旧登录错误
-  if (_state.state === 'guest') _state.errorMessage = ''
+  if (_state.state === 'guest') clearLoginError()
   notifyChanged()
 }
 
-function persistLogin(userIdValue: string, nickname: string, avatarUrl: string, mode: string) {
+function persistLogin(userIdValue: string, nickname: string, avatarUrl: string) {
   uni.setStorageSync(STATE_KEY, 'logged_in')
-  uni.setStorageSync(MODE_KEY, mode)
   uni.setStorageSync(USER_ID_KEY, userIdValue)
   uni.setStorageSync(NICKNAME_KEY, nickname)
   uni.setStorageSync(AVATAR_KEY, avatarUrl)
   reload()
-}
-
-/**
- * 本机 Mock 登录：只建立可识别的内测会话，不生成或伪造后端 Token。
- * 所有个人数据继续使用现有本地仓库；需要真实账号的远程写入会保留在同步队列中。
- */
-async function loginMock(): Promise<boolean> {
-  if (_state.loggingIn) return false
-  _state.loggingIn = true
-  _state.errorMessage = ''
-  try {
-    clearSessionTokens()
-    persistLogin('mock_user_local', '本机用户', '', SESSION_MODE_MOCK)
-    return true
-  } catch (e) {
-    _state.errorMessage = e instanceof Error ? e.message : '进入失败，请重试'
-    return false
-  } finally {
-    _state.loggingIn = false
-  }
 }
 
 /**
@@ -116,14 +191,60 @@ function wechatLoginSupported(): boolean {
   return supported
 }
 
-/** 把后端/网络的失败翻译成用户能照做的提示（不暴露 HTTP 细节） */
-function wechatLoginErrorMessage(error: any, statusCode: number): string {
+/**
+ * 把后端/网络的失败翻译成用户能照做的提示（不暴露 HTTP 细节）。
+ *
+ * 为什么要看 errorCode 而不是只看状态码：
+ * 同一个 401 至少有两种完全不同的病因 ——「微信 code 过期」（用户重试即可）和
+ * 「后端服务器 IP 不在微信白名单 / 微信 errcode 40164」（用户重试一万次也没用，必须管理员改配置）。
+ * 两者如果都显示「微信授权已失效」，用户会一直点登录，而问题永远不解决。
+ * 所以约定：后端把微信 errcode 或稳定错误码透传到 `error.code`，这里优先按 code 分流。
+ */
+function wechatLoginErrorMessage(error: any, statusCode: number, errorCode: string): string {
+  const message = error instanceof Error ? error.message : ''
+  const signal = `${errorCode} ${message}`
+  // 配置类问题：不是用户的锅，必须给出与「重试」不同的动作
+  if (signal.indexOf('40164') >= 0
+    || signal.indexOf('WECHAT_IP') >= 0
+    || signal.indexOf('whitelist') >= 0
+    || signal.indexOf('白名单') >= 0) {
+    return '登录服务未配置好：服务器 IP 不在微信白名单，请联系管理员'
+  }
+  // 第二类服务端配置问题：**微信凭据本身被拒**（AppID/AppSecret 不匹配、参数没传到位）。
+  // 2026-09-29 服务器用进程真值直连 jscode2session，实测拿到原始 `40125 invalid appsecret`
+  // —— 在这之前它一直被后端压成 `401 {code:'UNAUTHORIZED'}`，用户只能对着页面反复点登录，
+  // 而真正要做的是管理员去小程序后台重置 AppSecret、改 .env.production 并重启后端进程。
+  // ⚠️ 这道闸是**必需的**：后端一旦按契约把凭据类失败映射成 `503 + code:'WECHAT_CREDENTIAL_INVALID'`，
+  //    没有上面这一支就会落到下面的 503 分支显示「请稍后重试」—— 又变回死循环。
+  if (signal.indexOf('WECHAT_CREDENTIAL') >= 0
+    || signal.indexOf('40125') >= 0
+    || signal.indexOf('40013') >= 0
+    || signal.indexOf('41002') >= 0
+    || signal.indexOf('41004') >= 0
+    || signal.indexOf('41008') >= 0) {
+    return '登录服务未配置好：服务器微信凭据无效，请联系管理员'
+  }
   if (statusCode == 404) return '微信登录服务尚未上线，请稍后再试'
   if (statusCode == 400) return '微信登录参数有误，请更新到最新版本后重试'
-  if (statusCode == 401 || statusCode == 403) return '微信授权已失效，请重新点击登录'
+  if (statusCode == 503) return '登录服务暂时不可用，请稍后重试'
   if (statusCode >= 500) return '登录服务暂时不可用，请稍后重试'
+  // ⚠️ 401/403 是**唯一无法从响应里分辨病因**的一档，文案不允许只给一个动作：
+  //   ① 微信 code 过期（用户再点一次真的会好）
+  //   ② 后端服务器出口 IP 不在「API IP 白名单」里（微信 errcode 40164）——用户点一万次也不会好
+  // 2026-09-28 探针直连 jscode2session 拿到
+  //   {"errcode":40164,"errmsg":"invalid ip 112.0.140.70 ipv6 ::ffff:112.0.140.70, not in whitelist"}
+  // 2026-09-29 校正：那个 IP 是**跑探针的本机出口 IP**，不是后端服务器 IP —— 这条实测只能证明
+  // 「该白名单已开启」+「本机不在名单内」，**证明不了后端在不在**。
+  // 而后端目前对**所有** code2Session 失败都回同一个
+  //   `401 {code:'UNAUTHORIZED', message:'登录凭证已失效，请重试'}`，
+  // 所以后端就算是因为 40164 失败，前端看到的也是这一句，无从分辨 ⇒ 落到这一档。
+  // 用户看到的正是「一直提示授权失效、重新点登录也没用」：在 ② 的情况下旧文案是个死循环，
+  // 所以这里必须同时给出两条出路，等后端按 errcode 分流（40164 → 503 + WECHAT_IP_NOT_WHITELIST）后，
+  // 上面的白名单分支才会真正命得中，文案也就自然收敛。
+  if (statusCode == 401 || statusCode == 403) {
+    return '微信登录被拒绝：授权凭证可能已过期，也可能是服务器未完成微信配置。请再试一次；若反复失败请联系管理员'
+  }
   if (statusCode == 0) return '网络连接失败，请检查网络后重试'
-  const message = error instanceof Error ? error.message : ''
   return message != '' ? message : '微信登录失败，请重试'
 }
 
@@ -140,10 +261,10 @@ function wechatLoginErrorMessage(error: any, statusCode: number): string {
 async function loginWithWechat(): Promise<boolean> {
   if (_state.loggingIn) return false
   _state.loggingIn = true
-  _state.errorMessage = ''
+  clearLoginError()
   try {
     if (!wechatLoginSupported()) {
-      throw new Error('App 端微信登录尚未配置（需微信开放平台移动应用 AppID），可先用「仅在本机使用」')
+      throw new Error('App 端微信登录尚未配置（需微信开放平台移动应用 AppID），请先用「暂不登录，先逛逛」')
     }
     // 1. 获取微信授权 code
     const loginResult = await new Promise<LoginSuccess>((resolve, reject) => {
@@ -157,13 +278,24 @@ async function loginWithWechat(): Promise<boolean> {
     if (code === '') throw new Error('微信授权未返回临时 code，请重试')
 
     // 2. 获取设备标识
+    // 用 uni.getDeviceInfo()（现代 API）而不是已废弃的 uni.getSystemInfoSync()：
+    // 后者每次登录都会在控制台刷一条 "wx.getSystemInfoSync is deprecated" 警告，
+    // 而 deviceId 在小程序端本来就被微信移除了、基本取不到值，为它调废弃 API 不划算。
+    // uni.getDeviceInfo().deviceId 由 uni-app 框架生成并持久化，App / 小程序 / Web 三端都有，
+    // 语义比旧的系统 deviceId 更稳定（清空 Storage 才会变）。
+    // 契约里 deviceId 是**可选**的，所以取不到就当作没有，而不是塞空值 ——
+    // 塞 undefined 进 UTSJSONObject 会变成 null，后端 zod 判它「expected string」⇒ 配置全对也 400。
     let deviceId = ''
     try {
-      deviceId = uni.getSystemInfoSync().deviceId
+      const rawDeviceId: string | null = uni.getDeviceInfo().deviceId
+      deviceId = rawDeviceId != null ? rawDeviceId : ''
     } catch (_) { /* deviceId 非必需 */ }
 
     // 3. POST /api/v1/sessions/wechat
-    const response = await apiPost('/api/v1/sessions/wechat', { code, deviceId })
+    // deviceId 在契约里是可选的：拿不到就**不带这个键**，而不是带一个空值。
+    const payload = { code: code } as UTSJSONObject
+    if (deviceId !== '') payload['deviceId'] = deviceId
+    const response = await apiPost('/api/v1/sessions/wechat', payload)
     const data = response.data != null ? response.data as UTSJSONObject : null
     if (data == null) throw new Error('登录响应为空')
     const accessToken: string = data['accessToken'] != null ? data['accessToken'] as string : ''
@@ -183,13 +315,16 @@ async function loginWithWechat(): Promise<boolean> {
     const avatar: string = userInfo != null && userInfo['avatarUrl'] != null ? userInfo['avatarUrl'] as string : ''
     const id: string = userInfo != null && userInfo['id'] != null ? userInfo['id'] as string : data['userId'] != null ? data['userId'] as string : ''
     if (id === '') throw new Error('无法获取用户标识')
-    persistLogin(id, displayName, avatar, SESSION_MODE_WECHAT)
+    persistLogin(id, displayName, avatar)
     // 登录成功后冲刷本地待同步队列（离线期间的写操作补上送）
     reloadFavorite()
     flushLocalOperations().then(() => refreshRemoteFavorites()).catch(() => { /* 队列保留，网络恢复后再同步 */ })
     return true
   } catch (e) {
-    _state.errorMessage = wechatLoginErrorMessage(e, apiErrorStatus(e))
+    _state.errorMessage = wechatLoginErrorMessage(e, apiErrorStatus(e), apiErrorCode(e))
+    // 后端对 401 只给一句笼统一致的话，真正的病因（微信 errcode）在它自己的日志里。
+    // requestId 是唯一能直接捞出那一条的把手，所以必须显示给用户，不能只留 errorMessage。
+    _state.errorRequestId = apiErrorRequestId(e)
     // 显式返回 false，调用方根据 errorMessage 展示错误状态与重试按钮
     return false
   } finally {
@@ -198,15 +333,10 @@ async function loginWithWechat(): Promise<boolean> {
 }
 
 function logout() {
-  clearSessionTokens()
-  uni.removeStorageSync(STATE_KEY)
-  uni.removeStorageSync(USER_ID_KEY)
-  uni.removeStorageSync(NICKNAME_KEY)
-  uni.removeStorageSync(AVATAR_KEY)
-  uni.removeStorageSync(MODE_KEY)
-  _state.state = 'guest'
-  _state.profile = new SessionProfile()
-  _state.errorMessage = ''
+  clearStoredSession()
+  // 个人数据一并清掉：否则换账号/重新登录还会看到上一个人的点赞、收藏、浏览与反馈记录
+  clearUserScopedStorage()
+  resetToGuest()
   // 丢弃各业务 store 的 in-flight 请求，防旧账号数据晚返回覆盖新状态
   bumpWardrobeFetch()
   bumpPurchaseFetch()
@@ -216,7 +346,7 @@ function logout() {
 }
 
 function clearError() {
-  _state.errorMessage = ''
+  clearLoginError()
 }
 
 function updateLocalProfile(nickname: string, avatarUrl: string): boolean {
@@ -230,6 +360,64 @@ function updateLocalProfile(nickname: string, avatarUrl: string): boolean {
   } catch (e) { return false }
 }
 
+/**
+ * 保存资料到云端（昵称 + 头像）。返回空串 = 成功，否则是可直接展示的中文错误。
+ *
+ * 头像走与圈子发帖**同一条**上传管线：uploads:prepare(purpose=avatar) → PUT content → 拿 mediaId，
+ * 再 PATCH /api/v1/me 绑定。所以本地临时路径先换 mediaId；已经是 http(s) 的服务端地址不重复上传。
+ * 本地缓存写服务端回带的绝对地址，换域名/换 CDN 不需要清缓存。
+ */
+async function saveProfileRemote(nickname: string, avatarUrl: string): Promise<string> {
+  const name = nickname.trim()
+  if (name == '') return '昵称不能为空'
+  if (!isLoggedIn()) return '请先登录'
+
+  const isLocalPath = avatarUrl != '' && !avatarUrl.startsWith('http')
+  let mediaId = ''
+  if (isLocalPath) {
+    try { mediaId = await uploadAvatarImageRemote(avatarUrl) }
+    catch (e) { return '头像上传失败，请检查网络后重试' }
+  }
+
+  let saved: UTSJSONObject | null = null
+  try { saved = await updateProfileRemote(name, mediaId) }
+  catch (e) { return '资料保存失败，请稍后重试' }
+  if (saved == null) return '资料保存失败，请稍后重试'
+
+  const serverName: string = saved['nickname'] != null ? saved['nickname'] as string : name
+  const serverAvatar: string = saved['avatarUrl'] != null ? saved['avatarUrl'] as string : avatarUrl
+  updateLocalProfile(serverName == '' ? name : serverName, serverAvatar)
+  return ''
+}
+
+/**
+ * 老版本遗留头像的一次性迁移（每次运行最多试一次）。
+ *
+ * 2.5.0-beta.7 及之前，换头像只把**本机临时路径**写进 storage，从没上传过。
+ * 那种状态下「我的动态」读本地（有头像）、社区广场读服务端（没头像），两端必然对不上。
+ * 所以只要发现「本地有、云端空」，就把本地那张补传上去，之后两端同源。
+ */
+let avatarMigrationTried = false
+
+/** 拉一次云端资料刷新本地缓存（登录后/进「我的」时校准头像与昵称） */
+async function refreshProfileRemote(): Promise<boolean> {
+  if (!isLoggedIn()) return false
+  const profile = await fetchProfileRemote()
+  if (profile == null) return false
+  const name: string = profile['nickname'] != null ? profile['nickname'] as string : ''
+  const avatar: string = profile['avatarUrl'] != null ? profile['avatarUrl'] as string : ''
+  const localAvatar = _state.profile.avatarUrl
+  const effectiveName = name == '' ? _state.profile.nickname : name
+
+  if (avatar == '' && localAvatar != '' && !localAvatar.startsWith('http') && !avatarMigrationTried) {
+    avatarMigrationTried = true
+    const message = await saveProfileRemote(effectiveName, localAvatar)
+    if (message == '') return true
+    // 补传失败（临时文件已被清 / 离线）：保留本地路径，别把用户唯一的头像抹掉
+  }
+  return updateLocalProfile(effectiveName, avatar == '' ? localAvatar : avatar)
+}
+
 // 初始化副作用（保留）
 reload()
 
@@ -240,17 +428,21 @@ class SessionStoreHandle {
   get profile(): SessionProfile { return _state.profile }
   get isLoggedIn(): boolean { return isLoggedIn() }
   get userId(): string { return userId() }
-  get isMock(): boolean { return isMock() }
   get loggingIn(): boolean { return _state.loggingIn }
   get errorMessage(): string { return _state.errorMessage }
+  /** 上一次登录失败的后端 requestId（无则空串）。给用户看，用于让后端凭它捞日志。 */
+  get errorRequestId(): string { return _state.errorRequestId }
   /** 当前平台是否具备微信登录条件（App 端需开放平台移动应用凭据，未配置即 false） */
   get canWechatLogin(): boolean { return wechatLoginSupported() }
   reload(): void { reload() }
   loginWithWechat(): Promise<boolean> { return loginWithWechat() }
-  loginMock(): Promise<boolean> { return loginMock() }
   logout(): void { logout() }
   clearError(): void { clearError() }
   updateLocalProfile(nickname: string, avatarUrl: string): boolean { return updateLocalProfile(nickname, avatarUrl) }
+  /** 保存资料到云端：'' = 成功，否则为错误文案 */
+  saveProfileRemote(nickname: string, avatarUrl: string): Promise<string> { return saveProfileRemote(nickname, avatarUrl) }
+  /** 从云端刷新昵称/头像 */
+  refreshProfileRemote(): Promise<boolean> { return refreshProfileRemote() }
 }
 
 let _handle: SessionStoreHandle | null = null

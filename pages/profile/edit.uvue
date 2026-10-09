@@ -5,16 +5,15 @@
         <view :style="avatarRow" @tap="chooseAvatar">
           <view :style="avatarWrap">
             <AppImage v-if="avatarUrl !== ''" :src="avatarUrl" width="100%" height="100%" mode="aspectFill" />
-            <text v-else :style="avatarText">SK</text>
+            <text v-else :style="avatarText">{{ session.profile.avatarText }}</text>
           </view>
-          <view :style="avatarCopy"><text :style="avatarTitle">更换头像</text><text :style="avatarHint">照片仅保存在本机，云端资料接口上线后再同步</text></view>
+          <view :style="avatarCopy"><text :style="avatarTitle">{{ avatarUrl === '' ? '设置头像' : '更换头像' }}</text></view>
           <AppIcon name="chevron-right" :size="28" />
         </view>
       </FormSection>
       <FormSection title="昵称">
         <AppInput v-model="nickname" placeholder="请输入昵称" :clearable="true" />
       </FormSection>
-      <view :style="privacyHint"><text :style="privacyText">修改只影响本机展示，不会改变微信昵称。</text></view>
       <view :style="bottomSpacer" />
     </view>
     <BottomActionBar>
@@ -41,6 +40,7 @@ import { showFeedback } from '@/utils/feedback'
 const session = useSessionStore()
 const nickname = ref('')
 const avatarUrl = ref('')
+const saving = ref(false)
 
 onLoad(() => {
   initPageTheme()
@@ -48,21 +48,41 @@ onLoad(() => {
   if (!session.isLoggedIn) { showFeedback('请先登录'); uni.navigateBack(); return }
   nickname.value = session.profile.nickname
   avatarUrl.value = session.profile.avatarUrl
+  // 进页面时校准一次云端资料（头像可能是别的设备换的）
+  session.refreshProfileRemote().then((ok: boolean) => {
+    if (ok) avatarUrl.value = session.profile.avatarUrl
+  }).catch(() => { /* 离线就继续用本地缓存 */ })
 })
 
 function chooseAvatar() {
+  if (saving.value) return
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
-    success: (res) => { if (res.tempFilePaths != null && res.tempFilePaths.length > 0) avatarUrl.value = res.tempFilePaths[0] },
+    success: (res) => {
+      if (res.tempFilePaths != null && res.tempFilePaths.length > 0) avatarUrl.value = res.tempFilePaths[0]
+    },
   })
 }
+
 function save() {
+  if (saving.value) return
   if (nickname.value.trim() == '') { showFeedback('昵称不能为空'); return }
-  if (!session.updateLocalProfile(nickname.value, avatarUrl.value)) { showFeedback('保存失败，请重试'); return }
-  showFeedback('资料已保存')
-  setTimeout(() => uni.navigateBack(), 300)
+  saving.value = true
+  uni.showLoading({ title: '保存中' })
+  session.saveProfileRemote(nickname.value, avatarUrl.value).then((message: string) => {
+    saving.value = false
+    uni.hideLoading()
+    if (message !== '') { showFeedback(message); return }
+    // 保存成功后**留在本页**：用户常接着改昵称/再看看头像效果，
+    // 直接把人弹回去会让人以为「保存后没法确认」。
+    showFeedback('资料已保存')
+  }).catch(() => {
+    saving.value = false
+    uni.hideLoading()
+    showFeedback('保存失败，请重试')
+  })
 }
 
 const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
@@ -71,9 +91,6 @@ const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borde
 const avatarText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.bold, color: n.value.iconActive }))
 const avatarCopy = { ...flexFill }
 const avatarTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
-const avatarHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '6rpx', lineHeight: '30rpx' }))
-const privacyHint = { paddingTop: '12rpx', paddingLeft: '8rpx', paddingRight: '8rpx' }
-const privacyText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))
 const bottomSpacer = { height: '160rpx' }
 const saveButton = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const saveText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }

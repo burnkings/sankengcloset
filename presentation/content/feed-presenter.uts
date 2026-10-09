@@ -76,6 +76,9 @@ export const EventStatusLabels: UTSJSONObject = {
 export const ProductStatusLabels: UTSJSONObject = {
   UPCOMING: '即将发售',
   ON_SALE: '在售',
+  // 「现货 + 预售」同时存在（一批现货、一批预约中）。运营平台 2026-10-06 新增该状态，
+  // 用来表达「同一商品两种买法都能下单」，不要拆成两条商品。
+  ON_SALE_PRE_ORDER: '现货+预售',
   PRE_ORDER: '预售中',
   SOLD_OUT: '已售罄',
   ENDED: '已下架',
@@ -107,6 +110,7 @@ export function deriveReleaseStatusText(release: ReleaseEvent | null): string {
   if (release.depositAmount > 0) return '定金'
   if (t === 'reservation') return '预约'
   if (sale === 'ON_SALE') return '开售'
+  if (sale === 'ON_SALE_PRE_ORDER') return '现货+预售'
   if (sale === 'PRE_ORDER') return '预售'
   if (sale === 'UPCOMING') return '预告'
   return ''
@@ -115,6 +119,8 @@ export function deriveReleaseStatusText(release: ReleaseEvent | null): string {
 export function getProductStatusColor(status: string): string {
   if (status === 'UPCOMING') return accent[500]
   if (status === 'ON_SALE') return semantic.success
+  // 「现货+预售」按现货色走：它代表「现在就能买」，不该被降级成warning
+  if (status === 'ON_SALE_PRE_ORDER') return semantic.success
   if (status === 'PRE_ORDER') return semantic.warning
   return '#9CA3AF'
 }
@@ -122,6 +128,7 @@ export function getProductStatusColor(status: string): string {
 /** 销售状态 → StatusChip 颜色（商品卡/详情页共用） */
 export function getSaleStatusChipStatus(status: string): string {
   if (status === 'ON_SALE') return 'positive'
+  if (status === 'ON_SALE_PRE_ORDER') return 'positive'
   if (status === 'PRE_ORDER') return 'pending'
   if (status === 'UPCOMING') return 'initial'
   if (status === 'SOLD_OUT') return 'neutral'
@@ -207,6 +214,63 @@ export function formatPriceSecondary(priceType: string, priceCents: number, full
   if (fullPriceCents <= 0) return ''
   const deposit = depositCents > 0 ? depositCents : priceCents
   return deposit > 0 ? `定金 ${formatPriceCents(deposit)}` : ''
+}
+
+// ====== 价格区间（最低价～最高价，2026-10-09） ======
+//
+// 背景：分部件定价时「一个数说不清」（单裙子 199 / 大全套 359），用户要求改成区间。
+// 数据源：**商品级 priceCents 与 maxPriceCents**（最低价 / 最高价，均为「元」的分值）。
+//   · 最高价缺省（<= 最低价）时按单值处理 ⇒ 绝大多数商品显示仍是一个数，视觉不炸。
+//   · 两者都空 ⇒ 返回 ''，由调用方隐藏价格行（不猜测价格语义）。
+// 分隔符统一用 en-dash `–`（U+2013），与详情页既有的 ¥199–359 保持一致。
+
+/**
+ * 价格区间的**统一格式化**（商品卡 / 详情页 / 榜单 / 收藏共用）。
+ * @param minCents 最低价（分）；<=0 视为缺失
+ * @param maxCents 最高价（分）；<= minCents 视为「单值」
+ * @returns '¥199–359' / '¥368' / ''
+ */
+export function formatPriceRange(minCents: number, maxCents: number): string {
+  if (minCents <= 0) {
+    // 最低价缺失但最高价有值（异常数据）：退回单值，避免显示成 '¥0–359'
+    return maxCents > 0 ? formatPriceCents(maxCents) : ''
+  }
+  if (maxCents <= minCents) return formatPriceCents(minCents)
+  // 区间的两端都用「不带 ¥ 的裸数字」拼，避免出现 '¥199–¥359' 这种双符号
+  const low = formatPriceRangeBound(minCents)
+  const high = formatPriceRangeBound(maxCents)
+  if (low === '' || high === '') return formatPriceCents(minCents)
+  return '¥' + low + '–' + high
+}
+
+/** 区间端点：万元级缩写成「x.x万」，否则去掉多余小数（与 formatPriceCents 同口径但不带 ¥） */
+function formatPriceRangeBound(cents: number): string {
+  if (cents <= 0) return ''
+  const yuan = cents / 100
+  if (yuan >= 10000) {
+    const wan = Math.round(yuan / 1000) / 10
+    return wan.toString() + '万'
+  }
+  if (yuan === Math.floor(yuan)) return Math.floor(yuan).toString()
+  return (Math.round(yuan * 100) / 100).toString()
+}
+
+/**
+ * 商品卡价格行（区间版）——替代原 formatPricePrimary 的调用点。
+ * 有区间就用区间；没有区间（最高价缺省）时回落到原来的 price_type 语义摘要，
+ * 保证定金/尾款/意向金那套展示不丢。
+ */
+export function formatPriceCard(
+  priceType: string,
+  priceCents: number,
+  maxPriceCents: number,
+  fullPriceCents: number,
+  depositCents: number,
+  balanceCents: number,
+): string {
+  const range = formatPriceRange(priceCents, maxPriceCents)
+  if (range !== '') return range
+  return formatPricePrimary(priceType, priceCents, fullPriceCents, depositCents, balanceCents)
 }
 
 // ====== StockStatus 展示 ======

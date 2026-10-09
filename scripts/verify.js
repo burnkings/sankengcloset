@@ -13,7 +13,9 @@
  *   4. hscroll  横向滚动条   scripts/check-horizontal-scrollbar.js
  *                           （横向 scroll-view 必须 :show-scrollbar="false"，且不能漏冒号）
  *   5. android  Android 静态 scripts/check-v25-android-beta.js
- *   6. tests    单元测试     tests/*.test.cjs（自动发现，新增测试文件无需改本脚本）
+ *   6. imports  缺失 import  scripts/check-missing-imports.js
+ *                           （调了项目 export 的函数却没 import；编译与其它门禁都不报）
+ *   7. tests    单元测试     tests/*.test.cjs（自动发现，新增测试文件无需改本脚本）
  *
  * 不包含：scripts/check-uts-compile.js（需要 mp-weixin 编译产物）。发布前请跑 `npm run check`。
  *
@@ -49,6 +51,9 @@ function buildSteps() {
     { key: 'sync', label: '同步一致性', args: ['scripts/check-r0-sync-consistency.js'] },
     { key: 'hscroll', label: '横向滚动条', args: ['scripts/check-horizontal-scrollbar.js'] },
     { key: 'android', label: 'Android 静态', args: ['scripts/check-v25-android-beta.js'] },
+    // 2026-10-06 新增：调用项目导出函数却没 import —— 编译不报错、真机抛 ReferenceError
+    // （详情页漏了 wishCountOf/formatPriceCents/bumpWishCount 三个 import 就是这么炸的）
+    { key: 'imports', label: '缺失 import', args: ['scripts/check-missing-imports.js'] },
   ]
   const files = testFiles()
   if (files.length > 0) {

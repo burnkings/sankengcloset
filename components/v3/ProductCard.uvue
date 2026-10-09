@@ -1,7 +1,7 @@
 <template>
   <view :style="cardStyle" @tap.stop="emit('tap')">
     <view :style="imageWrap">
-      <AppImage v-if="image !== ''" :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+      <AppImage v-if="image !== ''" :src="image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" :list-width="500" />
       <view v-else :style="imageFallbackStyle">
         <AppIcon name="camera" :size="56" />
         <text :style="fallbackTextStyle">图片暂不可用</text>
@@ -12,9 +12,16 @@
     </view>
     <view :style="infoStyle">
       <text :style="titleStyle">{{ title }}</text>
-      <view v-if="brand !== '' || typeText !== ''" :style="brandRow">
-        <text v-if="brand !== ''" :style="brandStyle">{{ brand }}</text>
-        <view v-if="typeText !== ''" :style="typeChipStyle"><text :style="typeChipText">{{ typeText }}</text></view>
+      <!-- 品牌单独一行、紧贴商品名下面（2026-10-05 按反馈改回：
+           之前试过把品牌并到标题行最右侧，实际看下来商品名被挤窄、两行标题对不齐，
+           不如让它单独成行读得清楚。坑向标签仍不上线。） -->
+      <!-- 品牌行：左边品牌（可截断），最右边收藏数。
+           收藏数放这里是**刻意的** —— 2026-10-05 用户反馈：放图片右上角会把数字压在图上、
+           还得给胶囊留宽度，等于挤占商品图。放在这一行最右侧既不挡图、也不占额外高度。
+           两者都锁单行：品牌 `flex:1` 先截断，数字 `flexShrink:0` 永不换行。 -->
+      <view v-if="brand !== '' || wishCount > 0" :style="brandRow">
+        <text :style="brandStyle">{{ brand }}</text>
+        <text v-if="wishCount > 0" :style="wishCountStyle">{{ wishCount }} 人收藏</text>
       </view>
       <!-- 状态、定金和全款同一横排 -->
       <view v-if="statusText !== '' || priceText !== '' || priceSubText !== ''" :style="metaRow">
@@ -36,13 +43,11 @@ import { v3TextStyle } from '@/theme/tokens/typography'
 import { PRODUCT_CARD_IMAGE_HEIGHT_V3 } from '@/theme/tokens/responsive'
 import { n } from '@/theme/use-theme'
 
-// V3 ProductCard — 双列商品卡（Product V2 §三）：主图 → 品牌/坑向 → 标题 → 销售状态 → 价格摘要 → 收藏
+// V3 ProductCard — 双列商品卡（Product V2 §三）：主图 → 标题 → 品牌 → 销售状态 → 价格摘要 → 收藏
 // priceText 由调用方按 price_type 生成语义摘要（formatPriceSummaryByType），本组件只负责展示
 const props = withDefaults(defineProps<{
   title?: string
   brand?: string
-  /** 三坑类型标签（JK / Lolita / 汉服 / 其他） */
-  typeText?: string
   /** 销售状态文案（在售/预售/售罄…），来源 ProductStatusLabels */
   statusText?: string
   /** 销售状态颜色（StatusChip status: positive/pending/initial/neutral/error/brand） */
@@ -53,10 +58,12 @@ const props = withDefaults(defineProps<{
   image?: string
   saved?: boolean
   showSave?: boolean
+  /** 收藏数（人气）。0 或未传时不显示数字，只显示爱心 */
+  wishCount?: number
   imageHeight?: string
   /** 卡片与下方内容的间距。收藏页卡片下面还挂着「决策行」，需要传 0 让两者成为一张卡 */
   marginBottom?: string
-}>(), { title: '', brand: '', typeText: '', statusText: '', statusColor: 'neutral', priceText: '', priceSubText: '', image: '', saved: false, showSave: true, imageHeight: PRODUCT_CARD_IMAGE_HEIGHT_V3, marginBottom: '28rpx' })
+}>(), { title: '', brand: '', statusText: '', statusColor: 'neutral', priceText: '', priceSubText: '', image: '', saved: false, showSave: true, wishCount: 0, imageHeight: PRODUCT_CARD_IMAGE_HEIGHT_V3, marginBottom: '28rpx' })
 
 const emit = defineEmits<{
   tap: []
@@ -64,25 +71,43 @@ const emit = defineEmits<{
 }>()
 
 const cardStyle = computed((): any => ({ width: '100%', marginBottom: props.marginBottom }))
-const imageWrap = computed((): any => ({ position: 'relative', width: '100%', height: props.imageHeight, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary }))
+
+// ── 渲染降本（2026-10-09）────────────────────────────────────────────────
+// 首屏 20 条 ≈ 88 个组件实例，ProductCard 每个实例原先要建 12 个 computed 对象，
+// 且每个都**同时**读主题色（n.value.*）与静态 token。主题色一变，这 12 个对象全部重建。
+// 优化原则（不改任何视觉结果）：**静态部分提为模块级常量**，computed 只保留随 props/主题变化的那一层。
+//   · 与 props 无关、与主题无关的 → 模块级常量，只求值一次（全 app 共享）
+//   · 与 props 有关、与主题无关的 → 仍用 computed，但只拼 props 部分
+//   · 与主题有关 → 必须留在 computed 内（否则深色模式不刷新）
+const BASE_WISH_COUNT: any = { flexShrink: 0, marginLeft: '10rpx', fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, lines: 1 }
+const BASE_IMAGE_FALLBACK: any = { alignItems: 'center', justifyContent: 'center' }
+const BASE_FALLBACK_TEXT: any = { fontSize: v3TextStyle.caption.fontSize, marginTop: '8rpx' }
+const BASE_SAVE_BUTTON: any = { position: 'absolute', top: '12rpx', right: '12rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', alignItems: 'center', justifyContent: 'center' }
+const BASE_TITLE: any = { fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, lines: 2, textOverflow: 'ellipsis' }
+const BASE_BRAND: any = { flex: 1, fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, lines: 1, textOverflow: 'ellipsis' }
+const BASE_PRICE: any = { fontSize: '22rpx', lineHeight: '32rpx', fontWeight: 600, marginLeft: '8rpx', flexShrink: 0 }
+const BASE_PRICE_SUB: any = { fontSize: v3TextStyle.caption.fontSize, marginLeft: '6rpx', flexShrink: 0, lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const BASE_IMAGE_WRAP: any = { position: 'relative', width: '100%', borderRadius: '12rpx', overflow: 'hidden' }
+
+// 收藏数：先被截断的是品牌，它自己绝不换行（flexShrink:0 + lines:1）
+const wishCountStyle = computed((): any => ({ ...BASE_WISH_COUNT, color: n.value.textTertiary }))
+// imageWrap / imageFallbackStyle 只在 props.imageHeight 变化时重建（主题色单独一层）
+const imageWrap = computed((): any => ({ ...BASE_IMAGE_WRAP, height: props.imageHeight, backgroundColor: n.value.bgSecondary }))
 const imageStyle = computed((): any => ({ width: '100%', height: props.imageHeight }))
-const imageFallbackStyle = computed((): any => ({ width: '100%', height: props.imageHeight, alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.bgSecondary }))
-const fallbackTextStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginTop: '8rpx' }))
+const imageFallbackStyle = computed((): any => ({ ...BASE_IMAGE_FALLBACK, width: '100%', height: props.imageHeight, backgroundColor: n.value.bgSecondary }))
+const fallbackTextStyle = computed((): any => ({ ...BASE_FALLBACK_TEXT, color: n.value.textTertiary }))
 // 收藏按钮：默认不透明底色，避免透明热区在图片上“看不见却可点”
-const saveButtonStyle = computed((): any => ({ position: 'absolute', top: '12rpx', right: '12rpx', width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
+const saveButtonStyle = computed((): any => ({ ...BASE_SAVE_BUTTON, backgroundColor: n.value.surface }))
 const infoStyle = { paddingTop: '12rpx' }
-const brandRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', marginTop: '8rpx' }))
-const brandStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, lineHeight: v3TextStyle.caption.lineHeight, color: n.value.textSecondary, flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
-const typeChipStyle = computed((): any => ({ marginLeft: '8rpx', paddingLeft: '12rpx', paddingRight: '12rpx', paddingTop: '4rpx', paddingBottom: '4rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }))
-// 必须 nowrap：否则窄空间下文字会逐字竖排（肉眼可见的渲染错误）
-const typeChipText = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, fontWeight: 500, color: n.value.textTertiary, whiteSpace: 'nowrap' }))
-const titleStyle = computed((): any => ({ fontSize: v3TextStyle.cardTitle.fontSize, lineHeight: v3TextStyle.cardTitle.lineHeight, fontWeight: 500, color: n.value.text, lines: 2, textOverflow: 'ellipsis' }))
+const titleStyle = computed((): any => ({ ...BASE_TITLE, color: n.value.text }))
+const brandRow = { flexDirection: 'row' as string, alignItems: 'center', marginTop: '8rpx' }
+const brandStyle = computed((): any => ({ ...BASE_BRAND, color: n.value.textSecondary }))
 const metaRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'nowrap' as string, marginTop: '8rpx' }))
 // 卡片价格统一用品牌粉（用户拍板：所有卡片价格色统一品牌粉）——走主题 token，深色自动换 #E47A96
 const priceSpacer = { flex: 1, minWidth: '8rpx' }
-const priceStyle = computed((): any => ({ fontSize: '22rpx', lineHeight: '32rpx', fontWeight: 600, color: n.value.iconActive, marginLeft: '8rpx', flexShrink: 0 }))
+const priceStyle = computed((): any => ({ ...BASE_PRICE, color: n.value.iconActive }))
 // 定金降级小字：跟随状态 chip 左对齐（原来放主价下方会独占一行留出空洞）
-const priceSubStyle = computed((): any => ({ fontSize: v3TextStyle.caption.fontSize, color: n.value.textTertiary, marginLeft: '6rpx', flexShrink: 0, lines: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }))
+const priceSubStyle = computed((): any => ({ ...BASE_PRICE_SUB, color: n.value.textTertiary }))
 </script>
 
 <style>

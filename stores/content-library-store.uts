@@ -1,7 +1,7 @@
 /** Compatibility facade: independent favorites, brand follows and community stores. */
-import { readEntries, writeEntries, favoriteCount, wishCount, syncFavoriteIds, isFavorite, queueFavorite, toggleFavorite, updateFavoriteStatus, favoriteStatusOf, favoriteEntryOf, refreshRemoteFavorites, hasPendingFavorite, refreshFavorites, removeInvalidFavorites, removeFavorites, favoriteReleaseOf, isWished, toggleWish, reloadFavorite, favoriteState } from '@/stores/favorite-store'
+import { readEntries, writeEntries, favoriteCount, wishCount, syncFavoriteIds, isFavorite, queueFavorite, toggleFavorite, updateFavoriteStatus, favoriteStatusOf, favoriteEntryOf, refreshRemoteFavorites, hasPendingFavorite, refreshFavorites, removeInvalidFavorites, removeFavorites, favoriteReleaseOf, isWished, toggleWish, reloadFavorite, favoriteState, rememberFavoriteSnapshot } from '@/stores/favorite-store'
 import { followedBrandCount, isFollowingBrand, toggleBrandFollow, refreshRemoteBrands, hasPendingBrandFollow, reloadBrand, brandState } from '@/stores/brand-follow-store'
-import { readMockPosts, writeMockPosts, mockToPublicLook, remoteToPublicLook, outfitCount, likedPostCount, defaultPublicLooks, refreshPublicPosts, loadMorePublicPosts, refreshMyPosts, publishOutfitRemote, removeOutfit, isPostLiked, togglePostLike, reloadCommunity, communityState } from '@/stores/community-store'
+import { readMockPosts, writeMockPosts, mockToPublicLook, remoteToPublicLook, outfitCount, likedPostCount, refreshPublicPosts, loadMorePublicPosts, refreshMyPosts, publishOutfitRemote, removeOutfit, isPostLiked, togglePostLike, reloadCommunity, communityState } from '@/stores/community-store'
 import { FavoriteEntry } from '@/stores/favorite-store'
 import { SavedOutfitPost, PublicLookPost } from '@/stores/community-store'
 import { FeedItem } from '@/domain/content/feed-item'
@@ -23,6 +23,8 @@ class ContentLibraryStoreHandle {
   get favoriteReleases(): ReleaseEvent[] { return favoriteState.favoriteReleases }
   get favoritesLoading(): boolean { return favoriteState.favoritesLoading }
   get favoritesError(): string { return favoriteState.favoritesError }
+  /** 收藏列表拉取失败时的后端 requestId（无则空串）——给用户看，用于让后端凭它捞日志 */
+  get favoritesRequestId(): string { return favoriteState.favoritesRequestId }
   get favoritesLoadedOnce(): boolean { return favoriteState.favoritesLoadedOnce }
   get invalidFavoriteIds(): string[] { return favoriteState.invalidFavoriteIds }
   get followedBrands(): string[] { return brandState.followedBrands }
@@ -49,7 +51,9 @@ class ContentLibraryStoreHandle {
   removeInvalidFavorites(): void { removeInvalidFavorites() }
   removeFavorites(ids: string[]): number { return removeFavorites(ids) }
   isFavorite(entityId: string): boolean { return isFavorite(entityId) }
-  toggleFavorite(entityId: string, title: string = '', releaseId: string = ''): boolean { return toggleFavorite(entityId, title, releaseId) }
+  /** 收藏时把商品卡快照存下来（下架后仍能完整展示，见 favorite-store 的 FavoriteSnapshot） */
+  rememberFavoriteSnapshot(item: FeedItem): void { rememberFavoriteSnapshot(item) }
+  toggleFavorite(entityId: string, title: string = '', releaseId: string = '', snapshot: FeedItem | null = null): boolean { return toggleFavorite(entityId, title, releaseId, snapshot) }
   favoriteReleaseOf(entityId: string): ReleaseEvent | null { return favoriteReleaseOf(entityId) }
   favoriteStatusOf(entityId: string): string { return favoriteStatusOf(entityId) }
   favoriteEntryOf(entityId: string): FavoriteEntry | null { return favoriteEntryOf(entityId) }
@@ -58,7 +62,7 @@ class ContentLibraryStoreHandle {
   toggleWish(entityId: string): boolean { return toggleWish(entityId) }
   isFollowingBrand(brandName: string): boolean { return isFollowingBrand(brandName) }
   toggleBrandFollow(brandName: string): boolean { return toggleBrandFollow(brandName) }
-  publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): Promise<boolean> { return publishOutfitRemote(imagePath, caption, category, topic, wardrobeIds, productId) }
+  publishOutfitRemote(imagePaths: string[], caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = '', visibility: string = 'public'): Promise<boolean> { return publishOutfitRemote(imagePaths, caption, category, topic, wardrobeIds, productId, visibility) }
   removeOutfit(id: string): void { removeOutfit(id) }
   isPostLiked(postId: string): boolean { return isPostLiked(postId) }
   togglePostLike(postId: string): boolean { return togglePostLike(postId) }

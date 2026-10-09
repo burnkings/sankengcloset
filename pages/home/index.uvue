@@ -1,5 +1,11 @@
 <template>
   <view :style="{ height: pageHeight + 'px', position: 'relative' }">
+    <!-- 图片预取层：1px 不可见，绝对定位不参与布局。
+         放在两套渲染分支（MP-WEIXIN scroll-view / 其他端 list-view）**之外**，两端都生效。
+         两个实例分别对应「双列卡 500 档」与「单卡大图 800 档」——档位必须与列表里的
+         :list-width 一一对应，否则预取了 A 档、列表用 B 档会白下载。 -->
+    <ImagePreloader :urls="preloadCardUrls" :list-width="LIST_WIDTH_CARD" />
+    <ImagePreloader :urls="preloadFullUrls" :list-width="LIST_WIDTH_FULL" />
     <MainLayout :scrollable="false" navbar-content-height="252rpx">
     <template #navbar>
       <view :style="navbarStyle">
@@ -8,8 +14,13 @@
         <view :style="layer1">
           <text :style="brandText">三坑绮橱</text>
           <view :style="navActions">
-            <view :style="noticeButton" @tap="openNotifications">
-              <AppIcon name="notification" :size="38" />
+            <!-- 红点必须放在**未圆角**的外层包裹里：
+                 微信端 border-radius 会裁切子节点，红点贴在 64rpx 圆形的右上角时会被圆角削掉，
+                 看起来就像"被背景圆圈遮住"。包裹层只负责定位，圆形留给内层按钮。 -->
+            <view :style="noticeButtonWrap">
+              <view :style="noticeButton" @tap="openNotifications">
+                <AppIcon name="notification" :size="38" />
+              </view>
               <view v-if="notices.unreadCount > 0" :style="noticeDot" />
             </view>
             <view :style="capsuleSpacer" />
@@ -20,7 +31,7 @@
         <view :style="layer2Wrap">
           <view :style="searchBox" @tap="onSearch">
             <AppIcon name="search" :size="36" />
-            <text :style="searchPlaceholder">搜索商品、品牌或风格</text>
+            <text :style="searchPlaceholder">搜索商品或品牌</text>
           </view>
         </view>
         <view :style="searchTabsSpacer" />
@@ -91,8 +102,6 @@
 </template>
 
 <script setup lang="uts">
-import { showFeedback } from '@/utils/feedback'
-import { isComparisonProduct } from '@/services/mock/comparison-products'
 import { nextTick } from 'vue'
 import { useHomeFeedStore, CHANNELS, MasonryBlock } from '@/stores/home-feed-store'
 import { useNotificationCenterStore } from '@/stores/notification-center-store'
@@ -115,6 +124,8 @@ import FeedColumn from '@/components/v3/FeedColumn.uvue'
 import FeedBlock from '@/components/v3/FeedBlock.uvue'
 import FeedSkeleton from '@/components/v3/FeedSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import ImagePreloader from '@/components/base/ImagePreloader.uvue'
+import { LIST_WIDTH_CARD, LIST_WIDTH_FULL } from '@/utils/image-url'
 
 const pageHeight = getWindowHeight()
 const store = useHomeFeedStore()
@@ -177,10 +188,9 @@ function onTap(item: FeedItem) {
   openProductDetail(item.entityId)
 }
 function onToggleSave(item: FeedItem) {
-  if (isComparisonProduct(item.entityId)) { showFeedback('展示样例不保存收藏'); return }
   // 同步翻转服务端 saved（乐观更新，刷新后以服务端权威值为准）
   store.toggleSave(item.id)
-  library.toggleFavorite(item.entityId, item.title)
+  library.toggleFavorite(item.entityId, item.title, '', item)
 }
 // Feed 发售事件 → 设置提醒（Release → Reminder 链路；点卡片主体仍进商品详情）
 function onRemind(item: FeedItem) {
@@ -207,10 +217,53 @@ const footerText = computed((): string => {
 })
 // 筛选后内容不足一屏时不展示 footer，避免制造虚假操作预期。
 const showFeedFooter = computed((): boolean => store.isLoadingMore || store.displayItems.length >= 8)
+
+// ====== 图片预取（2026-10-09）======
+// 目标：避免「打开页面时图片才开始加载」。
+// 做法：首屏渲染提交后，把**当前列表里靠后那批**的封面提前喂进微信/系统的图片缓存
+//       （前几条反正立刻就在加载，重复预取无意义）。
+// ⚠️ 档位必须与 FeedColumn / FeedBlock 里的 :list-width **一致**，否则「预取了 A 档、列表用 B 档」白下载。
+// ⚠️ 必须用 nextTick 推迟到首帧提交之后 —— 否则预取会和首屏渲染抢主线程，反而更慢。
+const PRELOAD_SKIP_FIRST = 6   // 前 6 条不预取（本来就在加载）
+const PRELOAD_TAKE = 12        // 每次最多往后预取 12 条
+
+/** 双列卡（500 档）待预取地址 */
+const preloadCardUrls = ref<string[]>([])
+/** 单卡大图（800 档）待预取地址 */
+const preloadFullUrls = ref<string[]>([])
+
+function runImagePreload() {
+  const items = store.displayItems
+  if (items.length <= PRELOAD_SKIP_FIRST) return
+  const cardUrls: string[] = []
+  const fullUrls: string[] = []
+  for (let i = PRELOAD_SKIP_FIRST; i < items.length; i++) {
+    const it = items[i]
+    if (it.coverUrl == null || it.coverUrl === '') continue
+    // 单卡大图（FeedBlock）走 800 档；其余走双列卡 500 档
+    const isFullWidth = it.feedType === FEED_OUTFIT || it.feedType === 'release_event'
+    if (isFullWidth) {
+      if (fullUrls.length < PRELOAD_TAKE) fullUrls.push(it.coverUrl)
+    } else {
+      if (cardUrls.length < PRELOAD_TAKE) cardUrls.push(it.coverUrl)
+    }
+    if (cardUrls.length >= PRELOAD_TAKE && fullUrls.length >= PRELOAD_TAKE) break
+  }
+  // 赋值合并历史（不去重也行：ImagePreloader 内部有 seen 幂等）
+  preloadCardUrls.value = cardUrls
+  preloadFullUrls.value = fullUrls
+}
+
+// 列表内容变化（首屏 / 切频道 / 上拉加载更多）→ 首帧之后异步预热
+watch(() => store.displayItems.length, () => {
+  nextTick(() => { runImagePreload() })
+})
+
 // 首屏加载在 onLoad 首次触发（loadedOnce 防 onPageShow 重复首刷）
 let initialLoadDone = false
 onLoad(() => {
-  nextTick(() => initPageTheme())
+  // 主题必须在首帧渲染前 applicate：放到 nextTick 里会让深色用户先看到一帧浅色（闪白）
+  initPageTheme()
   refreshViewport()
   if (!initialLoadDone && store.state === 'idle') {
     initialLoadDone = true
@@ -241,8 +294,11 @@ const brandText = computed((): any => ({
 }))
 const capsuleSpacer = { width: `${capsuleW}px` }
 const navActions = { ...flexRow, alignItems: 'center' }
-const noticeButton = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', position: 'relative', marginRight: capsuleW > 0 ? '12rpx' : '0' }))
-const noticeDot = computed((): any => ({ position: 'absolute', top: '8rpx', right: '8rpx', width: '12rpx', height: '12rpx', borderRadius: '6rpx', backgroundColor: n.value.iconActive }))
+// 外层只做定位（无圆角 ⇒ 不裁切红点），内层才是那个圆形按钮
+const noticeButtonWrap = computed((): any => ({ position: 'relative', width: '64rpx', height: '64rpx', marginRight: capsuleW > 0 ? '12rpx' : '0' }))
+const noticeButton = computed((): any => ({ width: '64rpx', height: '64rpx', borderRadius: '32rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center' }))
+// 红点压在圆形按钮的右上沿，并描一圈页面底色，保证在浅/深两种底色上都读得出
+const noticeDot = computed((): any => ({ position: 'absolute', top: '0', right: '0', width: '18rpx', height: '18rpx', borderRadius: '9rpx', backgroundColor: n.value.iconActive, borderWidth: '3rpx', borderStyle: 'solid' as string, borderColor: n.value.bg, zIndex: 3 }))
 
 const wordmarkSearchSpacer = { height: '16rpx' }
 const layer2Wrap = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
@@ -257,7 +313,11 @@ const searchTabsSpacer = { height: '12rpx' }
 
 // --- Styles ---
 // 真机 list-view / waterflow 必须拿到明确高度；height:0 + flex 在微信 VDOM 下会失效。
-const listViewStyle = computed((): any => ({ width: '750rpx', flex: 1, minHeight: `${homeViewportPx.value}px` }))
+// ⚠️ 首页必须给**确定高度**（不能只写 flex:1 + minHeight）：
+//    MainLayout scrollable=false 时外层不是滚动容器，flex:1 拿不到确定高度 ⇒ scroll-view 会
+//    撑到内容全高，滚动条落在没有滚动能力的父容器上 ⇒ 表现就是「能下拉刷新，但上滑不动」。
+//    给定高度后 scroll-view 自己成为滚动容器，@scrolltolower 才会触发。
+const listViewStyle = computed((): any => ({ width: '750rpx', height: `${homeViewportPx.value}px` }))
 
 // Error / Empty 使用 V3 PageState（无本地样式）
 const emptyWrap = { alignItems: 'center', justifyContent: 'center', padding: '48rpx' }

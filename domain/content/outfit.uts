@@ -11,7 +11,7 @@ export class Outfit {
   coverImage: string = ''
   images: string[] = []       // 全身图/细节图
   // 关联
-  wardrobeItemIds: string[] = []  // 关联衣橱衣物
+  wardrobeItemIds: string[] = []  // 关联衣柜衣物
   productIds: string[] = []       // 关联商品
   category: string = ''           // JK / LOLITA / HANFU / MIXED
   tags: string[] = []

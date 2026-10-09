@@ -4,9 +4,37 @@ export class FeedbackRecord {
   id: string = ''          // feedback_ + Date.now()
   type: string = ''        // 功能建议 / 问题反馈 / 内容纠错 / 其他
   content: string = ''
-  images: string[] = []    // 本地临时路径（Mock 阶段仅记录，不持久化大图）
+  /** 已上传的**公开地址**（页面提交前用 uploadFeedbackImageRemote 传好） */
+  images: string[] = []
   createdAt: string = ''
   contact: string = ''     // 预留：联系方式
+  /**
+   * 是否已经送达服务端。
+   *
+   * 2026-10-05 加：以前无论成败都往本机留一份、界面一律提示「提交成功」，
+   * 网络失败时用户以为提交了、其实只在本地躺着，**永远发不出去**（反馈没有补发队列）。
+   * 现在如实记录状态，列表里区分「已送达 / 未送达」，未送达的可以重发。
+   */
+  delivered: boolean = false
+  /** 服务端处理阶段：open / processing / closed（本地新建时为 open） */
+  status: string = 'open'
+  /** 运营给的答复（空 = 还没答复） */
+  reply: string = ''
 }
 
 export const FEEDBACK_TYPES = ['功能建议', '问题反馈', '内容纠错', '其他']
+
+/**
+ * 每个类别的输入提示。
+ *
+ * 为什么要给不同提示：4 个类别里「问题反馈」和「其他」最容易混 —— 用户在空白输入框前
+ * 不知道选哪个，最后都选「其他」，分诊就失效了。给一句**具体例子**比给一个类别名有效得多。
+ * 这里只改提示文案，不动类别本身：`type` 是直接落库的字符串，改名会让历史记录对不上。
+ */
+export function feedbackPlaceholder(type: string): string {
+  if (type === '功能建议') return '想要什么功能？例如：希望衣柜能按颜色筛选'
+  if (type === '问题反馈') return '哪里用不了？例如：点发布一直转圈 / 图片传不上去'
+  if (type === '内容纠错') return '哪条信息不对？例如：某品牌名写错 / 商品价格显示错了'
+  if (type === '其他') return '以上都不是？直接说就行'
+  return '请描述你的问题或建议（最多 500 字）'
+}

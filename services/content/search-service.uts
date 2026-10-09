@@ -1,8 +1,6 @@
-import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem } from '@/domain/content/feed-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
 import { mapFeedItem } from '@/services/content/feed-service'
-// import { filterMockFeed } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
 
 export class SearchResult {
   items: FeedItem[] = []

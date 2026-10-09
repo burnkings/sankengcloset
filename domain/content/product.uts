@@ -57,7 +57,6 @@ export class Product {
   images: ProductImage[] = [] // 12-table: images JSONB (full quality preserved)
   coverUrl: string = ''       // derived = images[0]?.url || ''
   price: number = 0           // 当前价格 (分)
-  originalPrice: number = 0   // 原价 (分)
   currency: string = 'CNY'
   description: string = ''
   tags: string[] = []
@@ -66,6 +65,32 @@ export class Product {
   viewCount: number = 0
   favoriteCount: number = 0
   isFavorited: boolean = false // 当前用户是否收藏
+  /** 全部发售批次。**只有多于一个批次时**服务端才下发；单批次看 currentRelease 即可 */
+  releases: ProductReleaseBatch[] = []
   createdAt: string = ''
   updatedAt: string = ''
+}
+
+
+/**
+ * 发售批次（热门款会分批放：一团定金 / 二团定金 / 现货掉落…）。
+ * 一个商品多个批次时，用户最关心的是「现在能买哪一批、下一批什么时候开」，
+ * 所以详情页把批次当**列表**展示，而不是只显示一个当前批次。
+ */
+export class ProductReleaseBatch {
+  id: string = ''
+  /** 第几批（1 = 一团） */
+  no: number = 0
+  name: string = ''
+  /** reservation（预约/定金批）/ spot（现货）/ first_release / rerelease / lottery */
+  releaseType: string = ''
+  saleStatus: string = ''
+  depositCents: number | null = null
+  balanceCents: number | null = null
+  fullPriceCents: number | null = null
+  startAt: string = ''
+  endAt: string = ''
+  balanceDueAt: string = ''
+  shipAt: string = ''
+  note: string = ''
 }

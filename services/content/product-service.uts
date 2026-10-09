@@ -1,11 +1,8 @@
-import { SHOW_COMPARISON_PRODUCTS, comparisonProducts, canonicalProductId, isComparisonProduct } from '@/services/mock/comparison-products'
-import { isLocalMockSession } from '@/config/runtime'
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { ProductVariant } from '@/domain/content/product-variant'
-import { ProductImage, deriveCoverUrl, extractImageUrls } from '@/domain/content/product'
-import { apiGet, encodeQuery } from '@/services/platform/api-client'
-// import { findMockProduct, mockDateAfter, MOCK_SOURCE_LABEL } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
+import { ProductImage, ProductReleaseBatch, deriveCoverUrl, extractImageUrls } from '@/domain/content/product'
+import { apiGet, encodeQuery, resolveApiUrl } from '@/services/platform/api-client'
 
 /** Phase 2.3-A：商品关联社区内容（「真实买家」模块条目，最小字段） */
 export class ProductCommunityPost {
@@ -21,8 +18,9 @@ export class ProductCommunityPost {
 }
 
 export class ProductDetailModel {
-  shopName: string = ''
   item: FeedItem = new FeedItem()
+  /** 商品级发货说明（「15天内发货」这类时效承诺）。批次级的在同名批次的 shippingNote 上 */
+  shippingNote: string = ''
   images: ProductImage[] = []
   description: string = ''
   shopUrl: string = ''
@@ -44,10 +42,8 @@ export class ProductDetailModel {
   pitType: string = ''
   /** 细分类目（格裙/衬衫/JSK/OP/襦裙/马面…） */
   subCategory: string = ''
-  /** 可选颜色（Product V2 colors） */
-  colorTags: string[] = []
-  /** 材质标签（Product V2 material_summary 数据源） */
-  materialTags: string[] = []
+  /** 最高价（分）；<= priceCents 表示单值。与 priceCents 构成本商品的价格区间 */
+  maxPriceCents: number = 0
   /** 特点标签（Product V2 feature_tags） */
   featureTags: string[] = []
   /** 规格变体（多款式商品；空数组 = 单款式/无数据，不渲染款式价格表） */
@@ -59,6 +55,7 @@ function statusLabel(status: string): string {
   if (status === 'UPCOMING') return '预告'
   if (status === 'SOLD_OUT') return '售罄'
   if (status === 'ON_SALE') return '现货'
+  if (status === 'ON_SALE_PRE_ORDER') return '现货+预售'
   return ''
 }
 
@@ -79,7 +76,7 @@ function mapCurrentRelease(raw: UTSJSONObject | null, productId: string, brandId
   release.productId = productId
   release.brandId = brandId
   release.title = raw['releaseName'] != null ? raw['releaseName'] as string : ''
-  release.eventType = raw['releaseType'] != null ? raw['releaseType'] as string : 'unknown'
+  release.releaseType = raw['releaseType'] != null ? raw['releaseType'] as string : 'unknown'
   release.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
   release.lifecycleStatus = raw['lifecycleStatus'] != null ? raw['lifecycleStatus'] as string : 'unknown'
   release.status = release.lifecycleStatus
@@ -91,6 +88,12 @@ function mapCurrentRelease(raw: UTSJSONObject | null, productId: string, brandId
   release.endAt = raw['endAt'] != null ? raw['endAt'] as string : ''
   release.balanceDueAt = raw['balanceDueAt'] != null ? raw['balanceDueAt'] as string : ''
   release.shipAt = raw['shipAt'] != null ? raw['shipAt'] as string : ''
+  // ⚠️ 发货说明（「15天内发货」这类时效承诺）必须一起映射。
+  //    2026-10-08 起它**只有商品级一份**（运营后台填在「销售状态」那组；批次级那份已并入并删除库列）。
+  //    后端为兼容老客户端仍会在 currentRelease 上回填同一份值，所以这里照旧取 shippingNote 即可；
+  //    漏映射 ⇒ release.note 恒空 ⇒ 详情页「发售信息 → 发货说明」那行永远不显示
+  //    （2026-10-08 联调定位：后端 currentRelease.shippingNote 有值，前端没接）。
+  release.note = raw['shippingNote'] != null ? raw['shippingNote'] as string : ''
   return release
 }
 
@@ -110,10 +113,10 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   item.category = raw['category'] != null ? raw['category'] as string : ''
   item.price = raw['priceCents'] != null ? raw['priceCents'] as number : 0
   // Note: price=0 with priceType=INTENTION means intention amount, not free
-  item.originalPrice = raw['originalPriceCents'] != null ? raw['originalPriceCents'] as number : item.price
   item.badgeText = statusLabel(raw['saleStatus'] != null ? raw['saleStatus'] as string : '')
   // coverUrl is derived from images[0]?.url below (12-table schema)
-  item.sourceLabel = raw['shopName'] != null ? raw['shopName'] as string : ''
+  // 来源标签：名称只有一个来源 = 品牌名（2026-10-06 起不再有 shopName）
+  item.sourceLabel = raw['brandName'] != null ? raw['brandName'] as string : ''
   item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
   // ====== Product V2 展示字段透传（priceType 缺失保持 UNKNOWN，展示层不猜测） ======
   item.priceType = raw['priceType'] != null ? raw['priceType'] as string : 'UNKNOWN'
@@ -122,8 +125,13 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   item.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
   item.pitType = raw['category'] != null ? raw['category'] as string : ''
   item.subCategory = raw['subCategory'] != null ? raw['subCategory'] as string : ''
-  item.colorTags = parseStringArray(raw['colorTags'])
-  item.materialTags = parseStringArray(raw['materialTags'])
+  // 最高价（区间右端）：缺失/0 时按单值处理（见 formatPriceRange）
+  item.maxPriceCents = raw['maxPriceCents'] != null ? raw['maxPriceCents'] as number : 0
+  // 人气（收藏数）：**服务端基数** + 本机增量，跟商品卡/榜单卡同一个口径。
+  // ⚠️ 之前这里写成 `result.item.favoriteCount = ...`，但 130 行之后 `result.item = item` 会把它整个覆盖掉，
+  //    而且 FeedItem 压根没有 favoriteCount 字段 ⇒ 详情页底栏永远只显示「本机增量」，与卡片对不上（2026-10-05 修）。
+  item.wishCountBase = raw['wishCount'] != null ? raw['wishCount'] as number : 0
+  item.wishCount = item.wishCountBase
 
   // 12-table: images is array of ProductImage objects {url, thumbnailUrl, width, height, sizeBytes, objectKey}
   const rawImages = raw['images'] as any[]
@@ -148,8 +156,36 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
     if (cover.url !== '') result.images.push(cover)
   }
   // Derive coverUrl from images[0] if available
-  result.item.coverUrl = deriveCoverUrl(result.images)
-  item.coverUrl = result.item.coverUrl
+  // 多批次：服务端只在 >1 个批次时下发；这里原样带上来，详情页据此切换成列表展示
+  const rawReleases = raw['releases']
+  const batches: ProductReleaseBatch[] = []
+  if (rawReleases != null && Array.isArray(rawReleases)) {
+    const arr = rawReleases as UTSJSONObject[]
+    for (let i = 0; i < arr.length; i++) {
+      const r0 = arr[i]
+      const b = new ProductReleaseBatch()
+      b.id = r0['id'] != null ? r0['id'] as string : ''
+      b.no = r0['releaseNo'] != null ? r0['releaseNo'] as number : 0
+      b.name = r0['releaseName'] != null ? r0['releaseName'] as string : ''
+      b.releaseType = r0['releaseType'] != null ? r0['releaseType'] as string : ''
+      b.saleStatus = r0['saleStatus'] != null ? r0['saleStatus'] as string : ''
+      b.depositCents = r0['depositCents'] != null ? r0['depositCents'] as number : null
+      b.balanceCents = r0['balanceCents'] != null ? r0['balanceCents'] as number : null
+      b.fullPriceCents = r0['fullPriceCents'] != null ? r0['fullPriceCents'] as number : null
+      b.startAt = r0['startAt'] != null ? r0['startAt'] as string : ''
+      b.endAt = r0['endAt'] != null ? r0['endAt'] as string : ''
+      b.balanceDueAt = r0['balanceDueAt'] != null ? r0['balanceDueAt'] as string : ''
+      b.shipAt = r0['shipAt'] != null ? r0['shipAt'] as string : ''
+      // 批次上不再有各自的发货说明（2026-10-08）；后端回填商品级那份，保持 ReleaseEvent.note 契约不变
+      b.note = r0['shippingNote'] != null ? r0['shippingNote'] as string : ''
+      batches.push(b)
+    }
+  }
+  // ⚠️ 顺序陷阱：下面 `result.item = item` 会**整体替换**模型里的默认 FeedItem，
+  //    所以所有字段都必须写在 `item` 上。写在 `result.item` 上的会被无声丢弃
+  //    —— releases 曾因此完全传不到详情页（多批次列表不显示），收藏数同理（2026-10-05 修）。
+  item.releases = batches
+  item.coverUrl = deriveCoverUrl(result.images)
   // Secondary cover: second image URL
   if (result.images.length > 1) item.secondaryCoverUrl = result.images[1].url
 
@@ -169,11 +205,11 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   result.fullPriceCents = item.price
   result.pitType = item.pitType
   result.subCategory = item.subCategory
-  result.colorTags = item.colorTags
-  result.materialTags = item.materialTags
+  result.maxPriceCents = item.maxPriceCents
   result.featureTags = parseStringArray(raw['featureTags'])
   result.variants = parseVariants(raw['variants'])
-  result.shopName = raw['shopName'] as string ?? ''
+  // 发货说明（「15天内发货」这类时效承诺）—— 2026-10-08 起**只有商品级一份**（批次级那份已并入，迁移 0111）
+  result.shippingNote = raw['shippingNote'] != null ? raw['shippingNote'] as string : ''
   result.requestId = requestId
   return result
 }
@@ -189,6 +225,12 @@ function parseStringArray(raw: any): string[] {
   return result
 }
 
+/**
+ * 款式噪音词：三坑不用「连衣裙」这个说法（Lolita 讲 JSK / OP / SK，汉服讲马面裙 / 褙子），
+ * 它出现在规格里只会让用户困惑（用户反馈：三坑商品没有「连衣裙」标签，涉及的都删掉）。
+ */
+const STYLE_NOISE = '连衣裙'
+
 /** 解析规格变体数组（12-table: product_variants 行；仅 identity 字段，无 skuCode/price/stockStatus） */
 function parseVariants(raw: any): ProductVariant[] {
   const result: ProductVariant[] = []
@@ -202,7 +244,9 @@ function parseVariants(raw: any): ProductVariant[] {
     v.name = r['name'] != null ? r['name'] as string : ''
     v.colorName = r['colorName'] != null ? r['colorName'] as string : ''
     v.referencePriceCents = r['referencePriceCents'] != null && typeof r['referencePriceCents'] === 'number' && (r['referencePriceCents'] as number) >= 0 ? r['referencePriceCents'] as number : null
-    v.styleName = r['styleName'] != null ? r['styleName'] as string : ''
+    // 款式里的「连衣裙」直接丢掉（见 STYLE_NOISE）
+    const styleName = r['styleName'] != null ? r['styleName'] as string : ''
+    v.styleName = styleName.indexOf(STYLE_NOISE) >= 0 ? '' : styleName
     v.sizeName = r['sizeName'] != null ? r['sizeName'] as string : ''
     result.push(v)
   }
@@ -210,15 +254,7 @@ function parseVariants(raw: any): ProductVariant[] {
 }
 
 export async function fetchProductDetail(id: string, releaseId: string = ''): Promise<ProductDetailModel | null> {
-  id = canonicalProductId(id)
   if (id === '') return null
-  if (SHOW_COMPARISON_PRODUCTS && isComparisonProduct(id)) {
-    const samples = comparisonProducts()
-    for (let i = 0; i < samples.length; i++) {
-      if (samples[i]['id'] == id) return mapRemoteProduct(samples[i], 'comparison')
-    }
-    return null
-  }
   // releaseId 非空：后端优先返回该批次 currentRelease（不存在则回退最新一条）
   const query = releaseId !== '' ? `?releaseId=${encodeQuery(releaseId)}` : ''
   try {
@@ -243,7 +279,6 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
   // item.pitType = mock.category
   // item.subCategory = mock.subCategory
   // item.price = mock.priceCents
-  // item.originalPrice = mock.originalPriceCents
   // item.fullPriceCents = mock.priceCents
   // item.priceType = mock.priceType
   // item.depositCents = mock.depositCents
@@ -254,8 +289,6 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
   // item.coverUrl = mock.coverUrl
   // item.secondaryCoverUrl = mock.secondaryCoverUrl
   // item.sourceLabel = MOCK_SOURCE_LABEL
-  // item.colorTags = mock.colorTags
-  // item.materialTags = mock.materialTags
   // const release = new ReleaseEvent()
   // release.id = 'mock_release_' + mock.id
   // release.productId = mock.id
@@ -295,8 +328,6 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
   // result.fullPriceCents = mock.priceCents
   // result.pitType = mock.category
   // result.subCategory = mock.subCategory
-  // result.colorTags = mock.colorTags
-  // result.materialTags = mock.materialTags
   // result.featureTags = mock.featureTags
   // result.requestId = 'mock_' + Date.now().toString()
   // return result
@@ -304,7 +335,6 @@ export async function fetchProductDetail(id: string, releaseId: string = ''): Pr
 
 /** Phase 2.3-A：商品关联社区内容（「真实买家」模块；后端默认 4 条，游客可读） */
 export async function fetchProductCommunity(id: string): Promise<ProductCommunityPost[]> {
-  if (isComparisonProduct(id)) return []
   if (id === '') return []
   const result = [] as ProductCommunityPost[]
   try {
@@ -315,7 +345,8 @@ export async function fetchProductCommunity(id: string): Promise<ProductCommunit
       const post = new ProductCommunityPost()
       post.id = raw['id'] != null ? raw['id'] as string : ''
       post.authorNickname = raw['authorNickname'] != null ? raw['authorNickname'] as string : '同好'
-      post.imageUrl = raw['imageUrl'] != null ? raw['imageUrl'] as string : ''
+      // 社区图片是后端相对地址（/api/v1/media/<id>），必须补成绝对地址才能加载
+      post.imageUrl = resolveApiUrl(raw['imageUrl'] != null ? raw['imageUrl'] as string : '')
       post.caption = raw['caption'] != null ? raw['caption'] as string : ''
       post.category = raw['category'] != null ? raw['category'] as string : ''
       post.topic = raw['topic'] != null ? raw['topic'] as string : ''

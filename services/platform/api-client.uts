@@ -1,4 +1,5 @@
 import { getRuntimeConfig, getCachedAccessToken, getCachedRefreshToken, saveSessionTokens } from '@/config/runtime'
+import { catalogMemoryMs, isCatalogPath, isCatalogFresh, readCatalog, writeCatalog, clearCatalogCache } from '@/services/platform/catalog-cache'
 
 export class ApiResponse {
   data: any | null = null
@@ -9,9 +10,22 @@ export class ApiResponse {
 
 class ApiRequestError extends Error {
   statusCode: number = 0
-  constructor(message: string, statusCode: number) {
+  /** 后端稳定错误码（error.code）。旧后端没这个字段时为空串。 */
+  errorCode: string = ''
+  /**
+   * 后端为这次请求生成的 requestId（`{ requestId: 'req-xxx', error: {...} }`）。
+   *
+   * 为什么错误对象也必须带它：同一个 401 可能是 code 过期、也可能是后端调微信 code2Session
+   * 失败（40013 AppID 不符 / 40125 AppSecret 错 / 40164 IP 未白名单），而我们的后端把这些
+   * **全部**压成同一句「登录凭证已失效」。用户屏幕上完全一样，唯一能定位的办法就是拿这个 id
+   * 去后端日志里捞那一条，看微信返回的原始 errcode/errmsg。丢了它就只剩猜。
+   */
+  requestId: string = ''
+  constructor(message: string, statusCode: number, errorCode: string = '', requestId: string = '') {
     super(message)
     this.statusCode = statusCode
+    this.errorCode = errorCode
+    this.requestId = requestId
   }
 }
 
@@ -24,6 +38,30 @@ export function apiErrorStatus(error: any): number {
   return 0
 }
 
+/**
+ * 提取后端稳定错误码（`{ error: { code, message } }` 里的 code）。
+ *
+ * 只有状态码查不出病因时用它：同一个 401，可能是「code 过期」也可能是「后端服务器 IP
+ * 不在微信白名单」（微信 errcode 40164），文案天差地别但用户看到的 HTTP 码完全一样。
+ * 拿到 code 才能给出「照做就能好」的提示。无 code 时返回空串。
+ */
+export function apiErrorCode(error: any): string {
+  if (error instanceof ApiRequestError) return error.errorCode
+  return ''
+}
+
+/**
+ * 提取后端 requestId（错误响应体顶层字段）。
+ *
+ * 用途：把「用户看到的这次失败」和「后端日志里的那一条」对上。后端对 401 只给一句笼统
+ * message，真正的病因（微信 errcode）只在日志里 —— requestId 是唯一能直接捞到它的把手。
+ * 无 requestId（网络层失败 / 旧后端）时返回空串。
+ */
+export function apiErrorRequestId(error: any): string {
+  if (error instanceof ApiRequestError) return error.requestId
+  return ''
+}
+
 const FALLBACK_API_BASE = 'https://api.sankengcloset.icu'
 
 function endpoint(path: string): string {
@@ -32,11 +70,42 @@ function endpoint(path: string): string {
   return `${base}${path.startsWith('/') ? path : '/' + path}`
 }
 
-function headers(): UTSJSONObject {
-  const result = { 'content-type': 'application/json' } as UTSJSONObject
+/**
+ * 请求头。
+ *
+ * `hasBody` 必须如实传：**没有 body 的请求不能声明 `content-type: application/json`**，
+ * 否则 Fastify 的 JSON 解析器会在路由之前直接回 400
+ * （`FST_ERR_CTP_EMPTY_JSON_BODY: Body cannot be empty when content-type is set to 'application/json'`）。
+ * 2026-10-04 真机实测：DELETE 一直 400 就是这个原因 —— 因为 apiDelete 沿用了这组默认头，
+ * **所有删除操作（动态/收藏/关注/衣柜/订单/提醒）全部失败**。
+ */
+function headers(hasBody: boolean = true): UTSJSONObject {
+  const result = {} as UTSJSONObject
+  if (hasBody) result['content-type'] = 'application/json'
   const token = getCachedAccessToken()
   if (token !== '') result['authorization'] = `Bearer ${token}`
   return result
+}
+
+/**
+ * 把后端返回的**相对地址**补成绝对地址。
+ *
+ * 后端的图片地址是相对路径 `/api/v1/media/<mediaId>`（有意为之：换域名 / 换 CDN 不用批量刷数据），
+ * 但小程序 / App 的 `<image>` 只认绝对地址，**直接塞相对路径会静默加载失败**。
+ * 症状就是「动态里的图和作者头像一片空白」，而 `/api/v1/me` 返回的 `avatarUrl` 因为后端拼了绝对地址，
+ * 反而是正常的 —— 这种「同一个头像两处一个有一个没有」的错位，根因就在这里。
+ *
+ * 只处理以 `/` 开头的 API 路径；`http(s)://`、`data:`、包内 `/static/`、本机临时路径一律原样返回。
+ *
+ * 图片地址**不做任何降档/压缩改写**（2026-10-09 定案：清晰度不允许被改动）。
+ * `components/base/AppImage.uvue` 也只做透传，不再对淘宝 CDN 追加尺寸/质量后缀。
+ */
+export function resolveApiUrl(url: string): string {
+  if (url === '') return ''
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
+  if (!url.startsWith('/')) return url
+  if (url.startsWith('/static/')) return url
+  try { return endpoint(url) } catch (e) { return url }
 }
 
 function parseResponse(statusCode: number, raw: UTSJSONObject | null): ApiResponse {
@@ -44,7 +113,13 @@ function parseResponse(statusCode: number, raw: UTSJSONObject | null): ApiRespon
     const problem = raw != null ? raw['error'] : null
     const problemObj = problem != null ? problem as UTSJSONObject : null
     const message = problemObj != null && problemObj['message'] != null ? problemObj['message'] as string : `服务请求失败（${statusCode}）`
-    throw new ApiRequestError(message, statusCode)
+    // 后端错误码是「可照做的提示」的唯一可靠来源（401 到底是 code 过期还是 IP 未白名单），
+    // 必须原样带出来，不能只留一句笼统 message。
+    const code = problemObj != null && problemObj['code'] != null ? problemObj['code'] as string : ''
+    // requestId 同样是顶层字段，且**必须在 throw 之前**取出来 —— 出错路径上丢了它，
+    // 就再也没有别的办法把这次失败对应到后端日志（见 apiErrorRequestId 的注释）。
+    const requestId = raw != null && raw['requestId'] != null ? raw['requestId'] as string : ''
+    throw new ApiRequestError(message, statusCode, code, requestId)
   }
   const response = new ApiResponse()
   response.statusCode = statusCode
@@ -76,14 +151,58 @@ function ensureCacheSession() {
   const base = endpoint('/')
   if (token !== cacheToken || base !== cacheBase) {
     clearApiReadCache()
+    // 换了账号 / 换了环境：磁盘上的目录快照也必须作废。
+    // catalog-cache 自己也有作用域校验兜底，这里显式清一次是为了不留孤儿条目。
+    clearCatalogCache()
     cacheToken = token
     cacheBase = base
   }
 }
+/**
+ * 进程内缓存窗口（毫秒）。
+ *
+ * 分三档，**不要再把所有东西塞进同一档**：
+ *   · 0        —— 完全不能缓存（健康检查 / 会话 / 同步 / AI 任务：每次必须新鲜）
+ *   · 内容档   —— 首页信息流 2min、榜单 10min、品牌目录 30min、发售日历 15min，
+ *                 由 catalog-cache 统一给，并且**额外有磁盘兜底**（冷启动也能秒出内容）
+ *   · 2min     —— 其余会变的业务数据（商品详情、动态、个人列表）的兜底窗口
+ *
+ * 2026-10-03：`/feed` 原来被硬编码成 0（「信息流必须每次新鲜」），代价是首页**完全没有缓存**，
+ * 每次冷启动或切回来都要重新等一遍网络。商品流不会秒变，已改走内容档（catalog-cache tier 4）。
+ * 同一份「个人数据不落盘」的边界没有变：catalog-cache 只对上面那几个公开内容路径生效，
+ * `/api/v1/me/*`、`/wardrobe`、`/wishlist`、`/community/posts` 之类一律不落盘。
+ */
 function readTTL(path: string): number {
-  if (path.indexOf('/health') >= 0 || path.indexOf('/sessions') >= 0 || path.indexOf('/sync') >= 0 || path.indexOf('/ai-') >= 0 || path.indexOf('/feed') >= 0) return 0
-  if (path.indexOf('/brands') >= 0 || path.indexOf('/calendar') >= 0) return 300000
-  return 30000
+  if (path.indexOf('/health') >= 0 || path.indexOf('/sessions') >= 0 || path.indexOf('/sync') >= 0 || path.indexOf('/ai-') >= 0) return 0
+  const catalogTtl = catalogMemoryMs(path)
+  if (catalogTtl > 0) return catalogTtl
+  // 写操作成功后 apiMutation 会 clearApiReadCache()，所以「自己刚改完」不会读到旧的
+  return 120000
+}
+
+/** 把一份响应 JSON 放进进程内缓存（带淘汰 + 体积上限） */
+function rememberInMemory(key: string, json: string, ttl: number) {
+  for (let i = readCache.length - 1; i >= 0; i--) {
+    if (readCache[i].key === key || readCache[i].expires <= Date.now()) readCache.splice(i, 1)
+  }
+  if (json.length >= 200000) return
+  const entry = new ReadCacheEntry()
+  entry.key = key
+  entry.expires = Date.now() + ttl
+  entry.json = json
+  while (readCache.length >= 16) readCache.shift()
+  readCache.push(entry)
+}
+
+/** 把缓存里的 JSON 还原成响应（每次调用都重新 parse，避免调用方拿到共享对象） */
+function decodeCached(json: string): ApiResponse {
+  const raw = JSON.parse(json) as UTSJSONObject
+  const result = new ApiResponse()
+  result.data = raw['data']
+  result.page = raw['page']
+  result.statusCode = raw['statusCode'] as number
+  result.requestId = raw['requestId'] as string
+  return result
 }
 function copyResponse(response: ApiResponse): ApiResponse {
   const result = new ApiResponse()
@@ -97,21 +216,36 @@ export async function apiGet(path: string, force: boolean = false): Promise<ApiR
   ensureCacheSession()
   const ttl = readTTL(path)
   if (ttl === 0) return await requestGet(path)
-  if (force) clearApiReadCache()
   const key = endpoint(path)
   const now = Date.now()
+  if (force) clearApiReadCache()
+
+  // ① 进程内缓存
   for (let i = 0; i < readCache.length; i++) {
     const entry = readCache[i]
-    if (entry.key === key && entry.expires > now) {
-      const raw = JSON.parse(entry.json) as UTSJSONObject
-      const result = new ApiResponse()
-      result.data = raw['data']
-      result.page = raw['page']
-      result.statusCode = raw['statusCode'] as number
-      result.requestId = raw['requestId'] as string
-      return result
-    }
+    if (entry.key === key && entry.expires > now) return decodeCached(entry.json)
   }
+
+  // ② 磁盘长缓存（只有目录类路径会命中。个人数据 / 会变的数据在 catalog-cache 里已排除）
+  const catalogPath = isCatalogPath(path)
+  const hit = catalogPath ? readCatalog(key) : null
+  // force=true（下拉刷新）时不拿它当结果，但网络失败时仍可作为兜底
+  const fallbackBody = hit != null ? hit!.body : ''
+  if (hit != null && !force) {
+    const cached = decodeCached(hit!.body)
+    rememberInMemory(key, hit!.body, ttl)
+    if (isCatalogFresh(key, hit!.ageMs)) return cached
+    // stale-while-revalidate：先把旧数据交出去（界面立刻有内容），再后台补一次网络。
+    // 不 await —— 调用方不该为了一次「顺手刷新」多等一个往返；结果写回缓存，下次进来就是新的。
+    requestGet(path).then((fresh) => {
+      const json = JSON.stringify(fresh)
+      rememberInMemory(key, json, ttl)
+      writeCatalog(key, json)
+    }).catch(() => { /* 后台刷新失败无所谓，旧快照继续用 */ })
+    return cached
+  }
+
+  // ③ 网络（同一路径并发只发一次）
   const pending = readPending.get(key)
   if (pending != null) return copyResponse(await pending)
   const epoch = cacheEpoch
@@ -121,20 +255,16 @@ export async function apiGet(path: string, force: boolean = false): Promise<ApiR
     const response = await request
     ensureCacheSession()
     if (epoch === cacheEpoch) {
-      for (let i = readCache.length - 1; i >= 0; i--) {
-        if (readCache[i].key === key || readCache[i].expires <= now) readCache.splice(i, 1)
-      }
       const json = JSON.stringify(response)
-      if (json.length < 200000) {
-        const entry = new ReadCacheEntry()
-        entry.key = key
-        entry.expires = Date.now() + ttl
-        entry.json = json
-        while (readCache.length >= 16) readCache.shift()
-        readCache.push(entry)
-      }
+      rememberInMemory(key, json, ttl)
+      if (catalogPath) writeCatalog(key, json)
     }
     return copyResponse(response)
+  } catch (e) {
+    // 长缓存的第二个价值：断网 / 超时时目录内容仍然可读（品牌页不再白屏）。
+    // 只对目录类生效，且只回退到「还在可接受陈旧窗口内」的快照（readCatalog 已保证）。
+    if (fallbackBody !== '') return decodeCached(fallbackBody)
+    throw e
   } finally {
     if (epoch === cacheEpoch) readPending.delete(key)
   }
@@ -147,7 +277,8 @@ function requestGet(path: string): Promise<ApiResponse> {
     uni.request<UTSJSONObject>({
       url,
       method: 'GET',
-      header: headers(),
+      // GET 没有 body ⇒ 同样不带 content-type，避免任何服务端把它当空 JSON 处理
+      header: headers(false),
       timeout: 12000,
       success: (res: RequestSuccess<UTSJSONObject>) => {
         try { resolve(parseResponse(res.statusCode, res.data)) }
@@ -184,7 +315,8 @@ export function apiDelete(path: string): Promise<ApiResponse> {
     uni.request<UTSJSONObject>({
       url,
       method: 'DELETE',
-      header: headers(),
+      // DELETE 没有 body ⇒ 不能带 content-type（见 headers 的注释）
+      header: headers(false),
       timeout: 12000,
       success: (res: RequestSuccess<UTSJSONObject>) => {
         try { const response = parseResponse(res.statusCode, res.data); clearApiReadCache(); resolve(response) }
@@ -317,24 +449,31 @@ export async function apiUploadBinary(path: string, data: ArrayBuffer, contentTy
   })
 }
 
-/** 读取本地图片为 ArrayBuffer（供上传用） */
+/**
+ * 读取本地图片为 ArrayBuffer（供上传用）。
+ *
+ * ⚠️ 2026-09-30 修复：原实现只在 `#ifdef APP` 里真读文件，小程序端一律 `reject('当前平台不支持二进制上传')`
+ *    ⇒ 微信小程序里「发布动态」必然失败（用户反馈的那句报错就是这里来的）。
+ *    其实 `uni.getFileSystemManager().readFile({ filePath })` 在 **App 与微信小程序都可用**
+ *    （不传 encoding 时 `res.data` 就是 ArrayBuffer），所以这里统一走同一条实现。
+ *    H5 没有文件系统管理器 ⇒ 调用抛异常，兜底成同一句友好文案。
+ */
 export function readFileAsArrayBuffer(filePath: string): Promise<ArrayBuffer> {
   return new Promise<ArrayBuffer>((resolve, reject) => {
-    // #ifdef APP
-    const fs = uni.getFileSystemManager()
-    fs.readFile({
-      filePath,
-      success: (res) => {
-        const buf = res.data != null ? res.data as ArrayBuffer : null
-        if (buf == null) { reject(new Error('读取图片失败')); return }
-        resolve(buf)
-      },
-      fail: (error) => reject(new Error(error.errMsg != null ? error.errMsg : '读取图片失败')),
-    })
-    // #endif
-    // #ifndef APP
-    reject(new Error('当前平台不支持二进制上传'))
-    // #endif
+    try {
+      const fs = uni.getFileSystemManager()
+      fs.readFile({
+        filePath,
+        success: (res) => {
+          const buf = res.data != null ? res.data as ArrayBuffer : null
+          if (buf == null) { reject(new Error('读取图片失败')); return }
+          resolve(buf)
+        },
+        fail: (error) => reject(new Error(error.errMsg != null ? error.errMsg : '读取图片失败')),
+      })
+    } catch (e) {
+      reject(new Error('当前平台不支持二进制上传'))
+    }
   })
 }
 

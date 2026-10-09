@@ -27,6 +27,14 @@ const _state = reactive<PurchaseState>({
   filterStatus: '',
 })
 
+// 冷启动先把本地缓存倒进内存列表。
+//
+// 之前三张列表都只从 `[]` 起步、等 fetchItems() 回来才填，于是「我的」页里
+// 衣柜/购买记录/提醒这几个计数每次冷启动都先显示 0 再跳成真实值 —— 用户看到的就是
+// 「第一次进来还在刷新加载」。repo 本来就是这三个 store 的离线兜底数据源，
+// 提前读一次不改变任何口径，只是把「有数据」提前到首帧。
+_state.items = repo.getAll()
+
 function activeItems(): PurchaseRecord[] { return _state.items.filter((r) => !r.isDeleted) }
 function filteredItems(): PurchaseRecord[] {
   let result = activeItems()
@@ -156,7 +164,7 @@ async function fetchPurchases() {
       repo.persist(restored)
     } else {
       if (seq !== _fetchSeq) return
-      repo.initMockData()
+      // 游客（未登录）：只展示本机已存数据，不再播种 demo 假订单
       _state.items = repo.getAll()
     }
   } catch (err) {

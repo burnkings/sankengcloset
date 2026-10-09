@@ -20,7 +20,7 @@ export const TYPE_LABELS = {
   RELEASE: '上新发售',
   OUTFIT: '穿搭计划',
   PHOTO: '拍照日程',
-  ORGANIZE: '整理衣橱',
+  ORGANIZE: '整理衣柜',
   WISH: '蹲新品',
   CHECKIN: '打卡',
 }
@@ -64,7 +64,7 @@ export const TYPE_PLACEHOLDERS = {
   RELEASE: '例：新品限定 10 点开售',
   OUTFIT: '例：周末茶会穿搭',
   PHOTO: '例：Lolita外拍日程',
-  ORGANIZE: '例：换季整理衣橱',
+  ORGANIZE: '例：换季整理衣柜',
   WISH: '例：中牌新款蹲守',
   CHECKIN: '例：每日穿搭打卡',
 }

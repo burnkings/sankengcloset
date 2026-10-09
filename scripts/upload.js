@@ -13,7 +13,9 @@ if (!appid || !privateKeyPath) {
 const project = new ci.Project({
   appid,
   type: 'miniProgram',
-  projectPath: path.resolve(process.env.MP_DIST_DIR || 'unpackage/dist/dev/mp-weixin'),
+  // ⚠️ 2026-10-06 由 dev 改为 build：dev 产物已清理，且**上传只能用 -Release 产物**
+  // （dev 的 vendor.js 294KB vs 发行 95KB，传 dev 会导致「JS 文件压缩」检测项不通过）。
+  projectPath: path.resolve(process.env.MP_DIST_DIR || 'unpackage/dist/build/mp-weixin'),
   privateKeyPath,
   ignores: ['node_modules/**/*', '.git/**/*'],
 });

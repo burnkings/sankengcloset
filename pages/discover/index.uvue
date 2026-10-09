@@ -20,7 +20,7 @@
         <scroll-view direction="horizontal" :show-scrollbar="false" :style="featureScroll">
           <view :style="featureRow">
             <view v-for="(item, idx) in features" :key="item.id" :style="featureCard(idx)" @tap="openEditorial(item)">
-              <view :style="featureImage"><AppImage :src="item.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" /></view>
+              <view :style="featureImage"><AppImage :src="item.image" width="100%" height="100%" mode="aspectFill" :lazy-load="true" :list-width="800" /></view>
               <view :style="featureCopy"><text :style="featureTitle">{{ item.title }}</text><text :style="featureDesc">{{ item.desc }}</text></view>
             </view>
             <view :style="endPad" />
@@ -96,7 +96,6 @@ import { useHomeFeedStore } from '@/stores/home-feed-store'
 import { useCalendarStore } from '@/stores/calendar-store'
 import { CalendarEvent } from '@/services/content/calendar-service'
 import { FEED_EDITORIAL } from '@/domain/content/feed-item'
-import { comparisonBrand } from '@/services/mock/comparison-brand'
 import { showFeedback } from '@/utils/feedback'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
@@ -106,9 +105,10 @@ import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppDialog from '@/components/base/AppDialog.uvue'
-// #ifdef APP
+// 不能加 // #ifdef APP —— pageHeight 在模板里无条件使用，条件编译只挡 import 会导致
+// 小程序端 "getWindowHeight is not defined"（发现页整页崩成空白）。
+// utils/window-info 用 uni.getWindowInfo()，App / 小程序 / Web 均可用，无需分平台。
 import { getWindowHeight } from '@/utils/window-info'
-// #endif
 
 class FeatureItem {
   id: string = ''
@@ -132,7 +132,6 @@ function openRanking(tab: string) { uni.navigateTo({ url: `/pages/ranking/index?
 const library = useContentLibraryStore()
 const blacklist = useBlacklistStore()
 function toggleBrand(brandName: string) {
-  if (brandName === comparisonBrand().name) { showFeedback('展示样例不保存关注'); return }
   const followed = library.toggleBrandFollow(brandName)
   showFeedback(followed ? `已关注 ${brandName}` : `已取消关注 ${brandName}`)
 }

@@ -101,7 +101,7 @@
           <text :style="actionBtnSecondaryText">查看入橱单品</text>
         </view>
         <view v-else-if="item!.statusText === '已完成'" :style="actionBtnSecondary" @tap="onAddToWardrobe">
-          <text :style="actionBtnSecondaryText">收纳至衣橱</text>
+          <text :style="actionBtnSecondaryText">收纳至衣柜</text>
         </view>
       </view>
 
@@ -177,7 +177,7 @@ function onAddToWardrobe() {
   if (item.value == null || record.value == null) return
   const name = encodeURIComponent(item.value!.name)
   const source = record.value
-  // 订单金额单位为分，衣橱编辑页按元接收
+  // 订单金额单位为分，衣柜编辑页按元接收
   const priceYuan = source.totalAmount > 0 ? (source.totalAmount / 100).toString() : ''
   uni.navigateTo({ url: `/pages/wardrobe/edit?name=${name}&brand=${encodeURIComponent(item.value!.brand)}&category=${encodeURIComponent(source.category)}&price=${priceYuan}&purchaseDate=${encodeURIComponent(source.purchaseDate)}&purchaseId=${source.id}&wishId=${source.wishId}` })
 }

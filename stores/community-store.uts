@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 
-import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
+import { getCachedAccessToken } from '@/config/runtime'
 
 import { CommunityPostRemote, deleteCommunityPostRemote, listCommunityPostPageRemote, listCommunityPostsRemote, setCommunityPostLikeRemote, uploadOutfitImageRemote, createCommunityPostRemote } from '@/services/user-data/user-data-service'
 import { useSessionStore } from '@/stores/session-store'
@@ -11,21 +11,35 @@ import { readString, readList, writeList } from '@/stores/content-storage'
 export class PublicLookPost {
   id: string = ''
   imageUrl: string = ''
+  /** 全部图片（顺序即展示顺序）。为空时退回 [imageUrl]，老数据不受影响 */
+  imageUrls: string[] = []
   caption: string = ''
   category: string = ''
   topic: string = ''
   authorUserId: string = ''
   authorNickname: string = ''
+  /** 作者头像地址（空 = 作者未设头像，卡片回退 initial 文字首字） */
+  avatarUrl: string = ''
   likeCount: number = 0
   liked: boolean = false
   /** Phase 2.3-A：关联商品 id（空 = 普通内容，卡片不显示商品入口） */
   productId: string = ''
+  /** 'public' | 'private'（仅自己可见） */
+  visibility: string = 'public'
   createdAt: string = ''
   initial: string = ''
 }
 export class SavedOutfitPost {
   id: string = ''
   image: string = ''
+  /** 作者昵称/头像的**发布快照**（后端冗余列，不是当前账号资料）。
+   *  用它而不是 session.profile，才能保证「我自己看到的」和「别人看到的」是同一条动态的同一份快照。 */
+  authorNickname: string = ''
+  authorAvatarUrl: string = ''
+  /** 全部图片（顺序即展示顺序）。为空时退回 [image]，老数据不受影响 */
+  imageUrls: string[] = []
+  /** 'public' | 'private'（仅自己可见）——「我的动态」里要给出标识，否则用户分不清哪条是私密的 */
+  visibility: string = 'public'
   caption: string = ''
   category: string = ''
   topic: string = ''
@@ -118,6 +132,7 @@ export function mockToPublicLook(post: SavedOutfitPost): PublicLookPost {
   const session = useSessionStore()
   const nickname = session.profile.nickname !== '' ? session.profile.nickname : '我'
   p.authorNickname = nickname
+  p.avatarUrl = session.profile.avatarUrl
   p.initial = nickname.length > 0 ? nickname.substring(0, 1) : '我'
   p.likeCount = 0
   p.liked = false
@@ -130,14 +145,18 @@ export function remoteToPublicLook(item: CommunityPostRemote): PublicLookPost {
   const post = new PublicLookPost()
   post.id = item.id
   post.imageUrl = item.imageUrl
+  post.imageUrls = item.imageUrls.length > 0 ? item.imageUrls : (item.imageUrl != '' ? [item.imageUrl] : [])
   post.caption = item.caption
   post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : 'JK'
   post.topic = item.topic
   post.authorUserId = item.authorUserId
   post.authorNickname = item.authorNickname !== '' ? item.authorNickname : '同好'
+  // 头像用后端现拼的作者头像；作者没设头像就留空，卡片自动回退文字首字
+  post.avatarUrl = item.authorAvatarUrl
   post.likeCount = item.likeCount
   post.liked = item.liked
   post.productId = item.productId
+  post.visibility = item.visibility
   post.createdAt = item.createdAt
   const nick = post.authorNickname
   post.initial = nick.length > 0 ? nick.substring(0, 1) : '同'
@@ -148,37 +167,11 @@ export function outfitCount(): number { return communityState.outfitPosts.length
 
 export function likedPostCount(): number { return communityState.likedPostIds.length }
 
-export function defaultPublicLooks(): PublicLookPost[] {
-  const rows = [
-    ['mock_look_jk', '/static/demo/outfit-01.png', '通勤也能穿的清爽 JK 搭配', 'JK', '通勤三坑', '小樱', 'prd_jk_navy_45'],
-    ['mock_look_lolita', '/static/demo/outfit-02.png', '月夜茶会搭配记录', 'Lolita', '茶会搭配', '栗子', 'prd_lolita_moon'],
-    ['mock_look_hanfu', '/static/demo/outfit-editorial-01.jpg', '宋制日常穿搭分享', '汉服', '今日穿搭', '云间', 'prd_hanfu_song'],
-  ]
-  const posts: PublicLookPost[] = []
-  for (let i = 0; i < rows.length; i++) {
-    const post = new PublicLookPost()
-    post.id = rows[i][0]
-    post.imageUrl = rows[i][1]
-    post.caption = rows[i][2]
-    post.category = rows[i][3]
-    post.topic = rows[i][4]
-    post.authorUserId = `mock_author_${i}`
-    post.authorNickname = rows[i][5]
-    post.initial = rows[i][5].substring(0, 1)
-    post.productId = rows[i][6]
-    post.likeCount = 12 + i * 9
-    post.createdAt = new Date(Date.now() - (i + 1) * 3600000).toISOString()
-    posts.push(post)
-  }
-  return posts
-}
-
 export async function refreshPublicPosts(): Promise<void> {
   // 首次加载才显示骨架屏；之后进入静默刷新，避免空数据/重复进入闪 0.5s 骨架屏。
   if (!communityState.publicLoadedOnce) communityState.publicLoading = true
   communityState.publicError = ''
   try {
-    if (isLocalMockSession()) { communityState.publicPosts = defaultPublicLooks(); communityState.publicHasMore = false; communityState.publicNextCursor = ''; return }
     const remote = await listCommunityPostPageRemote('', '', '', false)
     const posts: PublicLookPost[] = []
     for (let i = 0; i < remote.items.length; i++) {
@@ -193,8 +186,8 @@ export async function refreshPublicPosts(): Promise<void> {
   } catch (e) {
     communityState.publicError = '动态加载失败，请重试'
   } finally {
-    // 本机发布动态混入公开 Gallery 顶部；仅按本机帖子 ID 去重，保留统一演示目录帖子。
-    const mock = isLocalMockSession() ? readMockPosts() : [] as SavedOutfitPost[]
+    // 本机发布过的动态混入公开 Gallery 顶部；仅按本机帖子 ID 去重
+    const mock = readMockPosts()
     const mockPublic: PublicLookPost[] = []
     const localIds: string[] = []
     for (let i = 0; i < mock.length; i++) { mockPublic.push(mockToPublicLook(mock[i])); localIds.push(mock[i].id) }
@@ -228,9 +221,9 @@ export async function loadMorePublicPosts(): Promise<void> {
 }
 
 export async function refreshMyPosts(): Promise<void> {
-  const mock = isLocalMockSession() ? readMockPosts() : [] as SavedOutfitPost[]
+  const mock = readMockPosts()
   if (getCachedAccessToken() == '') {
-    // 模拟登录：仅展示本地 Mock 已发布动态
+    // 游客：只展示本机发布过的动态
     communityState.outfitPosts = mock
       return
   }
@@ -242,11 +235,15 @@ export async function refreshMyPosts(): Promise<void> {
       const post = new SavedOutfitPost()
       post.id = item.id
       post.image = item.imageUrl
+      post.imageUrls = item.imageUrls.length > 0 ? item.imageUrls : (item.imageUrl != '' ? [item.imageUrl] : [])
+      post.visibility = item.visibility
       post.caption = item.caption
       post.category = item.category == 'LOLITA' ? 'Lolita' : item.category == 'HANFU' ? '汉服' : item.category == 'MIXED' ? '混搭' : item.category
       post.topic = item.topic
       post.productId = item.productId
       post.createdAt = item.createdAt
+      post.authorNickname = item.authorNickname
+      post.authorAvatarUrl = item.authorAvatarUrl
       post.isRemote = true
       saved.push(post)
       if (item.liked && communityState.likedPostIds.indexOf(item.id) < 0) communityState.likedPostIds.push(item.id)
@@ -257,41 +254,48 @@ export async function refreshMyPosts(): Promise<void> {
   }
 }
 
-export async function publishOutfitRemote(imagePath: string, caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = ''): Promise<boolean> {
-  if (getCachedAccessToken() == '' && !isLocalMockSession()) throw new Error('请先登录')
-  if (isLocalMockSession()) {
-    // 模拟登录（无真实 token）：本地 Mock 发布，写入本地并立即展示
-    const post = new SavedOutfitPost()
-    post.id = `mock_${Date.now()}`
-    post.image = imagePath
-    post.caption = caption
-    post.category = category
-    post.topic = topic
-    post.productId = productId
-    post.wardrobeIds = [...wardrobeIds]
-    post.createdAt = Date.now().toString()
-    post.isRemote = true
-    const posts = readMockPosts()
-    posts.unshift(post)
-    writeMockPosts(posts)
-    communityState.outfitPosts = posts
-    // 混入公开 Gallery 顶部
-    communityState.publicPosts = [mockToPublicLook(post), ...communityState.publicPosts.filter((item) => item.id != post.id)]
-      return true
-  }
-  const mediaId = await uploadOutfitImageRemote(imagePath)
+/**
+ * 发布动态（支持多图）。
+ *
+ * 2026-09-30：由「单图」扩展成「多图」。做法就是主流那套 —— 逐张走
+ * `POST /uploads:prepare` → `PUT content` 拿到 mediaId 数组，再一起交给发帖接口：
+ *   · `mediaId`   = 首图（**封面**，后端现有字段，老接口继续可用）
+ *   · `mediaIds`  = 全部图片（后端已支持：`community_posts.media_ids text[]`）
+ * 同时接出可见性 `visibility`（'public' | 'private'）：后端 `community_posts.visibility`
+ * 列和 CHECK 约束本来就有，缺的只是「路由要不要收这个字段」。
+ */
+export async function publishOutfitRemote(imagePaths: string[], caption: string, category: string, topic: string, wardrobeIds: string[] = [], productId: string = '', visibility: string = 'public'): Promise<boolean> {
+  // 发布必须真实账号：游客不能发布（本机假发布会让「我的动态」与服务端长期不一致）
+  if (getCachedAccessToken() == '') throw new Error('请先登录')
+  if (imagePaths.length == 0) throw new Error('请先选择图片')
+  const mediaIds: string[] = []
+  for (let i = 0; i < imagePaths.length; i++) mediaIds.push(await uploadOutfitImageRemote(imagePaths[i]))
   const backendCategory = category === '混搭' ? 'MIXED' : (category === 'Lolita' ? 'LOLITA' : (category === '汉服' ? 'HANFU' : 'JK'))
   const payload = {
-    mediaId,
+    mediaId: mediaIds[0],
+    mediaIds,
     caption,
     category: backendCategory,
     topic,
+    visibility: visibility === 'private' ? 'private' : 'public',
     wardrobeIds,
     // Phase 2.3-A：可选商品关联（空串不传 → 后端 productId=null 普通内容）
     ...(productId !== '' ? { productId } : {}),
   } as UTSJSONObject
   await createCommunityPostRemote(payload)
-  reload()
+  // 发布成功后刷新本模块**自己**的两个列表。
+  //
+  // ⚠️ 这里曾经写的是 `reload()` —— 那是 `content-library-store` 的函数，本模块里根本不存在，
+  //    所以每次发布都会在「帖子已建成功」之后抛 `ReferenceError: reload is not defined`：
+  //    用户看到报错 toast，但帖子其实发出去了，且列表/图片/头像全都没刷新。
+  //    本模块不能 import content-library-store（它反过来 import 本模块，会成环），
+  //    所以只能调用这里自己的 refresh*。
+  try {
+    await refreshMyPosts()
+    if (visibility !== 'private') await refreshPublicPosts()
+  } catch (_) {
+    // 刷新失败不影响发布结果：进「我的动态」/ 下拉刷新时会重新拉
+  }
   return true
 }
 
@@ -304,9 +308,9 @@ export function removeOutfit(id: string) {
     writeList(LIKED_POST_IDS_KEY, liked)
   }
   const mockPosts = readMockPosts()
-  const isMock = mockPosts.some((post) => post.id == id)
-  if (isMock) {
-    // 本地 Mock 帖：直接从本地存储移除
+  const isLocal = mockPosts.some((post) => post.id == id)
+  if (isLocal) {
+    // 本机发布缓存里的帖：直接从本地存储移除
     writeMockPosts(mockPosts.filter((post) => post.id != id))
   } else if (getCachedAccessToken() != '') {
     // 远程帖子直接 DELETE（Authorized），失败才入队由同步队列重放
@@ -331,7 +335,6 @@ export function togglePostLike(postId: string): boolean {
   else values.unshift(postId)
   communityState.likedPostIds = values
   writeList(LIKED_POST_IDS_KEY, values)
-  if (isLocalMockSession()) return idx < 0
   // 统一策略：直接远程写（Authorized CRUD）；仅在失败时入队，由 syncNow 重放
   if (getCachedAccessToken() != '') {
     const wanted = idx < 0
@@ -346,6 +349,6 @@ export function togglePostLike(postId: string): boolean {
 
 export function reloadCommunity() {
   communityState.likedPostIds = readList(LIKED_POST_IDS_KEY)
-  // 我的发布：远程帖子由 refreshMyPosts 拉取；本地 Mock 已发布动态从存储恢复
-  communityState.outfitPosts = isLocalMockSession() ? readMockPosts() : [] as SavedOutfitPost[]
+  // 我的发布：远程帖子由 refreshMyPosts 拉取；本机发布过的动态从存储恢复
+  communityState.outfitPosts = readMockPosts()
 }

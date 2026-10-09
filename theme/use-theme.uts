@@ -55,18 +55,13 @@ function computeIsDark(mode: ThemeMode): boolean {
   return getSystemDark()
 }
 
-function getGlobalDark(): boolean {
-  try {
-    const app = getApp() as UTSJSONObject
-    const gd = app['globalData'] as UTSJSONObject | null
-    if (gd != null) {
-      const val = gd['isDark']
-      if (val != null) return val as boolean
-    }
-  } catch (e) {}
-  return computeIsDark(readStorageThemeMode())
-}
+// getGlobalDark() 已删（2026-10-09）：全项目无调用方 —— 页面主题一律走 `n` / `isDark()` 读 _state，
+// 没有第二份读 globalData.isDark 的实现。留着它只会让人误以为还有一条并行的主题来源。
 
+/**
+ * 写 globalData（供未来可能的跨 context 读取；当前仅写不读）。
+ * ⚠️ 必须在 `_state.themeMode` / `_state.isDark` **赋值之后**调用，否则写进去的是上一版状态。
+ */
 function setGlobalDark(value: boolean) {
   try {
     const app = getApp() as UTSJSONObject
@@ -76,13 +71,7 @@ function setGlobalDark(value: boolean) {
       app['globalData'] = gd
     }
     gd['isDark'] = value
-  } catch (e) {}
-  try {
-    const app = getApp() as UTSJSONObject
-    const gd = app['globalData'] as UTSJSONObject | null
-    if (gd != null) {
-      gd['themeMode'] = _state.themeMode
-    }
+    gd['themeMode'] = _state.themeMode
   } catch (e) {}
 }
 
@@ -120,7 +109,9 @@ function syncFromGlobal(): boolean {
     _state.themeMode = mode
     _state.isDark = computedDark
     setGlobalDark(computedDark)
-    applyPalette()
+    // 这里**故意不调 applyPalette()**：调用方（initializeTheme / syncSystemChrome / initPageTheme）
+    // 会在写完状态后自己按「原生先行、调色板后换」的顺序收尾。
+    // 若在此处提前换调色板，就又回到「自绘层先变、原生层慢半拍」的老毛病（导航栏闪烁）。
   }
   return changed
 }
@@ -178,9 +169,10 @@ function enableSystemThemeListener() {
       _state.isDark = newDark
       setGlobalDark(newDark)
       lastTabBarMode = ''
-      applyPalette()
+      // 同 setThemeMode：原生先行、调色板后换
       applySystemChrome()
       syncTabBarChrome()
+      applyPalette()
       notifyThemeChanged()
     }
   })
@@ -195,9 +187,10 @@ function enableSystemThemeListener() {
       _state.isDark = newDark
       setGlobalDark(newDark)
       lastTabBarMode = ''
-      applyPalette()
+      // 同 setThemeMode：原生先行、调色板后换（否则跟随系统切换也会闪）
       applySystemChrome()
       syncTabBarChrome()
+      applyPalette()
       notifyThemeChanged()
     }
   })
@@ -226,19 +219,25 @@ function disableSystemThemeListener() {
 
 export function initializeTheme() {
   syncFromGlobal()
+  // 原生先行、调色板后换（理由见 setThemeMode 的注释）
   applySystemChrome()
+  applyPalette()
   if (_state.themeMode === 'system') enableSystemThemeListener()
 }
 
 export function syncSystemChrome() {
   const changed = syncFromGlobal()
-  if (changed) applySystemChrome()
+  if (changed) {
+    applySystemChrome()
+    applyPalette()
+  }
 }
 
 export function initPageTheme() {
   syncFromGlobal()
   applySystemChrome()
   syncTabBarChrome()
+  applyPalette()
 }
 
 /**
@@ -253,6 +252,18 @@ export function notifyThemeChanged() {
 /**
  * 设置三态主题模式
  * @param mode 'system' | 'light' | 'dark'
+ *
+ * ⚠️ 顺序是修「深色首次切换导航栏闪一下」的关键（2026-10-09），不要调换：
+ *   1. 先写 _state.themeMode / isDark + globalData —— 纯内存，不触发渲染；
+ *   2. 再调 applySystemChrome() / syncTabBarChrome() —— **原生** API，本帧立即生效；
+ *   3. 最后 applyPalette() —— 换调色板，触发自绘 UI 的重渲染。
+ *
+ * 原因是两套主题通道走不同的时序：
+ *   · 原生导航栏/tabBar → theme.json + 这几个 uni API，**同步生效**，不依赖渲染帧；
+ *   · 自绘导航栏（AppNavbar 的 n.value.bg）→ script 计算，要等**下一个渲染帧**。
+ * 若先 applyPalette，自绘层立即重排、原生层却慢半拍；首次切换时（无缓存、原生 api 冷调用）
+ * 这个差值就露出来一帧 ⇒ 导航栏闪一下。把原生放在调色板之前，两边同帧到位。
+ * 官方文档同款说明：动态切换class 与 theme.json「可能不在同一帧，会造成一种闪烁感」。
  */
 export function setThemeMode(mode: ThemeMode) {
   _state.themeMode = mode
@@ -260,9 +271,10 @@ export function setThemeMode(mode: ThemeMode) {
   setGlobalDark(_state.isDark as boolean)
   uni.setStorageSync(THEME_MODE_KEY, mode)
   lastTabBarMode = ''
-  applyPalette()
+  // 原生 chrome 先行（同帧、同步生效），再换调色板（下一帧生效）
   applySystemChrome()
   syncTabBarChrome()
+  applyPalette()
 
   if (mode === 'system') {
     enableSystemThemeListener()
@@ -325,3 +337,26 @@ export const n = _state
 export function isDark(): boolean { return _state.isDark as boolean }
 /** 当前三态偏好：system / light / dark（同上，禁止改回 getter 对象） */
 export function themeMode(): ThemeMode { return _state.themeMode as ThemeMode }
+
+// ====== 模块加载即定调色板（2026-09-30：修「深色模式首次切页面闪一下白」）======
+// 之前调色板只在 App.onLaunch 的 nextTick 里初始化，而**页面首帧渲染早于它**；
+// 深色用户于是能看到一帧浅色底（换页面时尤其明显，因为新页面重新走一遍首帧）。
+// 这里在模块求值阶段（任何渲染 effect 建立之前）就写定 _state：
+//   · 只做纯内存读/写（读 storage 走已有 try/catch），**不碰任何 uni 原生 API** ——
+//     原生 chrome（导航栏/tabBar/setAppTheme）仍然由 initializeTheme / initPageTheme 负责，
+//     避免在无 effect scope 时调用原生接口。
+// 这样任何页面第一次知道「自己是什么底色」，答案就已经是对的。
+//
+// 2026-10-09 补：这里**同时**写一次 globalData。
+// 此前只写 _state、不写 globalData ⇒ 冷启动到首次 initializeTheme() 之间，
+// globalData.isDark 一直是 undefined；而原生 chrome（setNavigationBarColor / setBackgroundColor）
+// 在**手动切换**时才被调用，于是「首次切换深色」会先按旧状态刷一帧原生导航栏底色
+// （theme.json 自己那层是另一条通路、在同一帧里各走各的）⇒ 导航栏闪一下。
+// 提前把两份状态一起定死，首帧就一致。
+try {
+  const bootMode = readStorageThemeMode()
+  _state.themeMode = bootMode
+  _state.isDark = computeIsDark(bootMode)
+  applyPalette()
+  setGlobalDark(_state.isDark as boolean)
+} catch (e) {}

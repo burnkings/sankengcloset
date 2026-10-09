@@ -1,4 +1,3 @@
-import { isComparisonProduct } from '@/services/mock/comparison-products'
 /**
  * HomeFeedStore — 首页内容发现 Feed 状态管理
  * V2.6: 稳定性修复
@@ -12,6 +11,7 @@ import { reactive, nextTick } from 'vue'
 import { FeedItem, FEED_PRODUCT, FEED_OUTFIT } from '@/domain/content/feed-item'
 import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
 import { usePreferencesStore } from '@/stores/preferences-store'
+import { bumpWishCount, wishCountOf } from '@/services/content/wish-count'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { formatPriceCents, formatRelativeTime as formatRelativeTimeImpl, formatDeadline as formatDeadlineImpl } from '@/utils/format'
 
@@ -129,7 +129,7 @@ function isLoading(): boolean { return _state.state == 'loading' }
  * 频道切换时 Store 已按频道重新请求，这里仅做轻量过滤兜底。
  */
 function displayItems(): FeedItem[] {
-  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => isComparisonProduct(item.entityId) || (!isBrandBlocked(item.brandName) && fitsPricePreference(item)))
+  return filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
 }
 
 function isEmpty(): boolean {
@@ -148,7 +148,7 @@ function isCardEligible(item: FeedItem): boolean {
  */
 function masonryBlocks(): MasonryBlock[] {
   const blocks: MasonryBlock[] = []
-  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => isComparisonProduct(item.entityId) || (!isBrandBlocked(item.brandName) && fitsPricePreference(item)))
+  const channelItems = filterFeedByChannel(_state.allItems, _state.currentChannel).filter((item) => !isBrandBlocked(item.brandName) && fitsPricePreference(item))
   let i = 0
   while (i < channelItems.length) {
     const item = channelItems[i]
@@ -200,6 +200,44 @@ class ChannelSnapshot {
 }
 let channelCache: ChannelSnapshot[] = []
 let currentFetchedAt = 0
+/** 本次运行是否已经预取过其他频道（只做一次，避免反复打网络） */
+let prefetchStarted = false
+
+/**
+ * 首屏渲染完成后，**静默预取其余频道的第一页**。
+ *
+ * 为什么：切频道时如果该频道本次会话还没数据，`setChannel` 会把列表清空并进 loading，
+ * 模板随即用整屏骨架替换内容 —— 用户看到的就是「一换栏目，商品图全没了、过一会儿才回来」。
+ * 预取之后切过去直接命中 `channelCache`，不触发骨架，视觉上是平滑替换。
+ *
+ * 三个约束：
+ *   · **失败完全静默** —— 预取只是加速，切过去时照常加载，不能因为它报错；
+ *   · **串行**，不跟可见页面抢带宽；
+ *   · **只写 channelCache，不碰 _state** —— 任何情况下都不能影响当前正在看的频道。
+ */
+async function prefetchOtherChannels() {
+  if (prefetchStarted) return
+  prefetchStarted = true
+  for (let i = 0; i < CHANNELS.length; i++) {
+    const ch = CHANNELS[i]
+    if (ch === _state.currentChannel) continue
+    if (channelCache.some((item) => item.channel === ch)) continue
+    try {
+      const page = await fetchFeedPage('', ch, '全部', pitTypesToCategories())
+      const entry = new ChannelSnapshot()
+      entry.channel = ch
+      entry.items = page.items
+      entry.nextCursor = page.nextCursor
+      entry.hasMore = page.hasMore
+      entry.fetchedAt = Date.now()
+      channelCache = channelCache.filter((item) => item.channel !== ch)
+      channelCache.push(entry)
+      if (channelCache.length > 4) channelCache.shift()
+    } catch (e) {
+      // 预取失败无所谓：切过去时走正常加载
+    }
+  }
+}
 function rememberChannel() {
   if (_state.state !== 'loaded') return
   const entry = new ChannelSnapshot()
@@ -233,6 +271,8 @@ async function loadFirstPage(silent: boolean = false) {
     currentFetchedAt = Date.now()
     rememberChannel()
     invalidateBlocksCache()
+    // 首屏已经渲染完了，再去预取其余频道（不 await，不阻塞）
+    prefetchOtherChannels()
   } catch (e) {
     if (seq !== _requestSeq) return
     _state.state = _state.allItems.length > 0 ? 'loaded' : 'error'
@@ -253,7 +293,9 @@ async function loadMore() {
     if (seq !== _requestSeq) return // 期间已切频道，丢弃
     await nextTick()
     if (seq !== _requestSeq) return
-    if (page.items.length == 0) {
+    // 防御：游标没前进就不再往下翻（否则会把同一页反复追加成无限列表）
+    const cursorAdvanced = page.nextCursor !== '' && page.nextCursor !== _state.nextCursor
+    if (page.items.length == 0 || !cursorAdvanced) {
       _state.hasMore = false
     } else {
       let merged = [..._state.allItems, ...page.items]
@@ -324,6 +366,13 @@ function toggleSave(itemId: string) {
   for (let i = 0; i < items.length; i++) {
     if (items[i].id == itemId) {
       items[i].saved = !items[i].saved
+      // 收藏数跟着动：否则会出现「爱心点亮了但数字不动」。
+      // 走 wish-count 的本地增量（服务端计数 + 增量），这样任何入口读到的数字都一致。
+      const entityId = items[i].entityId !== '' ? items[i].entityId : items[i].id
+      bumpWishCount(entityId, items[i].saved ? 1 : -1)
+      // ⚠️ 基数用 `wishCountBase`（服务端原值），**不能**用 `wishCount`（已被本地增量改过）——
+      // 拿它当基数会再叠一次增量，出现「取消再收藏 → 数字变 2」。
+      items[i].wishCount = wishCountOf(entityId, items[i].wishCountBase)
       break
     }
   }

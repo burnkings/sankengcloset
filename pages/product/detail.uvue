@@ -21,18 +21,31 @@
 
         <view class="page-canvas" :style="pageWrap">
           <view :style="summaryCard">
-            <text :style="titleText">{{ item!.title }}</text>
-              <view v-if="priceSummaryText !== ''" :style="priceRow">
-                <text v-if="priceSummaryText !== ''" :style="priceText">{{ priceSummaryText }}</text>
+            <!-- 标题 / 品牌 两行在左，价格在右并**垂直居中于这两行之间**（2026-10-08 用户三次口径：
+                 价格字体大 ⇒ 让它独占一行会变三行、与标题同行又会把行高撑成「两行半」；
+                 让它吃掉两行中间的高度，整体**仍然是两行**。 -->
+            <view :style="headRow">
+              <view :style="headLeft">
+                <text :style="titleText">{{ item!.title }}</text>
+                <view :style="brandRow">
+                  <!-- 品牌名可点：直接进品牌商品页（原来品牌只是一段纯文本，看着像能点却没反应）。
+                       没有品牌 id 时才退回纯文本，避免点了跳到空页。 -->
+                  <view v-if="brandId !== ''" :style="brandTap" @tap="openBrand">
+                    <text :style="brandText">{{ brandNameText }}</text>
+                    <AppIcon name="chevron-right" :size="20" />
+                  </view>
+                  <text v-else :style="brandText">{{ brandNameText }}</text>
+                  <view v-if="subCategory !== ''" :style="subChip"><text :style="subChipText">{{ subCategory }}</text></view>
+                  <!-- 发货说明**不再在这里做胶囊**（2026-10-08）：它已统一到商品级、属于「销售状态」的一部分，
+                       只在下面「发售信息 → 发货说明」显示一行。此前商品级为空、只有批次级有值，
+                       所以这里从没显示过；现在两级合一后若保留会与那行重复。 -->
+                  <!-- 屏蔽品牌（负向、低频）已移入导航栏「…」菜单；只有"已被屏蔽"时才在这里给恢复入口 -->
+                  <view v-if="item!.brandName !== '' && blacklist.isBlacklisted(item!.brandName)" :style="blacklistBtn" @tap="onToggleBlacklist">
+                    <text :style="blacklistBtnText">已屏蔽·恢复</text>
+                  </view>
+                </view>
               </view>
-            <view :style="brandRow">
-              <text :style="brandText">{{ item!.brandName !== '' ? item!.brandName : shopName }}</text>
-              <view v-if="pitTypeLabel !== ''" :style="pitChip"><text :style="pitChipText">{{ pitTypeLabel }}</text></view>
-              <view v-if="subCategory !== ''" :style="subChip"><text :style="subChipText">{{ subCategory }}</text></view>
-              <!-- 屏蔽品牌（负向、低频）已移入导航栏「…」菜单；只有"已被屏蔽"时才在这里给恢复入口 -->
-              <view v-if="item!.brandName !== '' && blacklist.isBlacklisted(item!.brandName)" :style="blacklistBtn" @tap="onToggleBlacklist">
-                <text :style="blacklistBtnText">已屏蔽·恢复</text>
-              </view>
+              <text v-if="priceDisplayText !== ''" :style="priceText">{{ priceDisplayText }}</text>
             </view>
             <!-- 原来此处还有一行「卖点标签」—— 与「发售信息 → 当前状态」重复，2026-09-14 按反馈删除。
                  标签数据（featureTags）仍从服务端接收，留给后续筛选/搜索用。 -->
@@ -46,16 +59,44 @@
                  算法文件 services/ai/wardrobe-compatibility-service.uts 一并删除（git 历史可恢复）。 -->
           </view>
           <template v-if="release !== null">
-            <SectionHeader title="发售信息" />
+            <!-- 发售信息卡（2026-10-06 按设计稿重构）。
+                 结构：标题 + 副标题 → 当前状态 / 预售时间 / 出货时间 → 实线 →
+                       「发售批次 · 共 N 批」→ 逐批两行（名称+时间 / 价格）→ 虚线 + 排序说明。
+                 为什么多批次要给全量视图：热门款常同时挂着一团（已截团）、二团（预约中）、现货掉落，
+                 第一眼要能回答「现在能买哪一批」，同时又能翻出已结束批次比价。 -->
             <view :style="releaseCard">
+              <view :style="releaseHeaderRow">
+                <text :style="releaseTitle">发售信息</text>
+              </view>
               <view v-if="releaseStatusText !== ''" :style="releaseRow"><text :style="releaseLabel">当前状态</text><text :style="releaseValue">{{ releaseStatusText }}</text></view>
               <view v-if="releaseBatchText !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ releaseBatchText }}</text></view>
               <view v-if="releaseStartText !== ''" :style="releaseRow"><text :style="releaseLabel">预售时间</text><text :style="releaseValue">{{ releaseStartText }}</text></view>
               <view v-if="shipDateText !== ''" :style="releaseRow"><text :style="releaseLabel">出货时间</text><text :style="releaseValue">{{ shipDateText }}</text></view>
+              <!-- 发货说明：运营手写的时效承诺（「7天内发货」这类）。它**不是预售**，属于现货的发货承诺，
+                   所以放在出货时间下面单独一行，不掺进状态里。 -->
+              <view v-if="shippingNoteText !== ''" :style="releaseRow"><text :style="releaseLabel">发货说明</text><text :style="releaseValue">{{ shippingNoteText }}</text></view>
+
+              <!-- 多批次：现货排最前、预约中次之、已结束置底；已结束整块转灰，价格保留 -->
+              <template v-if="batchList.length > 1">
+                <view :style="releaseDivider"></view>
+                <view :style="releaseRow">
+                  <text :style="releaseLabel">发售批次</text>
+                  <text :style="releaseValue">共 {{ batchList.length }} 批</text>
+                </view>
+                <view v-for="b in batchList" :key="b.id" :style="batchRowStyle">
+                  <view :style="batchHeadRow">
+                    <text :style="batchNameStyle(b.saleStatus)">{{ batchTitle(b) }}</text>
+                    <text :style="batchDateStyle(b.saleStatus)">{{ batchDateText(b) }}</text>
+                  </view>
+                  <text v-if="batchPriceText(b) !== ''" :style="batchPriceStyle(b.saleStatus)">{{ batchPriceText(b) }}</text>
+                </view>
+                <view :style="releaseDashedDivider"></view>
+                <text :style="releaseFootnote">排序：现货 → 预约中 → 已结束。已结束的整块转灰，仍保留价格供你比价。</text>
+              </template>
             </view>
           </template>
 
-          <template v-if="styleOptions.length > 0 || colorTags.length > 0 || sizeOptions.length > 0">
+          <template v-if="styleOptions.length > 0 || colorOptions.length > 0 || sizeOptions.length > 0">
             <SectionHeader title="规格" />
             <view :style="specCard">
               <view v-if="styleOptions.length > 0" :style="specRow">
@@ -70,10 +111,13 @@
                   <view v-for="st in styleOptions" :key="st" :style="specChip"><text :style="specChipText">{{ st }}</text></view>
                 </view>
               </view>
-              <view v-if="colorTags.length > 0" :style="specRow">
+              <!-- 颜色来自「规格选项」里的颜色项（2026-10-06）。
+                   原先这里读的是 color_tags 那一列（运营后台的「颜色标签」），已被删除：
+                   它跟规格里的颜色是两个东西，且运营确认不需要单独填 ⇒ 统一由规格驱动。 -->
+              <view v-if="colorOptions.length > 0" :style="specRow">
                 <text :style="specLabel">颜色</text>
                 <view :style="specChips">
-                  <view v-for="c in colorTags" :key="c" :style="specChip"><text :style="specChipText">{{ c }}</text></view>
+                  <view v-for="c in colorOptions" :key="c" :style="specChip"><text :style="specChipText">{{ c }}</text></view>
                 </view>
               </view>
               <view v-if="sizeOptions.length > 0" :style="specRow">
@@ -85,10 +129,7 @@
             </view>
           </template>
 
-          <template v-if="materialSummary !== ''">
-            <SectionHeader title="材质" />
-            <view :style="detailCard"><text :style="detailText">{{ materialSummary }}</text></view>
-          </template>
+          <!-- 材质区块已于 2026-10-09 硬删除（字段 products.material_tags 同步删列） -->
 
           <template v-if="sameStyle !== null && sameStyle.products.length > 0">
             <SectionHeader title="同款式" />
@@ -135,7 +176,9 @@
     <view v-if="item !== null" :style="botBar">
     <view :style="botItem" @tap="toggleSaved">
       <view :style="botIcon"><AppIcon name="heart" :size="40" :active="isSaved" /></view>
-      <text :style="botLabel">{{ isSaved ? '已收藏' : '收藏' }}</text>
+      <!-- 底栏还有「提醒」「分享」，文字必须短。有收藏数时**直接用它替换掉「收藏」二字**；
+           还没人收藏时保留「收藏」，否则按钮看不出是干什么的。 -->
+      <text :style="botLabel">{{ favoriteCount > 0 ? favoriteCount : (isSaved ? '已收藏' : '收藏') }}</text>
     </view>
     <view :style="botItem" @tap="createReminder">
       <view :style="botIcon"><AppIcon name="reminder" :size="40" :active="true" /></view>
@@ -150,14 +193,14 @@
 </template>
 
 <script setup lang="uts">
-import { isComparisonProduct } from '@/services/mock/comparison-products'
 import { computed } from 'vue'
 import { FeedItem } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
+import { ProductReleaseBatch } from '@/domain/content/product'
 import { extractImageUrls } from '@/domain/content/product'
 import { StyleInfo } from '@/domain/content/style'
 import { ProductVariant } from '@/domain/content/product-variant'
-import { deriveReleaseStatusText, formatPriceSummaryByType, getPitTypeLabel } from '@/presentation/content/feed-presenter'
+import { deriveReleaseStatusText, formatPriceSummaryByType, formatPriceRange } from '@/presentation/content/feed-presenter'
 import { fetchStyle } from '@/services/content/style-service'
 import { fetchProductCommunity, ProductCommunityPost } from '@/services/content/product-service'
 import { useProductDetailStore } from '@/stores/product-detail-store'
@@ -175,6 +218,9 @@ import { splitSizeOptions } from '@/utils/size-option'
 import { recordBrowse } from '@/stores/browse-history-store'
 import { shareByCopy, openExternalUrl } from '@/utils/share'
 import { showFeedback } from '@/utils/feedback'
+import { navigateOnce } from '@/utils/nav-guard'
+import { bumpWishCount, wishCountOf } from '@/services/content/wish-count'
+import { formatPriceCents } from '@/utils/format'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import MainLayout from '@/components/layout/MainLayout.uvue'
@@ -189,13 +235,28 @@ const item = ref(null) as Ref<FeedItem | null>
 const loading = ref(true)
 const errorMessage = ref('')
 const shopUrl = ref('')
-const shopName = ref('')
 // 收藏态：与收藏页共用 content-library-store 统一数据源（后端 /api/v1/wishlist）
 const library = useContentLibraryStore()
 const session = useSessionStore()
 const productDetailStore = useProductDetailStore()
 const blacklist = useBlacklistStore()
 const isSaved = computed((): boolean => item.value !== null && library.isFavorite(item.value!.entityId))
+/**
+ * 收藏数（人气）。
+ * 服务端随商品下发 `favoriteCount`；用户刚点过的收藏还没被服务端计数确认，
+ * 所以叠加 `wish-count` 的本地增量 —— 这样列表里和详情页读到的数字是同一个。
+ */
+const favoriteCountBase = ref(0)
+const favoriteCount = ref(0)
+
+/** 载入商品后固定基数（服务端值），展示值从基数 + 本机增量算 */
+function syncFavoriteCount() {
+  if (item.value === null) return
+  // 用 FeedItem.wishCountBase（服务端下发的收藏数基数）。此前读的是 favoriteCount ——
+  // FeedItem 上并不存在这个字段，且服务端映射里的赋值会被整体覆盖，导致底栏数字与卡片对不上（2026-10-05 修）。
+  favoriteCountBase.value = item.value!.wishCountBase
+  favoriteCount.value = wishCountOf(item.value!.entityId, favoriteCountBase.value)
+}
 // 真实发售批次（后端 currentRelease → ReleaseEvent）：发售状态/时间/金额的唯一事实源，禁止 badgeText 猜测
 const currentRelease = ref(null) as Ref<ReleaseEvent | null>
 const release = computed((): ReleaseEvent | null => currentRelease.value)
@@ -210,19 +271,49 @@ const depositCents = ref(0)
 const balanceCents = ref(0)
 const pitType = ref('')
 const subCategory = ref('')
-const colorTags = ref([]) as Ref<string[]>
-const materialTags = ref([]) as Ref<string[]>
+
 const featureTags = ref([]) as Ref<string[]>
 const variants = ref([]) as Ref<ProductVariant[]>
+/**
+ * 商品级发货说明（`ProductDetailModel.shippingNote`）—— 2026-10-08 起**发货说明的唯一来源**
+ * （批次级那份已并入商品级、库列删除；运营后台填在「销售状态」那组里）。
+ * ⚠️ 它**不是 FeedItem 的字段** —— 2026-10-08 曾误写成 `item.value!.shippingNote.trim()`，
+ * 对 undefined 调 .trim() 让商品详情整页卡在「加载中」。V2 字段一律走独立 ref（同 featureTags）。
+ */
+const shippingNote = ref('')
 
 /** 价格摘要（price_type 语义，与商品卡一致）：FULL「¥368」/ DEPOSIT「定金 ¥100 · 全款 ¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空 */
+/**
+ * 顶部价格（2026-10-09 起统一走「最低价～最高价」）：
+ *   优先用**商品级区间**（priceCents ↔ maxPriceCents，由后台/款式参考价推导），
+ *   商品级没有区间时回落到**规格参考价现算**（分部件定价的老路径，保留兼容），
+ *   仍为空则回落到 price_type 摘要（定金/尾款那套）。
+ */
+const priceRangeText = computed((): string => {
+  if (item.value !== null) {
+    const range = formatPriceRange(item.value!.price, item.value!.maxPriceCents)
+    if (range !== '') return range
+  }
+  // 回落：从款式参考价现算（同一款式多个价也算，去重后取最低/最高）
+  const prices: number[] = []
+  for (let i = 0; i < variants.value.length; i++) {
+    const c = variants.value[i].referencePriceCents
+    if (c != null && c > 0 && prices.indexOf(c) < 0) prices.push(c)
+  }
+  if (prices.length < 2) return ''
+  prices.sort((a: number, b: number): number => a - b)
+  return formatPriceRange(prices[0], prices[prices.length - 1])
+})
+/** 顶栏最终显示的价格文本：优先区间，其次价格摘要（定金/尾款那套） */
+const priceDisplayText = computed((): string => priceRangeText.value !== '' ? priceRangeText.value : priceSummaryText.value)
+// productShippingNoteText 已删（2026-10-08）：摘要卡的「发货说明」胶囊去掉后它没有使用者，
+// 发货说明统一由 shippingNoteText（下面，发售信息卡）读取。
 const priceSummaryText = computed((): string => {
   if (item.value === null) return ''
   const full = currentRelease.value != null && currentRelease.value!.fullPrice > 0 ? currentRelease.value!.fullPrice : item.value!.fullPriceCents
   return formatPriceSummaryByType(priceType.value, item.value!.price, full, depositCents.value, balanceCents.value)
 })
 /** 三坑类型展示名 */
-const pitTypeLabel = computed((): string => getPitTypeLabel(pitType.value))
 /** 可选款式：规格变体提取去重。
  *  Lolita 一个链接常同时卖 JSK + OP —— 对这类商品，款式是**规格**（与颜色/尺码同级、可多选），不是分类标签。
  *  命名用「款式」：用户明确否掉了「型别」（口语书面都不会这么说），也去掉了「可选」前缀（规格卡里已有多余）。 */
@@ -255,6 +346,18 @@ const styleOptions = computed((): string[] => {
   return list
 })
 /**
+ * 可选颜色：同样从规格变体提取（2026-10-06 起颜色只认规格，`color_tags` 列已删）。
+ * 与款式/尺码保持同一个数据源，避免「规格里有颜色、颜色区却是另一份数据」的两套口径。
+ */
+const colorOptions = computed((): string[] => {
+  const list: string[] = []
+  for (let i = 0; i < variants.value.length; i++) {
+    const c = variants.value[i].colorName
+    if (c !== '' && list.indexOf(c) < 0) list.push(c)
+  }
+  return list
+})
+/**
  * 可选尺码：款式变体提取 → **拆分 + 白名单过滤 + 规范排序**（variants 无数据则不显示尺码模块）。
  * ⚠️ 不能直接拿 sizeName 当 chip：采集下来的 sizeName 常是 `"S\nM\nL\nXL"` 一条承载多码，
  *    原样渲染会出现「一个标签里 M 和 L 上下堆着」；还会混进「定金须先确认收货」这类噪声。
@@ -268,22 +371,91 @@ const sizeOptions = computed((): string[] => {
   }
   return splitSizeOptions(raw)
 })
-/** 材质摘要（只展示 material_summary，不搬淘宝详情页） */
-const materialSummary = computed((): string => {
-  if (materialTags.value.length === 0) return ''
-  return materialTags.value.join('、')
-})
+// materialSummary 已删（2026-10-09）：材质模块整体下线（字段与展示一起移除）。
 const releaseBatchText = computed((): string => {
   const r = currentRelease.value
   if (r == null) return ''
+  // 多批次时下面紧跟着「发售批次 · 共 N 批」的完整列表，这里再单独重复一遍当前批次名
+  // 只会让人以为有两套信息。单批次才用这一行补足批次名（2026-10-05）。
+  if (item.value !== null && item.value!.releases.length > 1) return ''
   const text = r.title.trim()
   if (['预约批', '现货批', '预售批', '预约', '现货', '预售'].indexOf(text) >= 0 || text === releaseStatusText.value) return ''
   return text
 })
+/**
+ * 发售批次列表（多批次时才用）。
+ *
+ * 排序规则（两级）：
+ *  1. **能行动的排最前**：现货/预约中/即将发售 > 已结束；
+ *  2. 同为能行动时，**现货优先于预约中**（现货是「现在下单就能发」，预约还得等尾款）。
+ * 热门款常常同时挂着一团（已截团）、二团（预约中）、现货掉落 —— 第一眼必须看到「现在能买的那批」，
+ * 而不是按批次号把已截团的一团排在最前面（2026-10-05 用户提出「怎么展示效果最佳」后定的口径）。
+ */
+const batchList = computed((): ProductReleaseBatch[] => {
+  const p = item.value
+  if (p === null) return [] as ProductReleaseBatch[]
+  const all = p!.releases
+  if (all.length <= 1) return [] as ProductReleaseBatch[]
+  const sorted = [...all]
+  sorted.sort((a, b) => {
+    const pa = batchPriority(a.saleStatus)
+    const pb = batchPriority(b.saleStatus)
+    if (pa != pb) return pa - pb
+    return a.no - b.no
+  })
+  return sorted
+})
+
+/** 越小越靠前：现货 0 > 预约中/预售 1 > 即将发售 2 > 其余（已结束/售罄/未知）3 */
+function batchPriority(saleStatus: string): number {
+  // 「现货+预售」= 同一商品既有现货又有预约中，对用户来说**现货优先**，排在纯预约之前
+  if (saleStatus === 'ON_SALE' || saleStatus === 'ON_SALE_PRE_ORDER') return 0
+  if (saleStatus === 'PRE_ORDER') return 1
+  if (saleStatus === 'UPCOMING') return 2
+  return 3
+}
+
+function isBatchActive(saleStatus: string): boolean {
+  return saleStatus === 'ON_SALE' || saleStatus === 'ON_SALE_PRE_ORDER' || saleStatus === 'PRE_ORDER' || saleStatus === 'UPCOMING'
+}
+
+function batchTitle(b: ProductReleaseBatch): string {
+  const prefix = b.no > 0 ? `第 ${b.no} 批` : '批次'
+  return b.name !== '' ? `${prefix} · ${b.name}` : prefix
+}
+
+/** 金额文案：定金批给「定金 + 尾款 + 合计」，现货批只给全价 —— 不要把不存在的数字填 0 */
+function batchPriceText(b: ProductReleaseBatch): string {
+  const parts: string[] = []
+  if (b.depositCents != null && b.depositCents > 0) parts.push(`定金 ${formatPriceCents(b.depositCents)}`)
+  if (b.balanceCents != null && b.balanceCents > 0) parts.push(`尾款 ${formatPriceCents(b.balanceCents)}`)
+  if (b.fullPriceCents != null && b.fullPriceCents > 0) parts.push(`全价 ${formatPriceCents(b.fullPriceCents)}`)
+  return parts.join(' · ')
+}
+
+function batchDateText(b: ProductReleaseBatch): string {
+  const start = b.startAt !== '' ? b.startAt.substring(0, 10) : ''
+  const end = b.endAt !== '' ? b.endAt.substring(0, 10) : ''
+  if (start !== '' && end !== '') return `${start} ~ ${end}`
+  if (start !== '') return `${start} 起`
+  return ''
+}
+
 /** 出货时间（release.shipAt；无数据不显示） */
 const shipDateText = computed((): string => {
   const r = currentRelease.value
   return r != null ? dateOnly(r.shipAt) : ''
+})
+/**
+ * 发货说明。2026-10-08 起**只有一个来源**：`ProductDetailModel.shippingNote`（商品级，
+ * 即运营后台「销售状态」里的那一格；批次级那份已并入并删列）。
+ * ⚠️ 这里仍然兜一层 `currentRelease.note`：后端为兼容老客户端会把它回填成同一份值，
+ *    但**没有批次的现货商品** currentRelease 为 null ⇒ 必须落到 shippingNote 上才显示得出来。
+ */
+const shippingNoteText = computed((): string => {
+  const r = currentRelease.value
+  if (r != null && r.note.trim() !== '') return r.note.trim()
+  return shippingNote.value.trim()
 })
 /** 预售/发售时间区间（release.startAt ~ endAt） */
 const releaseStartText = computed((): string => {
@@ -317,6 +489,14 @@ function openSameStyle(productId: string) {
   uni.navigateTo({ url: `/pages/product/detail?id=${productId}` })
 }
 
+/** 点品牌名 → 品牌商品页（pages/brand/detail 用 id 拉品牌与它的商品列表） */
+function openBrand() {
+  const value = item.value
+  if (value == null) return
+  if (value!.brandId === '') { showFeedback('这件商品还没有关联品牌页'); return }
+  navigateOnce(`/pages/brand/detail?id=${encodeURIComponent(value!.brandId)}&name=${encodeURIComponent(brandNameText.value)}`)
+}
+
 /** 真实买家返图：复用社区内容预览机制（大图预览，不重做社区详情页） */
 function openBuyerPost(postId: string) {
   const post = realBuyerPosts.value.find((p) => p.id === postId)
@@ -330,7 +510,6 @@ function isLoggedIn(): boolean {
 }
 
 function toggleSaved() {
-  if (isComparisonProduct(itemId.value)) { showFeedback('展示样例不保存收藏'); return }
   if (item.value === null) return
   const entityId = item.value!.entityId
   if (entityId === '') return
@@ -343,7 +522,11 @@ function toggleSaved() {
   // 统一数据源：content-library-store → 后端 /api/v1/wishlist（失败自动入队，恢复后重放）
   // releaseId：用户当前关注的发售批次（详情页 currentRelease 存在时提交，供收藏页锚定该批次）
   const r = currentRelease.value
-  const saved = library.toggleFavorite(entityId, item.value!.title, r != null ? r.id : '')
+  const saved = library.toggleFavorite(entityId, item.value!.title, r != null ? r.id : '', item.value!)
+  // 收藏数立刻跟着动（详情页与列表共用同一份增量，两处数字不会打架）
+  // 基数固定不变，展示值每次从基数重算 —— 这样「取消再收藏」不会变成 2
+  bumpWishCount(entityId, saved ? 1 : -1)
+  favoriteCount.value = wishCountOf(entityId, favoriteCountBase.value)
   showFeedback(saved ? '已收进心动收藏' : '已移出收藏')
 }
 
@@ -394,7 +577,6 @@ function dateOnly(value: string): string {
 function encoded(value: string): string { return encodeURIComponent(value) ?? '' }
 
 function createReminder() {
-  if (isComparisonProduct(itemId.value)) { showFeedback('展示样例不创建提醒'); return }
   if (item.value === null) return
   const r = currentRelease.value
   // 尾款期 → 尾款提醒；其余 → 发售提醒（基于真实 release 状态，非 badgeText）
@@ -418,9 +600,9 @@ async function loadDetail() {
     // 12-table: images is ProductImage[], extract URL strings for swiper
     detailImages.value = extractImageUrls(result.images)
     // 浏览足迹：加载成功即记入本机（不同步服务器），供「我的 → 浏览历史」找回
-    if (!isComparisonProduct(itemId.value)) recordBrowse(result.item.entityId, result.item.title, result.item.brandName, result.item.coverUrl)
+    recordBrowse(result.item.entityId, result.item.title, result.item.brandName, result.item.coverUrl)
     shopUrl.value = result.shopUrl
-    shopName.value = result.shopName
+    syncFavoriteCount()
     currentRelease.value = result.currentRelease
     // ====== Product V2 展示字段赋值 ======
     priceType.value = result.priceType
@@ -428,10 +610,9 @@ async function loadDetail() {
     balanceCents.value = result.balanceCents
     pitType.value = result.pitType
     subCategory.value = result.subCategory
-    colorTags.value = result.colorTags
-    materialTags.value = result.materialTags
     featureTags.value = result.featureTags
     variants.value = result.variants
+    shippingNote.value = result.shippingNote
     // 同款式：仅当商品已归并（styleId 非空）时加载；失败静默（不阻塞详情）
     sameStyle.value = null
     if (result.groupKey !== '') {
@@ -484,17 +665,26 @@ const imageCounter = { position: 'absolute' as string, right: '30rpx', bottom: '
 const imageCounterText = { fontSize: '22rpx', fontWeight: fontWeight.medium, color: baseColors.white }
 // V3 §6.10 信息区 32rpx 边距；信息卡圆角 20rpx（列表组级）
 const summaryCard = computed((): any => ({ marginTop: '20rpx', padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
-const priceRow = { ...flexRow, alignItems: 'flex-end' }
-const priceText = computed((): any => ({ fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: n.value.iconActive }))
-const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx', marginTop: '14rpx' }))
-const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginRight: '12rpx', minWidth: '0', flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
+// 摘要卡头部：左侧「标题 + 品牌」两行，右侧价格垂直居中 ⇒ 整体只占两行高度
+const headRow = { flexDirection: 'row' as string, alignItems: 'center', marginTop: '14rpx' }
+// minWidth:0 让长标题能在左侧正常换行/截断，不被 flex 撑爆
+const headLeft = { flex: 1, flexDirection: 'column' as string, minWidth: '0' }
+const titleText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, lineHeight: '44rpx' }))
+// 价格：字大所以给它 flexShrink:0 保住，靠 alignItems:center 落在标题与品牌两行之间
+const priceText = computed((): any => ({ flexShrink: 0, marginLeft: '16rpx', fontSize: v3TextStyle.priceLarge.fontSize, fontWeight: v3TextStyle.priceLarge.fontWeight, color: n.value.iconActive }))
+// 发货说明胶囊（`shipNoteChip` / `shipNoteChipText`）已随 2026-10-08 的口径整块删除：
+// 发货说明统一到商品级、只在「发售信息 → 发货说明」显示一行，摘要卡里不再重复做胶囊。
+// 展示名：名称只有一个来源 = 品牌名（2026-10-06 起 products.shop_name 已删，不再回退店铺名）
+const brandNameText = computed((): string => item.value != null ? item.value!.brandName : '')
+const brandId = computed((): string => item.value != null ? item.value!.brandId : '')
+// 可点态：品牌名 + 箭头同色，给一个明确的「这里能进去」的信号
+const brandTap = { ...flexRow, alignItems: 'center', flexShrink: 1, minWidth: '0', marginRight: '12rpx' }
+const brandText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive, minWidth: '0', flexShrink: 1, lines: 1, textOverflow: 'ellipsis' }))
 // 品牌 / 坑向 / 子分类同排：允许换行 + 统一 12rpx 间隔，避免"一个内容紧接下一个内容"（用户反馈）
 const brandRow = { flexDirection: 'row' as string, alignItems: 'center', flexWrap: 'nowrap' as string, marginTop: '12rpx' }
 // 品牌行内小标签：坑向（品牌浅底）+ 子分类（中性底），与商品卡 typeChip 同构
-const pitChip = computed((): any => ({ marginRight: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 // 品牌色文字/前景一律走主题 token（n.value.iconActive），不再用模块级 brand[600]
 // —— 模块常量在深色下不刷新，暖黑底上对比度只有约 2.7:1，等于"看不清"。
-const pitChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.iconActive }))
 const subChip = computed((): any => ({ marginRight: '12rpx', paddingLeft: '14rpx', paddingRight: '14rpx', height: '40rpx', borderRadius: '20rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }))
 const subChipText = computed((): any => ({ fontSize: '20rpx', fontWeight: fontWeight.medium, color: n.value.textSecondary }))
 const blacklistBtn = computed((): any => ({ height: '44rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '22rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }))
@@ -504,12 +694,34 @@ const blockedBannerText = computed((): any => ({ fontSize: fontSize.xs, color: n
 // 卖点标签：中性底、可换行（数量不定，不用横向滚动）
 // 卖点标签行的样式已随该行一并删除（2026-09-14）
 // 发售信息卡：仅展示真实 release 数据（批次/时间/定金/尾款/全价），无数据不显示、不伪造、不显示 0
-const releaseCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+// 批次行：在售的用正文色 + 品牌色左侧标记，已结束的整行弱化成灰字
+// 每个批次占两行：① 名称 + 时间区间  ② 价格。
+// 挤成一行时「定金 ¥50.00 · 尾款 ¥318.00 · 全价 ¥368.00」会把行撑到折行，三条批次看起来一团乱。
+const batchRowStyle = computed((): any => ({ flexDirection: 'column' as string, marginTop: '16rpx' }))
+const batchHeadRow = computed((): any => ({ flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between' }))
+function batchNameStyle(saleStatus: string): any {
+  return { flex: 1, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: isBatchActive(saleStatus) ? n.value.text : n.value.textTertiary, marginRight: '12rpx', lines: 1, textOverflow: 'ellipsis' }
+}
+function batchPriceStyle(saleStatus: string): any {
+  return { fontSize: fontSize['2xs'], color: isBatchActive(saleStatus) ? n.value.iconActive : n.value.textTertiary, marginTop: '4rpx', lines: 1 }
+}
+const batchDateStyle = (saleStatus: string): any => ({ flexShrink: 0, fontSize: fontSize['2xs'], color: n.value.textTertiary, lines: 1 })
+// ⚠️ 每张卡都要 marginTop：原来只有摘要卡有 20rpx，其余卡片边距为 0 ⇒ 卡片边框互相贴合（用户 2026-10-08 反馈「重合」）
+const CARD_GAP = { marginTop: '20rpx' }
+const releaseCard = computed((): any => ({ ...CARD_GAP, padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+// 卡片头：只有标题（副标题「热门款会分批放」2026-10-06 按用户要求去掉）
+const releaseHeaderRow = { flexDirection: 'row' as string, alignItems: 'center', marginBottom: '8rpx' }
+const releaseTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
+// 实线：正文信息块与批次块之间的分区
+const releaseDivider = computed((): any => ({ height: '1rpx', backgroundColor: n.value.border, marginTop: '16rpx', marginBottom: '8rpx' }))
+// 虚线：与底部「排序说明」的分区（用项目里既有的 dashed 写法，uvue 只认 borderWidth/Style/Color 三件套）
+const releaseDashedDivider = computed((): any => ({ height: '1rpx', borderWidth: '1rpx', borderStyle: 'dashed' as string, borderColor: n.value.border, marginTop: '20rpx', marginBottom: '14rpx' }))
+const releaseFootnote = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, lineHeight: '32rpx' }))
 const releaseRow = { flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between', minHeight: '56rpx' }
 const releaseLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const releaseValue = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '24rpx' }))
 // 规格卡：左侧固定标签列 + 右侧可换行 chip 组（颜色/尺码共用）
-const specCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const specCard = computed((): any => ({ ...CARD_GAP, padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const specRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string, marginBottom: '12rpx' }
 const specLabel = computed((): any => ({ width: '148rpx', flexShrink: 0, paddingTop: '10rpx', fontSize: fontSize.xs, color: n.value.textSecondary }))
 const specChips = { flex: 1, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
@@ -520,7 +732,7 @@ const styleChip = computed((): any => ({ flexDirection: 'row' as string, alignIt
 const styleChipName = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text }))
 const styleChipPrice = computed((): any => ({ marginLeft: '10rpx', fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 // Phase 2.1 同款式：款式名 + 横向滚动同款商品（无 groupKey / styles 表已废弃时不渲染）
-const sameStyleCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const sameStyleCard = computed((): any => ({ ...CARD_GAP, padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const sameStyleHeader = { ...flexRow, alignItems: 'center', marginBottom: '16rpx' }
 const sameStyleName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const sameStyleBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginLeft: '12rpx' }))
@@ -532,14 +744,14 @@ const sameStyleTitle = computed((): any => ({ fontSize: fontSize.xs, color: n.va
 // 价格走主题色（拍板 B，与榜单卡一致），旧写法 brand[500] 深色下不刷新
 const sameStylePrice = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive, marginTop: '4rpx' }))
 // Phase 2.3-A 真实买家：横向返图卡片（与同款式模块同构，V3 §6.4 卡片风格）
-const buyerCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
+const buyerCard = computed((): any => ({ ...CARD_GAP, padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const buyerScroll = { width: '100%', whiteSpace: 'nowrap' as string }
 const buyerRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string }
 const buyerItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
 const buyerImage = computed((): any => ({ width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
 const buyerAuthor = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1 }))
 const buyerCaption = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1, lineHeight: '32rpx' }))
-const detailCard = computed((): any => ({ padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
+const detailCard = computed((): any => ({ ...CARD_GAP, padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 // 底部栏高度改为「内容驱动」：原来写死 160rpx，图标下方会留出约 70px 空白
 // 底部留白 = 底部栏真实高度（paddingTop 12rpx + 内容 88rpx + paddingBottom(safeBottom+12)px）+ 24rpx 呼吸间距。

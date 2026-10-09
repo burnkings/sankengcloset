@@ -1,5 +1,5 @@
 import { SyncOperation, SYNC_PENDING, SYNC_FAILED } from '@/domain/sync/sync-operation'
-import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken, isLocalMockSession } from '@/config/runtime'
+import { DATA_MODE_REMOTE, getRuntimeConfig, getAccessToken } from '@/config/runtime'
 import { apiPostAuthorized, apiPatchAuthorized, apiDeleteAuthorized, apiPutAuthorized, apiErrorStatus, encodeQuery } from '@/services/platform/api-client'
 import { listWishlistRemote, followBrandRemote, unfollowBrandRemote, setCommunityPostLikeRemote, deleteCommunityPostRemote, saveBudgetRemote, markNotificationReadRemote } from '@/services/user-data/user-data-service'
 
@@ -418,7 +418,6 @@ async function flushRemote(ids: string[]): Promise<number> {
  * - 可达且已登录 → 逐条重放真实 /api/v1/me/* CRUD。
  */
 async function flushOnce(): Promise<number> {
-  if (isLocalMockSession()) return 0
   const config = getRuntimeConfig()
   let ids = readIds()
   if (ids.length === 0) return 0

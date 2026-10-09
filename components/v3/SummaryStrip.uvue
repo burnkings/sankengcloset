@@ -14,7 +14,7 @@ import { flexRow } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
 
 // V3 SummaryStrip — 替代大面积 V2StatsCard：同一行 2–3 个数据，透明或嵌入列表组顶部，高度 ≤112rpx（V3 §5.6）
-// 仅管理页（衣橱/预算/订单/提醒）使用；首页/发现/收藏/圈子禁用。
+// 仅管理页（衣柜/预算/订单/提醒）使用；首页/发现/收藏/圈子禁用。
 export type SummaryItem = {
   label: string
   value: string

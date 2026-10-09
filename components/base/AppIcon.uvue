@@ -1,5 +1,6 @@
 <template>
   <image
+    v-if="iconSrc !== ''"
     :src="iconSrc"
     :style="iconStyle"
     mode="aspectFit"
@@ -18,11 +19,15 @@ const props = withDefaults(defineProps<{
   size?: number
   active?: boolean
 }>(), {
+  // name 必须给默认值：漏传时 props.name 为 undefined，模板字符串会拼出
+  // "/static/icons/undefined.svg"，小程序端变成一次 500 网络请求。
+  name: '',
   size: 48,
   active: false,
 })
 
 const iconSrc = computed((): string => {
+  if (props.name === '') return ''
   if (props.active) {
     return `/static/icons/${props.name}-active.svg`
   }

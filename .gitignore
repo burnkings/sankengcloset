@@ -46,6 +46,13 @@ desktop.ini
 *.bak
 .wechat/
 
+# ====== 会话临时产物（探针输出 / 构建日志 / 一次性导出）======
+#   这些是排查问题时随手落在仓库根的，不该进版本库。
+probe*.txt
+build-out.txt
+lolita-titles-*.csv
+project.private.config.json
+
 # ====== Agent 工作数据（本地记忆/计划，不进仓库）======
 .workbuddy/
 
@@ -57,3 +64,6 @@ scripts/_chromeprof/
 scripts/gui-automation/
 scripts/product-enrich/
 scripts/taobao-backfill/
+#   下划线前缀 = 一次性采集/维护脚本（含淘宝登录态与本地路径），不进仓库。
+#   ⚠️ 不要写成 scripts/*.py —— 构建链脚本（patch-vendor.py / strip-mp-deadweight.py）要进仓库。
+scripts/_*.py

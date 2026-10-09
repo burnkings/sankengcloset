@@ -7,6 +7,7 @@ export class RankingItem {
   brandName: string = ''
   coverUrl: string = ''
   priceCents: number = 0
+  maxPriceCents: number = 0      // 最高价（分）；<= priceCents 表示单值（价格区间右端）
   category: string = ''          // JK / Lolita / 汉服
 
   // 热榜

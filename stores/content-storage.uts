@@ -1,7 +1,14 @@
-import { isLocalMockSession } from '@/config/runtime'
+/**
+ * 本地内容存储读写（键名直给，不再有 demo_ 前缀）。
+ *
+ * 2026-09-30：删掉 `isLocalMockSession() ? 'demo_' + key : key` 这种按会话模式分键的写法。
+ * 它有一个真实事故：`writeList/readList` 一致地带 demo_ 前缀，而 favorite-store 里
+ * `writeEntries` 带前缀、`readEntries`（走 readString）不带 —— 于是「仅在本机使用」期间
+ * 收藏一进 storage 就再也读不回来，只剩一堆没有标题的空条目。现在只有一套键。
+ */
 export function readString(key: string): string {
   try {
-    const value = uni.getStorageSync(isLocalMockSession() ? 'demo_' + key : key)
+    const value = uni.getStorageSync(key)
     return value == null ? '' : value as string
   } catch (e) {
     return ''
@@ -15,5 +22,5 @@ export function readList(key: string): string[] {
 }
 
 export function writeList(key: string, values: string[]) {
-  uni.setStorageSync(isLocalMockSession() ? 'demo_' + key : key, values.join(','))
+  uni.setStorageSync(key, values.join(','))
 }

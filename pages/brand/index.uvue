@@ -11,7 +11,16 @@
 
       <view v-if="visibleBrands.length > 0" :style="brandGrid">
         <view v-for="(item, idx) in visibleBrands" :key="item.id" :style="brandCard(idx)" @tap="openBrand(item)">
-          <view :style="brandMonogram"><text :style="brandInitial">{{ initialOf(item.name) }}</text></view>
+          <!--
+            2026-10-09 修：卡片此前**只渲染首字母圆牌**（initialOf），压根没读 item.logo
+            ⇒ 明明库里有真实头像也永远显示字母；点进详情页（用 AppImage 渲染 logo）才看得到真头像。
+            现在有 logo 就渲染图片，没有才回落字母牌（保留原有视觉作为兜底）。
+            src 必须过 resolveApiUrl()：后端返回的是相对路径 /api/v1/media/<id>。
+          -->
+          <view :style="brandMonogram">
+            <AppImage v-if="brandLogo(item) !== ''" :src="brandLogo(item)" width="60rpx" height="60rpx" mode="aspectFill" :radius-token="radiusFull" />
+            <text v-else :style="brandInitial">{{ initialOf(item.name) }}</text>
+          </view>
           <view :style="brandCopy">
             <text :style="brandName">{{ item.name }}</text>
             <text :style="brandMeta">{{ brandMetaOf(item) }}</text>
@@ -32,20 +41,24 @@ import { brand } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
 import { CARD_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { semanticRadius } from '@/theme/tokens/radius'
 import { n, isDark, initPageTheme } from '@/theme/use-theme'
-import { COMPARISON_BRAND_ID, comparisonBrand } from '@/services/mock/comparison-brand'
+import { resolveApiUrl } from '@/services/platform/api-client'
 import { showFeedback } from '@/utils/feedback'
 import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
 
 const library = useContentLibraryStore()
 const brandStore = useBrandStore()
-const brands = ref<Brand[]>([comparisonBrand()])
+// 2026-10-09：原先这里预置了一条假品牌（comparisonBrand()）作为「展示样例」，已删除。
+// 现在初始为空数组，真实数据由 reloadBrands() 拉取；空态由下面的 PageState 承担。
+const brands = ref<Brand[]>([])
 const categories = ['全部', 'JK', 'Lolita', '汉服', '混搭']
 const activeCategory = ref('全部')
 const visibleBrands = computed((): Brand[] => brands.value.filter((item) => {
-  if (item.id === COMPARISON_BRAND_ID || activeCategory.value === '全部') return true
+  if (activeCategory.value === '全部') return true
   const category = item.category.toUpperCase()
   const code = activeCategory.value === 'Lolita' ? 'LOLITA' : (activeCategory.value === '汉服' ? 'HANFU' : (activeCategory.value === '混搭' ? 'MIXED' : 'JK'))
   return category === code
@@ -57,6 +70,11 @@ const loading = ref(true)
 const errorMessage = ref('')
 
 function initialOf(name: string): string { return name == '' ? '#' : name.substring(0, 1) }
+/**
+ * 品牌头像地址。后端返回相对路径（/api/v1/media/<id>）⇒ 必须过 resolveApiUrl 转绝对地址，
+ * 否则小程序端拿到相对路径直接加载失败，就只能一直显示字母牌（这正是之前的症状）。
+ */
+function brandLogo(item: Brand): string { return resolveApiUrl(item.logo) }
 function brandMetaOf(item: Brand): string {
   if (item.category !== '') return getPitTypeLabel(item.category)
   if (item.description !== '') return item.description
@@ -64,7 +82,6 @@ function brandMetaOf(item: Brand): string {
 }
 function openBrand(item: Brand) { uni.navigateTo({ url: `/pages/brand/detail?id=${item.id}&name=${encodeURIComponent(item.name)}` }) }
 function toggleBrand(name: string) {
-  if (name === comparisonBrand().name) { showFeedback('展示样例不保存关注'); return }
   const followed = library.toggleBrandFollow(name)
   showFeedback(followed ? `已关注 ${name}` : `已取消关注 ${name}`)
 }
@@ -84,7 +101,10 @@ const contentWrap = { paddingTop: '24rpx', paddingLeft: PAGE_GUTTER_V3, paddingR
 const emptyWrap = { paddingTop: '48rpx' }
 const brandGrid = { ...flexRow, flexWrap: 'wrap' as string }
 function brandCard(idx: number) { return { width: '337rpx', minHeight: '128rpx', ...flexRow, alignItems: 'center', padding: '18rpx', borderRadius: CARD_RADIUS_V3, backgroundColor: n.value.surface, marginRight: idx % 2 === 0 ? '12rpx' : '0', marginBottom: '12rpx' } }
-const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark() ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx' }))
+// 品牌头像用圆形裁切：AppImage 的 radiusToken 是**直接当 CSS 值用**（不是查 token 表的 key），
+// 所以这里传具体值，不能写 'full'。
+const radiusFull = semanticRadius.avatar
+const brandMonogram = computed((): any => ({ width: '60rpx', height: '60rpx', borderRadius: '30rpx', backgroundColor: isDark() ? n.value.surfaceRaised : brand[50], alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', overflow: 'hidden' }))
 const brandInitial = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const brandCopy = { ...flexFill }
 const brandName = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))

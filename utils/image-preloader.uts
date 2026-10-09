@@ -1,0 +1,24 @@
+/**
+ * image-preloader — 图片预取的**共享常量与地址选取工具**
+ *
+ * ⚠️ 真正的**调度与渲染**在 `components/base/ImagePreloader.uvue`（固定 4 槽位 + 1px 隐藏 image）。
+ *    本文件**不做任何调度**，只提供：
+ *      1. 统一的上限常量（组件与测试共用同一口径，避免两处漂移）；
+ *      2. `pickPreloadUrls()` —— 从列表里挑「值得预取的一批」。
+ *
+ * **为什么用隐藏 `<image>` 而不是 `uni.getImageInfo` / `downloadFile`**：
+ *   - 小程序里 `getImageInfo` **内部是一次 xhr**，即使图已下载也**阻塞主线程**，不适合批量预热；
+ *   - `downloadFile` 要自管临时文件与配额（小程序 200MB 上限）、跨端各写一套落地逻辑。
+ *   - 隐藏 `image` 的请求在**渲染层**，不阻塞交互，且天然复用微信/系统的图片缓存。
+ *
+ * ⚠️ 本模块**不改变任何图片地址**（与 `AppImage` 的 `listWidth` 取图策略叠加使用）。
+ */
+
+/** 单次调用最多预取多少张（防一次把整个列表拉下来） */
+export const PRELOAD_MAX_PER_BATCH = 12
+/**
+ * 同时并发的预取数。
+ * ⚠️ 这个值由 `ImagePreloader.uvue` 的**固定槽位数**表达（当前 4 个：slotA~slotD）。
+ *    改槽位数时**必须同步改这里**，否则文档与实际不符（测试会校验两者一致）。
+ */
+export const PRELOAD_MAX_CONCURRENT = 4

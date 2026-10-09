@@ -1,6 +1,6 @@
 /**
  * money — 金额输入解析与校验工具
- * 统一处理「元」字符串输入 → 校验 → 分（订单类）或元（衣橱类）。
+ * 统一处理「元」字符串输入 → 校验 → 分（订单类）或元（衣柜类）。
  * 边界：NaN / Infinity / 负数 / 超上限一律返回 0 或拦截。
  */
 
@@ -17,7 +17,7 @@ export function parseMoneyYuan(raw: string, maxYuan: number = MONEY_DEFAULT_MAX_
   return Math.round(value * 100)
 }
 
-/** 元字符串 → 元（衣橱类入库单位，保持元语义）。非法输入返回 -1（调用方提示）。 */
+/** 元字符串 → 元（衣柜类入库单位，保持元语义）。非法输入返回 -1（调用方提示）。 */
 export function parseMoneyYuanKeep(raw: string, maxYuan: number = MONEY_DEFAULT_MAX_YUAN): number {
   const trimmed = raw.trim()
   if (trimmed === '') return 0

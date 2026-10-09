@@ -78,7 +78,7 @@ for (const dir of ['pages', 'components/v3']) {
 }
 
 // ---------- 3. pages.json 路由与 TabBar 图标检查 ----------
-/** JSONC → JSON：剥离 // 行注释（感知字符串与转义，避免误删路径内 //） */
+/** JSONC → JSON：剥离行注释与块注释（感知字符串与转义，避免误删路径内的双斜杠） */
 function stripJsonComments(src) {
   let out = ''
   let inString = false
@@ -95,6 +95,13 @@ function stripJsonComments(src) {
     if (ch === '"') { inString = true; out += ch; continue }
     if (ch === '/' && src[i + 1] === '/') {
       while (i < src.length && src[i] !== '\n') i++
+      out += '\n'
+      continue
+    }
+    if (ch === '/' && src[i + 1] === '*') {
+      i += 2
+      while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++
+      i++ // 跳过结尾的 '/'
       out += '\n'
       continue
     }
@@ -118,6 +125,17 @@ for (const page of pagesJson.pages || []) {
   if (!fs.existsSync(srcUvue)) fail(`pages.json 路由 ${page.path} 对应源码 ${srcUvue} 不存在`)
   void js
 }
+// 分包里的页面同样要能对上源码（path 是相对 root 的，需拼回完整路径）。
+// 注意：上面这个解析用的是「两个条件分支的并集」，subPackages 与 pages 会同时出现，
+// 所以这里只做存在性校验；两份清单是否一致由 scripts/check-pages-parity.js 负责。
+for (const pkg of pagesJson.subPackages || pagesJson.subpackages || []) {
+  for (const sub of pkg.pages || []) {
+    const rel = typeof sub === 'string' ? sub : sub.path
+    const full = `${pkg.root}/${rel}`
+    const srcUvue = path.join(...full.split('/')) + '.uvue'
+    if (!fs.existsSync(srcUvue)) fail(`pages.json 分包路由 ${full} 对应源码 ${srcUvue} 不存在`)
+  }
+}
 const tabBar = pagesJson.tabBar
 if (tabBar && Array.isArray(tabBar.list)) {
   for (const item of tabBar.list) {
@@ -135,7 +153,85 @@ if (tabBar && Array.isArray(tabBar.list)) {
 if (failed) process.exit(1)
 console.log('[PASS] V3 source gates — no components/v2 refs, theme tokens reactive, pages.json routes & tabbar icons exist')
 
+// ---------- 3.5 暗黑模式页面背景门禁（2026-09-29）----------
+// 背景：只要 manifest 开了 mp-weixin.darkmode，page 本体那层背景就必须由 theme.json 驱动。
+//   `backgroundColor`      = 微信口径的「下拉刷新窗口背景」，**不是**页面背景；
+//   `backgroundColorContent` = 页面内容背景（page 本体），漏了它 page 就一直是微信默认白底。
+// 症状：子页面（无原生 tabBar）底部那条带子不在根容器覆盖范围内，会露出白底 —— 深色模式下一眼可见。
+// 见 https://doc.dcloud.net.cn/uni-app-x/api/theme-change.html
+{
+  let manifest = null
+  try {
+    manifest = JSON.parse(stripJsonComments(fs.readFileSync('manifest.json', 'utf8')))
+  } catch (e) {
+    fail(`manifest.json 解析失败: ${e.message}`)
+  }
+  const mpWeixin = manifest && manifest['mp-weixin']
+  const darkmode = !!(mpWeixin && mpWeixin.darkmode === true)
+  if (darkmode) {
+    const gs = (pagesJson.globalStyle || {})
+    const bcc = gs.backgroundColorContent
+    if (typeof bcc !== 'string' || bcc.trim() === '') {
+      fail('manifest.json 开了 mp-weixin.darkmode，但 pages.json globalStyle 缺少 backgroundColorContent —— page 会保持微信默认白底（深色模式下底部露白 / 页面创建时闪白）')
+    } else if (bcc[0] !== '@') {
+      fail(`pages.json globalStyle.backgroundColorContent 必须用 @变量 引用 theme.json（当前为 "${bcc}"），否则不会跟随深色模式`)
+    } else {
+      const varName = bcc.slice(1)
+      let theme = null
+      try {
+        theme = JSON.parse(stripJsonComments(fs.readFileSync('theme.json', 'utf8')))
+      } catch (e) {
+        fail(`theme.json 解析失败: ${e.message}`)
+      }
+      if (theme) {
+        for (const mode of ['light', 'dark']) {
+          const v = theme[mode] ? theme[mode][varName] : undefined
+          if (typeof v !== 'string' || v.trim() === '') {
+            fail(`theme.json 的 ${mode} 主题未定义变量 ${varName}（被 pages.json globalStyle.backgroundColorContent 引用）`)
+          } else if (!/^#[0-9a-fA-F]{3,8}$/.test(v.trim())) {
+            fail(`theme.json ${mode}.${varName} 不是十六进制颜色值: "${v}"`)
+          }
+        }
+      }
+    }
+    // 同一层里再核一遍：darkmode 开着时 tabBar 的 4 个颜色也应走 @变量，否则切深色时原生 tabBar 不跟
+    for (const key of ['color', 'selectedColor', 'backgroundColor', 'borderStyle']) {
+      const v = (pagesJson.tabBar || {})[key]
+      if (typeof v === 'string' && v[0] !== '@') {
+        fail(`pages.json tabBar.${key} 未用 @变量（darkmode 已开启，切主题时不会跟随）`)
+      }
+    }
+  }
+}
+
+// ---------- 3.6 隐私同意「默认不勾」门禁（2026-09-29）----------
+// 《个人信息保护法》第 14 条要求同意须自愿、明确；「默认勾选同意」是被明令禁止的违规项，
+// 也是微信审核会实测的一条。登录页曾用 `agreed.value = readFlag(PRIVACY_AGREED_KEY) === '1'`
+// 按历史同意**预勾**复选框 —— 那是把历史同意当成本次同意，属于默认勾选，已删除。
+{
+  const loginFile = 'pages/auth/login.uvue'
+  if (!fs.existsSync(loginFile)) {
+    fail(`缺少登录页/隐私同意入口 ${loginFile}`)
+  } else {
+    const src = fs.readFileSync(loginFile, 'utf8')
+    if (!/\bagreed\s*=\s*ref\(false\)/.test(src)) {
+      fail(`${loginFile} 的 agreed 必须初始化为 ref(false)（合规要求默认不勾选）`)
+    }
+    if (/agreed\.value\s*=\s*readFlag\(/.test(src)) {
+      fail(`${loginFile} 用历史同意记录**预勾**了复选框 —— 属于「默认勾选同意」违规，必须只读判断`)
+    }
+    if (/agreed\.value\s*=\s*true/.test(src)) {
+      fail(`${loginFile} 存在 agreed.value = true —— 复选框不得被代码置为已勾，只能由用户点击`)
+    }
+    if (!/v-if\s*=\s*"!alreadyAgreed"/.test(src)) {
+      fail(`${loginFile} 勾选行未按 alreadyAgreed 条件渲染（历史已同意时不应重复展示，也不应预勾）`)
+    }
+  }
+}
+
+
 // ---------- 4. 审计回归门禁 ----------
+
 // 4.1 正则字面量中的双重转义 \d（商品链接 ID 提取失效回归）
 for (const dir of ['pages', 'components', 'stores', 'services', 'utils', 'domain']) {
   for (const file of walk(dir)) {

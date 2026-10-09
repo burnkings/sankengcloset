@@ -3,15 +3,32 @@
     <template #navbar><AppNavbar title="发布动态" :show-back="true" /></template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
-        <view :style="photoCard" @tap="choosePhoto">
-          <view v-if="selectedImage !== ''" :style="previewWrap">
-            <AppImage :src="selectedImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
-            <view :style="replaceAction"><AppIcon name="camera" :size="30" :active="true" /><text :style="replaceText">重新选择</text></view>
-          </view>
-          <view v-else :style="uploadEmpty">
+        <!-- 图片选择：0 张时是引导大卡；有图后变成九宫格（首图=封面，可点任意一张设为封面）。
+             主流做法：最多 9 张 + 逐张可删 + 空格继续添加。
+
+             ⚠️ 过渡（2026-09-30 反馈「大卡突然缩成小格子」）：
+             外层容器**常驻、不再 v-if 换节点**——v-if 换节点会让高度瞬间跳变且无法过渡。
+             高度由 photoAreaStyle() 显式算出（空态 560rpx / 九宫格 rows×(218+16)rpx）并带
+             transition；空态层与九宫格层都绝对铺满、只用 opacity 交叉淡入，
+             于是「卡片收拢」和「格子浮现」叠在一条 260ms 的时间线上，下面的表单不再整页跳一下。
+             注：uvue 侧对 transition 支持有限，最坏情况是退化成瞬时切换；但高度是显式值，
+             两种情况下布局都正确，不会错位。 -->
+        <view :style="photoAreaStyle()" @tap="onPhotoAreaTap">
+          <view :style="emptyLayer(selectedImages.length === 0)">
             <view :style="uploadIcon"><AppIcon name="camera" :size="52" :active="true" /></view>
-            <text :style="uploadTitle">选择一张穿搭美照</text>
-            <text :style="uploadDesc">支持从相册选择或直接拍摄</text>
+            <text :style="uploadTitle">选择穿搭美照</text>
+            <text :style="uploadDesc">最多 9 张，支持从相册选择或直接拍摄</text>
+          </view>
+          <view :style="gridLayer(selectedImages.length > 0)">
+            <view v-for="(img, idx) in selectedImages" :key="img" :style="photoTile(idx)" @tap="setCover(idx)">
+              <AppImage :src="img" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+              <view v-if="idx === 0" :style="coverBadge"><text :style="coverBadgeText">封面</text></view>
+              <view :style="tileRemove" @tap.stop="removeImage(idx)"><AppIcon name="close" :size="22" /></view>
+            </view>
+            <view v-if="selectedImages.length > 0 && selectedImages.length < MAX_IMAGES" :style="addTile(selectedImages.length)" @tap.stop="choosePhoto">
+              <AppIcon name="add" :size="40" />
+              <text :style="addTileText">{{ selectedImages.length }}/{{ MAX_IMAGES }}</text>
+            </view>
           </view>
         </view>
 
@@ -33,6 +50,15 @@
               <text :style="topicText(item)">#{{ item }}</text>
             </view>
           </view>
+        </FormSection>
+
+        <FormSection title="谁可以看">
+          <view :style="visibilityRow">
+            <view v-for="opt in visibilityOptions" :key="opt.value" :style="visibilityChip(opt.value)" @tap="visibility = opt.value">
+              <text :style="visibilityText(opt.value)">{{ opt.label }}</text>
+            </view>
+          </view>
+          <text :style="visibilityHint">{{ visibilityHintText }}</text>
         </FormSection>
 
         <FormSection title="关联商品与衣物（可选）">
@@ -57,8 +83,6 @@
             <view v-for="id in selectedWardrobeIds" :key="id" :style="wardrobeTag"><text :style="wardrobeTagText">{{ wardrobeName(id) }}</text><view :style="wardrobeTagRemove" @tap.stop="removeWardrobe(id)"><AppIcon name="close" :size="22" /></view></view>
           </view>
         </FormSection>
-
-        <text :style="privacyNote">{{ privacyNoteText }}</text>
       </view>
     </template>
   </MainLayout>
@@ -98,7 +122,7 @@
 
   <AppDialog :visible="showWardrobePicker" title="选择关联衣物" @confirm="confirmWardrobe" @cancel="showWardrobePicker = false">
     <scroll-view :style="wardrobePickerScroll" direction="vertical">
-      <view v-if="wardrobeStore.sortedItems.length === 0" :style="productEmptyWrap"><text :style="productEmptyText">衣橱还没有可关联的衣物</text></view>
+      <view v-if="wardrobeStore.sortedItems.length === 0" :style="productEmptyWrap"><text :style="productEmptyText">衣柜还没有可关联的衣物</text></view>
       <view v-else :style="wardrobePickerGrid">
         <view v-for="wd in wardrobeStore.sortedItems" :key="wd.id" :style="wardrobePickerItem(wd.id)" @tap="toggleWardrobe(wd.id)">
           <image v-if="wd.coverImage !== ''" :src="wd.coverImage" :style="wardrobePickerImage" mode="aspectFill" />
@@ -114,7 +138,6 @@
 <script setup lang="uts">
 import { openPrimaryTab } from '@/utils/tab-navigation'
 import { baseColors } from '@/theme/tokens/colors'
-import { radius } from '@/theme/tokens/radius'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
@@ -131,18 +154,51 @@ import AppDialog from '@/components/base/AppDialog.uvue'
 import FormSection from '@/components/v3/FormSection.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
 import { showFeedback } from '@/utils/feedback'
+import { COMMUNITY_TOPICS } from '@/domain/content/community-topics'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useSessionStore } from '@/stores/session-store'
 import { searchProducts } from '@/services/content/search-service'
 import { FeedItem } from '@/domain/content/feed-item'
 
-const selectedImage = ref('')
+/** 多图上限：9 张（主流九宫格），首图自动作为封面 */
+const MAX_IMAGES = 9
+const selectedImages = ref<string[]>([])
 const caption = ref('')
 const category = ref('JK')
 const topic = ref('今日穿搭')
 const categories = ['JK', 'Lolita', '汉服', '混搭']
-const topics = ['今日穿搭', '茶会搭配', '通勤三坑', '低预算搭配']
+/**
+ * 话题：8 个「三坑女生日常真的会聊」的方向，正好 8 个。
+ * 划分原则：**每个话题回答一个不同的问题**，彼此不重叠，也不与上面那行「坑向」重复
+ * （JK/Lolita/汉服 已经由坑向负责，话题再按坑向分就是同一件事说两遍）。
+ *   今日穿搭 → 今天穿什么 ／ 开箱测评 → 新到手的好不好
+ *   避雷拔草 → 哪些别买 ／ 好价情报 → 什么时候买、去哪买（贴合本 App 的发售提醒 + 预算）
+ *   洗护收纳 → 买回来之后怎么养 ／ 手作改造 → 自己动手改
+ *   出片分享 → 怎么拍好看 ／ 同好交流 → 茶会、漫展、交友、心情树洞
+ */
+const topics = COMMUNITY_TOPICS
+
+/**
+ * 可见性。后端 `community_posts.visibility` 早就存在且约束为 public/private，这里只是把它接出来。
+ * 文案用「公开 / 仅自己可见」而不是「公开 / 隐私」——「隐私」是名词、不是状态，
+ * 用户看到会犹豫「点它是把这条设成隐私，还是打开隐私设置？」；「仅自己可见」是小红书/微博的
+ * 现行说法，语义自解释、没有二义。
+ */
+class VisibilityOption {
+  label: string = ''
+  value: string = ''
+}
+const visibility = ref('public')
+const visibilityOptions = ((): VisibilityOption[] => {
+  const list: VisibilityOption[] = []
+  const pub = new VisibilityOption(); pub.label = '公开'; pub.value = 'public'; list.push(pub)
+  const priv = new VisibilityOption(); priv.label = '仅自己可见'; priv.value = 'private'; list.push(priv)
+  return list
+})()
+const visibilityHintText = computed((): string => visibility.value === 'private'
+  ? '只有你自己能看到这条动态，不会出现在广场和商品页'
+  : '所有人都能在广场看到，也会出现在你关联的商品下')
 const library = useContentLibraryStore()
 const wardrobeStore = useWardrobeStore()
 const session = useSessionStore()
@@ -231,20 +287,46 @@ function wardrobeCategory(category: string): string {
   return '其他'
 }
 
+/** 空态整卡可点即选图；有图后点空白不再触发（避免误开相册） */
+function onPhotoAreaTap() {
+  if (selectedImages.value.length === 0) choosePhoto()
+}
+
+/** 多选：一次最多补到 9 张；重复路径去重（同一张连点两次不会出现两张） */
 function choosePhoto() {
+  const remain = MAX_IMAGES - selectedImages.value.length
+  if (remain <= 0) { showFeedback(`最多选择 ${MAX_IMAGES} 张`); return }
   uni.chooseImage({
-    count: 1,
+    count: remain,
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
     success: (res) => {
-      if (res.tempFilePaths.length > 0) selectedImage.value = res.tempFilePaths[0]
+      const paths = res.tempFilePaths
+      const next = [...selectedImages.value]
+      for (let i = 0; i < paths.length; i++) {
+        if (next.indexOf(paths[i]) < 0) next.push(paths[i])
+      }
+      selectedImages.value = next
     },
   })
+}
+function removeImage(idx: number) {
+  const next = [...selectedImages.value]
+  next.splice(idx, 1)
+  selectedImages.value = next
+}
+/** 点任意一张设为封面（移到首位）。封面即提交给后端的 mediaId。 */
+function setCover(idx: number) {
+  if (idx <= 0) return
+  const next = [...selectedImages.value]
+  const picked = next.splice(idx, 1)
+  next.unshift(picked[0])
+  selectedImages.value = next
 }
 
 function publishLook() {
   if (publishing.value) return
-  if (selectedImage.value === '') {
+  if (selectedImages.value.length === 0) {
     showFeedback('先选一张想分享的美照')
     return
   }
@@ -255,7 +337,7 @@ function publishLook() {
   publishing.value = true
   const publishRemote = async () => {
     try {
-      const ok = await library.publishOutfitRemote(selectedImage.value, caption.value, category.value, topic.value, selectedWardrobeIds.value, selectedProductId.value)
+      const ok = await library.publishOutfitRemote(selectedImages.value, caption.value, category.value, topic.value, selectedWardrobeIds.value, selectedProductId.value, visibility.value)
       if (!ok) {
         publishing.value = false
         showFeedback('发布失败，请重试')
@@ -272,21 +354,79 @@ function publishLook() {
   publishRemote()
 }
 
-// 隐私提示随登录态变化：模拟登录/正式登录均可发布，未登录不产生任何内容
-// 动态流支持商品与衣物关联；正式账号发布后进入公开动态流。
-const privacyNoteText = computed((): string => {
-  return session.isLoggedIn
-    ? '发布后会展示在动态流，供同好浏览与点赞。'
-    : '当前未登录：无法发布，请先登录后再分享。'
-})
-
-const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP , paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3}
-// V3 §6.9 图片选择区优先；photoCard 圆角 16rpx、token 背景
-const photoCard = computed((): any => ({ width: '686rpx', height: '560rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, overflow: 'hidden' }))
-const previewWrap = { width: '686rpx', height: '560rpx', position: 'relative' as string }
-const replaceAction = computed((): any => ({ position: 'absolute', right: '20rpx', bottom: '20rpx', height: '64rpx', paddingLeft: '18rpx', paddingRight: '18rpx', borderRadius: radius.full, backgroundColor: n.value.surface, ...flexRow, alignItems: 'center', justifyContent: 'center' }))
-const replaceText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '8rpx' }))
-const uploadEmpty = { flex: 1, alignItems: 'center', justifyContent: 'center' }
+// paddingBottom 必须留出 BottomActionBar 的高度（16+88+34=138rpx），否则滑到底部时
+// 最后一块表单（关联衣物）会被底栏压住 — 用户反馈「滑到底还卡着一节没展示」。
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '160rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+// V3 §6.9 图片选择区优先；圆角 16rpx、token 背景
+// marginBottom 是「图片区 ↔ 穿搭说明」之间的呼吸间距（用户反馈两者贴太近）
+const TILE = 218
+const TILE_GAP = 16
+const GRID_COLS = 3
+/** 空态大卡高度（有图后收拢到九宫格高度） */
+const EMPTY_AREA_HEIGHT = 560
+/**
+ * 九宫格行数：N 张图 + 1 个「+」格子（未满 9 张时），每行 3 个。
+ * 和下面 photoTile/addTile 的 margin 规则同源，所以算出来的高度永远等于真实占位高度。
+ */
+function photoGridRows(): number {
+  const count = selectedImages.value.length
+  if (count <= 0) return 0
+  const cells = count + (count < MAX_IMAGES ? 1 : 0)
+  return Math.ceil(cells / GRID_COLS)
+}
+/**
+ * 图片区外层容器：**常驻单元素**，高度显式给定 + transition。
+ * 之所以不能靠 `height: auto`：WXSS 没法从 auto 过渡到具体值，过渡必须两端都是确定长度。
+ * overflow:hidden 顺带把末行多出的 marginBottom 裁掉，视觉上没有影响。
+ */
+function photoAreaStyle(): any {
+  const rows = photoGridRows()
+  return {
+    position: 'relative' as string,
+    width: '686rpx',
+    height: rows === 0 ? `${EMPTY_AREA_HEIGHT}rpx` : `${rows * (TILE + TILE_GAP)}rpx`,
+    borderRadius: '16rpx',
+    backgroundColor: n.value.bgSecondary,
+    overflow: 'hidden',
+    marginBottom: '32rpx',
+    transitionProperty: 'height' as string,
+    transitionDuration: '260ms' as string,
+    transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' as string,
+  }
+}
+/** 空态层：绝对铺满 + 居中。淡出比淡入快，且淡入带延迟，让「收拢」先被看见 */
+function emptyLayer(visible: boolean): any {
+  return {
+    position: 'absolute' as string, left: '0', top: '0', right: '0', bottom: '0',
+    alignItems: 'center', justifyContent: 'center',
+    opacity: visible ? '1' : '0',
+    transitionProperty: 'opacity' as string,
+    transitionDuration: visible ? '180ms' : '120ms' as string,
+    transitionDelay: visible ? '140ms' : '0ms' as string,
+  }
+}
+/** 九宫格层：同样绝对铺满；出现时略晚于高度收缩开始 */
+function gridLayer(visible: boolean): any {
+  return {
+    position: 'absolute' as string, left: '0', top: '0', right: '0', bottom: '0',
+    flexDirection: 'row' as string, flexWrap: 'wrap' as string,
+    opacity: visible ? '1' : '0',
+    transitionProperty: 'opacity' as string,
+    transitionDuration: visible ? '200ms' : '100ms' as string,
+    transitionDelay: visible ? '100ms' : '0ms' as string,
+  }
+}
+/** 3 列：3×218 + 2×16 = 686rpx，正好等于内容宽 */
+function photoTile(idx: number): any {
+  return { position: 'relative' as string, width: `${TILE}rpx`, height: `${TILE}rpx`, borderRadius: '12rpx', overflow: 'hidden', backgroundColor: n.value.bgSecondary, marginRight: (idx + 1) % 3 == 0 ? '0' : `${TILE_GAP}rpx`, marginBottom: `${TILE_GAP}rpx` }
+}
+function addTile(count: number): any {
+  return { width: `${TILE}rpx`, height: `${TILE}rpx`, borderRadius: '12rpx', borderWidth: '2rpx', borderStyle: 'dashed' as string, borderColor: n.value.border, backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: (count + 1) % 3 == 0 ? '0' : `${TILE_GAP}rpx`, marginBottom: `${TILE_GAP}rpx` }
+}
+const addTileText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))
+const coverBadge = computed((): any => ({ position: 'absolute' as string, left: '8rpx', bottom: '8rpx', paddingLeft: '12rpx', paddingRight: '12rpx', height: '32rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
+const coverBadgeText = computed((): any => ({ fontSize: '20rpx', color: baseColors.white }))
+const tileRemove = computed((): any => ({ position: 'absolute' as string, top: '4rpx', right: '4rpx', width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: n.value.surface, alignItems: 'center', justifyContent: 'center' }))
 const uploadIcon = computed((): any => ({ width: '80rpx', height: '80rpx', borderRadius: '20rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center' }))
 const uploadTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '24rpx' }))
 const uploadDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '8rpx' }))
@@ -297,10 +437,18 @@ function categoryText(item: string) { return { fontSize: fontSize.sm, fontWeight
 const topicWrap = { ...flexRow, flexWrap: 'wrap' as string }
 function topicChip(idx: number, item: string) { return { height: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: topic.value == item ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '1rpx', borderStyle: 'solid', borderColor: topic.value == item ? 'transparent' : n.value.border, marginRight: '12rpx', marginBottom: '12rpx' } }
 function topicText(item: string) { return { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: topic.value == item ? n.value.iconActive : n.value.textSecondary } }
+// 可见性：两枚带图标的胶囊（图标让「公开 / 仅自己可见」一眼可分，不必读完文字）
+const visibilityRow = { ...flexRow }
+function visibilityChip(value: string): any {
+  return { flex: 1, height: '80rpx', borderRadius: '16rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: visibility.value === value ? n.value.surfacePink : n.value.bgSecondary, borderWidth: '2rpx', borderStyle: 'solid', borderColor: visibility.value === value ? n.value.iconActive : n.value.border, marginRight: value === 'private' ? '0' : '16rpx' }
+}
+function visibilityText(value: string): any {
+  return { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: visibility.value === value ? n.value.iconActive : n.value.textSecondary, marginLeft: '10rpx' }
+}
+const visibilityHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '12rpx', lineHeight: '30rpx' }))
 // V3 §5.9 主按钮：88rpx 高、16rpx 圆角
 const publishButton = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const publishText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
-const privacyNote = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, textAlign: 'center', lineHeight: '36rpx', marginTop: '20rpx', marginBottom: '32rpx' }))
 
 // 关联商品（Phase 2.3-A）
 const productBtnRow = computed((): any => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: '88rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '16rpx', backgroundColor: n.value.inputFill }))
@@ -314,7 +462,10 @@ const productCardBrand = computed((): any => ({ fontSize: fontSize.xs, color: n.
 const productCardRemoveWrap = { width: '48rpx', height: '48rpx', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const productPickerWrap = { paddingTop: '8rpx' }
 const productSearchRow = { flexDirection: 'row', alignItems: 'center', marginBottom: '16rpx' }
-const productSearchBtn = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx', flexShrink: 0 }))
+// ⚠️ 底色不能用 n.value.iconActive：图标用的是 search-active.svg（本身就是品牌粉 #D45F7E），
+// 粉图标压在粉底上等于什么都看不见 —— 用户看到的就是「一个红色空方框」。
+// 改成浅粉底（surfacePink）+ 粉色图标，与全站 chip 的「浅底深字」语言一致。
+const productSearchBtn = computed((): any => ({ width: '72rpx', height: '72rpx', borderRadius: '16rpx', backgroundColor: n.value.surfacePink, alignItems: 'center', justifyContent: 'center', marginLeft: '12rpx', flexShrink: 0 }))
 const productPickerScroll = { maxHeight: '560rpx' }
 const productEmptyWrap = { alignItems: 'center', paddingTop: '48rpx', paddingBottom: '48rpx' }
 const productEmptyText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))

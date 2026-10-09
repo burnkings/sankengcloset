@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * V2.6 远程运行时契约检查
- * - 验证内测 Mock 登录不伪造 Token，同时保留正式微信登录实现
+ * V2.7 远程运行时契约检查
+ * - 验证**只有微信登录**这一条真实登录链路（「仅在本机使用」/mock 会话已删除，不得复活）
  * - 验证 401 刷新单飞锁（apiGetAuthorized / refreshWithSingleFlight）
  * - 验证 Feed opaque cursor（不再用 pageIndex × 20 伪造）
  * - 验证同步策略（直接远程写 + 失败才入队，flush 重放真实 CRUD）
+ * - 验证收藏：下架/失效的商品仍要展示（快照补齐），不得再从列表里消失
  */
 const fs = require('fs')
 
@@ -14,9 +15,10 @@ const required = {
   'services/content/feed-service.uts': ['/api/v1/feed', 'mapFeedItem', 'cursor'],
   'services/sync/write-back.uts': ['syncWriteBack', 'await remoteCall()', 'enqueueLocalOperation', '失败入队'],
   'services/sync/local-sync-queue.uts': ['replayOperation', 'replayFavorite', 'apiPostAuthorized', 'apiPatchAuthorized', 'apiDeleteAuthorized', 'replayErrorResult', 'apiErrorStatus', 'uni.getNetworkType'],
-  'stores/session-store.uts': ["'/api/v1/sessions/wechat'", 'loginWithWechat', 'loginMock', "persistLogin('mock_user_local'", 'clearSessionTokens', 'saveSessionTokens', 'flushLocalOperations'],
+  'stores/session-store.uts': ["'/api/v1/sessions/wechat'", 'loginWithWechat', 'clearSessionTokens', 'saveSessionTokens', 'flushLocalOperations'],
   'stores/home-feed-store.uts': ['nextCursor', 'MAX_FEED_ITEMS', '_requestSeq'],
-  'stores/favorite-store.uts': ['listWishlistRemote', 'queueFavorite', 'refreshRemoteFavorites', 'refreshFavorites'],
+  // 收藏：快照是「已下架仍能展示」的唯一数据来源，删了就等于把下架商品重新变成空壳
+  'stores/favorite-store.uts': ['listWishlistRemote', 'queueFavorite', 'refreshRemoteFavorites', 'refreshFavorites', 'FavoriteSnapshot', 'rememberFavoriteSnapshot', 'favoriteSnapshotOf', 'placeholderFavorite'],
   'stores/community-store.uts': ['isRemote', 'refreshPublicPosts'],
   'services/user-data/user-data-service.uts': ["'/api/v1/wishlist'", 'addWishlistRemote', 'deleteWishlistRemote', 'createCommunityPostRemote', 'uploadOutfitImageRemote'],
   'domain/purchase-record.uts': ['arrivalDate', 'wishId', 'wardrobeId'],
@@ -32,9 +34,11 @@ const required = {
   'pages.json': ['"pagePath": "pages/favorites/index"', '"text": "收藏"'],
 }
 const notAllowed = {
-  'config/runtime.uts': ['setRuntimeMode', 'setApiBaseUrl', 'setMockOnline', 'setMockLatency', 'DATA_MODE_LOCAL', 'DATA_MODE_MOCK'],
+  'config/runtime.uts': ['setRuntimeMode', 'setApiBaseUrl', 'setMockOnline', 'setMockLatency', 'DATA_MODE_LOCAL', 'DATA_MODE_MOCK', 'isLocalMockSession'],
   'stores/sync-store.uts': ['setMockOnline'],
-  'stores/session-store.uts': ['loginPreview', 'localAssetsPending', 'markLocalAssetsQueued', "'/api/v1/sessions/dev'", "saveSessionTokens('mock"],
+  // 2026-09-30：「仅在本机使用」删除。它是没有 token 的假登录态，留着会伪装成已登录并把
+  // demo_* 假商品当收藏（收藏页全部 404 显示「已下架」）。核心实现与开关都不许再出现。
+  'stores/session-store.uts': ['loginPreview', 'localAssetsPending', 'markLocalAssetsQueued', "'/api/v1/sessions/dev'", "saveSessionTokens('mock", 'loginMock', 'mock_user_local', "SESSION_MODE_MOCK"],
   'services/content/feed-service.uts': ['__DEV__', 'pageIndex'],
   'pages/product/detail.uvue': ["'/api/v1/wishlist'"],
   'pages/favorites/index.uvue': ['远程收藏数据获取将在后续迭代中集成', 'recommendationProducts'],
@@ -53,4 +57,5 @@ for (const [file, needles] of Object.entries(notAllowed)) {
   for (const needle of needles) if (text.includes(needle)) { console.error(`[FAIL] ${file} still contains ${needle}`); failed = true }
 }
 if (failed) process.exit(1)
-console.log('[PASS] V2.6 runtime contract checks — local mock session, wechat login preserved, 401 single-flight refresh, opaque cursor, unified write strategy')
+console.log('[PASS] V2.7 runtime contract checks — wechat-only login (no local mock session), 401 single-flight refresh, opaque cursor, unified write strategy, delisted favorites still rendered from local snapshot')
+

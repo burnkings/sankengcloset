@@ -15,7 +15,7 @@
 
         <view v-else>
           <view v-for="(item, idx) in items" :key="item.id" :style="row(idx, items.length)" @tap="openProduct(item.id)">
-            <AppImage :src="item.coverUrl" :width="thumbSize" :height="thumbSize" mode="aspectFill" :radius-token="'12rpx'" />
+            <AppImage :src="item.coverUrl" :width="thumbSize" :height="thumbSize" mode="aspectFill" :radius-token="'12rpx'" :list-width="400" />
             <view :style="rowCopy">
               <text :style="rowTitle">{{ item.title }}</text>
               <text :style="rowBrand">{{ item.brandName !== '' ? item.brandName : '三坑好物' }}</text>
@@ -44,6 +44,7 @@ import AppIcon from '@/components/base/AppIcon.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import { openPrimaryTab } from '@/utils/tab-navigation'
+import { openProductDetail } from '@/utils/content-navigation'
 
 const items = ref<BrowseHistoryItem[]>([])
 const loading = ref(true)
@@ -73,7 +74,7 @@ function formatViewedAt(msText: string): string {
 
 function openProduct(id: string) {
   if (id === '') return
-  uni.navigateTo({ url: `/pages/product/detail?id=${encodeURIComponent(id)}` })
+  openProductDetail(id)
 }
 
 function goDiscover() { openPrimaryTab('/pages/discover/index') }

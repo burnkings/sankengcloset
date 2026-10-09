@@ -1,7 +1,7 @@
 <template>
   <MainLayout :navbar-content-height="selectMode ? '88rpx' : '192rpx'" :scroll-top="scrollTop" :bottom-spacer="fabBottomSpacer" @scroll="onPageScroll">
     <template #navbar>
-      <AppNavbar v-if="!selectMode" title="衣橱" :show-back="true" />
+      <AppNavbar v-if="!selectMode" title="衣柜" :show-back="true" />
       <AppNavbar v-else title="选择单品" :show-back="false">
         <template #left>
           <view style="flex-direction: row; align-items: center;"><view style="width: 64rpx; height: 80rpx; justify-content: center;" @tap="exitSelectMode"><AppIcon name="arrow-back" :size="40" /></view><text :style="selectAllText" @tap="toggleSelectAll">{{ selectAllLabel }}</text></view>
@@ -10,7 +10,7 @@
           <text :style="selectCancelText" @tap="exitSelectMode">取消</text>
         </template>
       </AppNavbar>
-      <view v-if="!selectMode" :style="searchBarFixed"><AppInput v-model="searchValue" placeholder="搜索衣橱(品类/颜色/品牌)" :clearable="true" :adjust-position="false" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput></view>
+      <view v-if="!selectMode" :style="searchBarFixed"><AppInput v-model="searchValue" placeholder="搜索衣柜(品类/颜色/品牌)" :clearable="true" :adjust-position="false" @confirm="applySearch"><template #prefix><AppIcon name="search" :size="32" /></template></AppInput></view>
     </template>
     <template #default>
       <view class="page-canvas" :style="pageWrap">
@@ -25,24 +25,27 @@
             </view>
           </view>
 
+          <!-- 这一行原来只有右半边有内容（排序 + 穿着筛选），左半边空着。
+               处置：**不扩大**这两个控件，而是把左侧补成结果计数，右侧把「排序 + 穿着筛选」
+               合并成单一「筛选」入口（用户拍板：排序改成筛选、穿着状态并入筛选）。 -->
           <view :style="actionRow">
-            <view :style="sortBtn" @tap="showSortSheet"><text :style="sortBtnText">排序 · {{ sortLabel }}</text></view>
-            <view :style="quickFilters">
-              <view :style="quickChip(wearFilter !== '')" @tap="showWearFilter"><text :style="quickChipText(wearFilter !== '')">{{ wearFilterLabel }}</text></view>
+            <text :style="resultCountText">{{ filteredCountLabel }}</text>
+            <view :style="filterBtn(activeFilterCount > 0)" @tap="openFilterPanel">
+              <text :style="filterBtnText(activeFilterCount > 0)">筛选{{ activeFilterCount > 0 ? ' · ' + activeFilterCount : '' }}</text>
             </view>
           </view>
 
           <FeedSkeleton v-if="store.loading && store.items.length === 0" />
 
           <template v-else-if="visibleItems.length === 0">
-            <PageState icon="wardrobe" :title="hasAnyItems ? '没有匹配的单品' : '衣橱还没有单品'" :message="hasAnyItems ? '试试换个关键词或筛选条件吧' : '记录你的三坑穿搭，打造专属衣橱图鉴'" :action-text="hasAnyItems ? '清除筛选' : '添加第一件单品'" @action="onEmptyAction" />
+            <PageState icon="wardrobe" :title="hasAnyItems ? '没有匹配的单品' : '衣柜还没有单品'"  :message="hasAnyItems ? '试试换个关键词或筛选条件吧' : '点右下角 + 记录你的第一件单品'" :action-text="hasAnyItems ? '清除筛选' : ''" @action="onEmptyAction" />
           </template>
 
           <view v-else :style="grid">
             <view :style="colLeft">
               <view v-for="item in leftItems" :key="item.id" :style="cardStyle(item.id)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelectMode(item.id)">
                 <view :style="imgWrap(item.id)">
-                  <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                  <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" :list-width="500" />
                   <view v-if="!selectMode" :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
                   <view v-if="item.isFavorite && !selectMode" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
                   <view v-if="selectMode" :style="selectCheckWrap"><view :style="selectCheck(selectedIds.indexOf(item.id) >= 0)"><AppIcon v-if="selectedIds.indexOf(item.id) >= 0" name="check" :size="24" /></view></view>
@@ -60,7 +63,7 @@
             <view :style="colRight">
               <view v-for="item in rightItems" :key="item.id" :style="cardStyle(item.id)" @tap="selectMode ? toggleItem(item.id) : openItem(item.id)" @longpress="enterSelectMode(item.id)">
                 <view :style="imgWrap(item.id)">
-                  <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" />
+                  <AppImage :src="item.coverImage" width="100%" height="100%" mode="aspectFill" :lazy-load="true" :list-width="500" />
                   <view v-if="!selectMode" :style="catBadge()"><text :style="catBadgeText">{{ catLabel(item.category) }}</text></view>
                   <view v-if="item.isFavorite && !selectMode" :style="favBadge"><AppIcon name="heart" :size="20" :active="true" /></view>
                   <view v-if="selectMode" :style="selectCheckWrap"><view :style="selectCheck(selectedIds.indexOf(item.id) >= 0)"><AppIcon v-if="selectedIds.indexOf(item.id) >= 0" name="check" :size="24" /></view></view>
@@ -79,6 +82,25 @@
         </view>
     </template>
   </MainLayout>
+
+  <!-- 筛选面板：穿着状态 + 排序合并在一处（原来拆成两个 ActionSheet，且入口只剩右半边） -->
+  <view v-if="showFilterPanel" :style="sheetMask" @tap="showFilterPanel = false">
+    <view :style="sheetPanel" @tap.stop="onSheetTap">
+      <text :style="sheetTitle">筛选与排序</text>
+      <text :style="sheetGroupLabel">穿着状态</text>
+      <view :style="sheetChips">
+        <view v-for="opt in wearOptions" :key="opt.label" :style="sheetChip(wearFilter === opt.value)" @tap="pickWear(opt.value)"><text :style="sheetChipText(wearFilter === opt.value)">{{ opt.label }}</text></view>
+      </view>
+      <text :style="sheetGroupLabel">排序</text>
+      <view :style="sheetChips">
+        <view v-for="opt in sortChoices" :key="opt.label" :style="sheetChip(store.currentSort === opt.value)" @tap="pickSort(opt.value)"><text :style="sheetChipText(store.currentSort === opt.value)">{{ opt.label }}</text></view>
+      </view>
+      <view :style="sheetActions">
+        <view :style="sheetResetBtn" @tap="resetWardrobeFilters"><text :style="sheetResetText">重置</text></view>
+        <view :style="sheetDoneBtn" @tap="showFilterPanel = false"><text :style="sheetDoneText">完成</text></view>
+      </view>
+    </view>
+  </view>
 
   <view v-if="selectMode && selectedIds.length > 0" :style="bottomBar">
     <view :style="deleteButton" @tap="confirmDelete"><text :style="deleteButtonText">删除 ({{ selectedIds.length }})</text></view>
@@ -114,6 +136,7 @@ import { upx2px } from '@/utils/window-info'
 import { getFabBottomSpacer } from '@/utils/window-info'
 import { zIndex } from '@/theme/tokens/z-index'
 import { showFeedback } from '@/utils/feedback'
+import { navigateOnce } from '@/utils/nav-guard'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppNavbar from '@/components/base/AppNavbar.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
@@ -131,8 +154,42 @@ const store = useWardrobeStore()
 const searchValue = ref('')
 const activeFilter = ref('全部')
 const wearFilter = ref('')
-const wearFilterLabel = computed((): string => wearFilter.value === 'UNWORN' ? '仅看未穿' : wearFilter.value === 'FREQUENT' ? '仅看常穿' : '穿着筛选')
-function showWearFilter() { uni.showActionSheet({ itemList: ['全部穿着状态', '仅看未穿', '仅看常穿'], success: (res) => { wearFilter.value = res.tapIndex === 1 ? 'UNWORN' : res.tapIndex === 2 ? 'FREQUENT' : ''; store.setStatus(wearFilter.value) } }) }
+
+// ====== 筛选面板（穿着状态 + 排序合并）======
+class FilterOption {
+  label: string = ''
+  value: string = ''
+}
+const showFilterPanel = ref(false)
+function onSheetTap() {}
+function openFilterPanel() { showFilterPanel.value = true }
+const wearOptions = ((): FilterOption[] => {
+  const list: FilterOption[] = []
+  const opt0 = new FilterOption(); opt0.label = '全部'; opt0.value = ''; list.push(opt0)
+  const opt1 = new FilterOption(); opt1.label = '未穿'; opt1.value = 'UNWORN'; list.push(opt1)
+  const opt2 = new FilterOption(); opt2.label = '已穿'; opt2.value = 'WORN'; list.push(opt2)
+  const opt3 = new FilterOption(); opt3.label = '常穿'; opt3.value = 'FREQUENT'; list.push(opt3)
+  return list
+})()
+// 排序：4 项。**没有「名称」**（2026-09-30 按反馈去掉：字母序对衣柜没意义、中英文混排很怪）。
+// 第 0 项「最近加入」就是默认排序（`currentSort` 初值 = newest），不是两个不同的顺序。
+const sortChoices = ((): FilterOption[] => {
+  const list: FilterOption[] = []
+  const s0 = new FilterOption(); s0.label = '最近加入'; s0.value = 'newest'; list.push(s0)
+  const s1 = new FilterOption(); s1.label = '最早加入'; s1.value = 'earliest'; list.push(s1)
+  const s2 = new FilterOption(); s2.label = '价格高→低'; s2.value = 'priceHigh'; list.push(s2)
+  const s3 = new FilterOption(); s3.label = '价格低→高'; s3.value = 'priceLow'; list.push(s3)
+  return list
+})()
+function pickWear(value: string) { wearFilter.value = value; store.setStatus(value) }
+function pickSort(value: string) { store.setSort(value) }
+function resetWardrobeFilters() { wearFilter.value = ''; store.setStatus(''); store.setSort('newest') }
+const activeFilterCount = computed((): number => store.activeFilterCount)
+/** 结果计数放左侧补位；不靠拉长右侧按钮来填满这一行 */
+const filteredCountLabel = computed((): string => {
+  const total = visibleItems.value.length
+  return store.activeFilterCount > 0 ? `筛选后 ${total} 件` : `共 ${total} 件`
+})
 class CategoryFilterOption {
   label: string = ''
   value: string = ''
@@ -243,12 +300,6 @@ function wardrobeImageHeight(id: string): string {
   if (m == 2) return '470rpx'
   return '580rpx'
 }
-const sortLabel = computed((): string => store.sortLabel)
-const sortOptions = ['newest', 'earliest', 'priceHigh', 'priceLow', 'name']
-const sortLabels = ['最近加入', '最早加入', '价格高到低', '价格低到高', '名称']
-function showSortSheet() {
-  uni.showActionSheet({ itemList: sortLabels, success: (res) => { store.setSort(sortOptions[res.tapIndex]) } })
-}
 function catLabel(c: string): string { return c === 'LOLITA' ? 'Lolita' : (c === 'HANFU' ? '汉服' : (c === 'MIXED' ? '混搭' : (c === 'JK' ? 'JK' : '其他'))) }
 function wearLabel(s: string): string { return s === 'UNWORN' ? '未穿' : (s === 'WORN' ? '已穿' : '常穿') }
 function wearStatusClass(s: string): string {
@@ -256,14 +307,22 @@ function wearStatusClass(s: string): string {
   if (s === 'UNWORN') return 'pending'
   return 'brand'
 }
-function goAdd() { uni.navigateTo({ url: '/pages/wardrobe/edit' }) }
+/**
+ * 进入添加单品。
+ *
+ * ⚠️ 用户反馈（2026-09-30）：点一次「+」会**连着进两次**添加页，返回时要退两层。
+ * 原因是悬浮按钮根节点的 tap 与父级 `@tap` 在部分端会各触发一次。
+ * 统一走 utils/nav-guard 的 navigateOnce（模块级时间戳锁，窗口内重复调用直接丢弃）。
+ */
+function goAdd() { navigateOnce('/pages/wardrobe/edit') }
 function openItem(id: string) { uni.navigateTo({ url: `/pages/wardrobe/edit?id=${id}` }) }
-onLoad(() => { nextTick(() => initPageTheme()) })
+onLoad(() => { initPageTheme() })
 // 网络请求 30s TTL：频繁切 tab 不重复拉取
 let lastFetchAt = 0
 onShow(() => {
-  // 回到本页时退出选择态，避免离开后残留勾选
+  // 回到本页时退出选择态 / 收起筛选面板，避免离开后残留叠加层
   exitSelectMode()
+  showFilterPanel.value = false
   nextTick(() => {
     initPageTheme()
     const now = Date.now()
@@ -298,7 +357,7 @@ const totalSpentYuan = computed((): number => {
   return sum
 })
 const summaryItems = computed(() => [
-  { label: '衣橱共', value: `${store.itemCount} 件` },
+  { label: '衣柜共', value: `${store.itemCount} 件` },
   { label: '总投入', value: `¥${totalSpentYuan.value}` },
 ])
 const categoryFilterOptions = computed((): CategoryFilterOption[] => {
@@ -306,16 +365,19 @@ const categoryFilterOptions = computed((): CategoryFilterOption[] => {
   const list: CategoryFilterOption[] = []
   const all = new CategoryFilterOption(); all.label = '全部'; all.value = '全部'; all.count = store.itemCount; list.push(all)
   // value 一律用分类码（与 store.categoryCounts 的 key、item.category 同口径）
-  const jk = new CategoryFilterOption(); jk.label = 'JK'; jk.value = 'JK'; jk.count = counts['JK'] as number; list.push(jk)
-  const lol = new CategoryFilterOption(); lol.label = 'Lolita'; lol.value = 'LOLITA'; lol.count = counts['LOLITA'] as number; list.push(lol)
-  const han = new CategoryFilterOption(); han.label = '汉服'; han.value = 'HANFU'; han.count = counts['HANFU'] as number; list.push(han)
-  // 混搭：只有衣橱里真有混搭单品才出这个 chip，避免多数用户看到恒为 0 的噪声分类
-  const mixedCount = counts['MIXED'] != null ? counts['MIXED'] as number : 0
-  if (mixedCount > 0) {
-    const mix = new CategoryFilterOption(); mix.label = '混搭'; mix.value = 'MIXED'; mix.count = mixedCount; list.push(mix)
-  }
+  // ⚠️ 计数必须走 countOf：categoryCounts 是 UTSJSONObject，**没有该 key 时取出来是 null**，
+  //    直接 `as number` 拼进模板会变成「JK（undefined）」——用户 2026-09-30 反馈的正是这个。
+  const jk = new CategoryFilterOption(); jk.label = 'JK'; jk.value = 'JK'; jk.count = countOf(counts, 'JK'); list.push(jk)
+  const lol = new CategoryFilterOption(); lol.label = 'Lolita'; lol.value = 'LOLITA'; lol.count = countOf(counts, 'LOLITA'); list.push(lol)
+  const han = new CategoryFilterOption(); han.label = '汉服'; han.value = 'HANFU'; han.count = countOf(counts, 'HANFU'); list.push(han)
+  const mix = new CategoryFilterOption(); mix.label = '混搭'; mix.value = 'MIXED'; mix.count = countOf(counts, 'MIXED'); list.push(mix)
   return list
 })
+/** UTSJSONObject 缺 key 时返回 null ⇒ 统一兜 0，禁止直接 as number 后拼字符串 */
+function countOf(counts: UTSJSONObject, key: string): number {
+  const value = counts[key]
+  return value != null ? value as number : 0
+}
 const categoryFilterRow = { ...flexRow, flexDirection: 'row', marginTop: '16rpx' }
 function categoryFilterStyle(value: string, idx: number): any {
   const active = activeFilter.value === value
@@ -325,17 +387,32 @@ function categoryFilterStyle(value: string, idx: number): any {
 }
 function categoryFilterLabel(value: string): any { return { fontSize: '20rpx', fontWeight: activeFilter.value === value ? 600 : 400, color: activeFilter.value === value ? n.value.iconActive : n.value.textSecondary } }
 
-const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: '16rpx', marginBottom: '16rpx' }
-const sortBtn = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: n.value.bgSecondary }))
-const sortBtnText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
-const quickFilters = { ...flexRow, flexDirection: 'row', marginLeft: '12rpx' }
-// V3 §5.7 选中品牌浅底+深字
-function quickChip(active: boolean): any {
-  return { height: '56rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '9999rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginLeft: '8rpx', alignItems: 'center', justifyContent: 'center' }
+const actionRow = { ...flexRow, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: '16rpx', marginBottom: '16rpx' }
+const resultCountText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+// 「筛选」入口：V3 §5.7 选中浅底 + 深字；未应用条件时保持中性灰
+function filterBtn(active: boolean): any {
+  return { height: '56rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '9999rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 }
-function quickChipText(active: boolean): any {
+function filterBtnText(active: boolean): any {
   return { fontSize: fontSize.xs, fontWeight: active ? 600 : 400, color: active ? n.value.iconActive : n.value.textSecondary }
 }
+// ====== 筛选面板样式 ======
+const sheetMask = { position: 'fixed' as string, top: '0', left: '0', right: '0', bottom: '0', backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' as string, zIndex: zIndex.bottomSheet }
+const sheetPanel = computed((): any => ({ backgroundColor: n.value.surface, borderTopLeftRadius: '24rpx', borderTopRightRadius: '24rpx', paddingTop: '28rpx', paddingBottom: '40rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }))
+const sheetTitle = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text, marginBottom: '16rpx' }))
+const sheetGroupLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '16rpx', marginBottom: '12rpx' }))
+const sheetChips = { ...flexRow, flexDirection: 'row', flexWrap: 'wrap' as string }
+function sheetChip(active: boolean): any {
+  return { height: '64rpx', paddingLeft: '28rpx', paddingRight: '28rpx', borderRadius: '9999rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, marginRight: '12rpx', marginBottom: '12rpx' }
+}
+function sheetChipText(active: boolean): any {
+  return { fontSize: fontSize.xs, fontWeight: active ? 600 : 400, color: active ? n.value.iconActive : n.value.textSecondary }
+}
+const sheetActions = { ...flexRow, flexDirection: 'row', marginTop: '24rpx' }
+const sheetResetBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '16rpx' }))
+const sheetResetText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.medium, color: n.value.textSecondary }))
+const sheetDoneBtn = computed((): any => ({ flex: 1, height: '88rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
+const sheetDoneText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: '#FFFFFF' }
 // 底部留白由 MainLayout 的 bottom-spacer 统一提供（避免与布局层叠加成双份空白）
 // V3 §6.12 双列错落瀑布流：左右两列独立堆叠，图片高度按 id 哈希错峰（与首页一致）
 const grid = { ...flexRow, flexDirection: 'row', alignItems: 'flex-start' as string, marginTop: '16rpx' }
@@ -382,6 +459,7 @@ const dialogDelBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semib
 // 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
 // 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。
 onBackPress((): boolean => {
+  if (showFilterPanel.value) { showFilterPanel.value = false; return true }
   if (showDeleteConfirm.value) { showDeleteConfirm.value = false; return true }
   if (selectMode.value) { exitSelectMode(); return true }
   return false

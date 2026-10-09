@@ -1,0 +1,307 @@
+/**
+ * catalog-cache — 「低频变动内容」的持久长缓存
+ *
+ * 为什么需要单独一层
+ * ------------------
+ * api-client 里已有的 `readCache` 是**进程内**的，冷启动必然全空，而且 TTL 一律 30s～5min。
+ * 那个口径对信息流是对的（首页 / 动态 / 排行榜必须每次新鲜），但对**品牌目录**这类
+ * 几乎不变的内容就浪费得离谱：用户每冷启动一次、每进一次品牌页，都要重新等一次完整网络往返。
+ *
+ * 这里把缓存分成两类：
+ *   · 动态内容（feed / 动态 / 收藏 / 个人数据）：不落盘，TTL 保持秒级
+ *   · 目录内容（brands 列表与详情、发售日历）：落盘，小时～天级
+ *
+ * 三档时间语义（务必分清，混了就会出现「数据明明变了却看不到」）
+ *   memoryMs  进程内命中窗口
+ *   freshMs   磁盘快照的「新鲜」窗口：窗口内直接用，**不发请求**
+ *   staleMs   磁盘快照的「可接受陈旧」窗口：窗口内先返回旧数据、**同时后台刷新**
+ *             （stale-while-revalidate：界面立刻有内容，下一次进来拿到新的）
+ *             超过则丢弃，必须等网络。
+ *
+ * 安全边界
+ *   · 快照按**会话作用域**隔离（token 摘要），换账号读不到上一个账号的缓存
+ *   · `/api/v1/brands/followed`、`/api/v1/wishlist`、`/api/v1/me/*` 之类**个人数据一律不落盘**
+ *   · `/brands/:id/products` 不落盘：它带价格与销售状态，属于会变的数据
+ *   · 「清理缓存」会一并清掉（utils/cache.uts 已登记）
+ */
+
+import { getCachedAccessToken } from '@/config/runtime'
+
+const STORE_KEY = 'v27_catalog_cache'
+/**
+ * 条目上限。
+ * 首页 feed 是按 channel/category 组合分键的，会比品牌+日历条目多不少；
+ * 60 条 × 单条 ≤300KB 的最坏情况也还在 storage 总量内，正常远小于此。
+ */
+const MAX_ENTRIES = 60
+
+/**
+ * 单条快照的绝对上限。
+ * 2026-10-04：品牌目录按用户口径放到「一年」，所以这里必须跟着抬到 1 年以上，
+ * 否则 7 天这条兜底会先把一年窗口截断。真正的时效由各档自己的 staleMs 决定。
+ */
+const HARD_MAX_MS = 400 * 24 * 3600 * 1000
+
+/** 单条快照的体积上限（字符数）。微信单个 storage key 上限 1MB，留足余量 */
+const MAX_BODY_CHARS = 300000
+
+const MINUTE = 60 * 1000
+const HOUR = 60 * MINUTE
+
+/**
+ * 品牌目录：商品快照里最稳的一块。
+ * 2026-10-04 用户口径：**缓存一年**，并且「先出旧数据再后台刷新」——
+ * 进程内 1 小时、新鲜窗口也是 1 小时（超过就先给旧数据并顺手后台补一次），
+ * 陈旧兜底一年（品牌改名/换 logo 极少，一年内断网也读得到内容）。
+ */
+const BRANDS_MEMORY_MS = 1 * HOUR
+// 「新鲜」= 多久之后才去后台补一次新数据。品牌几乎不变，一天一次足够；
+// 注意它**不是**保留时长 —— 保留时长是下面的 STALE（一年）。
+const BRANDS_FRESH_MS = 24 * HOUR
+const BRANDS_STALE_MS = 365 * 24 * HOUR
+
+/** 发售日历：按月的发售日期，变动比品牌频繁，但也没到信息流的程度 */
+const CALENDAR_MEMORY_MS = 15 * MINUTE
+const CALENDAR_FRESH_MS = 6 * HOUR
+const CALENDAR_STALE_MS = 3 * 24 * HOUR
+
+/**
+ * 榜单（热榜/上新榜/收藏榜）。
+ *
+ * 2026-10-03 加入：榜单是**按天**才明显变动的数据，原先只靠 ranking-service 里的 60 秒
+ * 内存窗口 ⇒ 用户每次进榜单都要等一次网络往返。现在进程内 10 分钟、磁盘 2 小时内直接命中。
+ */
+const RANKING_MEMORY_MS = 1 * HOUR
+const RANKING_FRESH_MS = 1 * HOUR
+const RANKING_STALE_MS = 6 * HOUR
+
+/**
+ * 首页信息流。
+ *
+ * 2026-10-03 加入：原先 `/feed` 被硬编码成「TTL = 0，每次必须新鲜」（见 api-client 的 readTTL），
+ * 结果首页每次冷启动 / 切换 tab 回来都要重新等一遍，且**完全没有缓存**。
+ * 商品流不会秒变，现在：进程内 2 分钟、磁盘 15 分钟内直接用，6 小时内先出旧数据再后台刷新。
+ */
+const FEED_MEMORY_MS = 1 * HOUR
+const FEED_FRESH_MS = 1 * HOUR
+const FEED_STALE_MS = 6 * HOUR
+
+/**
+ * 路径 → 策略。返回 0 表示「不是目录类内容」，由 api-client 的 readTTL 兜底。
+ * 注意顺序：越具体的排除项必须写在越泛的包含项前面。
+ */
+function contentTier(path: string): number {
+  // 个人数据：登录态下的关注列表，绝不能跨账号复用
+  if (path.indexOf('/api/v1/brands/followed') >= 0) return 0
+  // 品牌商品列表：带价格 / 销售状态 / 库存语义，是会变的数据
+  if (path.indexOf('/api/v1/brands/') >= 0 && path.indexOf('/products') >= 0) return 0
+  if (path.indexOf('/api/v1/brands') >= 0) return 1
+  if (path.indexOf('/api/v1/calendar') >= 0) return 2
+  if (path.indexOf('/api/v1/ranking') >= 0) return 3
+  if (path.indexOf('/api/v1/feed') >= 0) return 4
+  return 0
+}
+
+/** 该路径的进程内缓存窗口（0 = 不缓存，由 api-client 的 readTTL 决定） */
+export function catalogMemoryMs(path: string): number {
+  const tier = contentTier(path)
+  if (tier == 1) return BRANDS_MEMORY_MS
+  if (tier == 2) return CALENDAR_MEMORY_MS
+  if (tier == 3) return RANKING_MEMORY_MS
+  if (tier == 4) return FEED_MEMORY_MS
+  return 0
+}
+
+/** 磁盘快照的「新鲜」窗口（窗口内直接用，不发请求） */
+function freshMs(path: string): number {
+  const tier = contentTier(path)
+  if (tier == 1) return BRANDS_FRESH_MS
+  if (tier == 2) return CALENDAR_FRESH_MS
+  if (tier == 3) return RANKING_FRESH_MS
+  if (tier == 4) return FEED_FRESH_MS
+  return 0
+}
+
+/** 磁盘快照的「可接受陈旧」窗口（先返回旧数据 + 后台刷新） */
+function staleMs(path: string): number {
+  const tier = contentTier(path)
+  if (tier == 1) return BRANDS_STALE_MS
+  if (tier == 2) return CALENDAR_STALE_MS
+  if (tier == 3) return RANKING_STALE_MS
+  if (tier == 4) return FEED_STALE_MS
+  return 0
+}
+
+/** 该路径是否走磁盘长缓存 */
+export function isCatalogPath(path: string): boolean {
+  return contentTier(path) != 0
+}
+
+class CatalogEntry {
+  key: string = ''
+  scope: string = ''
+  savedAt: number = 0
+  body: string = ''
+}
+
+/** 命中的磁盘快照 */
+export class CatalogHit {
+  body: string = ''
+  /** 与当前时间的毫秒差 */
+  ageMs: number = 0
+}
+
+let _entries: CatalogEntry[] | null = null
+
+/**
+ * 会话作用域：token 的短摘要（不是 token 本身）。
+ * 目的只有一个——换账号或退出登录后，上一个账号的快照读不出来。
+ * 用摘要而不是 token 原文，是为了避免把凭据复制到第二个 storage key。
+ */
+function scope(): string {
+  const token = getCachedAccessToken()
+  if (token === '') return 'anon'
+  let hash = 0
+  for (let i = 0; i < token.length; i++) {
+    hash = (hash * 31 + token.charCodeAt(i)) | 0
+  }
+  return hash.toString(16)
+}
+
+function load(): CatalogEntry[] {
+  const cached = _entries
+  if (cached != null) return cached!
+  const list: CatalogEntry[] = []
+  try {
+    const raw = uni.getStorageSync(STORE_KEY)
+    const text = raw == null ? '' : raw as string
+    if (text !== '') {
+      const parsed = JSON.parse(text) as UTSJSONObject[]
+      if (parsed != null) {
+        for (let i = 0; i < parsed.length; i++) {
+          const o = parsed[i]
+          if (o == null) continue
+          const entry = new CatalogEntry()
+          entry.key = o['key'] != null ? o['key'] as string : ''
+          entry.scope = o['scope'] != null ? o['scope'] as string : ''
+          entry.savedAt = o['savedAt'] != null ? o['savedAt'] as number : 0
+          entry.body = o['body'] != null ? o['body'] as string : ''
+          if (entry.key !== '' && entry.body !== '') list.push(entry)
+        }
+      }
+    }
+  } catch (e) {
+    // 存储损坏：当作空缓存，下次网络成功会重建
+  }
+  _entries = list
+  return list
+}
+
+function save(list: CatalogEntry[]) {
+  _entries = list
+  try {
+    const out: UTSJSONObject[] = []
+    for (let i = 0; i < list.length; i++) {
+      out.push({
+        key: list[i].key,
+        scope: list[i].scope,
+        savedAt: list[i].savedAt,
+        body: list[i].body,
+      } as UTSJSONObject)
+    }
+    uni.setStorageSync(STORE_KEY, JSON.stringify(out))
+  } catch (e) {
+    // 配额/异常：内存里那份仍然可用，只是重启后失效
+  }
+}
+
+/**
+ * 读磁盘快照。
+ * 只返回「还在可接受陈旧窗口内」且有值的那条；否则返回 null（调用方走网络）。
+ * 顺手清掉过期与**不属于当前会话作用域**的条目。
+ */
+export function readCatalog(key: string): CatalogHit | null {
+  const list = load()
+  if (list.length === 0) return null
+  const now = Date.now()
+  const current = scope()
+  const kept: CatalogEntry[] = []
+  let hit: CatalogEntry | null = null
+  let dirty = false
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i]
+    const age = now - entry.savedAt
+    const expired = age > staleMs(entry.key) || age > HARD_MAX_MS
+    const foreign = entry.scope !== current
+    if (expired || foreign) { dirty = true; continue }
+    kept.push(entry)
+    if (entry.key === key) hit = entry
+  }
+  if (dirty) save(kept)
+  if (hit == null) return null
+  const result = new CatalogHit()
+  result.body = hit.body
+  result.ageMs = now - hit.savedAt
+  return result
+}
+
+/** 该命中是否还在「新鲜」窗口内（是 → 直接用，不刷新） */
+export function isCatalogFresh(key: string, ageMs: number): boolean {
+  return ageMs <= freshMs(key)
+}
+
+/** 写磁盘快照（同时清掉同 key 的旧条目与超过上限的最老条目） */
+export function writeCatalog(key: string, body: string) {
+  if (key === '' || body === '') return
+  // 单条体积上限：信息流一页可能有几十 KB，但微信单个 storage key 只有 1MB。
+  // 超限的宁可不落盘（下次走网络），也不要把 storage 撑爆导致所有缓存一起写不进去。
+  if (body.length > MAX_BODY_CHARS) return
+  const list = load()
+  const kept: CatalogEntry[] = []
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].key !== key) kept.push(list[i])
+  }
+  const entry = new CatalogEntry()
+  entry.key = key
+  entry.scope = scope()
+  entry.savedAt = Date.now()
+  entry.body = body
+  kept.push(entry)
+  // 超上限时丢最老的（savedAt 最小）——目录条目本来就少，这里是兜底
+  while (kept.length > MAX_ENTRIES) {
+    let oldest = 0
+    for (let i = 1; i < kept.length; i++) {
+      if (kept[i].savedAt < kept[oldest].savedAt) oldest = i
+    }
+    kept.splice(oldest, 1)
+  }
+  save(kept)
+}
+
+/** 让某类目录失效（例：关注/取关品牌后，品牌详情里的 isFollowed 就旧了） */
+export function invalidateCatalog(prefix: string) {
+  const list = load()
+  if (list.length === 0) return
+  const kept: CatalogEntry[] = []
+  let changed = false
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].key.indexOf(prefix) >= 0) { changed = true; continue }
+    kept.push(list[i])
+  }
+  if (changed) save(kept)
+}
+
+export function clearCatalogCache() {
+  _entries = null
+  try { uni.removeStorageSync(STORE_KEY) } catch (e) { }
+}
+
+/** 供「清理缓存」算体积用 */
+export function catalogCacheBytes(): number {
+  try {
+    const raw = uni.getStorageSync(STORE_KEY)
+    return raw == null ? 0 : (raw as string).length
+  } catch (e) {
+    return 0
+  }
+}

@@ -5,7 +5,6 @@
  * This file is kept as a stub for backward compatibility with any remaining imports.
  * API /api/v1/trends may return empty data or 404 until fully removed.
  */
-import { isLocalMockSession } from '@/config/runtime'
 
 export class TrendTopic {
   id: string = ''

@@ -9,7 +9,7 @@
 
       <FormSection title="反馈内容">
         <view :style="noteShell">
-          <textarea :value="content" placeholder="请描述你的问题或建议（最多 500 字）" :placeholder-style="placeholderStyleStr" :style="noteInput" :maxlength="500" @input="onContentInput" />
+          <textarea :value="content" :placeholder="contentPlaceholder" :placeholder-style="placeholderStyleStr" :style="noteInput" :maxlength="500" @input="onContentInput" />
         </view>
       </FormSection>
 
@@ -33,14 +33,39 @@
       <FormSection title="我的反馈记录">
         <template v-if="records.length > 0">
           <view v-for="r in records" :key="r.id" :style="recordCard">
-            <view :style="recordTop">
+            <view :style="recordTop" @tap="toggleRecord(r.id)">
               <text :style="recordType">{{ r.type }}</text>
-              <view :style="recordRemove" @tap.stop="onRemoveRecord(r.id)"><AppIcon name="close" :size="24" /></view>
+              <text :style="recordStatus(r.delivered)">{{ r.delivered ? '已送达' : '未送达' }}</text>
+              <view :style="recordTopSpacer" />
+              <view :style="recordRemove" @tap.stop="askRemoveRecord(r.id)"><AppIcon name="close" :size="24" /></view>
             </view>
-            <text :style="recordContent">{{ r.content }}</text>
-            <text :style="recordTime">{{ formatRecordTime(r.createdAt) }}</text>
+            <!-- 收起时只显示 3 行，点开看全文 + 截图 + 联系方式 + 状态。
+                 以前卡片恒为 3 行且不可展开 —— 用户根本看不到自己写了什么（反馈里的「不能查看反馈结果」）。 -->
+            <view @tap="toggleRecord(r.id)">
+              <text :style="recordBody(r.id === expandedId)">{{ r.content }}</text>
+              <text :style="recordTime">{{ formatRecordTime(r.createdAt) }}</text>
+            </view>
+            <template v-if="expandedId === r.id">
+              <template v-if="r.images.length > 0">
+                <text :style="recordFieldLabel">截图（{{ r.images.length }} 张，点开看大图）</text>
+                <view :style="recordShots">
+                  <view v-for="(img, idx) in r.images" :key="img" :style="recordShot" @tap.stop="previewRecordImage(r, idx)"><AppImage :src="img" width="100%" height="100%" mode="aspectFill" /></view>
+                </view>
+              </template>
+              <template v-if="r.contact !== ''">
+                <text :style="recordFieldLabel">联系方式</text>
+                <text :style="recordFieldValue">{{ r.contact }}</text>
+              </template>
+              <text :style="recordFieldLabel">处理状态</text>
+              <text :style="recordFieldValue">{{ statusText(r.status) }}{{ r.delivered ? '' : '（未送达，可重新提交）' }}</text>
+              <template v-if="r.reply !== ''">
+                <text :style="recordFieldLabel">官方答复</text>
+                <text :style="recordFieldValue">{{ r.reply }}</text>
+              </template>
+              <view v-if="!r.delivered" :style="recordRetry" @tap.stop="resendRecord(r)"><text :style="recordRetryText">重新提交</text></view>
+            </template>
+            <text v-else :style="recordHint">点击查看详情</text>
           </view>
-          <text :style="recordClear" @tap="onClearRecords">清空记录</text>
         </template>
         <text v-else :style="recordEmpty">还没有反馈记录哦，提交后就会留在这里</text>
       </FormSection>
@@ -48,6 +73,9 @@
       <view :style="bottomSpacer" />
     </view>
 
+    <!-- 删除/清空都要二次确认：记录是用户唯一的凭据，误触就没了 -->
+    <AppDialog :visible="showRemoveDialog" title="删除这条反馈记录" message="只从本机记录里移除；已经提交给我们的内容不受影响。" confirm-text="删除" :show-cancel="true" cancel-text="取消" @confirm="doRemoveRecord" @cancel="showRemoveDialog = false" />
+  
     <BottomActionBar>
       <view :style="submitButton" @tap="onSubmit"><text :style="submitText">提交反馈</text></view>
     </BottomActionBar>
@@ -59,10 +87,12 @@ import DetailLayout from '@/components/layout/DetailLayout.uvue'
 import AppImage from '@/components/base/AppImage.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
 import AppInput from '@/components/base/AppInput.uvue'
+import AppDialog from '@/components/base/AppDialog.uvue'
 import FormSection from '@/components/v3/FormSection.uvue'
 import BottomActionBar from '@/components/v3/BottomActionBar.uvue'
-import { FEEDBACK_TYPES, FeedbackRecord } from '@/domain/user/feedback-record'
-import { submitFeedbackRemote, listLocalFeedback, removeLocalFeedback, clearLocalFeedback } from '@/services/user-data/feedback-service'
+import { FEEDBACK_TYPES, FeedbackRecord, feedbackPlaceholder } from '@/domain/user/feedback-record'
+import { submitFeedbackRemote, listLocalFeedback, removeLocalFeedback, findLocalFeedback, fetchMyFeedbackRemote } from '@/services/user-data/feedback-service'
+import { uploadFeedbackImageRemote } from '@/services/user-data/user-data-service'
 import { baseColors } from '@/theme/tokens/colors'
 import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -76,11 +106,57 @@ const content = ref('')
 const contact = ref('')
 const images = ref<string[]>([])
 const submitting = ref(false)
+// 展开的那条记录 id（'' = 全部收起）
+const expandedId = ref('')
+const showRemoveDialog = ref(false)
+let pendingRemoveId = ''
 // 本地反馈记录（最新在前）：远端优先提交，无论成败都会在本机留一份，便于用户后续查证
 const records = ref<FeedbackRecord[]>([])
 
 onLoad(() => { initPageTheme() })
-onPageShow(() => { records.value = listLocalFeedback() })
+onPageShow(() => {
+  records.value = listLocalFeedback()
+  refreshRemoteStatus()
+})
+
+/**
+ * 把服务端的处理状态/答复合并进本机记录。
+ *
+ * 为什么要合并而不是直接用服务端结果：本机记录带着用户上传截图等本地内容、
+ * 而且离线时也要能看；服务端只补「处理到哪一步、有没有答复」这两个字段。
+ * 反过来，服务端有、本机没有的（换了设备）也补进来。
+ */
+async function refreshRemoteStatus() {
+  const remote = await fetchMyFeedbackRemote()
+  if (remote.length === 0) return
+  const local = listLocalFeedback()
+  const merged: FeedbackRecord[] = []
+  const seen: string[] = []
+  for (let i = 0; i < local.length; i++) {
+    const r = local[i]
+    for (let j = 0; j < remote.length; j++) {
+      if (remote[j].id === r.id) {
+        r.status = remote[j].status
+        r.reply = remote[j].reply
+        r.delivered = true
+        break
+      }
+    }
+    seen.push(r.id)
+    merged.push(r)
+  }
+  for (let j = 0; j < remote.length; j++) {
+    if (seen.indexOf(remote[j].id) < 0) merged.push(remote[j])
+  }
+  records.value = merged
+}
+
+/** 处理状态文案：取值与数据库约束一致（open / processing / closed） */
+function statusText(status: string): string {
+  if (status === 'processing') return '处理中'
+  if (status === 'closed') return '已处理'
+  return '待处理'
+}
 
 function pad2(v: number): string { return v < 10 ? '0' + v.toString() : v.toString() }
 function formatRecordTime(msText: string): string {
@@ -88,28 +164,6 @@ function formatRecordTime(msText: string): string {
   if (isNaN(ms)) return ''
   const d = new Date(ms)
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
-}
-
-function onRemoveRecord(id: string) {
-  removeLocalFeedback(id)
-  records.value = listLocalFeedback()
-  showFeedback('已删除该条记录')
-}
-
-function onClearRecords() {
-  if (records.value.length === 0) return
-  uni.showModal({
-    title: '清空反馈记录',
-    content: '只删除本机记录，不影响已提交到服务器的反馈。确定清空吗？',
-    confirmText: '清空',
-    cancelText: '取消',
-    success: (res) => {
-      if (!res.confirm) return
-      clearLocalFeedback()
-      records.value = []
-      showFeedback('记录已清空')
-    },
-  })
 }
 
 function onTypeSelect(t: string) { activeType.value = t }
@@ -136,6 +190,42 @@ function chooseImages() {
   })
 }
 
+function toggleRecord(id: string) {
+  expandedId.value = expandedId.value === id ? '' : id
+}
+
+/** 展开里的截图：点开大图（与提交前预览同一套） */
+function previewRecordImage(record: FeedbackRecord, idx: number) {
+  if (idx < 0 || idx >= record.images.length) return
+  uni.previewImage({ current: record.images[idx], urls: record.images })
+}
+
+/** 未送达的记录可以重发：从本地取出原内容再提交一次 */
+async function resendRecord(record: FeedbackRecord) {
+  const local = findLocalFeedback(record.id)
+  if (local == null) { showFeedback('记录已不在本机，请重新填写'); return }
+  if (submitting.value) return
+  submitting.value = true
+  const opId = await submitFeedbackRemote(local)
+  submitting.value = false
+  records.value = listLocalFeedback()
+  showFeedback(opId !== '' ? '已重新提交，感谢你的耐心' : '仍然提交失败，请检查网络后重试')
+}
+
+function askRemoveRecord(id: string) {
+  pendingRemoveId = id
+  showRemoveDialog.value = true
+}
+
+function doRemoveRecord() {
+  showRemoveDialog.value = false
+  if (pendingRemoveId === '') return
+  removeLocalFeedback(pendingRemoveId)
+  if (expandedId.value === pendingRemoveId) expandedId.value = ''
+  pendingRemoveId = ''
+  records.value = listLocalFeedback()
+}
+
 function removeImage(idx: number) {
   const next = [...images.value]
   next.splice(idx, 1)
@@ -153,11 +243,23 @@ async function onSubmit() {
   if (activeType.value === '') { showFeedback('请选择反馈类型'); return }
   if (content.value.trim() === '') { showFeedback('请填写反馈内容'); return }
   submitting.value = true
+  // 截图先真上传：本机临时路径服务端访问不到，直接塞进记录等于假附件
+  // （旧实现就是 images 恒为空数组，用户选了图也白选）。
+  const uploaded: string[] = []
+  try {
+    for (let i = 0; i < images.value.length; i++) {
+      uploaded.push(await uploadFeedbackImageRemote(images.value[i]))
+    }
+  } catch (e) {
+    submitting.value = false
+    showFeedback('截图上传失败，可去掉截图后重试')
+    return
+  }
   const record = new FeedbackRecord()
   record.id = 'feedback_' + Date.now()
   record.type = activeType.value
   record.content = content.value.trim()
-  record.images = [...images.value]
+  record.images = uploaded
   record.createdAt = Date.now().toString()
   record.contact = contact.value.trim()
   const opId = await submitFeedbackRemote(record)
@@ -188,6 +290,8 @@ function typeChipText(t: string): any {
 const noteShell = computed((): any => ({ backgroundColor: n.value.inputFill, borderRadius: '16rpx', padding: '20rpx' }))
 const noteInput = computed((): any => ({ width: '100%', minHeight: '240rpx', fontSize: fontSize.sm, lineHeight: '40rpx', color: n.value.text }))
 const placeholderStyleStr = computed(() => `color: ${n.value.placeholder}`)
+// 提示语跟着选中的类别走：空输入框前不知道该选哪类是分诊失效的主要原因
+const contentPlaceholder = computed((): string => feedbackPlaceholder(activeType.value))
 const uploadRow = { ...flexRow, flexDirection: 'row' as string, flexWrap: 'wrap' as string }
 const thumbWrap = { width: '180rpx', height: '180rpx', borderRadius: '12rpx', overflow: 'hidden', marginRight: '16rpx', marginBottom: '12rpx', position: 'relative' as string }
 const removeWrap = { position: 'absolute' as string, top: '6rpx', right: '6rpx', width: '44rpx', height: '44rpx', borderRadius: '22rpx', backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }
@@ -199,10 +303,34 @@ const submitButton = computed((): any => ({ ...flexFill, height: '88rpx', border
 const submitText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
 // 我的反馈记录
 const recordCard = computed((): any => ({ padding: '20rpx', borderRadius: '12rpx', backgroundColor: n.value.bgSecondary, marginBottom: '12rpx' }))
-const recordTop = { ...flexRow, alignItems: 'center', justifyContent: 'space-between' }
+const recordTop = { ...flexRow, alignItems: 'center' }
+const recordTopSpacer = { ...flexFill }
+// 送达状态用文字胶囊，颜色跟随语义（送达=品牌粉字，未送达=灰字）—— 不引入新色板
+function recordStatus(delivered: boolean): any {
+  return {
+    fontSize: fontSize['2xs'], marginLeft: '12rpx', paddingLeft: '12rpx', paddingRight: '12rpx',
+    paddingTop: '2rpx', paddingBottom: '2rpx', borderRadius: '16rpx',
+    color: delivered ? n.value.iconActive : n.value.textTertiary,
+    backgroundColor: delivered ? n.value.surfacePink : n.value.bgTertiary,
+  }
+}
 const recordType = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const recordRemove = { width: '44rpx', height: '44rpx', alignItems: 'center', justifyContent: 'center' }
-const recordContent = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '34rpx', lines: 3, textOverflow: 'ellipsis' }))
+// 收起 3 行、展开全文：展开态不能留 lines/textOverflow，否则仍然被截断。
+// 每次调用现取 n.value（不能提取成顶层常量，静态门禁会拦「把 n.value 写死进非响应式常量」）
+function recordBody(expanded: boolean): any {
+  // 直接内联返回，不要先存进 const：静态门禁禁止「把 n.value 写死进非响应式常量」
+  return expanded
+    ? { fontSize: fontSize.xs, color: n.value.text, lineHeight: '34rpx' }
+    : { fontSize: fontSize.xs, color: n.value.text, lineHeight: '34rpx', lines: 3, textOverflow: 'ellipsis' }
+}
+const recordHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))
+const recordFieldLabel = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '16rpx' }))
+const recordFieldValue = computed((): any => ({ fontSize: fontSize.xs, color: n.value.text, lineHeight: '34rpx', marginTop: '4rpx' }))
+const recordShots = { ...flexRow, flexWrap: 'wrap' as string, marginTop: '8rpx' }
+const recordShot = computed((): any => ({ width: '140rpx', height: '140rpx', borderRadius: '10rpx', overflow: 'hidden', marginRight: '12rpx', marginBottom: '12rpx', backgroundColor: n.value.bgTertiary }))
+const recordRetry = computed((): any => ({ marginTop: '16rpx', height: '64rpx', borderRadius: '32rpx', alignItems: 'center', justifyContent: 'center', backgroundColor: n.value.surfacePink }))
+const recordRetryText = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive }))
 const recordTime = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '8rpx' }))
 const recordClear = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 const recordEmpty = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, lineHeight: '34rpx' }))

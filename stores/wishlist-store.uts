@@ -174,7 +174,7 @@ async function fetchItems() {
       _state.items = restored
     } else {
       if (seq !== _fetchSeq) return
-      repo.initMockData()
+      // 游客（未登录）：只展示本机已存数据，不再播种 demo 假心愿单
       _state.items = repo.getAll()
     }
   } catch (err) {

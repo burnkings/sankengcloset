@@ -53,7 +53,7 @@ function demoSuggestion(): AiImportSuggestion {
   suggestion.priceCents = 12800
   suggestion.color = '深蓝'
   suggestion.size = 'M'
-  suggestion.note = '请确认识别结果后再导入衣橱。'
+  suggestion.note = '请确认识别结果后再导入衣柜。'
   return suggestion
 }
 

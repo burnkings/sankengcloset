@@ -49,4 +49,6 @@ export class ReleaseEvent {
   fullPrice: number = 0              // 全价（分）
   balanceDueAt: string = ''          // 尾款截止（ISO 8601）
   shipAt: string = ''                // 预计发货（ISO 8601）
+  /** 发货说明（运营手写，例如「7天内发货」「下单后 3～5 天」）。与 shipAt 二选一或并存 */
+  note: string = ''
 }

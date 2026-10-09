@@ -55,7 +55,7 @@
   </MainLayout>
   <!-- 删除是危险操作：先二次确认再执行（V3 §6.13），原实现直接删没有确认 -->
   <view v-if="isEdit" :style="contentDeleteBtn" @tap="showDeleteDialog = true"><text :style="contentDeleteBtnText">删除单品</text></view>
-  <BottomActionBar><view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣橱' }}</text></view></BottomActionBar>
+  <BottomActionBar><view :style="saveButton" @tap="save"><text :style="saveButtonText">{{ isEdit ? '保存修改' : '加入衣柜' }}</text></view></BottomActionBar>
   <AppDialog v-model:visible="showDeleteDialog" title="确认删除" message="删除后无法恢复，确定要删除这件单品吗？" confirm-text="删除" @confirm="deleteItem" />
   <AppDialog :visible="showLeaveDialog" title="确认离开" message="内容尚未保存，确定离开吗？" confirm-text="离开" :show-cancel="true" cancel-text="取消" @confirm="handleLeave" @cancel="showLeaveDialog = false" />
 </template>
@@ -112,9 +112,10 @@ type WardrobeFormState = {
   note: string
 }
 const form = ref<WardrobeFormState>({ name: '', category: 'JK', style: '', silhouette: '', brand: '', price: '', color: '', size: '', wearStatus: 'UNWORN', note: '' })
-const categories = ['JK', 'Lolita', '汉服', '混搭', '其他']
+const categories = ['JK', 'Lolita', '汉服', '混搭']
 const wearLabels = ['未穿', '已穿', '常穿']
-const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'MIXED' ? '混搭' : (form.value.category === 'OTHER' ? '其他' : 'JK'))))
+// 历史数据里可能有 'OTHER'（旧版「其他」类目，已下架）：归到「混搭」，编辑保存时顺手迁移过去
+const activeCategory = computed((): string => form.value.category === 'LOLITA' ? 'Lolita' : (form.value.category === 'HANFU' ? '汉服' : (form.value.category === 'JK' ? 'JK' : '混搭')))
 const activeWearLabel = computed((): string => form.value.wearStatus === 'WORN' ? '已穿' : (form.value.wearStatus === 'FREQUENT' ? '常穿' : '未穿'))
 
 // ====== 未保存离开确认 ======
@@ -157,7 +158,7 @@ function handleBack() {
 function handleLeave() { showLeaveDialog.value = false; uni.navigateBack() }
 
 function onCategory(label: string) {
-  form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '混搭' ? 'MIXED' : (label === '其他' ? 'OTHER' : 'JK')))
+  form.value.category = label === 'Lolita' ? 'LOLITA' : (label === '汉服' ? 'HANFU' : (label === '混搭' ? 'MIXED' : 'JK'))
   // 换坑向后：款式不在新词表就清空；离开汉服则清掉形制（避免留下"JK + 明制"这类脏数据）
   const list = stylePresets.value
   if (form.value.style !== '' && list.indexOf(form.value.style) < 0) form.value.style = ''
@@ -175,11 +176,31 @@ const STYLE_PRESETS: Record<string, string[]> = {
   JK: ['水手服', '衬衫', '格裙', '百褶裙', '马甲', '领结', '鞋', '小物'],
   LOLITA: ['JSK', 'OP', 'SK', '背带', '衬衫', '外套', '鞋', '包', '发饰', '小物'],
   HANFU: ['上衣', '下裙', '褙子', '马面裙', '短袄', '披帛', '鞋', '配饰'],
+  // 混搭 = 汉洋折衷 / 跨坑向组合。词汇按「中式/洋式 × 上身/下身」两轴拆，
+  // 这正是混搭实际在搭的东西（汉服上衣 + 洋装下裙等），不是三坑那套部件词。
+  MIXED: ['中式上身', '洋式上身', '中式下身', '洋式下身', '配饰'],
 }
-// 坑向 = 其他（跨类目/未归类）时**不给预设词表**，款式由用户自由输入 ——
-// 硬塞一套"上衣/下装/连衣裙"的通用分类，只会让归类失真（用户反馈删掉"其他"类目）
 const stylePresets = computed((): string[] => {
   const list = STYLE_PRESETS[form.value.category]
+  return list != null ? list : ([] as string[])
+})
+
+/**
+ * 颜色词表，**按坑向分**（用户反馈：三坑常用的颜色根本不是同一套）。
+ *   · JK      —— 制服感强的深色系（绀/藏青/酒红），加白灰作陪衬
+ *   · Lolita  —— 甜系低饱和 + 金红，讲究「奶白/浅蓝/薄荷/香槟」
+ *   · 汉服    —— 传统色名（月白/藕荷/鸦青/缃色…），这是汉服圈的通用叫法
+ *   · 混搭    —— 百搭基础色，跨坑向都能对上
+ * 词表外的一律走 ChipPicker 末枚「自定义」，不在这里堆穷举。
+ */
+const COLOR_PRESETS: Record<string, string[]> = {
+  JK: ['绀色', '藏青', '黑色', '白色', '灰色', '酒红', '墨绿', '棕色', '粉色', '浅蓝'],
+  LOLITA: ['黑', '白', '奶白', '粉色', '浅蓝', '薄荷绿', '酒红', '紫色', '香槟金', '棕色'],
+  HANFU: ['月白', '藕荷', '素白', '朱红', '绛红', '鸦青', '藏青', '墨绿', '豆绿', '杏色', '缃色', '绛紫'],
+  MIXED: ['黑', '白', '灰', '藏青', '卡其', '酒红', '奶白', '墨绿', '粉色', '棕色'],
+}
+const colorPresets = computed((): string[] => {
+  const list = COLOR_PRESETS[form.value.category]
   return list != null ? list : ([] as string[])
 })
 // 形制/年代词表（仅汉服）。与款式（部件）正交：马面裙 = 部件 × 明制，旋裙 = 部件 × 宋制。
@@ -220,10 +241,10 @@ function save() {
     if (sourcePurchaseId.value !== '') purchaseStore.linkWardrobe(sourcePurchaseId.value, added.id)
     if (sourceWishId.value !== '') wishStore.linkWardrobe(sourceWishId.value, added.id)
   }
-  showFeedback(isEdit.value ? '衣橱单品已更新' : '已加入衣橱')
+  showFeedback(isEdit.value ? '衣柜单品已更新' : '已加入衣柜')
   backTimer = setTimeout(() => { uni.navigateBack() }, 240)
 }
-function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣橱删除'); backTimer = setTimeout(() => { uni.navigateBack() }, 220) } }
+function deleteItem() { if (store.deleteItem(editId.value)) { showFeedback('已从衣柜删除'); backTimer = setTimeout(() => { uni.navigateBack() }, 220) } }
 onLoad((options) => {
   initPageTheme()
   store.fetchItems()
@@ -251,7 +272,7 @@ onLoad((options) => {
   initialSnapshot = takeSnapshot()
 })
 
-// 编辑态「来源订单」卡片：从衣橱反查下单店铺/金额/尾款状态
+// 编辑态「来源订单」卡片：从衣柜反查下单店铺/金额/尾款状态
 const sourcePurchase = computed((): PurchaseRecord | null => {
   if (sourcePurchaseId.value === '') return null
   return purchaseStore.getPurchaseById(sourcePurchaseId.value)

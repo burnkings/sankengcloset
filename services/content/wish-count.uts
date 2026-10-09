@@ -1,0 +1,35 @@
+/**
+ * wish-count — 商品「收藏数」的本地增量
+ *
+ * 商品卡与商品详情都要显示收藏数。服务端返回的是**权威计数**（`user_interactions` 里
+ * `PRODUCT_FAVORITE` 的条数，随商品一起下发），但用户点了爱心之后：
+ *   · 重新拉一次列表太贵（为了一个数字刷新整页）；
+ *   · 只在详情页加一、列表里不变，会出现「同一个商品两处数字不一样」。
+ *
+ * 所以这里放一层**本机增量**：点一次记 +1/-1，读取时把增量加到服务端计数上。
+ * 任何列表、任何入口取数都走 `wishCountOf()`，因此天然一致；下一次真实拉取会用服务端值覆盖。
+ *
+ * 只放内存（不落盘）：它表示的是"这次会话里尚未由服务端确认的偏差"，重启后归零、
+ * 由服务端计数兜底，正是想要的语义。
+ */
+
+/** productId -> 未同步的收藏数增量 */
+const deltas = new Map<string, number>()
+
+/** 收藏/取消收藏后调用：delta 传 +1 / -1 */
+export function bumpWishCount(productId: string, delta: number): void {
+  if (productId === '' || delta === 0) return
+  deltas.set(productId, (deltas.get(productId) ?? 0) + delta)
+}
+
+/** 展示用：服务端计数 + 本机增量，且不小于 0（避免服务端还没确认时出现负数） */
+export function wishCountOf(productId: string, serverCount: number): number {
+  const delta = productId === '' ? 0 : (deltas.get(productId) ?? 0)
+  const total = serverCount + delta
+  return total < 0 ? 0 : total
+}
+
+/** 拉到了新的服务端计数 → 该商品的本地增量可以清掉了（已经对齐） */
+export function clearWishDelta(productId: string): void {
+  deltas.delete(productId)
+}

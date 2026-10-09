@@ -1,0 +1,114 @@
+<template>
+  <!-- 预取层：1px 不可见，但真实渲染以驱动加载 -->
+  <view v-if="slotA !== '' || slotB !== '' || slotC !== '' || slotD !== ''" :style="hostStyle">
+    <image v-if="slotA !== ''" :src="slotA" :style="slotStyle" mode="aspectFill" @load="doneA" @error="doneA" />
+    <image v-if="slotB !== ''" :src="slotB" :style="slotStyle" mode="aspectFill" @load="doneB" @error="doneB" />
+    <image v-if="slotC !== ''" :src="slotC" :style="slotStyle" mode="aspectFill" @load="doneC" @error="doneC" />
+    <image v-if="slotD !== ''" :src="slotD" :style="slotStyle" mode="aspectFill" @load="doneD" @error="doneD" />
+  </view>
+</template>
+
+<script setup lang="uts">
+import { PRELOAD_MAX_PER_BATCH } from '@/utils/image-preloader'
+import { tieredSrc } from '@/utils/image-url'
+
+/**
+ * ImagePreloader — 图片预取宿主（把「打开页面才现下」改成「提前进缓存」）
+ *
+ * 目标（2026-10-09 用户要求）：避免打开一个页面时图片才开始加载。
+ *
+ * **原理**：用**不可见、1px、absolute** 的 `<image>` 承载预取。
+ *   - `image` 的网络请求发生在**渲染层**，不进 JS 主线程 ⇒ 不阻塞交互；
+ *   - 加载完成后图片落在**微信/系统自己的图片缓存**里；
+ *   - 列表里真正的 `<image>` 用同一 URL 时**直接命中缓存**，视觉上「秒出」。
+ *
+ * **为什么不走 `uni.getImageInfo` / `downloadFile`**：
+ *   - 小程序里 `getImageInfo` **内部是一次 xhr**，即使图已下载也会**阻塞主线程**；
+ *   - `downloadFile` 要自行管理临时文件与配额（小程序 200MB 上限）、跨端各写一套落地逻辑。
+ *
+ * **⚠️ 为什么是「4 个固定槽位」而不是 v-for + 内联事件传参**：
+ *   uvue 模板里 `@load="fn(u)"` 会被当成**立即调用**（不是事件绑定）—— 本项目的已知坑。
+ *   固定槽位 + 无参回调（`@load="doneA"`）绕开它，且天然实现「并发上限 4」。
+ *
+ * **⚠️ 为什么不改图片地址**：`listWidth` 必须是**列表里 `AppImage` 用的同一个档位**，
+ *   否则「预取了 A 档、列表用 B 档」白下载。两处都走 `utils/image-url.uts` 的同一个 `tieredSrc`。
+ * **⚠️ 为什么不用 `display: none`**：部分端在 `display:none` 下**不触发加载**，
+ *   必须「真实存在于布局但不可见」—— 1px + absolute + opacity 0 是各端一致的稳妥写法。
+ */
+
+const props = withDefaults(defineProps<{
+  /** 原始图片地址（组件内部按 listWidth 规范化，与 AppImage 同口径） */
+  urls?: string[]
+  /** 取图档位，必须与列表里 AppImage 的 :list-width 一致。默认 500（双列卡档） */
+  listWidth?: number
+}>(), { urls: [] as string[], listWidth: 500 })
+
+/** 同时最多预取 4 张（= PRELOAD_MAX_CONCURRENT） */
+const slotA = ref('')
+const slotB = ref('')
+const slotC = ref('')
+const slotD = ref('')
+
+/** 等待进入槽位的队列 */
+let pending: string[] = []
+/** 本进程内已入队过的 URL（去重） */
+const seen: Set<string> = new Set<string>()
+const SEEN_LIMIT = 800
+
+/** 把队列里的 URL 填进空槽位 */
+function pump() {
+  if (slotA.value === '' && pending.length > 0) slotA.value = pending.shift() as string
+  if (slotB.value === '' && pending.length > 0) slotB.value = pending.shift() as string
+  if (slotC.value === '' && pending.length > 0) slotC.value = pending.shift() as string
+  if (slotD.value === '' && pending.length > 0) slotD.value = pending.shift() as string
+}
+
+/** 槽位完成（成功或失败都算）→ 清空，腾位给下一张。
+ *  ⚠️ 必须同时挂 @load 和 @error：只挂一个的话，**异常的图会把槽位永久占住**，并发退化成卡死。 */
+function doneA() { slotA.value = ''; pump() }
+function doneB() { slotB.value = ''; pump() }
+function doneC() { slotC.value = ''; pump() }
+function doneD() { slotD.value = ''; pump() }
+
+/** 入队一批（幂等：同一 URL 不会重复取） */
+function enqueue(urls: string[], listWidth: number): number {
+  if (urls.length == 0) return 0
+  let added = 0
+  for (let i = 0; i < urls.length; i++) {
+    if (added >= PRELOAD_MAX_PER_BATCH) break
+    // 规范成「列表里真正会请求的那个地址」——必须与 AppImage 同口径
+    const u = tieredSrc(urls[i], listWidth)
+    if (u === '') continue
+    if (u.indexOf('http') !== 0) continue
+    if (seen.has(u)) continue
+    if (seen.size >= SEEN_LIMIT) seen.clear()
+    seen.add(u)
+    pending.push(u)
+    added = added + 1
+  }
+  if (added > 0) pump()
+  return added
+}
+
+// urls / listWidth 任一变化 → 增量入队。用回调形式（不是 `enqueue(a,b)`，避免被当立即执行）
+watch(() => props.urls, (next) => { enqueue(next, props.listWidth) }, { immediate: true })
+watch(() => props.listWidth, () => { enqueue(props.urls, props.listWidth) })
+
+/** 供页面通过 ref 主动推一批（可选；不传 props 时用） */
+function push(urls: string[], listWidth: number): number {
+  return enqueue(urls, listWidth)
+}
+
+defineExpose({ push })
+
+const hostStyle: any = {
+  position: 'absolute',
+  left: '0',
+  top: '0',
+  width: '1px',
+  height: '1px',
+  overflow: 'hidden',
+  opacity: 0,
+}
+const slotStyle: any = { width: '1px', height: '1px' }
+</script>

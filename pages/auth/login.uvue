@@ -1,0 +1,238 @@
+<template>
+  <view :style="pageRoot">
+    <view :style="statusSpacer" />
+
+    <view :style="bodyWrap">
+      <view :style="brandBlock">
+        <view :style="brandMark"><AppIcon name="bow" :size="72" :active="true" /></view>
+        <text :style="brandName">三坑绮橱</text>
+        <text :style="brandSlogan">JK · Lolita · 汉服 的衣柜与收藏</text>
+      </view>
+    </view>
+
+    <view :style="footerBlock">
+      <view v-if="errorText !== ''" :style="errorCard">
+        <text :style="errorTextStyle">{{ errorText }}</text>
+        <!-- 请求 ID：后端对 401 只给一句笼统话，真正的病因（微信 errcode 40013/40125/40129/40164…）
+             只在后端日志里。显示这个 id 用户就能让管理员一条命令捞到那次请求，不用再猜。 -->
+        <text v-if="requestIdText !== ''" :style="errorRequestIdStyle">请求 ID {{ requestIdText }}</text>
+      </view>
+
+      <view v-if="canWechat" :style="primaryBtn(session.loggingIn)" @tap="onWechatLogin">
+        <text :style="primaryBtnText">{{ session.loggingIn ? '登录中…' : '微信一键登录' }}</text>
+      </view>
+      <text v-if="canWechat" :style="loginHint">用微信身份创建账号，收藏与记录可在多端同步</text>
+      <!-- App 端没有配好微信开放平台凭据时，按钮点不了（必然失败），直接说明而不是给个死按钮 -->
+      <text v-else :style="loginHint">当前版本暂只支持游客浏览：微信登录尚未配置完成</text>
+
+      <view v-if="!alreadyAgreed" :style="consentRow">
+        <view :style="checkboxStyle" @tap="toggleAgree">
+          <AppIcon v-if="agreed" name="check" :size="20" :active="true" />
+        </view>
+        <text :style="consentText" @tap="toggleAgree">我已阅读并同意</text>
+        <text :style="consentLink" @tap.stop="openLegal('agreement')">《用户协议》</text>
+        <text :style="consentText" @tap="toggleAgree">和</text>
+        <text :style="consentLink" @tap.stop="openLegal('privacy')">《隐私政策》</text>
+      </view>
+
+      <text :style="skipText" @tap="onSkip">暂不登录，先逛逛</text>
+
+      <view :style="bottomSpacer" />
+    </view>
+
+    <!-- 提示宿主：本页不用 MainLayout/DetailLayout，必须自己挂，否则 showFeedback 全部静默失效 -->
+    <AppFeedbackToast />
+  </view>
+</template>
+
+<script setup lang="uts">
+/**
+ * 登录页（= 首启的隐私同意入口）
+ *
+ * 2026-09-28 改造。改之前是两块互不相干的东西：
+ *   · `pages/privacy/index` 一个冷启动强制跳转的整页同意页（「同意并继续 / 不同意」）
+ *   · 「我的」页里一个 `uni.showActionSheet` 弹出的登录选择
+ * 结果是：用户在这个 App 里**从来没有见过一个正常意义上的登录页**，
+ * 而隐私同意被做成了一个挡在门口、跟登录毫无关系的拦截页。
+ *
+ * 现在合成一处：一屏登录页 = 微信一键登录 + 底部条款勾选行（两个条款名可点开全文），勾了才能继续。
+ * 未同意条款的用户走「暂不登录，先逛逛」，以游客身份进首页；
+ * 等他真的点登录时，这次同意仍然必须补上。
+ *
+ * 2026-09-30：**删除「仅在本机使用」**。它是没有 token 的假登录态：
+ * 界面说「已登录」，云端数据却一个都拿不到，还会把一批 demo_* 假商品当成收藏
+ * （收藏页全部 404 显示「已下架」）。现在只有两条路 —— 微信一键登录 / 游客浏览。
+ *
+ * 另外两点与旧版不同：
+ *   · 旧版登录失败只弹一个 toast 就没了。这里把 `session.errorMessage` 常驻在按钮上方，
+ *     用户能看着错误重试，不用凭记忆猜刚才弹了什么。
+ *   · 旧版「不同意」在小程序端只能弹「请点击同意并继续」死循环。现在不逼用户，
+ *     但也不会在他没同意的情况下写入 `v2_privacy_agreed`。
+ *
+ * 合规（2026-09-29 复核）：勾选框**永远默认不勾**，不得用历史同意预勾（那是「默认勾选同意」，
+ * 属于法规明令禁止的违规项）。历史同意过就不再重复展示，而不是替用户再勾一次。
+ */
+import { computed, ref } from 'vue'
+import { brand, baseColors, semantic } from '@/theme/tokens/colors'
+import { fontSize, fontWeight } from '@/theme/tokens/typography'
+import { CARD_RADIUS_V3, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { n, initPageTheme } from '@/theme/use-theme'
+import AppIcon from '@/components/base/AppIcon.uvue'
+import AppFeedbackToast from '@/components/base/AppFeedbackToast.uvue'
+import { showFeedback } from '@/utils/feedback'
+import { getStatusBarHeight, getSafeBottomInset, getWindowHeight, px2rpx } from '@/utils/window-info'
+import { useSessionStore } from '@/stores/session-store'
+import { useContentLibraryStore } from '@/stores/content-library-store'
+import { usePurchaseStore } from '@/stores/purchase-store'
+import { useReminderStore } from '@/stores/reminder-store'
+import { useWardrobeStore } from '@/stores/wardrobe-store'
+import { openPrimaryTab } from '@/utils/tab-navigation'
+
+/** 与旧隐私页共用同一个键，老用户不会因为改版而重新被拦一次 */
+const PRIVACY_AGREED_KEY = 'v2_privacy_agreed'
+const PRIVACY_AGREED_AT_KEY = 'v2_privacy_agreed_at'
+/**
+ * 「用户已经看过首启同意页并选择先逛逛」。
+ * 只用于**不再每次冷启动都拦一次**，它不等于同意 —— 同意只能是 `v2_privacy_agreed`。
+ */
+const PRIVACY_GATE_SHOWN_KEY = 'v2_privacy_gate_shown'
+
+const session = useSessionStore()
+const library = useContentLibraryStore()
+const purchases = usePurchaseStore()
+const reminders = useReminderStore()
+const wardrobe = useWardrobeStore()
+
+/**
+ * 是否**本次**勾选了条款。
+ *
+ * ⚠️ 合规硬约束：**必须默认不勾选**，且任何时候都不许预勾。
+ *   《个人信息保护法》第 14 条要求同意须「自愿、明确」；App 违法违规收集使用个人信息
+ *   行为认定方法第 2 条直接把「默认勾选同意」列为违规。工信部/微信审核都会实测这一条。
+ *   所以这里只允许从 false 起步 —— 曾经用 `readFlag(PRIVACY_AGREED_KEY) === '1'` 做预勾，
+ *   那是把「历史同意」当成了「本次同意」，属于默认勾选，已删。
+ *   历史同意只在 `alreadyAgreed` 里做**只读判断**：同意过就不再重复问，而不是替用户再勾一次。
+ */
+const agreed = ref(false)
+/**
+ * 本机是否已存在**有效**的同意记录（历史同意）。
+ * 只用来决定「还要不要再展示一次勾选行」，绝不参与把复选框置为已勾。
+ */
+const alreadyAgreed = ref(false)
+const canWechat = computed((): boolean => session.canWechatLogin)
+const errorText = computed((): string => session.errorMessage)
+const requestIdText = computed((): string => session.errorRequestId)
+
+function readFlag(key: string): string {
+  try {
+    const value = uni.getStorageSync(key)
+    return value == null ? '' : value as string
+  } catch (e) {
+    return ''
+  }
+}
+
+function writeFlag(key: string, value: string) {
+  try { uni.setStorageSync(key, value) } catch (e) {}
+}
+
+function markAgreed() {
+  writeFlag(PRIVACY_AGREED_KEY, '1')
+  writeFlag(PRIVACY_AGREED_AT_KEY, Date.now().toString())
+  alreadyAgreed.value = true
+}
+
+function toggleAgree() { agreed.value = !agreed.value }
+
+function openLegal(type: string) {
+  uni.navigateTo({ url: `/pages/about/legal?type=${type}` })
+}
+
+/** 未勾选就想继续：不动数据，只把勾选行提示出来。历史同意过则直接放行（不重复问，但也不预勾） */
+function requireConsent(): boolean {
+  if (alreadyAgreed.value || agreed.value) return true
+  showFeedback('请先阅读并同意《用户协议》和《隐私政策》')
+  return false
+}
+
+function reloadAfterLogin() {
+  session.reload()
+  library.reload()
+  purchases.fetchPurchases()
+  reminders.fetchItems()
+  wardrobe.fetchItems()
+}
+
+function goHome() {
+  // home 是 tabBar 页，走 switchTab 关闭其它页面（含本页），返回栈干净
+  openPrimaryTab('/pages/home/index')
+}
+
+function onWechatLogin() {
+  if (session.loggingIn) return
+  if (!requireConsent()) return
+  // 同意与「登录成功」是两件事：条款是用户勾的，登录成败不影响这次同意的效力
+  markAgreed()
+  session.loginWithWechat().then((ok) => {
+    if (!ok) return   // errorMessage 已经常驻在按钮上方，不需要再弹 toast 打断
+    reloadAfterLogin()
+    showFeedback('微信登录成功')
+    goHome()
+  })
+}
+
+function onSkip() {
+  // 不以任何形式代替用户同意；只记「已经看过」，避免每次冷启动都拦
+  writeFlag(PRIVACY_GATE_SHOWN_KEY, '1')
+  goHome()
+}
+
+onLoad(() => {
+  initPageTheme()
+  // 只读判断历史同意，用于决定要不要再展示勾选行；**不得**用它把复选框置为已勾。
+  alreadyAgreed.value = readFlag(PRIVACY_AGREED_KEY) === '1'
+  agreed.value = false
+  session.clearError()
+})
+onShow(() => { initPageTheme() })
+
+const statusBarPx = getStatusBarHeight()
+const windowHeightPx = getWindowHeight()
+const safeBottomRpx = px2rpx(getSafeBottomInset())
+
+// 本页不走 MainLayout，自己撑满窗口：height 用实测窗口高（与 DetailLayout 同一做法），
+// 只用 flex:1 在 uvue 里拿不到确定高度，底部按钮会飘。
+// flexDirection 必须是 column —— 中间的 bodyWrap 靠 flex:1 把底部区块顶下去。
+const pageRoot = computed((): any => ({ height: `${windowHeightPx}px`, flexDirection: 'column', backgroundColor: n.value.bg }))
+const statusSpacer = { height: `${statusBarPx}px` }
+const bodyWrap = { flex: 1, alignItems: 'center', justifyContent: 'center', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+
+const brandBlock = { alignItems: 'center' }
+const brandMark = computed((): any => ({ width: '144rpx', height: '144rpx', borderRadius: '72rpx', backgroundColor: brand[50] as string, alignItems: 'center', justifyContent: 'center', marginBottom: '28rpx' }))
+const brandName = computed((): any => ({ fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: n.value.text, marginBottom: '12rpx' }))
+const brandSlogan = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary }))
+
+const footerBlock = { paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+
+const errorCard = computed((): any => ({ backgroundColor: semantic.errorLight as string, borderRadius: CARD_RADIUS_V3, paddingTop: '20rpx', paddingBottom: '20rpx', paddingLeft: '24rpx', paddingRight: '24rpx', marginBottom: '24rpx' }))
+const errorTextStyle = computed((): any => ({ fontSize: fontSize.xs, lineHeight: 1.6, color: semantic.error as string }))
+const errorRequestIdStyle = computed((): any => ({ fontSize: fontSize['2xs'], lineHeight: 1.6, color: n.value.textTertiary, marginTop: '8rpx' }))
+
+function primaryBtn(busy: boolean): any {
+  return { height: '92rpx', borderRadius: '16rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginBottom: '20rpx', opacity: busy ? 0.6 : 1 }
+}
+const primaryBtnText = { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: baseColors.white }
+
+const loginHint = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, textAlign: 'center', marginBottom: '28rpx', paddingLeft: '16rpx', paddingRight: '16rpx', lineHeight: '32rpx' }))
+
+const consentRow = { flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' as string, marginBottom: '8rpx' }
+// 44rpx 视觉尺寸 + 外层留白撑到 88rpx 热区（裸小方块点不准）
+const checkboxStyle = computed((): any => ({ width: '44rpx', height: '44rpx', borderRadius: '22rpx', borderWidth: '2rpx', borderStyle: 'solid' as string, borderColor: agreed.value ? (n.value.iconActive) : n.value.border, backgroundColor: agreed.value ? (n.value.surfacePink) : n.value.surface, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginTop: '10rpx', marginBottom: '10rpx' }))
+const consentText = computed((): any => ({ fontSize: fontSize.xs, color: agreed.value ? n.value.textSecondary : n.value.textTertiary, marginTop: '10rpx', marginBottom: '10rpx' }))
+const consentLink = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive, marginTop: '10rpx', marginBottom: '10rpx' }))
+const skipText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textTertiary, textAlign: 'center', height: '88rpx', marginTop: '16rpx', lines: 1 }))
+const bottomSpacer = { height: `${safeBottomRpx + 24}rpx` }
+</script>
+
+<style>
+</style>

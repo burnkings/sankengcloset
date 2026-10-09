@@ -6,13 +6,16 @@
     "verify": "node scripts/verify.js",
     "verify:watch": "node scripts/verify.js --watch",
     "build:mp-weixin": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-mp-weixin.ps1",
-    "patch:mp-weixin": "python scripts/patch-vendor.py unpackage/dist/dev/mp-weixin",
-    "check:mp-weixin": "node scripts/check-uts-compile.js unpackage/dist/dev/mp-weixin",
+    "patch:mp-weixin": "python scripts/patch-vendor.py unpackage/dist/build/mp-weixin",
+    "check:mp-weixin": "node scripts/check-uts-compile.js unpackage/dist/build/mp-weixin",
     "check:runtime": "node scripts/check-v24-remote-runtime.js",
     "check:android": "node scripts/check-v25-android-beta.js",
     "check:source": "node scripts/check-source-gates.js",
+    "check:pages": "node scripts/check-pages-parity.js",
     "check": "node scripts/check.js",
-    "test": "node --test tests/*.test.cjs"
+    "test": "node --test tests/*.test.cjs",
+    "check:imports": "node scripts/check-missing-imports.js",
+    "check:awaiter": "node scripts/fix-awaiter-fallback.js unpackage/dist/build/mp-weixin --check"
   },
   "dependencies": {
     "@dcloudio/uni-components": "^3.0.0-alpha-5010220260604001",

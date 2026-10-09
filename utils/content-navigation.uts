@@ -1,12 +1,34 @@
-import { canonicalProductId } from '@/services/mock/comparison-products'
 import { showFeedback } from '@/utils/feedback'
+import { navigateOnce } from '@/utils/nav-guard'
+/**
+ * 商品 id 规范化。
+ *
+ * 2026-10-09：原来这里调的是 `services/mock/comparison-products.canonicalProductId()`，
+ * 那个模块（连同「展示样例」假数据）已整体删除。真实链路只需要**一件事**：
+ * feed 条目的 entityId 带 `feed_` 前缀（`feed_prd_taobao_1`），而详情页要的是裸商品 id
+ * （`prd_taobao_1`）—— 不剥前缀会拼出 `?id=feed_prd_...`，详情页查不到商品。
+ * 老函数里的 `preview_spot → prd_jk_navy_45` 那两条映射是假样例专用，已随假数据一并作废。
+ * （与 `services/content/feed-service.uts` 的 `stripFeedIdPrefix` 同一规则，两边都只认 `feed_prd_`。）
+ */
+function canonicalProductId(id: string): string {
+  return id.startsWith('feed_prd_') ? id.substring(5) : id
+}
 export function productDetailUrl(id: string): string {
   if (id == null || id.trim() === '' || id === 'undefined' || id === 'null') return ''
   return '/pages/product/detail?id=' + encodeURIComponent(canonicalProductId(id.trim()))
 }
+/**
+ * 打开商品详情。
+ *
+ * ⚠️ 必须走 `navigateOnce`：榜单/首页的卡片是「组件根节点 @tap → emit('tap') → 父级 @tap」，
+ * 部分端这两处会**各触发一次**（nav-guard 里记的就是这个问题），于是 `navigateTo` 被调两遍 ——
+ * 表现为「点一次商品连跳两层、返回要按两次」，devtools 还会报
+ * `routeDone with a webviewId ... is not found`（第一层页面被第二层顶掉）。
+ * 2026-10-05 用户复现后补上。所有入口共用这里，只在这一处设防就够。
+ */
 export function openProductDetail(id: string) {
   const url = productDetailUrl(id)
   if (url === '') { showFeedback('商品信息暂不可用'); return }
-  uni.navigateTo({ url, fail: () => { showFeedback('商品页面打开失败，请返回后重试') } })
+  if (!navigateOnce(url)) return
 }
 

@@ -7,16 +7,15 @@
 
         <view :style="profileCard" @tap="session.isLoggedIn ? onEdit() : openLoginOptions()">
           <view :style="avatarWrap">
-            <text v-if="session.isLoggedIn" :style="avatarText">SK</text>
+            <AppImage v-if="session.isLoggedIn && session.profile.avatarUrl !== ''" :src="session.profile.avatarUrl" width="100%" height="100%" mode="aspectFill" />
+            <text v-else-if="session.isLoggedIn" :style="avatarText">{{ session.profile.avatarText }}</text>
             <AppIcon v-else name="profile" :size="44" />
-            <view v-if="session.isLoggedIn" :style="cameraBadge" @tap.stop="onEdit">
-              <AppIcon name="add" :size="14" :active="true" />
-            </view>
           </view>
           <view :style="profileCopy">
             <text :style="userName">{{ session.isLoggedIn ? session.profile.nickname : '登录三坑绮橱' }}</text>
-            <text v-if="session.isLoggedIn" :style="userIdText">{{ session.isMock ? '本机数据' : 'ID: ' + session.profile.userId }}</text>
-            <text v-else :style="guestDesc">同步收藏、动态、衣橱与提醒</text>
+            <!-- 删掉「ID: xxx」那一行后，这里不能再用 v-else（上游已无 v-if 兄弟节点，
+                 会报 v-else/v-else-if has no adjacent v-if）。改回显式 v-if。 -->
+            <text v-if="!session.isLoggedIn" :style="guestDesc">同步收藏、动态、衣柜与提醒</text>
           </view>
           <view v-if="!session.isLoggedIn" :style="loginButton"><text :style="loginText">登录</text></view>
         </view>
@@ -39,14 +38,16 @@
 
         <SectionHeader title="系统设置" />
         <ListGroup>
-          <view :style="settingShell(0, 9)" @tap="goPage('/pages/preferences/appearance')"><ListRow icon="moon" title="深色模式" :value="themeLabel" /></view>
-          <view :style="settingShell(1, 9)" @tap="goPage('/pages/preferences/index')"><ListRow icon="sparkles" title="推荐偏好" :value="preferenceSummary" /></view>
-          <view :style="settingShell(2, 9)" @tap="goPage('/pages/preferences/notification')"><ListRow icon="notification" title="通知设置" /></view>
-          <view :style="settingShell(3, 9)" @tap="goPage('/pages/preferences/blacklist')"><ListRow icon="close" title="屏蔽品牌" :value="blacklistCountText" /></view>
-          <view :style="settingShell(4, 9)" @tap="onHelpTap"><ListRow icon="help-circle" title="帮助与反馈" /></view>
-          <view :style="settingShell(5, 9)" @tap="onClearCacheTap"><ListRow icon="database" title="清理缓存" :value="cacheSizeText" /></view>
-          <view :style="settingShell(6, 9)" @tap="goPage('/pages/about/index')"><ListRow icon="info" title="关于三坑绮橱" :value="APP_DISPLAY_VERSION" /></view>
-          <view v-if="session.isLoggedIn" :style="settingShell(7, 9)" @tap="logout"><ListRow icon="logout" title="退出登录" /></view>
+          <view :style="settingShell(0, settingsTotal)" @tap="goPage('/pages/preferences/appearance')"><ListRow icon="moon" title="深色模式" :value="themeLabel" /></view>
+          <view :style="settingShell(1, settingsTotal)" @tap="goPage('/pages/preferences/index')"><ListRow icon="sparkles" title="推荐偏好" :value="preferenceSummary" /></view>
+          <view :style="settingShell(2, settingsTotal)" @tap="goPage('/pages/preferences/notification')"><ListRow icon="notification" title="通知设置" /></view>
+          <view :style="settingShell(3, settingsTotal)" @tap="goPage('/pages/preferences/blacklist')"><ListRow icon="close" title="屏蔽品牌" :value="blacklistCountText" /></view>
+          <view :style="settingShell(4, settingsTotal)" @tap="onHelpTap"><ListRow icon="help-circle" title="帮助与反馈" /></view>
+          <view :style="settingShell(5, settingsTotal)" @tap="onClearCacheTap"><ListRow icon="database" title="清理缓存" :value="cacheSizeText" /></view>
+          <view :style="settingShell(6, settingsTotal)" @tap="goPage('/pages/about/index')"><ListRow icon="info" title="关于三坑绮橱" :value="APP_DISPLAY_VERSION" /></view>
+          <view v-if="session.isLoggedIn" :style="settingShell(7, settingsTotal)" @tap="logout"><ListRow icon="logout" title="退出登录" /></view>
+          <!-- 注销账号：不可逆，放最后一行 + 独立二次确认（隐私政策第 5 条承诺了这条途径） -->
+          <view v-if="session.isLoggedIn" :style="settingShell(8, settingsTotal)" @tap="onDeactivateTap"><ListRow icon="close" title="注销账号" /></view>
         </ListGroup>
 
         <view :style="bottomSpacer" />
@@ -54,6 +55,8 @@
     </template>
   </MainLayout>
   <AppDialog :visible="showClearCacheDialog" title="清理缓存" message="确认清理本地缓存吗？" @confirm="doClearCache" @cancel="showClearCacheDialog = false" />
+  <!-- 注销的二次确认把「会删什么」写清楚，不让用户在不知情的情况下点下去 -->
+  <AppDialog :visible="showDeactivateDialog" title="注销账号" message="注销后：动态、收藏、衣柜、购买记录、提醒与已上传的图片都会被删除，且无法恢复（反馈与举报记录会去标识保留）。确定要注销吗？" confirm-text="确认注销" :show-cancel="true" cancel-text="取消" @confirm="doDeactivate" @cancel="showDeactivateDialog = false" />
 </view>
 </template>
 
@@ -67,6 +70,7 @@ import { CARD_RADIUS_V3, PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme
 import { n, isDark, initPageTheme, getThemeLabel } from '@/theme/use-theme'
 import MainLayout from '@/components/layout/MainLayout.uvue'
 import AppIcon from '@/components/base/AppIcon.uvue'
+import AppImage from '@/components/base/AppImage.uvue'
 import PageHeader from '@/components/v3/PageHeader.uvue'
 import SectionHeader from '@/components/v3/SectionHeader.uvue'
 import ListGroup from '@/components/v3/ListGroup.uvue'
@@ -80,6 +84,7 @@ import { usePurchaseStore } from '@/stores/purchase-store'
 import { useReminderStore } from '@/stores/reminder-store'
 import { useWardrobeStore } from '@/stores/wardrobe-store'
 import { useSessionStore } from '@/stores/session-store'
+import { deactivateAccountRemote } from '@/services/user-data/user-data-service'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { getWindowHeight } from '@/utils/window-info'
@@ -109,37 +114,15 @@ const preferenceSummary = computed((): string => {
 const themeLabel = computed((): string => getThemeLabel())
 
 function onEdit() { goPage('/pages/profile/edit') }
-function loginMock() {
-  session.loginMock().then((ok) => {
-    if (ok) {
-      session.reload()
-      library.reload()
-      purchases.fetchPurchases()
-      reminders.fetchItems()
-      wardrobe.fetchItems()
-      showFeedback('已切换为本机使用')
-    }
-    else if (session.errorMessage !== '') showFeedback(session.errorMessage)
-  })
-}
-function loginWechat() {
-  session.loginWithWechat().then((ok) => {
-    if (ok) { session.reload(); showFeedback('微信登录成功') }
-    else showFeedback(session.errorMessage !== '' ? session.errorMessage : '微信登录失败')
-  })
-}
-function openLoginOptions() {
-  // 微信登录入口只在平台具备条件时出现：
-  // 小程序端凭据齐全；App 端需微信开放平台「移动应用」AppID，未配置前不放这个必然失败的入口。
-  const items: string[] = session.canWechatLogin ? ['微信登录', '仅在本机使用'] : ['仅在本机使用']
-  uni.showActionSheet({
-    itemList: items,
-    success: (res) => {
-      if (session.canWechatLogin && res.tapIndex == 0) loginWechat()
-      else loginMock()
-    },
-  })
-}
+/**
+ * 登录入口统一走 pages/auth/login。
+ * 2026-09-28：原来是这里弹一个 `showActionSheet`，而隐私同意在另一个冷启动拦截页里 ——
+ * 同一个「要不要用账号」的问题被拆到了两处，而且 ActionSheet 里没有位置放条款勾选，
+ * 也没有位置常驻登录失败原因。
+ * 2026-09-30：「仅在本机使用」（无 token 的假登录态）整体删除，登录页只留
+ * 微信一键登录 + 游客入口，见 pages/auth/login。
+ */
+function openLoginOptions() { goPage('/pages/auth/login') }
 function logout() { session.logout(); showFeedback('已退出，设备数据仍保留') }
 function goPage(url: string) { uni.navigateTo({ url }) }
 function openMyPosts() { uni.navigateTo({ url: '/pages/community/mine' }) }
@@ -163,6 +146,35 @@ function formatCacheSize(bytes: number): string {
 function refreshCacheSize() {
   cacheSizeText.value = formatCacheSize(clearableCacheBytes())
 }
+const showDeactivateDialog = ref(false)
+const deactivating = ref(false)
+
+function onDeactivateTap() {
+  if (deactivating.value) return
+  showDeactivateDialog.value = true
+}
+
+/**
+ * 注销账号。
+ * 顺序要紧：先等服务端删成功，再清本地登录态 —— 反过来的话，
+ * 删除失败会留下「本地已登出但账号还在」的错觉，用户再登录还以为没注销。
+ */
+async function doDeactivate() {
+  showDeactivateDialog.value = false
+  if (deactivating.value) return
+  deactivating.value = true
+  try {
+    await deactivateAccountRemote()
+    session.logout()
+    showFeedback('账号已注销')
+    uni.navigateTo({ url: '/pages/auth/login' })
+  } catch (e) {
+    showFeedback('注销失败，请检查网络后重试')
+  } finally {
+    deactivating.value = false
+  }
+}
+
 function onClearCacheTap() {
   refreshCacheSize()
   showClearCacheDialog.value = true
@@ -176,12 +188,17 @@ function doClearCache() {
 
 onLoad(() => { initPageTheme() })
 let lastProfileReloadTs = 0
-const PROFILE_RELOAD_TTL_MS = 30 * 1000
+// 「我的」页各计数的刷新窗口。原来是 30 秒，等于每次切回来都要重拉一遍
+// 衣柜/收藏/订单/提醒/动态 —— 这些数字不会半分钟内变一次，抬到 5 分钟。
+// 自己在本机增删改后，各 store 会立刻更新内存值，不依赖这次刷新。
+const PROFILE_RELOAD_TTL_MS = 5 * 60 * 1000
 function reloadProfileData() {
   const now = Date.now()
   if (now - lastProfileReloadTs < PROFILE_RELOAD_TTL_MS) return
   lastProfileReloadTs = now
   session.reload()
+  // 云端资料（昵称/头像）后台校准；失败了继续用本地缓存，不打扰用户
+  session.refreshProfileRemote().catch(() => { /* 离线忽略 */ })
   library.reload()
   library.refreshMyPosts()
   library.refreshRemoteBrands()
@@ -199,13 +216,11 @@ const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER
 const profileCard = computed((): any => ({ ...flexRow, flexDirection: 'row', alignItems: 'center', paddingTop: '8rpx', paddingBottom: '24rpx', marginBottom: '8rpx' }))
 const avatarWrap = computed((): any => ({ width: '96rpx', height: '96rpx', borderRadius: radius.full, backgroundColor: isDark() ? n.value.surfaceRaised : brand[100] as string, alignItems: 'center', justifyContent: 'center', marginRight: '20rpx', flexShrink: 0, position: 'relative', borderWidth: '2rpx', borderStyle: 'solid', borderColor: baseColors.white }))
 const avatarText = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.bold, color: n.value.iconActive }))
-const cameraBadge = computed((): any => ({ position: 'absolute', bottom: '-2rpx', right: '-2rpx', width: '24rpx', height: '24rpx', borderRadius: '12rpx', backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center' }))
 const guestDesc = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginTop: '4rpx' }))
 const loginButton = computed((): any => ({ minWidth: '120rpx', height: '60rpx', borderRadius: radius.full, backgroundColor: n.value.iconActive, alignItems: 'center', justifyContent: 'center', marginLeft: '16rpx' }))
 const loginText = { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: baseColors.white }
 const profileCopy = { ...flexFill, justifyContent: 'center' }
 const userName = computed((): any => ({ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: n.value.text }))
-const userIdText = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '2rpx' }))
 
 class GridItem {
   id: string = ''
@@ -219,7 +234,7 @@ function mkItem(id: string, icon: string, label: string, value: string): GridIte
   return g
 }
 const gridItems = computed(() => [
-  mkItem('wardrobe', 'wardrobe', '衣橱', wardrobe.items.length.toString() + ' 件'),
+  mkItem('wardrobe', 'wardrobe', '衣柜', wardrobe.items.length.toString() + ' 件'),
   mkItem('favorites', 'heart', '收藏', library.favoriteCount.toString() + ' 件'),
   mkItem('orders', 'order', '购买记录', purchases.itemCount.toString() + ' 笔'),
   mkItem('reminders', 'reminder', '提醒', reminders.itemCount.toString() + ' 条'),
@@ -264,6 +279,10 @@ const outfitAssetCopy = { ...flexFill }
 const outfitAssetTitle = computed((): any => ({ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: n.value.text }))
 const outfitAssetValue = computed((): any => ({ fontSize: fontSize['2xs'], color: n.value.textTertiary, marginTop: '4rpx' }))
 
+// 设置组当前**真实**行数：登录态 8 行（含「退出登录」），游客 7 行。
+// 这个数只用来决定「最后一行不画分割线」——写大了就会在末行留一道多余横线，
+// 压在 ListGroup 的圆角底边上（用户反馈的「底部显示不对」）。
+const settingsTotal = computed((): number => session.isLoggedIn ? 9 : 7)
 function settingShell(idx: number, total: number) { return { borderBottomWidth: idx < total - 1 ? '1rpx' : '0', borderBottomStyle: 'solid' as string, borderBottomColor: n.value.divider } }
 // 全面屏手势 / 实体返回键：先关掉当前叠加层（弹窗 / 选择态），不要直接退出页面。
 // 说明：iOS 原生侧滑返回不触发 onBackPress（uni-app x 官方限制），Android 手势返回与实体返回键会触发。

@@ -3,7 +3,7 @@
  * 远端优先提交 POST /api/v1/feedback；网络失败时保存在本机待用户后续查证。
  */
 import { FeedbackRecord } from '@/domain/user/feedback-record'
-import { apiPost } from '@/services/platform/api-client'
+import { apiPost, apiGetAuthorized } from '@/services/platform/api-client'
 
 const STORAGE_KEY = 'v2_feedback_records'
 const MAX_RECORDS = 50
@@ -26,6 +26,7 @@ export function listLocalFeedback(): FeedbackRecord[] {
       item.createdAt = obj['createdAt'] != null ? obj['createdAt'] as string : ''
       const imgs = obj['images']
       if (imgs != null && Array.isArray(imgs)) item.images = imgs as string[]
+      item.delivered = obj['delivered'] != null && obj['delivered'] == true
       list.push(item)
     }
   } catch (e) {}
@@ -47,34 +48,83 @@ export function clearLocalFeedback(): void {
   writeLocal([])
 }
 
-/** 保存反馈本地副本，作为远端不可用时的可靠降级。 */
+/** 保存/覆盖本地副本（同 id 覆盖，重发时不会留两条） */
 function persistLocal(record: FeedbackRecord): string {
   if (record.content.trim() === '') return ''
-  const list = listLocalFeedback()
+  const list = listLocalFeedback().filter((r: FeedbackRecord) => r.id !== record.id)
   list.unshift(record)
   while (list.length > MAX_RECORDS) list.pop()
   writeLocal(list)
   return record.id
 }
 
+/**
+ * 拉取我在服务端的反馈/举报记录（含处理状态与答复）。
+ * 失败返回空数组：状态只是「锦上添花」，拉不到就继续用本机记录展示，不该因此报错。
+ */
+export async function fetchMyFeedbackRemote(): Promise<FeedbackRecord[]> {
+  try {
+    const response = await apiGetAuthorized('/api/v1/me/feedback')
+    const values = response.data as any[] | null
+    const list: FeedbackRecord[] = []
+    if (values == null) return list
+    for (let i = 0; i < values.length; i++) {
+      const raw = values[i] as UTSJSONObject
+      if (raw == null) continue
+      const item = new FeedbackRecord()
+      item.id = raw['id'] != null ? raw['id'] as string : ''
+      item.type = raw['type'] != null ? raw['type'] as string : ''
+      item.content = raw['content'] != null ? raw['content'] as string : ''
+      item.contact = raw['contact'] != null ? raw['contact'] as string : ''
+      item.createdAt = raw['createdAt'] != null ? raw['createdAt'] as string : ''
+      item.status = raw['status'] != null ? raw['status'] as string : 'open'
+      item.reply = raw['reply'] != null ? raw['reply'] as string : ''
+      item.delivered = true
+      const imgs = raw['images']
+      if (imgs != null && Array.isArray(imgs)) item.images = imgs as string[]
+      list.push(item)
+    }
+    return list
+  } catch (e) {
+    return [] as FeedbackRecord[]
+  }
+}
+
+/** 按 id 取一条本地记录（重发时用） */
+export function findLocalFeedback(id: string): FeedbackRecord | null {
+  const list = listLocalFeedback()
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].id === id) return list[i]
+  }
+  return null
+}
+
 export async function submitFeedbackRemote(record: FeedbackRecord): Promise<string> {
   if (record.content.trim() === '') return ''
   try {
-    // 临时相册路径不能被服务端访问；远端图片上传协议就绪前只提交结构化文字，
-    // 本地副本仍保留截图，避免把不可用路径冒充成云端附件。
+    // record.images 必须是**已上传的公开地址**（页面在提交前传好）；
+    // 若仍是本机临时路径，服务端访问不到，等于假附件 —— 由页面负责不传这种值。
     const response = await apiPost('/api/v1/feedback', {
       id: record.id,
       type: record.type,
       content: record.content,
       contact: record.contact,
-      images: [] as string[],
+      // 2026-10-04：不再丢图。record.images 里放的是**已上传的公开地址**
+      // （页面在提交前用 uploadFeedbackImageRemote 传好），服务端把它当证据附件，
+      // 推飞书时单独列出来。
+      images: record.images,
       createdAt: record.createdAt,
     } as UTSJSONObject)
     const data = response.data != null ? response.data as UTSJSONObject : null
     const id = data != null && data['id'] != null ? data['id'] as string : record.id
+    record.delivered = true
     persistLocal(record)
     return id
   } catch (e) {
-    return persistLocal(record)
+    // 网络失败：**如实记为未送达**并返回空串，让界面提示「提交失败」。
+    // 本地仍留一份（用户能看到自己写了什么、可以重发），但不能再谎报「提交成功」。
+    record.delivered = false
+    persistLocal(record)
+    return ''
   }
 }

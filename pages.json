@@ -1,4 +1,31 @@
 {
+  // ============================================================================
+  // 分包说明（2026-09-28）
+  // ----------------------------------------------------------------------------
+  // 背景：主包当时是 1.24 MB（磁盘），微信上传口径 ≈ ×1.42 ⇒ 1.83 MB。
+  //       2MB 硬限能过，但过不了微信代码质量扫描的「主包尺寸 < 1.5M」建议线。
+  //       主包体积里 405 KB 是 pages/**，其余是 common/vendor.js + stores/services/…
+  //       这类**公共代码**（分包页面也要用，按微信规则只能留在主包）。
+  //       所以唯一有效的手段就是把非 tabBar 页面挪进 subPackages。
+  //
+  // 约束（微信规则，别改）：
+  //   1. tabBar 页面必须留在主包 —— home / discover / favorites / community / profile
+  //   2. 一个目录不能一半在主包一半在分包 —— 所以 community/mine 与 profile/edit
+  //      只能留在主包（同目录下还有 community/index、profile/index 两个 tabBar 页）
+  //   3. subPackages 是**小程序专有机制**，App / H5 不支持（DCloud 官方兼容表里
+  //      Android / iOS / Web 均为「不支持」）⇒ 必须条件编译，否则 App 端会丢页面
+  //   4. 分包路径不变：root 只是前缀，页面 URL 仍然是 pages/xxx/yyy，navigateTo 不用改
+  //
+  // 于是这里有两份等价的页面清单：
+  //   · 非小程序端 → 顶层 pages 里列全（subPackages 被条件编译剥掉）
+  //   · 小程序端   → 主包只留 5 个 tabBar 页 + community/mine + profile/edit + auth/login，
+  //                  其余全部进 subPackages
+  // 两份清单必须一致，由 scripts/check-pages-parity.js 守护（多一个少一个都会 FAIL）。
+  //
+  // ⚠️ 注意条件块里那个**孤零零的逗号**：这是为了让两个分支各自都是严格合法的 JSON。
+  //    如果按常规把逗号留在上一个条目末尾，小程序端剥掉条件块后就会剩下尾逗号。
+  //    改这个文件时请连同 `node scripts/check-pages-parity.js` 一起跑，它会同时校验两个分支。
+  // ============================================================================
   "pages": [
     {
       "path": "pages/home/index",
@@ -9,49 +36,72 @@
     {
       "path": "pages/discover/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // swipeBackAsBackPress 是 App 端专用页面样式（iOS 侧滑返回转 onBackPress）；
+        // 微信小程序不认这个字段，会报「无效的 page.json ["swipeBackAsBackPress"]」。条件项放最前并自带逗号，两边展开都无尾逗号。
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/favorites/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // swipeBackAsBackPress 是 App 端专用页面样式（iOS 侧滑返回转 onBackPress）；
+        // 微信小程序不认这个字段，会报「无效的 page.json ["swipeBackAsBackPress"]」。条件项放最前并自带逗号，两边展开都无尾逗号。
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/community/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
-      }
-    },
-    {
-      "path": "pages/community/mine",
-      "style": {
+        // swipeBackAsBackPress 是 App 端专用页面样式（iOS 侧滑返回转 onBackPress）；
+        // 微信小程序不认这个字段，会报「无效的 page.json ["swipeBackAsBackPress"]」。条件项放最前并自带逗号，两边展开都无尾逗号。
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
         "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/profile/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // swipeBackAsBackPress 是 App 端专用页面样式（iOS 侧滑返回转 onBackPress）；
+        // 微信小程序不认这个字段，会报「无效的 page.json ["swipeBackAsBackPress"]」。条件项放最前并自带逗号，两边展开都无尾逗号。
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
+      // 同目录下已有 tabBar 页（community/index），无法整目录分包 ⇒ 留主包
+      "path": "pages/community/mine",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      // 同目录下已有 tabBar 页（profile/index），无法整目录分包 ⇒ 留主包
       "path": "pages/profile/edit",
       "style": {
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/notification/index",
+      // 首启条款同意入口。必须在主包：冷启动第一帧就要能打开，不能等分包下载。
+      "path": "pages/auth/login",
       "style": {
         "navigationStyle": "custom"
       }
-    },
+    }
+    // #ifndef MP-WEIXIN
+    // ↓↓ 非小程序端（App / H5）没有分包机制，下面这些页面必须列在主包。
+    //    注意开头的逗号属于本条件块，见文件头说明。
+    ,
     {
       "path": "pages/search/index",
       "style": {
@@ -61,8 +111,10 @@
     {
       "path": "pages/share/create",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
@@ -74,43 +126,55 @@
     {
       "path": "pages/wardrobe/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/wardrobe/edit",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/budget/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/purchase/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/purchase/detail",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/purchase/edit",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
@@ -128,15 +192,19 @@
     {
       "path": "pages/reminder/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/reminder/edit",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
@@ -172,8 +240,10 @@
     {
       "path": "pages/about/index",
       "style": {
-        "navigationStyle": "custom",
-        "swipeBackAsBackPress": true
+        // #ifdef APP
+        "swipeBackAsBackPress": true,
+        // #endif
+        "navigationStyle": "custom"
       }
     },
     {
@@ -201,13 +271,13 @@
       }
     },
     {
-      "path": "pages/privacy/index",
+      "path": "pages/feedback/index",
       "style": {
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/feedback/index",
+      "path": "pages/notification/index",
       "style": {
         "navigationStyle": "custom"
       }
@@ -218,10 +288,168 @@
         "navigationStyle": "custom"
       }
     }
+    // #endif
   ],
+  // #ifdef MP-WEIXIN
+  // 小程序端分包：非 tabBar 页面全部按目录下沉。
+  // 「按目录」不是偷懒 —— 微信要求 subpackage root 是一个目录、路径前缀即包边界；
+  // 好处是页面 URL 完全不变（root 只是前缀），所有 navigateTo 一行都不用改。
+  "subPackages": [
+    {
+      "name": "search",
+      "root": "pages/search",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "share",
+      "root": "pages/share",
+      "pages": [
+        { "path": "create", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "product",
+      "root": "pages/product",
+      "pages": [
+        { "path": "detail", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "wardrobe",
+      "root": "pages/wardrobe",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } },
+        { "path": "edit", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "budget",
+      "root": "pages/budget",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "purchase",
+      "root": "pages/purchase",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail", "style": { "navigationStyle": "custom" } },
+        { "path": "edit", "style": { "navigationStyle": "custom" } },
+        { "path": "import", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "history",
+      "root": "pages/history",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "reminder",
+      "root": "pages/reminder",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } },
+        { "path": "edit", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "editorial",
+      "root": "pages/editorial",
+      "pages": [
+        { "path": "detail", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "preferences",
+      "root": "pages/preferences",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } },
+        { "path": "appearance", "style": { "navigationStyle": "custom" } },
+        { "path": "notification", "style": { "navigationStyle": "custom" } },
+        { "path": "blacklist", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "about",
+      "root": "pages/about",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } },
+        { "path": "legal", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "help",
+      "root": "pages/help",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "brand",
+      "root": "pages/brand",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "feedback",
+      "root": "pages/feedback",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "notification",
+      "root": "pages/notification",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "name": "ranking",
+      "root": "pages/ranking",
+      "pages": [
+        { "path": "index", "style": { "navigationStyle": "custom" } }
+      ]
+    }
+  ],
+  // 首页最可能的下一步是「商品详情」，其次是「品牌」。只预下载这两个、且只在 Wi-Fi 下。
+  // 不要在启动页用 network:"all" 预下载 —— 那等于把首屏下载量又加回去了，分包就白做了。
+  "preloadRule": {
+    "pages/home/index": {
+      "network": "wifi",
+      "packages": ["pages/product", "pages/brand"]
+    },
+    "pages/favorites/index": {
+      "network": "wifi",
+      "packages": ["pages/product"]
+    },
+    // 发布动态页在 `pages/share` 分包里。不预下载的话，用户第一次点「发布」要等
+    // 子包下载完才进得去 —— 就是反馈里的「第一次点击发布动态还要刷新一段时间」。
+    // ⚠️ `network` 必须用 `wifi`：项目门禁（check-pages-parity）会拦 `all` ——
+    // 非启动页在**移动网络**下预下载，会被算进微信的「首屏下载量」，把刚优化下来的体积加回去。
+    "pages/community/index": {
+      "network": "wifi",
+      "packages": ["pages/share", "pages/product"]
+    }
+  },
+  // #endif
   "globalStyle": {
     "navigationBarTextStyle": "@navTextStyle",
     "navigationBarBackgroundColor": "@navBgColor",
+    // ⚠️ backgroundColor 和 backgroundColorContent 是**两个不同的层**，别只写一个：
+    //   · backgroundColor        = 下拉刷新露出的「窗口背景」（微信官方口径），深色下由 theme.json 驱动
+    //   · backgroundColorContent = **页面内容背景**，也就是 page 本体那一层的底色
+    //   只设 backgroundColor 时，page 本体仍是微信默认白底；子页面（无原生 tabBar）底部那条
+    //   带子不在根容器覆盖范围内，露出的就是这层白 —— 深色模式下表现为「底部一条白」。
+    //   uni-app x 官方暗黑适配文档点名要求 globalStyle 必须配 backgroundColorContent，
+    //   否则页面创建瞬间还会闪白。见 https://doc.dcloud.net.cn/uni-app-x/api/theme-change.html
+    "backgroundColorContent": "@bgContentColor",
     "backgroundColor": "@bgColor",
     "backgroundTextStyle": "dark"
   },

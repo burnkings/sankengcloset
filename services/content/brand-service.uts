@@ -1,10 +1,6 @@
-import { COMPARISON_BRAND_ID, comparisonBrand, withComparisonBrand } from '@/services/mock/comparison-brand'
-import { comparisonProducts } from '@/services/mock/comparison-products'
-import { isLocalMockSession } from '@/config/runtime'
 import { Brand } from '@/domain/content/brand'
 import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
-// import { findMockBrand, listMockBrands, listMockProducts } from '@/services/mock/mock-catalog' // [MOCK-DEBUG] 调试时启用
 
 /**
  * BrandService — 品牌目录
@@ -41,10 +37,10 @@ export function mapBrandProduct(raw: UTSJSONObject): FeedItem {
   item.brandName = raw['brandName'] != null ? raw['brandName'] as string : ''
   item.category = raw['category'] != null ? raw['category'] as string : ''
   item.price = raw['priceCents'] != null ? raw['priceCents'] as number : 0
-  item.originalPrice = raw['originalPriceCents'] != null ? raw['originalPriceCents'] as number : item.price
+  item.maxPriceCents = raw['maxPriceCents'] != null ? raw['maxPriceCents'] as number : 0
   item.badgeText = raw['badgeText'] != null ? raw['badgeText'] as string : ''
   item.coverUrl = raw['coverUrl'] != null ? raw['coverUrl'] as string : ''
-  item.sourceLabel = raw['shopName'] != null ? raw['shopName'] as string : ''
+  item.sourceLabel = raw['brandName'] != null ? raw['brandName'] as string : ''
   item.priceType = raw['priceType'] != null ? raw['priceType'] as string : 'UNKNOWN'
   item.saleStatus = raw['saleStatus'] != null ? raw['saleStatus'] as string : ''
   item.pitType = item.category
@@ -65,7 +61,7 @@ async function loadBrands(): Promise<Brand[]> {
     const raw = response.data as any[]
     const result: Brand[] = []
     if (raw != null) for (let i = 0; i < raw.length; i++) result.push(mapBrand(raw[i] as UTSJSONObject))
-    return withComparisonBrand(result)
+    return result
   } catch (e) {
     throw e
   }
@@ -75,7 +71,6 @@ async function loadBrands(): Promise<Brand[]> {
 }
 
 export async function fetchBrandDetail(id: string): Promise<Brand | null> {
-  if (id === COMPARISON_BRAND_ID) return comparisonBrand()
   if (id === '') return null
   try {
     const response = await apiGet('/api/v1/brands/' + encodeQuery(id))
@@ -90,13 +85,6 @@ export async function fetchBrandDetail(id: string): Promise<Brand | null> {
 }
 
 export async function listBrandProducts(brandId: string): Promise<FeedItem[]> {
-  if (brandId === COMPARISON_BRAND_ID) {
-    const p = comparisonProducts()[1]
-    const item = mapBrandProduct(p)
-    item.coverUrl = '/static/demo/prod-02.png'
-    item.fullPriceCents = p['priceCents'] as number
-    return [item]
-  }
   if (brandId === '') return []
   try {
     const response = await apiGet('/api/v1/brands/' + encodeQuery(brandId) + '/products')
@@ -122,7 +110,6 @@ export async function listBrandProducts(brandId: string): Promise<FeedItem[]> {
   //     brandName: p.brandName,
   //     category: p.category,
   //     priceCents: p.priceCents,
-  //     originalPriceCents: p.originalPriceCents,
   //     badgeText: p.status == 'PRE_ORDER' ? '预约' : '现货',
   //     coverUrl: p.coverUrl,
   //   } as UTSJSONObject))

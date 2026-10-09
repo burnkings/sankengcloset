@@ -7,15 +7,6 @@
         <SegmentedControl :items="tabItems" :active="activeTab" variant="ranking" @change="onTabChange" />
       </view>
 
-      <!-- 三级筛选：坑向 -->
-      <view :style="filterBar">
-        <view :style="filterChipsWrap">
-          <view :style="filterGroup">
-            <view v-for="opt in categories" :key="opt" :style="filterChip(opt, activeCategory === opt)" @tap="onFilterTap(opt)"><text :style="filterChipText(opt, activeCategory === opt)">{{ opt }}</text></view>
-          </view>
-        </view>
-      </view>
-
       <!-- 榜单卡片列表 -->
       <scroll-view :style="listScroll" direction="vertical">
         <view :style="listWrap">
@@ -39,8 +30,6 @@ import PageState from '@/components/v3/PageState.uvue'
 import { RankingItem, RANKING_TAB_HOT, RANKING_TAB_NEW, RANKING_TAB_FAVORITE } from '@/domain/ranking/ranking-item'
 import { peekRanking, fetchRankingRemote } from '@/services/content/ranking-service'
 import { PAGE_GUTTER_V3, PAGE_HEADER_CONTENT_GAP } from '@/theme/tokens/responsive'
-import { fontWeight } from '@/theme/tokens/typography'
-import { flexRow } from '@/theme/layout/flex'
 import { n, initPageTheme } from '@/theme/use-theme'
 
 const refreshButton = { minWidth: '88rpx', height: '88rpx', alignItems: 'center', justifyContent: 'center' }
@@ -68,16 +57,10 @@ const activeTabCode = computed((): string => {
   return RANKING_TAB_HOT
 })
 
-const categories = ['全部', 'JK', 'Lolita', '汉服', '混搭']
-
 function onTabChange(tab: string) {
   activeTab.value = tab
   activeCategory.value = '全部'
   reloadData()
-}
-
-function onFilterTap(opt: string) {
-  if (categories.indexOf(opt) >= 0) { activeCategory.value = opt; return }
 }
 
 let requestSequence = 0
@@ -108,18 +91,9 @@ function openProduct(item: RankingItem) {
 
 const contentWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
 const tabBar = { marginBottom: '16rpx' }
-const filterBar = { ...flexRow, alignItems: 'center', marginBottom: '16rpx', flexWrap: 'wrap' as string }
-const filterChipsWrap = { ...flexRow, flexWrap: 'wrap' as string, flex: 1 }
-const filterGroup = { ...flexRow, flexWrap: 'wrap' as string, marginRight: '12rpx' }
-// active 由模板表达式直接传入，避免函数内部读 ref 的依赖追踪不确定
-// 选中态统一为「浅粉底 + 玫粉字」（V3 §5.7）：与榜单类型 SegmentedControl、收藏 tab 同一套选中语言，
-// 不再用实底玫粉 + 白字（否则同 App 两套选中语言，且实底玫粉只应留给底部 CTA）
-function filterChip(opt: string, active: boolean): any {
-  return { height: '48rpx', paddingLeft: '20rpx', paddingRight: '20rpx', borderRadius: '24rpx', backgroundColor: active ? n.value.surfacePink : n.value.bgSecondary, alignItems: 'center', justifyContent: 'center', marginRight: '12rpx', marginBottom: '8rpx' }
-}
-function filterChipText(opt: string, active: boolean): any {
-  return { fontSize: '22rpx', fontWeight: active ? fontWeight.semibold : fontWeight.medium, color: active ? n.value.iconActive : n.value.textSecondary }
-}
+// 2026-10-04：坑向筛选行已下线（商品列表不再出现坑向分类）。
+// activeCategory / visibleItems 的过滤分支保留 —— 它是「按坑向看榜」这个能力的接缝，
+// 目前恒为「全部」，不改变任何现有结果。
 const listScroll = { flex: 1, minHeight: '0' }
 const listWrap = { paddingBottom: '24rpx' }
 const bottomSpacer = { height: '32rpx' }

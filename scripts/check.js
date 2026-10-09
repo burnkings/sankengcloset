@@ -22,9 +22,10 @@ if (verify.status !== 0) {
 }
 
 // 2) 编译后 require 检查：mp-weixin 产物必须存在
-const mpDist = path.resolve('unpackage/dist/dev/mp-weixin')
+// ⚠️ 2026-10-06 由 dev 改为 build：dev 产物已按「每类只留最新版」清理，默认 dev 会恒 FAIL。
+const mpDist = path.resolve('unpackage/dist/build/mp-weixin')
 if (!fs.existsSync(path.join(mpDist, 'app.js'))) {
-  console.error('[FAIL] mp-weixin 编译产物缺失（unpackage/dist/dev/mp-weixin/app.js 不存在）')
+  console.error('[FAIL] mp-weixin 编译产物缺失（unpackage/dist/build/mp-weixin/app.js 不存在）')
   console.error('      请先执行 mp-weixin 编译（HBuilderX 或 npm run build:mp-weixin），再运行 npm run check')
   process.exit(1)
 }

@@ -1,10 +1,10 @@
 /**
  * category — 坑向分类 label ↔ code 双向映射（唯一实现）
- * 供 wardrobe-store、衣橱页、心愿单等共享，避免各页面重复定义映射。
+ * 供 wardrobe-store、衣柜页、心愿单等共享，避免各页面重复定义映射。
  *
  * ⚠️ 2026-09-26 修复：categoryLabelToCode 以前返回的是 CATEGORY_LABELS_CLASS.*（label），
  * 于是 'JK' → 'JK制服'、'Lolita' → 'Lolita'，而 wardrobe-store 是拿它跟 DB 里的
- * category 码（'JK'/'LOLITA'/…）直接比较的 → 衣橱页任何品类 chip 都筛出 0 条。
+ * category 码（'JK'/'LOLITA'/…）直接比较的 → 衣柜页任何品类 chip 都筛出 0 条。
  * 两个方向的返回值必须是「码 → label」「label/码 → 码」。**勿再改回返回 label。**
  */
 import {

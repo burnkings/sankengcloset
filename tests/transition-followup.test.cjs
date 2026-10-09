@@ -1,17 +1,28 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const {stripTypeScriptTypes}=require('node:module');const path=require('node:path');
 const root=path.resolve(__dirname,'..');const src=p=>fs.readFileSync(path.join(root,p),'utf8');
 function run(s,c={}){return vm.runInNewContext(stripTypeScriptTypes(s.replace(/^import[\s\S]*?from [^\n]+\n/gm,'').replace(/export /g,'')),c)}
-const mock=src('services/mock/mock-catalog.uts');const samples=src('services/mock/comparison-products.uts');
-// brand-service 会调 withComparisonBrand（展示品牌前置），它定义在 comparison-brand 里；
-// run() 会剥掉 import，因此必须把该模块源码一起拼进去，否则运行到就 ReferenceError。
-const brandSample=src('services/mock/comparison-brand.uts');
+// 2026-10-09：services/mock/*（mock-catalog / comparison-products / comparison-brand）已整体删除
+// （用户要求「删除首页的两个假数据和品牌目录的假数据」），下面两条用例随之调整：
+//   · 原来第 9 行那条「假货 fixture 与预览链接」用例已删除（它守护的对象不存在了）；
+//   · 品牌相关用例不再拼接 comparison-brand（withComparisonBrand 已从 brand-service 摘除）。
 const ctx={assert,FeedItem:class{},Brand:class{},RankingItem:class{},ProductImage:class{},ProductVariant:class{},ReleaseEvent:class{},FEED_PRODUCT:'product',deriveCoverUrl:x=>x[0]?.url??'',extractImageUrls:x=>x.map(i=>i.url),encodeQuery:encodeURIComponent};
-test('original catalog fixtures and old preview links resolve with original content',async()=>{await run(mock+'\n'+samples+'\n'+src('services/content/product-service.uts')+`; (async()=>{const rows=comparisonProducts();const originals=listMockProducts();for(let i=0;i<2;i++){assert.equal(rows[i].title,originals[i].title);assert.equal(rows[i].description,originals[i].description);assert.equal(rows[i].images[1].url,originals[i].secondaryCoverUrl);const d=await fetchProductDetail(rows[i].id);assert.equal(d.item.title,originals[i].title);assert.equal(d.images.length,2)}assert.equal((await fetchProductDetail('preview_spot')).item.id,'prd_jk_navy_45')})()`,{...ctx,apiGet:()=>{throw Error('mock sent to server')}})});
-test('detail URL rejects missing payloads and canonicalizes feed ID',()=>run(samples+'\n'+src('utils/content-navigation.uts')+`;assert.equal(productDetailUrl(null),'');assert.equal(productDetailUrl('undefined'),'');assert.equal(productDetailUrl('feed_prd_taobao_1'),'/pages/product/detail?id=prd_taobao_1');`,ctx));
+test('detail URL rejects missing payloads and canonicalizes feed ID',()=>run(src('utils/content-navigation.uts')+`;assert.equal(productDetailUrl(null),'');assert.equal(productDetailUrl('undefined'),'');assert.equal(productDetailUrl('feed_prd_taobao_1'),'/pages/product/detail?id=prd_taobao_1');`,ctx));
 // 2026-09-24：brand-service 当前**没有**服务端缓存与并发去重（每次调用都打 /api/v1/brands），
 // 旧契约「并发只发 1 次请求」已作废。品牌目录的缓存/去重若要恢复，应在 store 层做（见 GAP 文档待办）。
-test('brand list always hits the endpoint (no cache yet) and empty result stays empty',async()=>{let calls=0;await run(brandSample+src('services/content/brand-service.uts')+`; (async()=>{const a=await Promise.all([listBrands(),listBrands()]);const b=await listBrands();assert.equal(a[0].length,1);assert.equal(b.length,1)})()`,{...ctx,apiGet:async()=>{calls++;return {data:[]}}});assert.equal(calls,3)});
-test('failed brand fetch retries instead of caching error',async()=>{let calls=0;await run(brandSample+src('services/content/brand-service.uts')+`; (async()=>{await assert.rejects(listBrands());await listBrands()})()`,{...ctx,apiGet:async()=>{if(++calls===1)throw Error('offline');return {data:[]}}});assert.equal(calls,2)});
-test('brand product forwards status and price semantics',()=>run(src('services/content/brand-service.uts')+`;const p=mapBrandProduct({id:'p',priceType:'DEPOSIT',saleStatus:'PRE_ORDER',depositCents:9200,fullPriceCents:36800,shopName:'店铺'});assert.equal(p.priceType,'DEPOSIT');assert.equal(p.saleStatus,'PRE_ORDER');assert.equal(p.depositCents,9200);assert.equal(p.sourceLabel,'店铺');`,ctx));
+// 2026-10-09：品牌目录的「固定样例品牌前置」已删除（用户要求删假数据）⇒ 服务端返回空数组时，
+// 列表就是**空的**（原来会被 withComparisonBrand 补成 1 条）。断言随之从 1 改成 0。
+test('brand list always hits the endpoint (no cache yet) and empty result stays empty',async()=>{let calls=0;await run(src('services/content/brand-service.uts')+`; (async()=>{const a=await Promise.all([listBrands(),listBrands()]);const b=await listBrands();assert.equal(a[0].length,0,'空响应不应被注入样例品牌');assert.equal(b.length,0)})()`,{...ctx,apiGet:async()=>{calls++;return {data:[]}}});assert.equal(calls,3)});
+test('failed brand fetch retries instead of caching error',async()=>{let calls=0;await run(src('services/content/brand-service.uts')+`; (async()=>{await assert.rejects(listBrands());await listBrands()})()`,{...ctx,apiGet:async()=>{if(++calls===1)throw Error('offline');return {data:[]}}});assert.equal(calls,2)});
+// 2026-10-06：来源标签改为品牌名（products.shop_name 已删，名称只有一个来源）
+test('brand product forwards status and price semantics',()=>run(src('services/content/brand-service.uts')+`;const p=mapBrandProduct({id:'p',priceType:'DEPOSIT',saleStatus:'PRE_ORDER',depositCents:9200,fullPriceCents:36800,brandName:'品牌名'});assert.equal(p.priceType,'DEPOSIT');assert.equal(p.saleStatus,'PRE_ORDER');assert.equal(p.depositCents,9200);assert.equal(p.sourceLabel,'品牌名');`,ctx));
 test('feedback duration defaults to three seconds and accepts override',()=>{let delays=[];run(src('utils/feedback.uts')+`;showFeedback('保存');showFeedback('长提示',3500)`,{reactive:x=>x,setTimeout:(f,d)=>{delays.push(d);return 1},clearTimeout:()=>{}});assert.deepEqual(delays,[3000,3500])});
-test('channel switching retains pages and invalidates old requests',async()=>{let calls=[];const s=src('stores/home-feed-store.uts');await run(s+`; (async()=>{await loadFirstPage();const first=_state.allItems[0];setChannel('上新');await new Promise(r=>setTimeout(r,0));setChannel('推荐');assert.equal(_state.allItems[0],first);assert.equal(_state.state,'loaded');assert.equal(_state.nextCursor,'next');assert.equal(channelCache.length,2)})()`,{...ctx,reactive:x=>x,nextTick:async()=>{},computed:f=>({get value(){return f()}}),setTimeout,usePreferencesStore:()=>({preferences:{pitTypes:[],followedBrands:[],priceRange:''}}),useBlacklistStore:()=>({}),fetchFeedPage:async(c,ch)=>{calls.push(ch);return {items:[{id:ch,entityId:ch}],nextCursor:'next',hasMore:true}}});assert.equal(calls.length,2)});
+// 2026-10-05：首屏加载后会**静默预取其余频道**（消除切频道时的整屏骨架），
+// 所以「请求总数」不再是 2。这条用例真正要守的是**切换行为本身**：
+// 已缓存的频道不再发请求、列表被正确保留。断言按行为写，别钉死请求条数。
+test('channel switching retains pages and invalidates old requests',async()=>{
+  const calls=[];
+  const s=src('stores/home-feed-store.uts');
+  // `calls` 必须挂进 vm 的上下文，否则用例里的断言（在 vm 内执行）看不到它
+  await run(s+`; (async()=>{await loadFirstPage();await new Promise(r=>setTimeout(r,30));const afterFirst=calls.length;const first=_state.allItems[0];setChannel('上新');await new Promise(r=>setTimeout(r,0));setChannel('推荐');assert.equal(_state.allItems[0],first);assert.equal(_state.state,'loaded');assert.equal(_state.nextCursor,'next');assert.equal(calls.length,afterFirst,'切换已缓存的频道不应再发请求');assert.ok(channelCache.length>=2)})()`,{...ctx,calls,reactive:x=>x,nextTick:async()=>{},computed:f=>({get value(){return f()}}),setTimeout,usePreferencesStore:()=>({preferences:{pitTypes:[],followedBrands:[],priceRange:''}}),useBlacklistStore:()=>({}),fetchFeedPage:async(c,ch)=>{calls.push(ch);return {items:[{id:ch,entityId:ch}],nextCursor:'next',hasMore:true}}});
+  assert.ok(calls.length>=1);
+});

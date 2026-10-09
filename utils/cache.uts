@@ -3,6 +3,8 @@
  * 收敛页面直读 storage 的缓存清理逻辑（profile 页），统一缓存键定义与「清除搜索/社区/圈子草稿」语义。
  */
 
+import { clearCatalogCache } from '@/services/platform/catalog-cache'
+
 /** 可安全清理的缓存键（跨页临时态 + 历史记录；不含用户核心数据） */
 export const CLEARABLE_CACHE_KEYS: string[] = [
   'search_recent',
@@ -13,6 +15,8 @@ export const CLEARABLE_CACHE_KEYS: string[] = [
   'local_outfit_caption',
   'local_outfit_category',
   'local_outfit_topic',
+  // 目录长缓存（品牌 / 发售日历）。删了只是下次多等一次网络，没风险。
+  'v27_catalog_cache',
 ]
 
 /** 计算可清理缓存的总字节数 */
@@ -27,9 +31,14 @@ export function clearableCacheBytes(): number {
   return bytes
 }
 
-/** 清除全部可清理缓存（静默容错） */
+/**
+ * 清除全部可清理缓存（静默容错）。
+ * 注意 v27_catalog_cache 有一份进程内副本（catalog-cache 的 _entries），
+ * 只 removeStorageSync 的话内存里那份还会继续被读到，所以必须走它的清空入口。
+ */
 export function clearClearableCache() {
   for (let i = 0; i < CLEARABLE_CACHE_KEYS.length; i++) {
     try { uni.removeStorageSync(CLEARABLE_CACHE_KEYS[i]) } catch (e) {}
   }
+  try { clearCatalogCache() } catch (e) {}
 }

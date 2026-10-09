@@ -31,7 +31,8 @@
       <template v-else-if="variant === 'favorite'">
         <view :style="tagRow">
           <view :style="categoryTag"><text :style="categoryTagText">{{ item.category }}</text></view>
-          <text :style="hotText">{{ item.favoriteCount }} 人收藏</text>
+          <!-- 与商品卡/详情页共用同一份本地增量，三处数字才不会打架 -->
+        <text :style="hotText">{{ wishCountOf(item.entityId, item.favoriteCount) }} 人收藏</text>
         </view>
       </template>
 
@@ -48,9 +49,10 @@
 </template>
 
 <script setup lang="uts">
+import { wishCountOf } from '@/services/content/wish-count'
 import AppImage from '@/components/base/AppImage.uvue'
 import { RankingItem } from '@/domain/ranking/ranking-item'
-import { formatPriceCents } from '@/utils/format'
+import { formatPriceRange } from '@/presentation/content/feed-presenter'
 import { v3TextStyle } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { n } from '@/theme/use-theme'
@@ -77,7 +79,8 @@ function rankBadgeBg(style: string): string {
   if (style === 'bronze') return '#B0703C'
   return n.value.bgSecondary
 }
-const priceText = computed((): string => formatPriceCents(props.item.priceCents))
+// 价格区间（2026-10-09）：有最高价就显示「¥199–359」，否则单值
+const priceText = computed((): string => formatPriceRange(props.item.priceCents, props.item.maxPriceCents))
 
 function rankColor(style: string): string {
   if (style === 'gold' || style === 'silver' || style === 'bronze') return '#FFFFFF'

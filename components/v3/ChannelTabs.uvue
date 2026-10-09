@@ -37,7 +37,10 @@ function textStyle(item: string) {
   const active = item === props.active
   return { fontSize: active ? v3TextStyle.body.fontSize : v3TextStyle.meta.fontSize, fontWeight: active ? 600 : 400, color: active ? n.value.text : n.value.textSecondary }
 }
-const indicatorStyle = computed((): any => ({ position: 'absolute', bottom: '4rpx', width: CHANNEL_INDICATOR_WIDTH, height: CHANNEL_INDICATOR_HEIGHT, borderRadius: radius.full, backgroundColor: n.value.iconActive }))
+// 下标位置：88rpx 的行高里文字是垂直居中的，bottom:4rpx 会把指示条压到行底，
+// 紧贴下面的商品（用户反馈「太靠近商品，应该在文字下面一点」）。
+// 20rpx 恰好落在文字下沿，同时给下方的信息流留出呼吸位。
+const indicatorStyle = computed((): any => ({ position: 'absolute', bottom: '20rpx', width: CHANNEL_INDICATOR_WIDTH, height: CHANNEL_INDICATOR_HEIGHT, borderRadius: radius.full, backgroundColor: n.value.iconActive }))
 </script>
 
 <style>

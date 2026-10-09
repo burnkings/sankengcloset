@@ -10,7 +10,7 @@
             <input
               :style="inputStyle"
               :value="keyword"
-              placeholder="搜索商品、品牌、穿搭"
+              placeholder="搜索商品或品牌"
               :placeholder-style="placeholderStyleStr"
               :focus="inputFocused"
               confirm-type="search"
@@ -65,12 +65,12 @@
                     :image="item.coverUrl"
                     :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                     :title="item.title"
-                    :type-text="pitTypeLabel(item)"
                     :status-text="saleStatusText(item)"
                     :status-color="saleStatusColor(item)"
                     :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                     :image-height="feedImageHeight(item)"
                     :saved="item.saved"
+                    :wish-count="item.wishCount"
                     @tap="onResultTap(item)"
                     @toggle-save="onToggleSave(item)"
                   />
@@ -82,12 +82,12 @@
                     :image="item.coverUrl"
                     :brand="item.brandName !== '' ? item.brandName : item.sourceLabel"
                     :title="item.title"
-                    :type-text="pitTypeLabel(item)"
                     :status-text="saleStatusText(item)"
                     :status-color="saleStatusColor(item)"
                     :price-text="priceSummaryText(item)" :price-sub-text="priceSubText(item)"
                     :image-height="feedImageHeight(item)"
                     :saved="item.saved"
+                    :wish-count="item.wishCount"
                     @tap="onResultTap(item)"
                     @toggle-save="onToggleSave(item)"
                   />
@@ -110,10 +110,12 @@
 
 <script setup lang="uts">
 import { FeedItem } from '@/domain/content/feed-item'
+import { bumpWishCount, wishCountOf } from '@/services/content/wish-count'
+import { openProductDetail } from '@/utils/content-navigation'
 import { feedImageHeight } from '@/stores/home-feed-store'
 import { useContentLibraryStore } from '@/stores/content-library-store'
 import { useSearchStore } from '@/stores/search-store'
-import { formatPricePrimary, formatPriceSecondary, getPitTypeLabel, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
+import { formatPriceCard, formatPriceSecondary, getSaleStatusChipStatus, ProductStatusLabels } from '@/presentation/content/feed-presenter'
 import { brand, semantic, accent } from '@/theme/tokens/colors'
 import { fontSize } from '@/theme/tokens/typography'
 import { flexRow, flexFill } from '@/theme/layout/flex'
@@ -134,15 +136,11 @@ import { SearchFilters, SearchResult } from '@/services/content/search-service'
 
 // ====== Product V2 商品卡展示字段（价格摘要按 price_type 语义，禁止猜测） ======
 function priceSummaryText(item: FeedItem): string {
-  return formatPricePrimary(item.priceType, item.price, item.fullPriceCents, item.depositCents, item.balanceCents)
+  return formatPriceCard(item.priceType, item.price, item.maxPriceCents, item.fullPriceCents, item.depositCents, item.balanceCents)
 }
 /** 双价降级小字（仅定金场景非空） */
 function priceSubText(item: FeedItem): string {
   return formatPriceSecondary(item.priceType, item.price, item.fullPriceCents, item.depositCents)
-}
-function pitTypeLabel(item: FeedItem): string {
-  const pit = item.pitType !== '' ? item.pitType : item.category
-  return getPitTypeLabel(pit)
 }
 function saleStatusText(item: FeedItem): string {
   if (item.saleStatus === '') return ''
@@ -298,8 +296,12 @@ function loadMore() {
     .then((res: SearchResult) => {
       if (requestSequence != searchSequence) return
       results.value = [...results.value, ...res.items]
+      // 防御（2026-10-06）：**游标必须往前走**。服务端一度有 bug（游标条件没进 SQL），
+      // 表现为「搜索结果只有几十条，却能无限下拉、每页都是同一批」。前端这里再兜一道：
+      // 拿到的游标和上一页一模一样 ⇒ 立即停止加载，宁可少显示也不刷一屏重复商品。
+      const advanced = res.nextCursor !== '' && res.nextCursor !== nextCursor.value
       nextCursor.value = res.nextCursor
-      hasMore.value = res.hasMore
+      hasMore.value = res.hasMore && advanced
       isLoadingMore.value = false
     })
     .catch(() => {
@@ -368,16 +370,26 @@ function onCancel() {
 }
 function onBackTap() { uni.navigateBack() }
 function onResultTap(item: FeedItem) {
-  uni.navigateTo({ url: `/pages/product/detail?id=${item.entityId}` })
+  // 必须走统一的 openProductDetail（内部有 navigateOnce 防重入）：
+  // 搜索结果卡的「组件根节点 tap + 父节点 tap」在部分端会各触发一次，
+  // 用裸 navigateTo 就会一次点按压两个页面，返回要按两次（用户 2026-10-05 反馈）。
+  openProductDetail(item.entityId)
 }
 function onToggleSave(item: FeedItem) {
   // 同步翻转服务端 saved（乐观更新，刷新后以服务端权威值为准）
   const next = [...results.value]
   for (let i = 0; i < next.length; i++) {
-    if (next[i].id == item.id) { next[i].saved = !next[i].saved; break }
+    if (next[i].id == item.id) {
+      next[i].saved = !next[i].saved
+      // 收藏数（人气）必须跟着动：本机增量进全局表，展示值 = 服务端基数 + 增量。
+      // 不这么做的话，搜索结果里点亮爱心数字纹丝不动，看起来像「只点亮没数据」。
+      bumpWishCount(next[i].entityId, next[i].saved ? 1 : -1)
+      next[i].wishCount = wishCountOf(next[i].entityId, next[i].wishCountBase)
+      break
+    }
   }
   results.value = next
-  library.toggleFavorite(item.entityId, item.title)
+  library.toggleFavorite(item.entityId, item.title, '', item)
 }
 const resultLeft = computed((): FeedItem[] => {
   const left: FeedItem[] = []

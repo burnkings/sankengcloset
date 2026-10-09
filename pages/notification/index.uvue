@@ -7,8 +7,13 @@
         <template v-if="notices.loading">
           <PageState icon="notification" title="通知加载中" />
         </template>
-        <template v-else-if="notices.visibleItems.length === 0">
-          <PageState icon="notification" title="当前没有这类通知" action-text="重新加载" @action="reloadNotices" />
+        <!-- 空态拆两态：加载失败才给「重新加载」；单纯没通知就给一句说明，不要塞一个
+             点了也没用的按钮（用户反馈：没有通知还挂着「重新加载」很奇怪）。 -->
+        <template v-else-if="notices.error !== ''">
+          <PageState icon="notification" title="通知加载失败" :message="notices.error" action-text="重新加载" @action="reloadNotices" />
+        </template>
+        <template v-else>
+          <PageState icon="notification" title="暂无通知" message="收藏的上新、发售提醒和互动消息会出现在这里" />
         </template>
         <view v-for="notice in visibleNotices" :key="notice.id" :style="noticeRow(notice.read)" @tap="openNotice(notice.id, notice.actionTarget)">
           <view :style="noticeIcon(notice.type)"><AppIcon :name="noticeVisual(notice.type).icon" :size="40" :active="noticeVisual(notice.type).active" /></view>
@@ -89,6 +94,7 @@ function formatTime(value: string): string {
   return `${Math.floor(hour / 24)} 天前`
 }
 onLoad(() => { initPageTheme() })
+// reload() 只对游客生效（已登录时是 no-op），云端结果由 refreshRemote 覆盖
 onPageShow(() => { initPageTheme(); notices.reload(); notices.refreshRemote() })
 
 const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '64rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }

@@ -1,11 +1,11 @@
 import { reactive } from 'vue'
 import { flushLocalOperations, enqueueLocalOperation, getCurrentSyncUserId, readPendingOperations } from '@/services/sync/local-sync-queue'
 import { SyncOperation } from '@/domain/sync/sync-operation'
-import { getCachedAccessToken, isLocalMockSession } from '@/config/runtime'
-import { FeedItem } from '@/domain/content/feed-item'
+import { getCachedAccessToken } from '@/config/runtime'
+import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { ReleaseEvent } from '@/domain/content/release-event'
 import { fetchProductDetail } from '@/services/content/product-service'
-import { apiErrorStatus } from '@/services/platform/api-client'
+import { apiErrorStatus, apiErrorRequestId } from '@/services/platform/api-client'
 import { listWishlistRemote } from '@/services/user-data/user-data-service'
 
 import { showFeedback } from '@/utils/feedback'
@@ -38,6 +38,12 @@ type State = {
   favoriteReleases: ReleaseEvent[]
   favoritesLoading: boolean
   favoritesError: string
+  /**
+   * 收藏列表**拉取失败**时的后端 requestId（无则空串）。
+   * 用于把「用户看到的失败」和「后端日志里的那一条」对上 —— 收藏页显示它，
+   * 用户拿这个 id 就能让后端一条命令捞到原始错误，不用再猜。
+   */
+  favoritesRequestId: string
   favoritesLoadedOnce: boolean
   invalidFavoriteIds: string[]
   wishIds: string[]
@@ -49,10 +55,139 @@ export const favoriteState = reactive<State>({
   favoriteReleases: [] as ReleaseEvent[],
   favoritesLoading: false,
   favoritesError: '',
+  favoritesRequestId: '',
   favoritesLoadedOnce: false,
   invalidFavoriteIds: [] as string[],
   wishIds: [] as string[],
 })
+
+// ====== 收藏快照：商品下架后仍要能展示它「是什么」 ======
+/**
+ * 为什么需要它（2026-09-30 用户反馈第 3 条）：
+ *   商品一旦下架/被剔除，详情接口只会回 404。此时**唯一能展示的东西**就是本机留过的痕迹。
+ *   改之前只留了 `entry.title`，卡片上是一张没图、没价、没品牌的空壳 —— 用户看到的就是
+ *   「只告诉我下架了，别的什么都没有」，跟「加载失败」没区别。
+ *   所以收藏成功、以及每次详情拉取成功时，都把封面/品牌/价格这几项存一份快照到本机，
+ *   下架时用它渲染一张**完整**的卡片（并在卡上明确标注已下架，不伪造在售状态）。
+ *   快照只存展示必需字段，不存描述/图片列表这类大字段。
+ */
+export class FavoriteSnapshot {
+  productId: string = ''
+  title: string = ''
+  brandName: string = ''
+  coverUrl: string = ''
+  priceCents: number = 0
+  priceType: string = 'UNKNOWN'
+  pitType: string = ''
+  savedAt: number = 0
+}
+const SNAPSHOT_KEY = 'v2_library_favorite_snapshots'
+/** 快照条数上限：只服务「已下架仍展示」，不需要无限增长 */
+const SNAPSHOT_MAX = 200
+let _snapshots: FavoriteSnapshot[] | null = null
+
+function loadSnapshots(): FavoriteSnapshot[] {
+  const cached = _snapshots
+  if (cached != null) return cached!
+  const result: FavoriteSnapshot[] = []
+  const raw = readString(SNAPSHOT_KEY)
+  if (raw !== '') {
+    try {
+      const parsed = JSON.parse(raw) as UTSJSONObject[]
+      for (let i = 0; i < parsed.length; i++) {
+        const item = parsed[i]
+        if (item == null) continue
+        const snap = new FavoriteSnapshot()
+        snap.productId = item['productId'] != null ? item['productId'] as string : ''
+        snap.title = item['title'] != null ? item['title'] as string : ''
+        snap.brandName = item['brandName'] != null ? item['brandName'] as string : ''
+        snap.coverUrl = item['coverUrl'] != null ? item['coverUrl'] as string : ''
+        snap.priceCents = item['priceCents'] != null ? item['priceCents'] as number : 0
+        snap.priceType = item['priceType'] != null ? item['priceType'] as string : 'UNKNOWN'
+        snap.pitType = item['pitType'] != null ? item['pitType'] as string : ''
+        snap.savedAt = item['savedAt'] != null ? item['savedAt'] as number : 0
+        if (snap.productId !== '') result.push(snap)
+      }
+    } catch (e) {
+      // 快照损坏：当作没有，不影响收藏本身
+    }
+  }
+  _snapshots = result
+  return result
+}
+
+function persistSnapshots() {
+  const list = loadSnapshots()
+  try {
+    const serializable: UTSJSONObject[] = []
+    for (let i = 0; i < list.length; i++) {
+      serializable.push({
+        productId: list[i].productId,
+        title: list[i].title,
+        brandName: list[i].brandName,
+        coverUrl: list[i].coverUrl,
+        priceCents: list[i].priceCents,
+        priceType: list[i].priceType,
+        pitType: list[i].pitType,
+        savedAt: list[i].savedAt,
+      } as UTSJSONObject)
+    }
+    uni.setStorageSync(SNAPSHOT_KEY, JSON.stringify(serializable))
+  } catch (e) {
+    // 写入失败非致命：只是下次下架时少一张完整卡
+  }
+}
+
+/** 单条 upsert（不落盘）。批量路径与单条路径共用，避免收藏页逐条写 storage。 */
+function upsertSnapshot(item: FeedItem) {
+  if (item == null || item.entityId === '') return
+  const list = loadSnapshots()
+  let target = favoriteSnapshotOf(item.entityId)
+  if (target == null) {
+    const created = new FavoriteSnapshot()
+    created.productId = item.entityId
+    list.unshift(created)
+    target = created
+  }
+  const snap = target
+  if (snap == null) return
+  if (item.title !== '') snap.title = item.title
+  if (item.brandName !== '') snap.brandName = item.brandName
+  if (item.coverUrl !== '') snap.coverUrl = item.coverUrl
+  if (item.price > 0) snap.priceCents = item.price
+  if (item.priceType !== '') snap.priceType = item.priceType
+  const pit = item.pitType !== '' ? item.pitType : item.category
+  if (pit !== '') snap.pitType = pit
+  snap.savedAt = Date.now()
+  // 超出上限：淘汰尾部（最早插入 / 最早更新）
+  while (list.length > SNAPSHOT_MAX) list.pop()
+}
+
+/** 记一份商品展示快照（已存在则覆盖为最新）。收藏瞬间调用。 */
+export function rememberFavoriteSnapshot(item: FeedItem) {
+  if (item == null || item.entityId === '') return
+  upsertSnapshot(item)
+  persistSnapshots()
+}
+
+/**
+ * 批量记快照（收藏页刷新时用）：全部 upsert 完**只落盘一次**。
+ * 单条路径逐条写 storage 在收藏多时会把 JSON 反复序列化 N 遍，纯属浪费。
+ */
+export function rememberFavoriteSnapshots(items: FeedItem[]) {
+  if (items.length === 0) return
+  for (let i = 0; i < items.length; i++) upsertSnapshot(items[i])
+  persistSnapshots()
+}
+
+export function favoriteSnapshotOf(productId: string): FavoriteSnapshot | null {
+  const list = loadSnapshots()
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].productId === productId) return list[i]
+  }
+  return null
+}
+
 
 export function readEntries(): FavoriteEntry[] {
   const raw = readString(FAVORITE_ENTRIES_KEY)
@@ -100,7 +235,7 @@ export function writeEntries(entries: FavoriteEntry[]) {
         releaseId: entries[i].releaseId,
       } as UTSJSONObject)
     }
-    uni.setStorageSync(isLocalMockSession() ? 'demo_' + FAVORITE_ENTRIES_KEY : FAVORITE_ENTRIES_KEY, JSON.stringify(serializable))
+    uni.setStorageSync(FAVORITE_ENTRIES_KEY, JSON.stringify(serializable))
     const ids: string[] = []
     for (let i = 0; i < entries.length; i++) ids.push(entries[i].productId)
     writeList(FAVORITE_IDS_KEY, ids)
@@ -125,7 +260,6 @@ export function isFavorite(entityId: string): boolean {
 }
 
 export function queueFavorite(entityId: string, action: string, payload: string): boolean {
-  if (isLocalMockSession()) return true
   if (enqueueLocalOperation(getCurrentSyncUserId(), 'favorite', entityId, action, payload) === '') {
     showFeedback('保存失败，请重试')
     return false
@@ -135,12 +269,20 @@ export function queueFavorite(entityId: string, action: string, payload: string)
   return true
 }
 
-export function toggleFavorite(entityId: string, title: string = '', releaseId: string = ''): boolean {
+/**
+ * 收藏 / 取消收藏。
+ *
+ * @param snapshot 收藏当刻手上的商品卡（可选）。**能被传就得传** —— 它是「商品后来下架了，
+ *        收藏页还能显示封面/品牌/价格」的唯一来源：下架后详情只会 404，本机没留过就没得显示。
+ */
+export function toggleFavorite(entityId: string, title: string = '', releaseId: string = '', snapshot: FeedItem | null = null): boolean {
   if (entityId === '') return false
   const entries = [...favoriteState.favoriteEntries]
   const found = entries.findIndex((entry) => entry.productId === entityId)
-  if (!queueFavorite(entityId, found >= 0 ? 'delete' : 'upsert', JSON.stringify({ productId: entityId, title, releaseId }))) return found >= 0
-  if (found >= 0) entries.splice(found, 1)
+  const adding = found < 0
+  if (!queueFavorite(entityId, adding ? 'upsert' : 'delete', JSON.stringify({ productId: entityId, title, releaseId }))) return !adding
+  if (adding && snapshot != null) rememberFavoriteSnapshot(snapshot!)
+  if (!adding) entries.splice(found, 1)
   else {
     const entry = new FavoriteEntry()
     entry.productId = entityId
@@ -151,7 +293,7 @@ export function toggleFavorite(entityId: string, title: string = '', releaseId: 
   favoriteState.favoriteEntries = entries
   writeEntries(entries)
   syncFavoriteIds()
-  return found < 0
+  return adding
 }
 
 export function updateFavoriteStatus(entityId: string, status: string): boolean {
@@ -185,13 +327,19 @@ export function favoriteEntryOf(entityId: string): FavoriteEntry | null {
   return null
 }
 
-export async function refreshRemoteFavorites(): Promise<void> {
-  if (getCachedAccessToken() == '' || isLocalMockSession()) return
+/**
+ * 拉取服务端收藏并合并到本地。
+ * @returns 是否拿到了服务端权威快照。**「不需要远端」（游客 / 无 token）算成功**，
+ *          只有「需要但拉失败」才算 false —— 调用方靠这个区分
+ *          「真的没有收藏」和「收藏列表根本没拉到」，后者要给「重新加载」而不是空态。
+ */
+export async function refreshRemoteFavorites(): Promise<boolean> {
+  if (getCachedAccessToken() == '') return true
   const revision = _favoriteRevision
   const userId = getCurrentSyncUserId()
   try {
     const items = await listWishlistRemote()
-    if (revision !== _favoriteRevision || userId !== getCurrentSyncUserId() || isLocalMockSession()) return
+    if (revision !== _favoriteRevision || userId !== getCurrentSyncUserId()) return true
     const serverByProduct = new Map<string, FavoriteEntry>()
     for (let i = 0; i < items.length; i++) {
       const raw = items[i]
@@ -240,8 +388,14 @@ export async function refreshRemoteFavorites(): Promise<void> {
     favoriteState.favoriteEntries = localMerged
     writeEntries(localMerged)
     syncFavoriteIds()
-    } catch (e) {
-    // 离线时保留本地收藏缓存
+    favoriteState.favoritesRequestId = ''
+    return true
+  } catch (e) {
+    // 离线时保留本地收藏缓存。
+    // 同时把后端 requestId 带出来：收藏列表拉不到时，用户手上只有一句「重试」是没用的，
+    // 有 id 才能让后端一条命令捞出那次请求（这个项目里失败一律按这套走）。
+    favoriteState.favoritesRequestId = apiErrorRequestId(e)
+    return false
   }
 }
 
@@ -273,6 +427,42 @@ function findFavoriteProduct(productId: string): FeedItem | null {
   return null
 }
 
+/**
+ * 详情取不到（已下架 / 网络不通）时，用**本地快照 + 收藏条目**造一张可展示的卡片。
+ *
+ * 2026-09-28 用户反馈：「就算失效什么的不也应该给用户展示吗」→ 于是加了「无条件补位」，
+ * 但只补了标题，卡片上没图没价没品牌。
+ * 2026-09-30 用户复述：「显示是东西下架了，下架的应该也展示」→ 空壳不算展示。现在优先用
+ * `FavoriteSnapshot`（收藏当刻 / 上次详情成功时存下的封面、品牌、价格）把卡片**填满**，
+ * 这样下架商品看起来仍是一张正常的商品卡，只多一个「已下架」chip。
+ *
+ * 字段口径不变：**快照里没有的字段一律留空，不猜不编**（缺失留空是项目既定口径）。
+ * `saleStatus` 只在确认失效（404/410/200 空数据）时给 `ENDED`；瞬时失败不给状态，
+ * 因为此时我们并不知道它到底还卖不卖。
+ */
+function placeholderFavorite(entry: FavoriteEntry, confirmedGone: boolean): FeedItem {
+  const snap = favoriteSnapshotOf(entry.productId)
+  const item = new FeedItem()
+  item.id = entry.productId
+  item.entityId = entry.productId
+  item.feedType = FEED_PRODUCT
+  let title = entry.title
+  if (title === '' && snap != null) title = snap!.title
+  item.title = title !== '' ? title : '收藏的商品'
+  if (snap != null) {
+    const s = snap!
+    item.brandName = s.brandName
+    item.coverUrl = s.coverUrl
+    item.price = s.priceCents
+    item.priceType = s.priceType !== '' ? s.priceType : 'UNKNOWN'
+    item.pitType = s.pitType
+    item.category = s.pitType
+    item.sourceLabel = s.brandName
+  }
+  item.saleStatus = confirmedGone ? 'ENDED' : ''
+  return item
+}
+
 async function loadFavoriteOnce(productId: string, releaseId: string): Promise<FavoriteLoadResult> {
   const result = new FavoriteLoadResult()
   try {
@@ -295,39 +485,65 @@ async function loadFavoriteOnce(productId: string, releaseId: string): Promise<F
 }
 
 export async function refreshFavorites(): Promise<void> {
-  await refreshRemoteFavorites()
+  const remoteOk = await refreshRemoteFavorites()
   // 首次加载才显示骨架屏；之后进入静默刷新。
   if (!favoriteState.favoritesLoadedOnce) favoriteState.favoritesLoading = true
   favoriteState.favoritesError = ''
   const products: FeedItem[] = []
   const releases: ReleaseEvent[] = []
   const entries = favoriteState.favoriteEntries
+  // 「已登录 + 服务端收藏没拉到 + 本地也没条目」＝ 我们**根本不知道**用户收藏了什么，
+  // 这时整个列表为空是不能当「你还没有收藏」展示的（旧版就是这么误导的）。
+  // 只有这一种情况保留整页失败态 + 「重新加载」；其余情况都有卡片可展示。
+  if (entries.length == 0 && !remoteOk) {
+    favoriteState.favoriteProducts = []
+    favoriteState.favoriteReleases = []
+    favoriteState.invalidFavoriteIds = []
+    favoriteState.favoritesError = '收藏列表暂时没拉到，请检查网络后重试'
+    favoriteState.favoritesLoading = false
+    favoriteState.favoritesLoadedOnce = true
+    return
+  }
   const invalid: string[] = []
   let transient = 0
+  const loadedSnapshots: FeedItem[] = []
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i]
     let res = await loadFavoriteOnce(entry.productId, entry.releaseId)
     // 瞬时失败先**静默重试一次** —— 单次网络抖动不该把整页打成「部分加载失败」
     if (res.status == 2) res = await loadFavoriteOnce(entry.productId, entry.releaseId)
     if (res.status == 0) {
-      if (res.item != null) products.push(res.item!)
+      if (res.item != null) {
+        products.push(res.item!)
+        // 拉到了就更新快照：商品将来下架时，这张卡还能靠快照完整显示
+        loadedSnapshots.push(res.item!)
+      }
       if (res.release != null) releases.push(res.release!)
       continue
     }
     if (res.status == 1) invalid.push(entry.productId)
     else transient += 1
-    // 已下架 / 暂时取不到：保留本地缓存卡片，不中断整列表
+    // 已下架 / 暂时取不到：**一律补一张卡**，不让它从列表里凭空消失。
+    // 优先用上一轮的真实卡片（含封面/价格），没有就用快照 + 条目造一张（见 placeholderFavorite）。
     const cached = findFavoriteProduct(entry.productId)
-    if (cached != null) products.push(cached!)
+    const card = cached != null ? cached! : placeholderFavorite(entry, res.status == 1)
+    // 确认下架（404/410）时，即使复用的是上一轮的真实卡片也要标出「已下架」——
+    // 上一轮它还在售，卡上那个在售 chip 现在已经不成立了。瞬时失败则保持原样（我们并不知道它还卖不卖）。
+    if (res.status == 1) card.saleStatus = 'ENDED'
+    products.push(card)
   }
   favoriteState.favoriteProducts = products
   favoriteState.favoriteReleases = releases
   favoriteState.invalidFavoriteIds = invalid
+  rememberFavoriteSnapshots(loadedSnapshots)
   // 两种提示分开，别混为一谈：
-  //   · 已下架（404/410）→ 稳定状态，给「清除失效」入口，不要催着重试
-  //   · 瞬时失败 → 重试一次仍失败才提示；全好了就不显示任何红字
+  //   · 已下架（404/410）→ 稳定状态：**不是错误**，卡片照样在列表里（用快照显示），
+  //     文案只能说「已下架、仍为你保留」，绝不能写成「加载失败」吓用户，也给「清除失效」入口
+  //   · 瞬时失败 → 重试一次仍失败才提示；全好了就不显示任何提示
   if (invalid.length > 0) {
-    favoriteState.favoritesError = `有 ${invalid.length} 个收藏的商品已下架，可清除失效收藏`
+    // 提示条在收藏列表顶部，右侧紧挨着「清除失效」按钮 —— 文案里不必再重复一遍「可清除失效」，
+    // 否则整条占满一行（用户 2026-09-30 反馈）。只说事实：多少件下架、仍保留着。
+    favoriteState.favoritesError = `${invalid.length} 件已下架，仍保留在收藏里`
   } else if (transient > 0) {
     favoriteState.favoritesError = `有 ${transient} 个收藏加载超时，可下拉重试`
   }
@@ -391,29 +607,10 @@ export function toggleWish(entityId: string): boolean {
 }
 
 export function reloadFavorite() {
-  let entries = readEntries()
-  if (isLocalMockSession() && entries.length === 0) {
-    // 演示数据（2026-09-14 对齐）：标题与 mock 商品一致；待购状态必须与该商品的真实销售状态自洽，
-    // 否则会出现「卡片 chip 写在售、决策行写等待开售」这种自相矛盾的卡（用户反馈"展示混乱"）。
-    //   prd_jk_navy_45  现货在售   → 想买
-    //   prd_lolita_moon 预约定金期 → 等待尾款
-    //   prd_hanfu_song  即将发售   → 等待开售
-    const demoRows = [
-      ['prd_jk_navy_45', '深蓝格裙 45cm', 'WANT'],
-      ['prd_lolita_moon', '月光曲 JSK', 'WAIT_BALANCE'],
-      ['prd_hanfu_song', '宋制旋裙套装', 'WAIT_RELEASE'],
-    ]
-    const seeded: FavoriteEntry[] = []
-    for (let i = 0; i < demoRows.length; i++) {
-      const entry = new FavoriteEntry()
-      entry.productId = demoRows[i][0]
-      entry.title = demoRows[i][1]
-      entry.status = demoRows[i][2]
-      seeded.push(entry)
-    }
-    writeEntries(seeded)
-    entries = seeded
-  }
+  // 2026-09-30 删除「演示收藏」播种：它塞进来的 prd_jk_navy_45 / prd_lolita_moon / prd_hanfu_song
+  // 在真实后端全都不存在（详情一律 404），于是收藏页永远挂着 3 张「已下架」的假卡 ——
+  // 用户看到的就是「我什么都没收藏，怎么全下架了」。收藏列表只能是用户自己的收藏，一条不少、一条不多。
+  const entries = readEntries()
   favoriteState.favoriteEntries = entries
   syncFavoriteIds()
   favoriteState.wishIds = readList(WISH_IDS_KEY)

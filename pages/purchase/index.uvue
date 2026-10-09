@@ -25,7 +25,7 @@
           <PageSkeleton variant="list" v-if="store.loading && store.itemCount === 0" />
 
           <template v-else-if="store.displayItems.length === 0">
-            <PageState icon="order" title="暂无订单记录" message="录入定金尾款订单，避免逾期" action-text="新增记录" @action="goAdd" />
+            <PageState icon="order" title="暂无订单记录" message="点右下角 + 录入定金尾款订单，避免逾期" />
           </template>
 
           <view v-else>
@@ -97,6 +97,7 @@ import StatusChip from '@/components/v3/StatusChip.uvue'
 import PageSkeleton from '@/components/v3/PageSkeleton.uvue'
 import PageState from '@/components/v3/PageState.uvue'
 import AppFab from '@/components/base/AppFab.uvue'
+import { navigateOnce } from '@/utils/nav-guard'
 import AppDialog from '@/components/base/AppDialog.uvue'
 
 const store = usePurchaseStore()
@@ -122,7 +123,8 @@ function statusClass(statusText: string): string {
   if (statusText === '已逾期') return 'error'
   return 'pending'
 }
-function goAdd() { uni.navigateTo({ url: '/pages/purchase/edit' }) }
+// 悬浮「+」在部分端会触发两次 tap ⇒ 走重入保护，避免一次点击 push 两个页面
+function goAdd() { navigateOnce('/pages/purchase/edit') }
 function goImport() { uni.navigateTo({ url: '/pages/purchase/import' }) }
 function openItem(id: string) { if (!selectMode.value) uni.navigateTo({ url: `/pages/purchase/detail?id=${id}` }) }
 

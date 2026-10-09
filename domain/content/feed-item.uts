@@ -24,11 +24,18 @@ export class FeedItem {
   title: string = ''
   subtitle: string = ''
   coverUrl: string = ''         // 主图 (3:4)
+  /** 收藏数（人气）**展示值** = 服务端基数 + 本机增量。商品卡显示在品牌行右侧；0 时不显示 */
+  wishCount: number = 0
+  /**
+   * 收藏数的**服务端基数**，一进入页面就固定，收藏/取消收藏时**绝不被改写**。
+   * 为什么要单独存：展示值是被本地增量改过的，如果拿它当基数再叠加一次增量，
+   * 就会出现「取消再收藏 → 数字变成 2」这种**重复计数**（2026-10-05 实际踩到）。
+   */
+  wishCountBase: number = 0
   secondaryCoverUrl: string = '' // 副图 (可选)
   brandId: string = ''
   brandName: string = ''
   price: number = 0             // 分
-  originalPrice: number = 0     // 分 (用于显示划线价)
   badgeText: string = ''        // 角标文字 ("预售" / "新品")（后端业务字段生成，非前端猜测）
   eventStartAt: string = ''     // 发售事件开始时间
   eventEndAt: string = ''       // 发售事件结束时间
@@ -47,8 +54,7 @@ export class FeedItem {
   depositCents: number = 0      // 定金（分）
   balanceCents: number = 0      // 尾款（分）
   fullPriceCents: number = 0    // 全款（分，来源 product_releases.full_price_cents；DEPOSIT 摘要「定金 ¥X · 全款 ¥Y」用）
-  colorTags: string[] = []      // 可选颜色（Product V2 colors）
-  materialTags: string[] = []   // 材质标签（Product V2 material_summary 数据源）
+  maxPriceCents: number = 0     // 最高价（分）；<= price 表示单值。与 price 一起构成「最低价～最高价」区间
   saleStatus: string = ''       // UPCOMING / ON_SALE / PRE_ORDER / SOLD_OUT / ENDED
   releaseType: string = ''      // first_release / rerelease / reservation / spot / lottery / unknown
   releaseTypeName: string = ''  // 首发 / 再贩 / 预约 / 现货 / 抽选 / 未知

@@ -2,13 +2,22 @@
  * SortType — 排序类型
  *
  * ★★★★★ Android 规范：UTS 不支持 string union type，改用 class 常量
+ *
+ * 2026-09-30：去掉 `NAME`（「名称」排序已按反馈下架：字母序对衣柜没有意义，
+ * 中英文混排结果也很怪）。补上 `EARLIEST` —— `wardrobe-store.sortedItems()` 一直在
+ * 按 `'earliest'` 分支排序，但这里没声明常量，属于「靠裸字符串对暗号」的隐患。
+ *
+ * ⚠️ 标签文案以 `stores/wardrobe-store.uts` 的 `sortLabel()` 为唯一口径。
+ * 本文件的 `SORT_OPTIONS` 是历史遗留的备用清单（当前无人引用），文案必须与
+ * `sortLabel()` 保持一致，否则一旦有人接上去就会冒出第二套说法
+ * （旧版就是这里写「最近添加/价格从高到低」、store 里写「最近加入/价格高→低」）。
  */
 
 export class SortType {
   static readonly NEWEST = 'newest'
+  static readonly EARLIEST = 'earliest'
   static readonly PRICE_HIGH = 'priceHigh'
   static readonly PRICE_LOW = 'priceLow'
-  static readonly NAME = 'name'
 }
 
 export class SortOption {
@@ -24,15 +33,16 @@ function createSortOption(v: string, l: string): SortOption {
 }
 
 export const SORT_OPTIONS: SortOption[] = [
-  createSortOption(SortType.NEWEST, '最近添加'),
-  createSortOption(SortType.PRICE_HIGH, '价格从高到低'),
-  createSortOption(SortType.PRICE_LOW, '价格从低到高'),
-  createSortOption(SortType.NAME, '按名称排序'),
+  createSortOption(SortType.NEWEST, '最近加入'),
+  createSortOption(SortType.EARLIEST, '最早加入'),
+  createSortOption(SortType.PRICE_HIGH, '价格高→低'),
+  createSortOption(SortType.PRICE_LOW, '价格低→高'),
 ]
 
+/** 默认排序 = 最近加入（与 `wardrobe-store` 的 `currentSort` 初值一致，不是两种排序） */
 export function getSortLabel(sort: string): string {
   for (const opt of SORT_OPTIONS) {
     if (opt.value == sort) return opt.label
   }
-  return '最近添加'
+  return '最近加入'
 }

@@ -11,7 +11,7 @@
 }
 
 /**
- * 读取衣橱单品的封面图（第一张图）。
+ * 读取衣柜单品的封面图（第一张图）。
  * 不用 class getter，避免 vapor 模式下 reactive proxy 包裹带 getter 的 class 实例时
  * 触发响应式追踪异常（Active effect was not restored correctly）导致白屏。
  */
