@@ -1,4 +1,4 @@
-import { apiGet, apiGetAuthorized, apiPostAuthorized, apiPutAuthorized, apiPatchAuthorized, apiDeleteAuthorized, encodeQuery, apiUploadBinary, apiErrorStatus, readFileAsArrayBuffer, resolveApiUrl } from '@/services/platform/api-client'
+import { ApiResponse, apiGet, apiGetAuthorized, apiPostAuthorized, apiPutAuthorized, apiPatchAuthorized, apiDeleteAuthorized, encodeQuery, apiUploadBinary, apiErrorStatus, readFileAsArrayBuffer, resolveApiUrl } from '@/services/platform/api-client'
 
 function asObject(value: any): UTSJSONObject | null {
   return value != null ? value as UTSJSONObject : null

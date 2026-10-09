@@ -15,6 +15,12 @@
  *   才算 FAIL。框架/内置全局（computed、Math、uni、Map、JS 内建…）一律不在本项目 export 表里，
  *   所以天然不会误报。
  *
+ * 2026-10-10 修：**扫描前先抹掉注释与字符串字面量的内容**。
+ *   起因：`services/content/feed-service.uts` 的注释里写了「这里不能再写 clearWishDelta(item.entityId)」，
+ *   旧版把注释当代码 ⇒ 误报 2 处 ⇒ 门禁 exit 1。注释/文案里出现 `foo()` 是正常写法，不该判失败。
+ *   抹除规则：行注释与块注释全抹；单/双引号字符串抹；模板串抹但**保留插值内部**（那里的调用是真的）。
+ *   定位信息不受影响（被抹的字符换成等长空格，行号/列号保持）。
+ *
  * 用法：node scripts/check-missing-imports.js
  */
 'use strict'
@@ -97,6 +103,54 @@ function collectDeclared(src) {
   return names
 }
 
+/**
+ * 抹掉注释与字符串字面量的**内容**（换成等长空格，保留换行 ⇒ 行号不变）。
+ * 目的：注释/文案里写成 `foo()` 不该被判成「调用未 import」。
+ * 模板串里 `${...}` 的插值内部**保留**（那里的调用是真实代码）。
+ */
+function stripCommentsAndStrings(src) {
+  const out = src.split('')
+  const n = src.length
+  let i = 0
+  let state = 'code' // code | line | block | sq | dq | tpl
+  let tplDepth = 0 // 模板串 ${} 的括号深度
+  while (i < n) {
+    const c = src[i]
+    const next = src[i + 1]
+    if (state === 'code') {
+      if (c === '/' && next === '/') { out[i] = ' '; out[i + 1] = ' '; state = 'line'; i += 2; continue }
+      if (c === '/' && next === '*') { out[i] = ' '; out[i + 1] = ' '; state = 'block'; i += 2; continue }
+      if (c === "'") { out[i] = ' '; state = 'sq'; i++; continue }
+      if (c === '"') { out[i] = ' '; state = 'dq'; i++; continue }
+      if (c === '`') { out[i] = ' '; state = 'tpl'; tplDepth = 0; i++; continue }
+      if (c === '}' && tplDepth > 0) tplDepth--
+      i++; continue
+    }
+    if (state === 'line') {
+      if (c === '\n') { state = 'code'; i++; continue }
+      out[i] = ' '; i++; continue
+    }
+    if (state === 'block') {
+      if (c === '*' && next === '/') { out[i] = ' '; out[i + 1] = ' '; state = 'code'; i += 2; continue }
+      if (c !== '\n') out[i] = ' '
+      i++; continue
+    }
+    if (state === 'tpl') {
+      if (c === '\\') { out[i] = ' '; if (i + 1 < n && src[i + 1] !== '\n') out[i + 1] = ' '; i += 2; continue }
+      if (c === '$' && next === '{') { out[i] = ' '; out[i + 1] = ' '; state = 'code'; tplDepth = 1; i += 2; continue }
+      if (c === '`') { out[i] = ' '; state = 'code'; i++; continue }
+      if (c !== '\n') out[i] = ' '
+      i++; continue
+    }
+    // sq / dq
+    if (c === '\\') { out[i] = ' '; if (i + 1 < n && src[i + 1] !== '\n') out[i + 1] = ' '; i += 2; continue }
+    if ((state === 'sq' && c === "'") || (state === 'dq' && c === '"')) { out[i] = ' '; state = 'code'; i++; continue }
+    if (c !== '\n') out[i] = ' '
+    i++; continue
+  }
+  return out.join('')
+}
+
 /** 收集本项目所有 export 出来的名字 → 定义在哪个文件 */
 const exportTable = new Map()
 for (const f of files) {
@@ -133,9 +187,9 @@ for (const f of files) {
   const imported = collectImported(src)
   const declared = collectDeclared(src)
 
-  // 挖掉 import/export 行本身，避免把 import 里的名字当调用
-  const body = src
-    .replace(/^\s*import\s+[\s\S]*?from\s+['"][^'"]+['"]\s*$/gm, '')
+  // 扫描体：先抹注释/字符串，再挖掉 import 行与函数声明头，避免把 import 里的名字/声明当调用
+  const body = stripCommentsAndStrings(src)
+    .replace(/^\s*import\b.*$/gm, '')
     .replace(/\bfunction\s+[A-Za-z_$][\w$]*\s*\(/g, 'function_(')
     .replace(/^\s*export\s*\{[^}]*\}\s*$/gm, '')
 

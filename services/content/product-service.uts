@@ -133,20 +133,27 @@ function mapRemoteProduct(raw: UTSJSONObject, requestId: string): ProductDetailM
   item.wishCountBase = raw['wishCount'] != null ? raw['wishCount'] as number : 0
   item.wishCount = item.wishCountBase
 
-  // 12-table: images is array of ProductImage objects {url, thumbnailUrl, width, height, sizeBytes, objectKey}
+  // 12-table 线上契约（2026-10-10 实测 https://api.sankengcloset.icu 确认为**对象**）：
+  //   {url, thumbnailUrl, width, height, sizeBytes, objectKey}（后 5 个线上恒为 null）
+  // 但仍兼容后端返回 string[] 的写法 —— 那种情况下若只按对象读，副图会被静默丢弃
+  // （评审 2026-10-09「待验证疑点①」；实测线上是对象，这里保留 string 兼容分支做防御）。
   const rawImages = raw['images'] as any[]
   if (rawImages != null && Array.isArray(rawImages)) {
     for (let i = 0; i < rawImages.length; i++) {
       const img = rawImages[i]
       if (img == null) continue
-      const obj = img as UTSJSONObject
       const pi = new ProductImage()
-      pi.url = obj['url'] != null ? obj['url'] as string : ''
-      pi.thumbnailUrl = obj['thumbnailUrl'] != null ? obj['thumbnailUrl'] as string : ''
-      pi.width = obj['width'] != null ? obj['width'] as number : 0
-      pi.height = obj['height'] != null ? obj['height'] as number : 0
-      pi.sizeBytes = obj['sizeBytes'] != null ? obj['sizeBytes'] as number : 0
-      pi.objectKey = obj['objectKey'] != null ? obj['objectKey'] as string : ''
+      if (typeof img === 'string') {
+        pi.url = img as string
+      } else {
+        const obj = img as UTSJSONObject
+        pi.url = obj['url'] != null ? obj['url'] as string : ''
+        pi.thumbnailUrl = obj['thumbnailUrl'] != null ? obj['thumbnailUrl'] as string : ''
+        pi.width = obj['width'] != null ? obj['width'] as number : 0
+        pi.height = obj['height'] != null ? obj['height'] as number : 0
+        pi.sizeBytes = obj['sizeBytes'] != null ? obj['sizeBytes'] as number : 0
+        pi.objectKey = obj['objectKey'] != null ? obj['objectKey'] as string : ''
+      }
       if (pi.url !== '') result.images.push(pi)
     }
   }
