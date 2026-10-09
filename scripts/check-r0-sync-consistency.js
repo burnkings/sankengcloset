@@ -119,7 +119,12 @@ if (!DIST) {
     const wb = mustRead('writeback')
     if (wb) {
       check('write-back 为 async 远端优先', wb.includes('async function syncWriteBack') && wb.includes('await remoteCall()'), 'write-back 未 async 化')
-      check("远端成功不入队（'' 返回）", wb.includes("return ''") && wb.includes('enqueueLocalOperation'), '远端成功后仍会入队（双路径重复风险）')
+      // 语义：远端成功路径**不得**调用 enqueueLocalOperation（否则直写+入队双路径会重复提交）。
+      // 返回「成功」的形态可能是 '' 或 SYNC_SENT，所以按「成功分支体内是否入队」判定，
+      // 而不是匹配某个字面量（2026-10-09：会话边界改造后成功返回值改为常量）。
+      const okBranch = /await remoteCall\(\)([\s\S]*?)\n\s*\}\s*catch/.exec(wb)
+      const successEnqueues = okBranch != null && okBranch[1].includes('enqueueLocalOperation')
+      check('远端成功不入队（成功分支体内无 enqueueLocalOperation）', !successEnqueues && wb.includes('enqueueLocalOperation'), '远端成功后仍会入队（双路径重复风险）')
     }
   }
 

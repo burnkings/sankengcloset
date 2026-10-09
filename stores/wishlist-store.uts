@@ -140,6 +140,17 @@ function notifyChanged() {}
 let _fetchSeq = 0
 export function bumpFetchSeq() { _fetchSeq += 1 }
 
+/** 退出/切账号时清空内存态（2026-10-09 评审 P1-3）。仅递增 seq 防不住已显示的数据残留。 */
+export function resetSession() {
+  _fetchSeq += 1
+  _state.items = []
+  _state.loading = false
+  _state.error = ''
+  _state.filterStatus = ''
+  _state.searchKeyword = ''
+  _state.showFavoritesOnly = false
+}
+
 function mapRemoteWish(raw: UTSJSONObject): WishItem {
   const item = new WishItem()
   item.id = readStr(raw, 'id')

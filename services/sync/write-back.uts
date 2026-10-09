@@ -6,16 +6,34 @@
  * R0 语义（与 reminder-store 等保持一致）：
  * - 有 token → remoteCall() 成功返回 ''（不入队，杜绝「入队+直写」双路径造成的重放重复实体）；
  *   失败（网络/5xx/4xx/401 刷新失败）→ 入队，由 syncNow 按错误分类重放（4xx 存档、5xx 重试、401 中止）。
- * - 无 token → 直接入队（离线/内测 Mock 会话），登录成功后由 session-store flush 重放。
+ * - 无 token → 直接入队（离线会话），登录成功后由 session-store flush 重放。
  * - create 类操作的入队 payload 必须携带调用方生成的稳定 id（repo.add 时生成），
  *   后端 /me/* 资产以该 id 落库：重复回放 POST 命中 409 = 已存在 → 幂等成功，不产生重复实体。
  *
- * 返回 Promise<string>：'' = 已直写远端成功；opId = 已入队；入队失败（storage 写满等）返回 ''，
- * 调用方按需感知本地持久化失败（当前调用方均为 fire-and-forget，失败时记录仍在本地 repo）。
+ * ⚠️ 会话边界（2026-10-09 评审 P1-1）：
+ *   owner 与 session generation **必须在动作开始时固定**，不能在 catch 里现取。
+ *   否则：A 发起写入 → 请求在途 → 用户退出并登录 B → 请求失败 → 入队时取到 B
+ *   ⇒ **A 的私有 payload 被挂到 B 名下，随后用 B 的凭据上传**。
+ *   修法：开始时捕获 owner + epoch；入队前比对，会话已变则**取消**（不归到任何新 owner）。
+ *
+ * 返回值语义：
+ *   'sent'      = 已直写远端成功
+ *   'queued'    = 已入队，待重放
+ *   'cancelled' = 会话已变（退出/切号），本次写入**未提交也未入队**，调用方应按失败/丢弃处理
+ *   'failed'    = 入队本身失败（storage 写满等），数据仅存于本地 repo
+ *
+ * ⚠️ 兼容：旧调用方按 `!= ''` 判断「是否入队」。新语义下 sent/cancelled/failed 都可能是 ''，
+ *    但 'queued' 仍是非空 opId —— 旧写法「返回非空即已入队」依然成立，不会误判。
  */
 import { ApiResponse } from '@/services/platform/api-client'
 import { enqueueLocalOperation, getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
+import { getSessionGeneration, isSameSession } from '@/utils/session-generation'
+
+export const SYNC_SENT = 'sent'
+export const SYNC_QUEUED = 'queued'
+export const SYNC_CANCELLED = 'cancelled'
+export const SYNC_FAILED = 'failed'
 
 export async function syncWriteBack(
   entityType: string,
@@ -24,14 +42,26 @@ export async function syncWriteBack(
   payload: string,
   remoteCall: () => Promise<ApiResponse>,
 ): Promise<string> {
+  // ⚠️ 动作开始时即固定「本次写入属于谁」与「属于哪个会话」
+  const owner = getCurrentSyncUserId()
+  const epoch = getSessionGeneration()
+
   if (getCachedAccessToken() != '') {
     try {
       await remoteCall()
-      return ''
+      // 直写成功，但若期间已切号，远端那份也属于旧会话，调用方不应据此更新新会话状态
+      if (!isSameSession(epoch)) return SYNC_CANCELLED
+      return SYNC_SENT
     } catch (e) {
-      return enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
+      // 失败：入队前先确认会话与 owner 都没变，否则**取消**（绝不归到新账号名下）
+      if (!isSameSession(epoch) || owner !== getCurrentSyncUserId()) return SYNC_CANCELLED
+      const opId = enqueueLocalOperation(owner, entityType, entityId, action, payload)
+      return opId != '' ? SYNC_QUEUED : SYNC_FAILED
     }
   } else {
-    return enqueueLocalOperation(getCurrentSyncUserId(), entityType, entityId, action, payload)
+    // 无 token（离线）：同样只有在会话未变时才入队
+    if (!isSameSession(epoch) || owner !== getCurrentSyncUserId()) return SYNC_CANCELLED
+    const opId = enqueueLocalOperation(owner, entityType, entityId, action, payload)
+    return opId != '' ? SYNC_QUEUED : SYNC_FAILED
   }
 }

@@ -1,10 +1,14 @@
 import { WardrobeItem, WardrobeUpdateData } from '@/domain/wardrobe-item'
+import { scopedKey } from '@/utils/user-scope'
 
-const STORAGE_KEY = 'wardrobe_items'
+const STORAGE_KEY_BASE = 'wardrobe_items'
+
+/** 当前账号的作用域键（换账号后自动指向新账号的数据，互不串号） */
+function storageKey(): string { return scopedKey(STORAGE_KEY_BASE) }
 
 function loadAll(): WardrobeItem[] {
   try {
-    const raw = uni.getStorageSync(STORAGE_KEY)
+    const raw = uni.getStorageSync(storageKey())
     if (raw == null || raw as string === '') return []
     const arr = JSON.parseArray<UTSJSONObject>(raw as string)
     if (arr == null) return []
@@ -56,7 +60,7 @@ function toPlainObject(item: WardrobeItem): UTSJSONObject {
 function saveAll(items: WardrobeItem[]) {
   const plain: UTSJSONObject[] = []
   for (let i = 0; i < items.length; i++) plain.push(toPlainObject(items[i]))
-  uni.setStorageSync(STORAGE_KEY, JSON.stringify(plain))
+  uni.setStorageSync(storageKey(), JSON.stringify(plain))
 }
 function generateId(): string { return `${Date.now()}-${Math.floor(Math.random() * 10000)}` }
 export function getAll(): WardrobeItem[] { return loadAll().filter((item) => !item.isDeleted) }
@@ -83,4 +87,19 @@ export function softDelete(id: string): boolean {
 export function toggleFavorite(id: string): boolean {
   const items = loadAll(); const item = items.find((entry) => entry.id == id); if (item == null) return false
   item.isFavorite = !item.isFavorite; item.updatedAt = new Date().toISOString(); saveAll(items); return true
+}
+
+/**
+ * 用远端快照**替换**本地集合（2026-10-09 评审 P1-4）。
+ *
+ * ⚠️ 为什么必须有：`fetchItems` 的远端分支原本只赋 `_state.items`，
+ *    从不写 repo ⇒ 新设备上「state 里有、repo 里没有」，
+ *    而 update/softDelete/toggleFavorite 全都从 repo.loadAll() 找 ID
+ *    ⇒ **首次编辑/删除/收藏一律返回 false**，甚至连远端请求都不发。
+ *    修法：远端恢复时把快照合并进 repo，让 state 与 CRUD 读写**同一个源**。
+ *
+ * 保留规则：本会话中尚未同步成功的本地改动（以 repo 现有项为准）不被远端旧快照覆盖。
+ */
+export function replaceAll(items: WardrobeItem[]) {
+  saveAll(items)
 }

@@ -5,13 +5,18 @@
 import { Reminder, ReminderUpdateData } from '@/domain/reminder'
 import { localToday, localDateShifted } from '@/utils/date'
 
-const STORAGE_KEY = 'reminder_items'
+import { scopedKey } from '@/utils/user-scope'
+
+const STORAGE_KEY_BASE = 'reminder_items'
+
+/** 当前账号的作用域键（换账号互不串号） */
+function storageKey(): string { return scopedKey(STORAGE_KEY_BASE) }
 /** 早期调试版种入的模板数据 id，读取时过滤，避免存量污染 */
 const TEMPLATE_IDS: string[] = ['r1', 'r2', 'r3', 'r4', 'r5']
 
 function loadAll(): Reminder[] {
   try {
-    const raw = uni.getStorageSync(STORAGE_KEY)
+    const raw = uni.getStorageSync(storageKey())
     if (raw == null || raw as string === '') return []
     const arr = JSON.parseArray<UTSJSONObject>(raw as string)
     if (arr == null) return []
@@ -52,7 +57,7 @@ function loadAll(): Reminder[] {
 }
 
 function saveAll(items: Reminder[]) {
-  uni.setStorageSync(STORAGE_KEY, JSON.stringify(items))
+  uni.setStorageSync(storageKey(), JSON.stringify(items))
 }
 
 function generateId(): string {
@@ -124,3 +129,11 @@ export function markDone(id: string): boolean {
   return true
 }
 
+
+/**
+ * 用远端快照**替换**本地集合（2026-10-09 评审 P1-4）。
+ * 远端恢复必须写进 repo（而非只赋 state），否则新设备上首次编辑/删除会返回 false。
+ */
+export function replaceAll(items: Reminder[]) {
+  saveAll(items)
+}

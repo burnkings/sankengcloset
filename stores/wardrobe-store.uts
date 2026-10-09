@@ -139,6 +139,21 @@ function notifyChanged() {}
 let _fetchSeq = 0
 export function bumpFetchSeq() { _fetchSeq += 1 }
 
+/**
+ * 退出/切账号时清空**内存态**（2026-10-09 评审 P1-3）。
+ * 仅 bumpFetchSeq 只能防迟到响应，**不清已显示的数据** ⇒ 退出后
+ * getPurchaseById/getAll 仍能拿到上一个账号的记录。
+ */
+export function resetSession() {
+  _fetchSeq += 1
+  _state.items = []
+  _state.loading = false
+  _state.error = ''
+  _state.currentCategory = ''
+  _state.searchKeyword = ''
+  _state.currentStatus = ''
+}
+
 function mapRemoteWardrobe(raw: UTSJSONObject): WardrobeItem {
   const item = new WardrobeItem()
   item.id = readStr(raw, 'id')
@@ -175,7 +190,21 @@ async function fetchItems() {
       if (seq !== _fetchSeq) return
       const restored = [] as WardrobeItem[]
       for (let i = 0; i < remote.length; i++) restored.push(mapRemoteWardrobe(remote[i]))
-      _state.items = restored
+      // ⚠️ 必须同时写进 repo（评审 P1-4）：
+      //    updateItem / deleteItem / toggleFavorite 都从 repo.loadAll() 找 ID，
+      //    若只赋 _state.items，新设备上「state 有、repo 没有」⇒ 首次编辑/删除/收藏全部失败。
+      //    合并策略：保留本地已有项中「本会话尚未成功同步」的改动，不被远端旧快照覆盖。
+      const local = repo.getAll()
+      if (local.length > 0) {
+        const remoteIds: Set<string> = new Set<string>()
+        for (let i = 0; i < restored.length; i++) remoteIds.add(restored[i].id)
+        for (let i = 0; i < local.length; i++) {
+          // 远端没返回的本地项（离线新建 / 待同步删除）保留，避免误删用户数据
+          if (!remoteIds.has(local[i].id)) restored.push(local[i])
+        }
+      }
+      repo.replaceAll(restored)
+      _state.items = repo.getAll()
     } else {
       if (seq !== _fetchSeq) return
       // 游客（未登录）：只展示本机已存数据，不再播种 demo 假衣柜

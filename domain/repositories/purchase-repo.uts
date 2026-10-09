@@ -2,11 +2,16 @@
 
 import { PurchaseRecord, PurchaseUpdateData } from '@/domain/purchase-record'
 
-const STORAGE_KEY = 'purchase_records'
+import { scopedKey } from '@/utils/user-scope'
+
+const STORAGE_KEY_BASE = 'purchase_records'
+
+/** 当前账号的作用域键（换账号互不串号） */
+function storageKey(): string { return scopedKey(STORAGE_KEY_BASE) }
 
 function loadAll(): PurchaseRecord[] {
   try {
-    const raw = uni.getStorageSync(STORAGE_KEY)
+    const raw = uni.getStorageSync(storageKey())
     if (raw == null || raw as string === '') return []
     const arr = JSON.parseArray<UTSJSONObject>(raw as string)
     if (arr == null) return []
@@ -44,7 +49,7 @@ function loadAll(): PurchaseRecord[] {
   }
 }
 
-function saveAll(records: PurchaseRecord[]) { uni.setStorageSync(STORAGE_KEY, JSON.stringify(records)) }
+function saveAll(records: PurchaseRecord[]) { uni.setStorageSync(storageKey(), JSON.stringify(records)) }
 function generateId(): string { return `${Date.now()}-${Math.floor(Math.random() * 10000)}` }
 
 export function getAll(): PurchaseRecord[] { return loadAll().filter((r) => !r.isDeleted) }
@@ -111,3 +116,12 @@ export function persist(records: PurchaseRecord[]) {
   saveAll(records)
 }
 
+
+/**
+ * 用远端快照**替换**本地集合（2026-10-09 评审 P1-4）。
+ * 远端恢复必须写进 repo（而非只赋 state），否则新设备上首次编辑/删除会返回 false。
+ * 与 persist 等价，命名与其他个人 repo 统一。
+ */
+export function replaceAll(records: PurchaseRecord[]) {
+  saveAll(records)
+}

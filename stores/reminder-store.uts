@@ -11,7 +11,8 @@ import { syncWriteBack } from '@/services/sync/write-back'
 import { readPendingOperations } from '@/services/sync/local-sync-queue'
 import { getCachedAccessToken } from '@/config/runtime'
 import { createAssetRemote, deleteAssetRemote, listRemindersRemote, patchAssetRemote } from '@/services/user-data/user-data-service'
-import { scheduleReminderNotification } from '@/utils/notify'
+import { scheduleReminderNotification, cancelReminderNotification, cancelReminderNotifications } from '@/utils/notify'
+import { reminderKey, isPushEnabled, isCategoryEnabled, categoryKeyForReminderType } from '@/utils/notify-key'
 import { localToday, localDateShifted } from '@/utils/date'
 
 // ====== 模块级 reactive 状态（单例）======
@@ -149,8 +150,17 @@ function reminderContent(item: Reminder): string {
 }
 
 function scheduleFor(item: Reminder) {
+  // 总开关/分项关闭 ⇒ 不排通知；同时把同 key 的旧排期撤掉
+  // （否则「先开着排了、后来关掉」那条会继续留在系统里响）。
+  if (!isPushEnabled() || !isCategoryEnabled(categoryKeyForReminderType(item.type))) {
+    cancelReminderNotification(reminderKey(item.id))
+    return
+  }
   if (item.status === STATUS_PENDING && item.remindDate !== '') {
-    scheduleReminderNotification(item.title, reminderContent(item), item.remindDate, item.remindTime, `reminder-${item.id}`)
+    scheduleReminderNotification(item.title, reminderContent(item), item.remindDate, item.remindTime, reminderKey(item.id))
+  } else {
+    // 已不是「待提醒」（完成/过期/未排）⇒ 撤掉旧排期
+    cancelReminderNotification(reminderKey(item.id))
   }
 }
 
@@ -159,6 +169,18 @@ function scheduleFor(item: Reminder) {
 // 请求序号：切账号/登出时 bump，丢弃过期请求，防旧账号数据覆盖新状态
 let _fetchSeq = 0
 export function bumpFetchSeq() { _fetchSeq += 1 }
+
+/** 退出/切账号时清空内存态（2026-10-09 评审 P1-3）。仅递增 seq 防不住已显示的数据残留。 */
+export function resetSession() {
+  _fetchSeq += 1
+  _state.items = []
+  _state.loading = false
+  _state.error = ''
+  _state.filterStatus = ''
+  _state.searchKeyword = ''
+  // 退出登录后本账号已排的通知全部撤销：否则「退出后手机还会推上一个人的尾款提醒」
+  cancelReminderNotifications()
+}
 
 function mapRemoteReminder(raw: UTSJSONObject): Reminder {
   const item = new Reminder()
@@ -266,6 +288,8 @@ function deleteItem(id: string): boolean {
   const ok = repo.softDelete(id)
   if (ok) {
     _state.items = _state.items.filter((r) => r.id !== id)
+    // 提醒已删 ⇒ 已排的通知必须撤掉，否则「删了清单，手机到点还在响」
+    cancelReminderNotification(reminderKey(id))
     // 远端删除 404=已不存在 → 重放按幂等成功处理
     syncWriteBack('reminder', id, 'delete', '', () => deleteAssetRemote('reminders', id))
     notifyChanged()
@@ -277,9 +301,13 @@ function markDone(id: string): boolean {
   const ok = repo.markDone(id)
   if (ok) {
     _state.items = repo.getAll()
+    // 已完成 ⇒ 不需要再提醒（走 scheduleFor 的「非 PENDING 撤排期」分支，口径统一）
     const existing = _state.items.find((r) => r.id == id)
     if (existing != null) {
+      scheduleFor(existing)
       syncWriteBack('reminder', id, 'update', JSON.stringify(existing), () => patchAssetRemote('reminders', id, existing as UTSJSONObject))
+    } else {
+      cancelReminderNotification(reminderKey(id))
     }
     notifyChanged()
   }
@@ -294,6 +322,8 @@ function markUndone(id: string): boolean {
     _state.items = repo.getAll()
     const existing = _state.items.find((r) => r.id == id)
     if (existing != null) {
+      // 取消完成 ⇒ 重新排期
+      scheduleFor(existing)
       syncWriteBack('reminder', id, 'update', JSON.stringify(existing), () => patchAssetRemote('reminders', id, existing as UTSJSONObject))
     }
     notifyChanged()
@@ -317,6 +347,19 @@ function setSort(sort: string) {
 }
 
 function getById(id: string): Reminder | null { return _state.items.find((r) => r.id == id) }
+
+/**
+ * 按当前通知设置重新排一条提醒的通知（通知设置页开关变化后调用）。
+ * 排期判定统一收在 scheduleFor 里，这里只负责「找到实体 → 交给 scheduleFor」。
+ */
+function rescheduleItem(id: string): void {
+  const existing = _state.items.find((r) => r.id == id)
+  if (existing == null || existing.isDeleted) {
+    cancelReminderNotification(reminderKey(id))
+    return
+  }
+  scheduleFor(existing)
+}
 
 function updateLinkedReminder(existing: Reminder, title: string, date: string, type: string, note: string, purchase: PurchaseRecord) {
   const data = new ReminderUpdateData()
@@ -463,6 +506,7 @@ class ReminderStoreHandle {
   setSearch(keyword: string): void { setSearch(keyword) }
   setSort(sort: string): void { setSort(sort) }
   getById(id: string): Reminder | null { return getById(id) }
+  rescheduleItem(id: string): void { rescheduleItem(id) }
   syncPurchaseReminders(purchase: PurchaseRecord): void { syncPurchaseReminders(purchase) }
   removePurchaseLinkedReminders(purchaseId: string): void { removePurchaseLinkedReminders(purchaseId) }
   createProductReminder(productId: string, relatedReleaseId: string, type: string, title: string, remindDate: string, note: string): Reminder | null { return createProductReminder(productId, relatedReleaseId, type, title, remindDate, note) }

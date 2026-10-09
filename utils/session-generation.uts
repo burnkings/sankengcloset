@@ -1,0 +1,38 @@
+/**
+ * 会话代际（session generation）—— **唯一会话边界把手**
+ *
+ * ⚠️ 为什么要有这个东西：
+ *   登录态是全局单例，但异步操作（refresh、401 重试、写回入队、后台缓存补刷）
+ *   可能在「用户已经退出或换了账号」之后才回来。没有代际的话，这些迟到的
+ *   响应会把旧账号的数据写进新账号的上下文：
+ *     - P1-1：A 的写入失败后，owner 取了「当时的当前用户」= B ⇒ A 的 payload 挂到 B 名下
+ *     - P1-2：A 的 refresh 在途，用户退出，refresh 成功后把 token 复活成 A-new
+ *     - P1-3：A 的迟到 SWR 响应覆盖了 B 已经拿到的 Feed 缓存
+ *   ⇒ 修法：**退出 / 切账号 / 注销 时递增 generation**，
+ *     所有异步提交点在写回之前比对本地捕获的 epoch，不一致就整段丢弃。
+ *
+ * ⚠️ 注意：**普通的 accessToken 轮换（refresh 成功）不换代**。
+ *    generation 只表达「这是不是同一个会话（同一个登录用户）」，
+ *    不表达「token 换过没有」。混用会导致正常续期把自己的请求全丢掉。
+ *
+ * ⚠️ 本文件刻意不依赖 session-store / api-client，避免循环引用
+ *    （api-client 要用它，session-store 也要用它）。
+ */
+
+/** 当前会话代际；登录成功、退出、注销、切换账号时递增 */
+let generation: number = 0
+
+/** 取当前代际（异步操作开始前捕获，写回前比对） */
+export function getSessionGeneration(): number {
+  return generation
+}
+
+/** 使当前会话失效（递增代际）—— 退出/切账号/注销时调用 */
+export function invalidateSessionGeneration(): void {
+  generation += 1
+}
+
+/** 通用守卫：捕获的 epoch 是否仍属于当前会话 */
+export function isSameSession(epoch: number): boolean {
+  return epoch === generation
+}

@@ -13,11 +13,13 @@ import { clearSessionTokens, saveSessionTokens, getCachedAccessToken } from '@/c
 import { WECHAT_MP_LOGIN_ENABLED, WECHAT_APP_LOGIN_CONFIGURED } from '@/config/wechat'
 import { apiPost, apiGet, apiGetAuthorized, apiErrorStatus, apiErrorCode, apiErrorRequestId } from '@/services/platform/api-client'
 import { flushLocalOperations } from '@/services/sync/local-sync-queue'
+import { invalidateSessionGeneration } from '@/utils/session-generation'
+import { currentUserScope, scopedKeyFor, GUEST_SCOPE, USER_DATA_BASES } from '@/utils/user-scope'
 import { uploadAvatarImageRemote, updateProfileRemote, fetchProfileRemote } from '@/services/user-data/user-data-service'
-import { bumpFetchSeq as bumpWardrobeFetch } from '@/stores/wardrobe-store'
-import { bumpFetchSeq as bumpPurchaseFetch } from '@/stores/purchase-store'
-import { bumpFetchSeq as bumpWishlistFetch } from '@/stores/wishlist-store'
-import { bumpFetchSeq as bumpReminderFetch } from '@/stores/reminder-store'
+import { resetSession as resetWardrobeSession } from '@/stores/wardrobe-store'
+import { resetSession as resetPurchaseSession } from '@/stores/purchase-store'
+import { resetSession as resetWishlistSession } from '@/stores/wishlist-store'
+import { resetSession as resetReminderSession } from '@/stores/reminder-store'
 
 const STATE_KEY = 'v21_session_state'
 const USER_ID_KEY = 'v21_session_user_id'
@@ -119,6 +121,26 @@ const USER_SCOPED_KEYS: string[] = [
   // 搜索与列表的本地偏历史
   'search_recent', 'pending_search_keyword', 'community_topic', 'community_view',
 ]
+
+/**
+ * ⚠️ 个人业务 repo 的键是**按账号分键**的（`<base>__<scope>`，见 utils/user-scope.uts），
+ *    所以退出时要**同时清掉「裸键」和「当前账号的作用域键」**：
+ *    - 裸键：历史版本（未分账号时）留下的数据，属于安全债，必须清掉；
+ *    - 作用域键：本次会话写入的当前账号数据。
+ *    `utils/user-scope.uts` 的 USER_DATA_BASES 是这些基础键的**唯一登记处**。
+ */
+function clearUserDataScopedKeys() {
+  const scope = currentUserScope()
+  for (let i = 0; i < USER_DATA_BASES.length; i++) {
+    const base = USER_DATA_BASES[i]
+    // 裸键（历史遗留）
+    try { uni.removeStorageSync(base) } catch (e) { /* 单键失败不阻塞退出 */ }
+    // 当前账号作用域键
+    try { uni.removeStorageSync(scopedKeyFor(base, scope)) } catch (e) { /* 同上 */ }
+    // 游客作用域键（退出后可能残留）
+    try { uni.removeStorageSync(scopedKeyFor(base, GUEST_SCOPE)) } catch (e) { /* 同上 */ }
+  }
+}
 
 /** 清掉上一个账号在本机留下的一切（退出登录与注销都走这里） */
 export function clearUserScopedStorage() {
@@ -300,6 +322,9 @@ async function loginWithWechat(): Promise<boolean> {
     if (data == null) throw new Error('登录响应为空')
     const accessToken: string = data['accessToken'] != null ? data['accessToken'] as string : ''
     if (accessToken === '') throw new Error('登录响应缺少 accessToken')
+    // ⚠️ 登录成功即开启**新会话**：递增代际，让旧会话的一切迟到响应失效。
+    //    否则 A 退出后残留的 refresh / SWR 可能把 A 的数据写进刚登录的会话。
+    invalidateSessionGeneration()
     saveSessionTokens(accessToken, data['refreshToken'] != null ? data['refreshToken'] as string : '')
 
     // 4. 获取用户信息
@@ -333,15 +358,23 @@ async function loginWithWechat(): Promise<boolean> {
 }
 
 function logout() {
+  // ⚠️ 次序很重要，且**每一步都是有理由的**：
+  // 1) 先使会话失效：递增 generation ⇒ 之后到达的迟到响应（refresh / 401 重试 / SWR / 写回）
+  //    都会被 isSameSession 拦下（评审 P1-1/P1-2/P1-3）。
+  invalidateSessionGeneration()
+  // 2) 再清个人业务 repo 的**作用域键**：此时 userId 还没被清，currentUserScope()
+  //    才能算出正确的 scope。**顺序颠倒就会漏清当前账号的数据。**
+  clearUserDataScopedKeys()
+  // 3) 会话痕迹 + 其余个人键
   clearStoredSession()
-  // 个人数据一并清掉：否则换账号/重新登录还会看到上一个人的点赞、收藏、浏览与反馈记录
   clearUserScopedStorage()
+  // 4) 回到游客态（这一步会清掉 userId，所以必须在 2) 之后）
   resetToGuest()
-  // 丢弃各业务 store 的 in-flight 请求，防旧账号数据晚返回覆盖新状态
-  bumpWardrobeFetch()
-  bumpPurchaseFetch()
-  bumpWishlistFetch()
-  bumpReminderFetch()
+  // 5) 清空各业务 store 的**内存态**（仅递增 seq 只能防迟到响应，清不掉已显示的数据）
+  resetWardrobeSession()
+  resetPurchaseSession()
+  resetWishlistSession()
+  resetReminderSession()
   notifyChanged()
 }
 

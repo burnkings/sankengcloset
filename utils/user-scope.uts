@@ -1,0 +1,56 @@
+/**
+ * user-scope — 个人数据的**按账号分键**
+ *
+ * ⚠️ 为什么要有这个（2026-10-09 评审 P0-1 的正确解法）：
+ *   四个个人 repo（wardrobe_items / purchase_records / wishlist_items / reminder_items）
+ *   原本用的是**全局单键** ⇒ 同一台设备换账号登录，新账号会直接读到上一个账号的
+ *   订单、衣橱、收藏、提醒。这既是隐私问题，也会造成数据错乱。
+ *
+ * 关于「个人数据一律不落盘」这条红线的**正确理解**（行业最佳实践）：
+ *   - **认证凭据**（accessToken / refreshToken）绝不落盘 —— 这是红线的真正目标，现状已合规。
+ *   - **业务数据**（订单 / 衣橱 / 收藏 / 提醒）是**缓存**，可以落盘，但必须做到：
+ *       ① 按账号隔离（本文件）② 退出即清除（session-store 的 USER_SCOPED_KEYS）
+ *   - 若把业务数据改成纯内存，冷启动/离线时这些页面会全空 —— 那是**用降低产品质量
+ *     去满足一条被误读的规则**，不是最佳实践。
+ *
+ * 实现：键名变为 `<base>__<scope>`，scope 取当前用户 ID；
+ * 未登录（游客）用固定 guest scope，退出时按空 scope 清理。
+ *
+ * ⚠️ 刻意不用 uni.getStorageInfoSync() 枚举键：该项目无使用先例，
+ *    跨端（微信/Android/iOS/Harmony）行为未验证。改为**显式声明**已知作用域，
+ *    与 session-store 的 USER_SCOPED_KEYS 风格一致，行为可预测。
+ */
+import { getCurrentSyncUserId } from '@/services/sync/local-sync-queue'
+
+/** 游客作用域：未登录时的本地数据归属 */
+export const GUEST_SCOPE = 'guest'
+
+/** 所有个人数据的基础键（新增个人 repo 时必须登记到这里） */
+export const USER_DATA_BASES: string[] = [
+  'wardrobe_items',
+  'purchase_records',
+  'wishlist_items',
+  'reminder_items',
+]
+
+/** 作用域分隔符 */
+const SCOPE_SEP = '__'
+
+/** 取当前账号作用域（登录用户 ID；未登录为 guest） */
+export function currentUserScope(): string {
+  const uid = getCurrentSyncUserId()
+  return uid == '' ? GUEST_SCOPE : uid
+}
+
+/**
+ * 把基础键扩展为「账号作用域键」。
+ * 例：`wardrobe_items` + 用户 usr_abc ⇒ `wardrobe_items__usr_abc`
+ */
+export function scopedKey(base: string): string {
+  return `${base}${SCOPE_SEP}${currentUserScope()}`
+}
+
+/** 指定 scope 的作用域键（用于退出时按已知账号清理） */
+export function scopedKeyFor(base: string, scope: string): string {
+  return `${base}${SCOPE_SEP}${scope}`
+}

@@ -1,5 +1,6 @@
 import { getRuntimeConfig, getCachedAccessToken, getCachedRefreshToken, saveSessionTokens } from '@/config/runtime'
 import { catalogMemoryMs, isCatalogPath, isCatalogFresh, readCatalog, writeCatalog, clearCatalogCache } from '@/services/platform/catalog-cache'
+import { getSessionGeneration, isSameSession } from '@/utils/session-generation'
 
 export class ApiResponse {
   data: any | null = null
@@ -374,8 +375,14 @@ async function refreshWithSingleFlight(): Promise<boolean> {
 async function doRefreshRemoteSession(): Promise<boolean> {
   const refreshToken = getCachedRefreshToken()
   if (refreshToken === '') return false
+  // ⚠️ 捕获会话代际：refresh 在途时用户可能已退出/切号。
+  //    迟到成功若直接 saveSessionTokens，会把 token 复活成旧账号的（评审 P1-2）。
+  const epoch = getSessionGeneration()
   try {
     const response = await apiPost('/api/v1/sessions/refresh', { refreshToken })
+    // 写回之前必须校验：会话没变 + refreshToken 没被换掉
+    if (!isSameSession(epoch)) return false
+    if (refreshToken !== getCachedRefreshToken()) return false
     const data = response.data != null ? response.data as UTSJSONObject : null
     if (data == null || data['accessToken'] == null) return false
     saveSessionTokens(data['accessToken'] as string, data['refreshToken'] != null ? data['refreshToken'] as string : refreshToken)
@@ -395,6 +402,9 @@ export async function refreshRemoteSession(): Promise<boolean> {
  */
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 async function apiAuthorized(method: HttpMethod, path: string, payload?: any): Promise<ApiResponse> {
+  // ⚠️ 捕获会话代际：401 重试必须在**同一会话**内进行。
+  //    否则 A 的请求 401 后，若用户已切到 B，重试会拿 B 的 token 去重放 A 的 payload（评审 P1-2）。
+  const epoch = getSessionGeneration()
   try {
     if (method == 'GET') return await apiGet(path)
     if (method == 'DELETE') return await apiDelete(path)
@@ -402,12 +412,18 @@ async function apiAuthorized(method: HttpMethod, path: string, payload?: any): P
     if (method == 'PATCH') return await apiPatch(path, payload)
     return await apiPost(path, payload)
   } catch (e) {
-    if (e instanceof ApiRequestError && e.statusCode === 401 && (await refreshWithSingleFlight())) {
-      if (method == 'GET') return await apiGet(path)
-      if (method == 'DELETE') return await apiDelete(path)
-      if (method == 'PUT') return await apiPut(path, payload)
-      if (method == 'PATCH') return await apiPatch(path, payload)
-      return await apiPost(path, payload)
+    if (e instanceof ApiRequestError && e.statusCode === 401) {
+      // 会话已变 ⇒ 不刷新、不重放，原样抛出（调用方按失败处理）
+      if (!isSameSession(epoch)) throw e
+      if (await refreshWithSingleFlight()) {
+        // 刷新后会话可能又被切走，再校验一次
+        if (!isSameSession(epoch)) throw e
+        if (method == 'GET') return await apiGet(path)
+        if (method == 'DELETE') return await apiDelete(path)
+        if (method == 'PUT') return await apiPut(path, payload)
+        if (method == 'PATCH') return await apiPatch(path, payload)
+        return await apiPost(path, payload)
+      }
     }
     throw e
   }

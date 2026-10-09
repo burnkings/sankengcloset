@@ -4,13 +4,18 @@
 
 import { WishItem, WishUpdateData } from '@/domain/wish-item'
 
-const STORAGE_KEY = 'wishlist_items'
+import { scopedKey } from '@/utils/user-scope'
+
+const STORAGE_KEY_BASE = 'wishlist_items'
+
+/** 当前账号的作用域键（换账号互不串号） */
+function storageKey(): string { return scopedKey(STORAGE_KEY_BASE) }
 /** 早期调试版种入的模板数据 id，读取时过滤，避免存量污染 */
 const TEMPLATE_IDS: string[] = ['w1', 'w2', 'w3', 'w4', 'w5', 'w6']
 
 function loadAll(): WishItem[] {
   try {
-    const raw = uni.getStorageSync(STORAGE_KEY)
+    const raw = uni.getStorageSync(storageKey())
     if (raw == null || raw as string === '') return []
     const arr = JSON.parseArray<UTSJSONObject>(raw as string)
     if (arr == null) return []
@@ -49,7 +54,7 @@ function loadAll(): WishItem[] {
 }
 
 function saveAll(items: WishItem[]) {
-  uni.setStorageSync(STORAGE_KEY, JSON.stringify(items))
+  uni.setStorageSync(storageKey(), JSON.stringify(items))
 }
 
 function generateId(): string {
@@ -191,3 +196,11 @@ export function deleteMany(ids: string[]): number {
   return count
 }
 
+
+/**
+ * 用远端快照**替换**本地集合（2026-10-09 评审 P1-4）。
+ * 远端恢复必须写进 repo（而非只赋 state），否则新设备上首次编辑/删除会返回 false。
+ */
+export function replaceAll(items: WishItem[]) {
+  saveAll(items)
+}
