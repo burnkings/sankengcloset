@@ -4,35 +4,28 @@ setlocal
 
 REM ============================================================
 REM  sankengcloset 推送脚本
-REM  用途：绕过坏掉的 git-credential-manager，走可用代理 7900 推送
-REM  用法：双击运行，或在本目录执行  scripts\push-remote.cmd <TOKEN>
+REM
+REM  背景（2026-10-09 查明）：
+REM    全局 git-credential-manager 路径是 ~/.workbuddy/vendor/PortableGit/...
+REM    —— 该目录**整个不存在**（供应商目录已迁移到 binaries/）。
+REM    凭据本身没丢（Windows 凭据管理器里有 git:https://x-access-token@github.com），
+REM    仅仅因为 helper 二进制找不到 ⇒ push 报 401 / could not read Username。
+REM
+REM  另外：环境变量里的代理 50102 是坏的（SSL 反复 renegotiate 后挂死），
+REM    GitHub 必须走 7900；但直连又完全不通。所以本脚本强制覆盖代理。
 REM ============================================================
 
 cd /d "%~dp0.."
 
 set "PROXY=http://127.0.0.1:7900"
-set "TOKEN=%~1"
+set "GCM=C:/Users/dddd/.workbuddy/binaries/PortableGit/versions/1.2.0/mingw64/bin/git-credential-manager.exe"
 
-if "%TOKEN%"=="" (
-  echo.
-  echo [i] 未提供 token，将使用匿名推送（公有仓库读取可过，写入会 401）。
-  echo     若要认证推送，请传入 GitHub Personal Access Token：
-  echo        scripts\push-remote.cmd ghp_xxxxxxxxxxxx
-  echo.
-) else (
-  echo [i] 已提供 token，将写入仓库本地凭据存储（仅本仓库，不污染全局）。
+REM 自愈：全局 helper 若指向不存在的路径，就地修正
+git config --global --get credential.helper | findstr /i "vendor\\PortableGit" >nul 2>&1
+if not errorlevel 1 (
+  echo [i] 检测到全局凭据助手路径失效，正在修正为 %GCM%
+  git config --global --replace-all credential.helper "!\"%GCM%\""
 )
-
-REM 关掉坏掉的全局凭据助手，改为本仓库独立的 store 文件
-git config --local --unset-all credential.helper 2>nul
-git config --local credential.helper "store --file=.git/.git-credentials-local"
-
-if not "%TOKEN%"=="" (
-  > ".git\.git-credentials-local" echo https://x-access-token:%TOKEN%@github.com
-)
-
-REM 把「不存在的 GCM」从全局配置里摘掉（只影响本机，不影响仓库）
-git config --global --unset-all credential.helper 2>nul
 
 echo [i] 使用代理 %PROXY% 推送 origin/main ...
 set HTTPS_PROXY=%PROXY%
@@ -42,15 +35,15 @@ set http_proxy=%PROXY%
 set GIT_TERMINAL_PROMPT=0
 
 git push origin main
-set RC=%ERRORLEVEL%
+if errorlevel 1 goto :fail
+echo.
+echo [OK] 推送成功。
+goto :eof
 
-if %RC%==0 (
-  echo.
-  echo [OK] 推送成功。
-) else (
-  echo.
-  echo [X] 推送失败（exit=%RC%）。
-  echo     网络已确认可用；401 基本就是 token 缺失或过期。
-)
-
+:fail
+echo.
+echo [X] 推送失败。排查顺序：
+echo     1) 代理客户端是否开着（需要监听 127.0.0.1:7900）
+echo     2) 凭据是否过期：控制面板 → 凭据管理器 → 搜 github，删掉后重推会提示重新登录
+echo     3) 目标路径是否正确：%GCM%
 endlocal
