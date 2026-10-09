@@ -5,7 +5,11 @@ function run(s,c={}){return vm.runInNewContext(stripTypeScriptTypes(s.replace(/^
 // （用户要求「删除首页的两个假数据和品牌目录的假数据」），下面两条用例随之调整：
 //   · 原来第 9 行那条「假货 fixture 与预览链接」用例已删除（它守护的对象不存在了）；
 //   · 品牌相关用例不再拼接 comparison-brand（withComparisonBrand 已从 brand-service 摘除）。
-const ctx={assert,FeedItem:class{},Brand:class{},RankingItem:class{},ProductImage:class{},ProductVariant:class{},ReleaseEvent:class{},FEED_PRODUCT:'product',deriveCoverUrl:x=>x[0]?.url??'',extractImageUrls:x=>x.map(i=>i.url),encodeQuery:encodeURIComponent};
+const ctx={assert,FeedItem:class{},Brand:class{},RankingItem:class{},ProductImage:class{},ProductVariant:class{},ReleaseEvent:class{},FEED_PRODUCT:'product',deriveCoverUrl:x=>x[0]?.url??'',extractImageUrls:x=>x.map(i=>i.url),encodeQuery:encodeURIComponent,
+  // 2026-10-09 评审 P2-2：store 现在从 wish-count 引入了增量同步函数。本测试用「正则剥掉
+  // import 行 + vm 求值」的方式加载源码，被剥离的 import 不会自动带进来，所以这里补上桩。
+  // 注意这**不是**放松断言：wishCountOf 仍按「服务端基数 + 增量」真实计算，只是增量表为空。
+  wishCountOf:(id,n)=>n,clearWishDeltaAfterServerConfirm:()=>{},bumpWishCount:()=>{}};
 test('detail URL rejects missing payloads and canonicalizes feed ID',()=>run(src('utils/content-navigation.uts')+`;assert.equal(productDetailUrl(null),'');assert.equal(productDetailUrl('undefined'),'');assert.equal(productDetailUrl('feed_prd_taobao_1'),'/pages/product/detail?id=prd_taobao_1');`,ctx));
 // 2026-09-24：brand-service 当前**没有**服务端缓存与并发去重（每次调用都打 /api/v1/brands），
 // 旧契约「并发只发 1 次请求」已作废。品牌目录的缓存/去重若要恢复，应在 store 层做（见 GAP 文档待办）。

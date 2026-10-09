@@ -33,3 +33,19 @@ export function wishCountOf(productId: string, serverCount: number): number {
 export function clearWishDelta(productId: string): void {
   deltas.delete(productId)
 }
+
+/**
+ * 服务端**已确认该商品的收藏态**时清除本地增量（2026-10-09 评审 P2-2）。
+ *
+ * 与 `clearWishDelta` 的区别只在调用时机，语义上是同一个动作：只有当响应里带了
+ * `saved`（说明这是「带登录态的一次真实拉取」，服务端计数必然已经把用户的收藏算进去了），
+ * 本机那个尚未确认的 +1/-1 才是冗余的，清掉之后数字会收敛到权威值。
+ *
+ * 之前这件事做在 DTO 映射层（`mapFeedItem`），但映射层看到的是**缓存优先**的响应：
+ * 未 force 的请求可能直接命中几秒前的快照，此时用户的收藏动作还没被服务端计入，
+ * 清掉增量就会让刚点亮的爱心数字跳回旧值。把判断权上移到「明确知道服务端已经算过」的地方。
+ */
+export function clearWishDeltaAfterServerConfirm(productId: string, serverConfirmedSaved: boolean): void {
+  if (!serverConfirmedSaved) return
+  deltas.delete(productId)
+}

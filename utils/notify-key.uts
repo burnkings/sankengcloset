@@ -1,0 +1,54 @@
+/**
+ * notify-key — 本地通知的「调度身份」构造与两种开关的读取口径
+ *
+ * 为什么要单独一个文件：
+ *   1) `scheduleReminderNotification` 与 `cancelReminderNotification` 必须用**同一个** key，
+ *      否则「改了时间」会变成「旧通知没撤、新通知又排了一条」。把拼接收敛到一处，
+ *      两边就不会各写各的字符串。
+ *   2) 通知设置页（`pages/preferences/notification.uvue`）落盘的开关，调度侧要读得到。
+ *      之前页面把 `v2_notify_enabled` / `v26_notify_categories` 写进 storage 就结束了，
+ *      调度入口从不读 —— 用户关掉总开关，提醒照响。读写口径放在这里统一。
+ */
+
+const NOTIFY_ENABLED_KEY = 'v2_notify_enabled'
+const NOTIFY_CATEGORY_KEY = 'v26_notify_categories'
+
+/** 单条提醒的通知 key；同一条提醒的排期/撤销都必须用它。 */
+export function reminderKey(id: string): string { return `reminder-${id}` }
+
+/** 通知总开关。未写过的旧安装默认开启（与设置页默认值一致）。 */
+export function isPushEnabled(): boolean {
+  try {
+    const v = uni.getStorageSync(NOTIFY_ENABLED_KEY)
+    if (v == null) return true
+    const s = v as string
+    return s === '' ? true : s === '1'
+  } catch (e) {
+    return true
+  }
+}
+
+/**
+ * 分项开关。未写过时默认开启；总开关关闭时一律视为关闭（总开关是主、分项是从）。
+ * key 取设置页的 `release` / `balance` / `arrival` / `social`。
+ */
+export function isCategoryEnabled(key: string): boolean {
+  if (!isPushEnabled()) return false
+  try {
+    const raw = uni.getStorageSync(NOTIFY_CATEGORY_KEY) as string
+    if (raw == null || raw === '') return true
+    const values = JSON.parse(raw) as UTSJSONObject
+    const saved = values[key]
+    return saved == null ? true : saved == true
+  } catch (e) {
+    return true
+  }
+}
+
+/** 提醒类型 → 通知设置页的分项 key。 */
+export function categoryKeyForReminderType(type: string): string {
+  if (type == 'BALANCE') return 'balance'
+  if (type == 'ARRIVAL') return 'arrival'
+  if (type == 'RELEASE') return 'release'
+  return 'social'
+}

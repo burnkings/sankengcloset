@@ -63,7 +63,14 @@ _archive-2026-09-26/
 scripts/_chromeprof/
 scripts/gui-automation/
 scripts/product-enrich/
-scripts/taobao-backfill/
+#   ⚠️ taobao-backfill 目录里绝大多数是本地采集产物，但 **有一个被门禁引用**：
+#      tests/image-url-normalize.test.cjs 读 scripts/taobao-backfill/_build_full.py
+#      来校验「采集侧必须剥掉淘宝缩略图后缀」。
+#      整目录忽略 ⇒ 干净 clone 跑 `npm test` 直接 ENOENT（2026-10-09 评审 P2-3）。
+#      所以：忽略目录内容，但把那个被引用的脚本用 ! 重新纳回版本控制。
+scripts/taobao-backfill/*
+!scripts/taobao-backfill/_build_full.py
 #   下划线前缀 = 一次性采集/维护脚本（含淘宝登录态与本地路径），不进仓库。
 #   ⚠️ 不要写成 scripts/*.py —— 构建链脚本（patch-vendor.py / strip-mp-deadweight.py）要进仓库。
 scripts/_*.py
+!scripts/_build_full.py

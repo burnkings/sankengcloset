@@ -1,6 +1,6 @@
 // #ifdef APP-ANDROID
 import { requestNotificationPermission } from '@/uni_modules/reminder-permission'
-import { showLocalNotification } from '@/uni_modules/local-notify'
+import { showLocalNotification, cancelLocalNotification, cancelAllLocalNotifications } from '@/uni_modules/local-notify'
 // #endif
 /**
  * notify — 本地通知栏消息
@@ -40,10 +40,56 @@ function targetTimestamp(dateStr: string, timeStr: string): number {
 /**
  * 调度一条本地通知：在 remindDate + remindTime 时刻弹出。
  * 未授权通知权限或目标时刻已过则静默跳过（权限流程由页面在保存前处理）。
- * key 用于去重：同一 key 在 60s 内仅调度一次，避免提醒编辑/联动反复叠加相同通知。
+ *
+ * `key`（调用方传 `reminder-<id>`）是本文件内唯一的调度身份：
+ *   - 同 key **重复调度 = 更新** —— 先 cancel 掉上一次那个通知 id，再排新的。
+ *   - 所以「把提醒时间从 10:00 改到 10:01」也会立刻生效，不再被去重窗口吞掉。
+ * 之前用「时间戳 + 固定去重窗口」，本质是「窗口内的修改全都被丢弃」，
+ * 用户改完时间发现推送还是按旧的走。插件本来就导出了 cancelLocalNotification，
+ * 之前那句「平台无取消/去重接口」是错的（见 uni_modules/local-notify/utssdk/interface.uts）。
+ *
+ * 提醒被删除 / 完成 / 清空 / 退出登录 / 总开关关闭时，调用 cancelReminderNotification(key)
+ * 把已排的通知一并撤掉，避免「提醒删了、通知还响」。
  */
-const lastScheduled = {} as UTSJSONObject
+const scheduledIds = new Map<string, number>()
+
+/** 取消某个 key（`reminder-<id>`）已排入的通知。key 不存在时为安全空操作。 */
+export function cancelReminderNotification(key: string): void {
+  if (key === '') return
+  const id = scheduledIds.get(key)
+  scheduledIds.delete(key)
+  if (id == null) return
+  // #ifdef APP-ANDROID
+  try {
+    cancelLocalNotification(id!)
+  } catch (e) {
+    // 标准基座不含该插件：静默跳过
+  }
+  // #endif
+}
+
+/** 撤掉全部已排提醒通知（清空提醒 / 退出登录 / 关闭总开关时使用）。 */
+export function cancelReminderNotifications(): void {
+  if (scheduledIds.size === 0) return
+  scheduledIds.clear()
+  // #ifdef APP-ANDROID
+  try {
+    cancelAllLocalNotifications()
+  } catch (e) {
+    // 标准基座不含该插件：静默跳过
+  }
+  // #endif
+}
+
+/** 该 key 当前是否有已排通知（调试与门禁用，不参与业务逻辑）。 */
+export function hasScheduledReminder(key: string): boolean {
+  return key !== '' && scheduledIds.has(key)
+}
+
 export function scheduleReminderNotification(title: string, content: string, remindDate: string, remindTime: string, key: string = ''): void {
+  // 更新语义优先：无论后续是否提前返回，先把同 key 的旧排期撤掉，
+  // 否则「改成一个已经过期的时刻」会让旧通知继续留在系统里。
+  if (key !== '') cancelReminderNotification(key)
   if (title === '' || remindDate === '') return
   if (!notificationAuthorized()) return
   const when = targetTimestamp(remindDate, remindTime)
@@ -52,15 +98,10 @@ export function scheduleReminderNotification(title: string, content: string, rem
   if (when <= now) return
   const delay = Math.floor((when - now) / 1000)
   if (delay <= 0) return
-  // 同 key 60s 内去重（平台无取消/去重接口，仅能避免重复调度）
-  if (key !== '') {
-    const prev = lastScheduled[key] != null ? lastScheduled[key] as number : 0
-    if (now - prev < 60000) return
-  }
   // #ifdef APP-ANDROID
   try {
-    showLocalNotification({ title: title, content: content, delaySeconds: delay })
-    if (key !== '') lastScheduled[key] = now
+    const id = showLocalNotification({ title: title, content: content, delaySeconds: delay })
+    if (key !== '') scheduledIds.set(key, id)
   } catch (e) {
     // 标准基座不含该插件：静默跳过，避免多余浮层
   }

@@ -1,7 +1,6 @@
 import { FeedItem } from '@/domain/content/feed-item'
 import { createRequestId } from '@/domain/platform/api-contract'
 import { apiGet, encodeQuery } from '@/services/platform/api-client'
-import { clearWishDelta } from '@/services/content/wish-count'
 
 export class FeedPage {
   items: FeedItem[] = []
@@ -33,9 +32,13 @@ export function mapFeedItem(raw: UTSJSONObject): FeedItem {
   const wishBase = raw['wishCount'] != null ? raw['wishCount'] as number : 0
   item.wishCountBase = wishBase
   item.wishCount = wishBase
-  // 拿到新的服务端值 ⇒ 说明它已经包含之前那些收藏动作，本机增量必须清零，
-  // 否则「服务端基数 + 旧增量」会把同一次收藏算两遍。
-  clearWishDelta(item.entityId)
+  // ⚠️ 这里**不能**再写 clearWishDelta(item.entityId)（2026-10-09 评审 P2-2）。
+  //   映射层只认识「这条 DTO 的服务端原值」，它无从判断用户的本地 +1 是否已经被这次响应包含：
+  //   列表是缓存优先（未 force 时可能还是几秒前的快照），把这个尚未确认的增量清掉，
+  //   就会让「刚点亮的爱心数字又跳回服务端旧值」。清除只发生在能确认对齐的两个点：
+  //     1) 服务端已回传该商品的最终收藏态（`saved` 字段）—— home-feed-store 的 syncWishCountFromServer()
+  //     2) 收藏写回成功以后 —— wish-count 的 clearWishDeltaAfterServerConfirm()
+  //   映射层只负责「原样搬运服务端基线 + 让本地增量叠上去」。
   item.secondaryCoverUrl = raw['secondaryCoverUrl'] != null ? raw['secondaryCoverUrl'] as string : IMAGE_UNAVAILABLE
   item.brandId = raw['brandId'] != null ? raw['brandId'] as string : ''
   // 展示名口径（2026-10-06 最终）：**名称只有一个来源 = 品牌名**。

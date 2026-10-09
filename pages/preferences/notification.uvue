@@ -8,7 +8,7 @@
             <text :style="rowLabel">接收通知</text>
             <text :style="rowSubtitle">开启后接收提醒与互动通知</text>
           </view>
-          <AppSwitch v-model="pushEnabled" />
+          <AppSwitch :model-value="pushEnabled" @update:model-value="onSwitchPush" />
         </view>
       </ListGroup>
       <view :style="rowGap" />
@@ -18,7 +18,7 @@
             <text :style="catLabel">{{ item.label }}</text>
             <text :style="catSubtitle">{{ item.desc }}</text>
           </view>
-          <AppSwitch v-model="item.enabled" :disabled="!pushEnabled" />
+          <AppSwitch :model-value="item.enabled" :disabled="!pushEnabled" @update:model-value="onSwitchCategory(item.key, $event)" />
         </view>
       </ListGroup>
     </view>
@@ -33,30 +33,24 @@ import { fontSize, fontWeight } from '@/theme/tokens/typography'
 import { flexRow } from '@/theme/layout/flex'
 import { PAGE_GUTTER_V3, LIST_GROUP_HORIZONTAL_V3 } from '@/theme/tokens/responsive'
 import { n, initPageTheme } from '@/theme/use-theme'
-import { notificationAuthorized, openNotificationSetting } from '@/utils/notify'
+import { notificationAuthorized, openNotificationSetting, cancelReminderNotifications } from '@/utils/notify'
+import { isPushEnabled, isCategoryEnabled } from '@/utils/notify-key'
+import { useReminderStore } from '@/stores/reminder-store'
 
 const NOTIFY_ENABLED_KEY = 'v2_notify_enabled'
 const NOTIFY_CATEGORY_KEY = 'v26_notify_categories'
 const pushEnabled = ref(true)
 function loadPushEnabled() {
-  try {
-    const v = uni.getStorageSync(NOTIFY_ENABLED_KEY)
-    pushEnabled.value = v == null || v as string === '' ? true : (v as string) === '1'
-  } catch (e) {}
+  // 读取口径统一到 notify-key（调度侧读同一份，避免「设置了但调度不认」）
+  pushEnabled.value = isPushEnabled()
 }
 function savePushEnabled() {
   try { uni.setStorageSync(NOTIFY_ENABLED_KEY, pushEnabled.value ? '1' : '0') } catch (e) {}
 }
 function loadCategorySettings() {
-  try {
-    const raw = uni.getStorageSync(NOTIFY_CATEGORY_KEY) as string
-    if (raw === '') return
-    const values = JSON.parse(raw) as UTSJSONObject
-    for (let i = 0; i < categoryItems.value.length; i++) {
-      const saved = values[categoryItems.value[i].key]
-      if (saved != null) categoryItems.value[i].enabled = saved == true
-    }
-  } catch (e) {}
+  for (let i = 0; i < categoryItems.value.length; i++) {
+    categoryItems.value[i].enabled = isCategoryEnabled(categoryItems.value[i].key)
+  }
 }
 function saveCategorySettings() {
   try {
@@ -65,10 +59,28 @@ function saveCategorySettings() {
     uni.setStorageSync(NOTIFY_CATEGORY_KEY, JSON.stringify(values))
   } catch (e) {}
 }
-function onTogglePush() {
-  pushEnabled.value = !pushEnabled.value
-  savePushEnabled()
-  if (pushEnabled.value && !notificationAuthorized()) {
+
+/**
+ * 开关落盘之后的统一收尾：把「设置改变」同步到已排的通知上。
+ * 关总开关 ⇒ 撤掉全部已排提醒；开总开关 ⇒ 让提醒 store 按当前设置重新排一遍。
+ * 少了这一步，页面上的开关就只是写了个 storage，手机该响还是响（评审 P1-7）。
+ */
+function applyNotifySettings() {
+  if (!pushEnabled.value) {
+    cancelReminderNotifications()
+    return
+  }
+  const store = useReminderStore()
+  for (let i = 0; i < store.activeItems.length; i++) {
+    const item = store.activeItems[i]
+    if (item.status == 'PENDING' && item.remindDate != '') {
+      store.rescheduleItem(item.id)
+    }
+  }
+}
+
+function afterPushToggle(enabled: boolean) {
+  if (enabled && !notificationAuthorized()) {
     uni.showModal({
       title: '开启通知',
       content: '需要允许通知权限，才能收到尾款、到货与发售提醒。是否前往系统设置开启？',
@@ -80,6 +92,19 @@ function onTogglePush() {
       },
     })
   }
+}
+function onTogglePush() {
+  pushEnabled.value = !pushEnabled.value
+  savePushEnabled()
+  applyNotifySettings()
+  afterPushToggle(pushEnabled.value)
+}
+/** 直接点开关本体：与整行点击同一条保存/生效链路（不再各走各的） */
+function onSwitchPush(value: boolean) {
+  pushEnabled.value = value
+  savePushEnabled()
+  applyNotifySettings()
+  afterPushToggle(value)
 }
 class CategoryItem {
   key: string = ''
@@ -104,6 +129,16 @@ function toggleCategory(key: string) {
     if (categoryItems.value[i].key === key) { categoryItems.value[i].enabled = !categoryItems.value[i].enabled; break }
   }
   saveCategorySettings()
+  applyNotifySettings()
+}
+/** 直接点分项开关本体：与整行点击同一条保存/生效链路 */
+function onSwitchCategory(key: string, value: boolean) {
+  if (!pushEnabled.value) return
+  for (let i = 0; i < categoryItems.value.length; i++) {
+    if (categoryItems.value[i].key === key) { categoryItems.value[i].enabled = value; break }
+  }
+  saveCategorySettings()
+  applyNotifySettings()
 }
 
 onLoad(() => { initPageTheme(); loadPushEnabled(); loadCategorySettings() })

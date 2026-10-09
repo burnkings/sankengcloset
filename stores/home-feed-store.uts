@@ -12,7 +12,7 @@ import { FeedItem, FEED_PRODUCT } from '@/domain/content/feed-item'
 import { isFeedCardType } from '@/utils/feed-image-policy'
 import { fetchFeedPage, filterFeedByChannel } from '@/services/content/feed-service'
 import { usePreferencesStore } from '@/stores/preferences-store'
-import { bumpWishCount, wishCountOf } from '@/services/content/wish-count'
+import { bumpWishCount, wishCountOf, clearWishDeltaAfterServerConfirm } from '@/services/content/wish-count'
 import { useBlacklistStore } from '@/stores/blacklist-store'
 import { formatPriceCents, formatRelativeTime as formatRelativeTimeImpl, formatDeadline as formatDeadlineImpl } from '@/utils/format'
 
@@ -254,6 +254,26 @@ function rememberChannel() {
   if (channelCache.length > 4) channelCache.shift()
 }
 
+/**
+ * 服务端基线 + 本地增量 → 展示值（2026-10-09 评审 P2-2）。
+ *
+ * 每一页新数据落地后都要走一遍：`wishCountBase` 是服务端原值、`wishCount` 是加过本地增量的展示值。
+ * 之前只有 toggleSave 会重算，其余入口（首屏 / 加载更多 / 缓存回填）直接把服务端原值赋给
+ * `wishCount`，于是「刚点亮爱心 → 切个频道再回来 → 数字回到旧值」。
+ *
+ * 同时在这里做「服务端已确认 ⇒ 清本地增量」：响应带了 `saved` 才说明这次拉取带登录态、
+ * 服务端计数已经包含用户的收藏，本地那个未确认的增量可以撤了。
+ */
+function syncWishCountFromServer(): void {
+  const items: FeedItem[] = [..._state.allItems]
+  for (let i = 0; i < items.length; i++) {
+    const entityId = items[i].entityId !== '' ? items[i].entityId : items[i].id
+    clearWishDeltaAfterServerConfirm(entityId, items[i].saved)
+    items[i].wishCount = wishCountOf(entityId, items[i].wishCountBase)
+  }
+  _state.allItems = items
+}
+
 // ====== 模块级 action ======
 
 // 首屏加载（silent=true 用于下拉刷新，不切 loading 态；force=true 跳过缓存强拉）
@@ -268,6 +288,7 @@ async function loadFirstPage(silent: boolean = false, force: boolean = false) {
     await nextTick()
     if (seq !== _requestSeq) return
     _state.allItems = page.items
+    syncWishCountFromServer() // 服务端基线 + 本机增量（评审 P2-2）
     _state.nextCursor = page.nextCursor
     _state.hasMore = page.hasMore
     _state.state = 'loaded'
@@ -315,6 +336,7 @@ async function loadMore() {
         // 内存保护：最多保留最新 200 条，避免持续上拉无限膨胀
         if (merged.length > MAX_FEED_ITEMS) merged = merged.slice(merged.length - MAX_FEED_ITEMS)
         _state.allItems = merged
+        syncWishCountFromServer() // 新到的一页也要叠上本机增量（评审 P2-2）
         invalidateBlocksCache()
       }
     }
@@ -341,6 +363,7 @@ function setChannel(ch: string) {
   const cached = channelCache.find((item) => item.channel === ch)
   if (cached != null) {
     _state.allItems = cached.items.slice()
+    syncWishCountFromServer() // 缓存回填同样要叠上本机增量（评审 P2-2）
     _state.nextCursor = cached.nextCursor
     _state.hasMore = cached.hasMore
     _state.state = 'loaded'
