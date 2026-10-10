@@ -565,7 +565,7 @@ function onToggleBlacklist() {
  */
 const goBtnLabel = ref('前往原店')
 // #ifdef MP-WEIXIN
-goBtnLabel.value = '复制链接'
+goBtnLabel.value = '原店链接'
 // #endif
 
 function openOfficial() {
