@@ -125,3 +125,84 @@ grep -rn "msgSecCheck\|mediaCheckAsync\|secCheck" pages/ services/ stores/ utils
 # App 图标尺寸
 python -c "import struct;d=open('static/app-icon.png','rb').read(33);print(struct.unpack('>II',d[16:24]))"  # → (72, 72)
 ```
+
+---
+
+# 八项整改结果（2026-10-11 实施）
+
+| # | 事项 | 结果 |
+|---|---|---|
+| 1 | 价格区间 SQL 推导回填 | **做不了 —— 库里没有第二个价格源**（见下） |
+| 2 | 接入 msgSecCheck / mediaCheckAsync | ✅ **已上线**（后端 `3e641b0`，线上 `block`，真实凭据实测通过） |
+| 3 | 双端跳转选型 | ✅ 已定案并落地：小程序=**复制链接**，App=唤起淘宝；按钮文案已按平台区分 |
+| 4 | 删 `modules.Push` 声明 | ✅ 已删（`app-android` + `app-ios`） |
+| 5 | 重复图标 | ✅ `static/logo.png` 已移走（与 `app-icon.png` 字节相同、零引用）；⚠️ 多档图标仍缺 |
+| 6 | 根目录卫生 | ✅ 5 个文件归入 `docs/data/`、`docs/audit/` |
+| 7 | 大文件拆分能优化多少性能 | ✅ 有实测结论：**拆文件几乎不提速**（见下） |
+| 8 | manifest 优化 | ✅ 乱码注释剥离已自动化并接进构建脚本；其余建议见下 |
+
+## 1. 价格区间为什么不能靠 SQL 回填（只能补数据）
+
+四个只读探针查线上库的结果：
+
+| 查了什么 | 结果 |
+|---|---|
+| `products` | 3095 行；`price_cents > 0` 的 3095 行（100%）；`max_price_cents` 非空 **1 行且其值为 0** |
+| `products.variants` | **是 jsonb 列，不是独立表**；1640 个商品有变体，但**只有身份字段**（id/name/sizeName/colorName/styleName）——**没有任何价格** |
+| `product_releases.full_price_cents` | 2941 个商品有批次、1504 行有价；**但「批次价 > 商品价」的商品数 = 0**；另有 1 行 `999999900`（脏数据） |
+| 全库含 price/amount/cents 的列 | 只有 `products.price_cents / max_price_cents / price_type` 与 `product_releases.deposit/balance/full_price_cents` |
+| `ai_import_tasks`（本以为存了原始采集证据） | **0 行** |
+
+⇒ **全库不存在第二个价格**，「一条 SQL 推导出区间」无源可导。
+（`deposit + balance` 是**分期语义**，把它当「价格区间」显示是错的，不能这么糊。）
+
+**唯一两条正路**：
+1. **采集侧补价**（推荐）：在淘宝详情页抓 SKU/规格价区间，写入 `price_cents`（下限）+ `max_price_cents`（上限）；
+2. **运营手录**：后台「最高价」字段与 `maxPrice < price` 校验都已就绪。
+
+参考：`products.price_type` 分布 = FULL 1543 / UNKNOWN 1239 / DEPOSIT 161 / INTENTION 129 / BALANCE 23。
+
+## 2. 内容安全（已上线）
+
+- 新增 `src/services/content-security.ts`：`stable_token` 取 token 并缓存（过期前 5 分钟续）；
+  `checkText()` = `msg_sec_check` v2（同步、可立即拦截）；`submitMediaCheckAsync()` = `media_check_async` 提交。
+- **fail-open**：微信超时/报错/拿不到 token **一律放行** —— 绝不因检测故障卡死全站发帖；
+  只在微信**明确判违规**时拒绝。
+- 接线位置：建动态（`caption + topic`，`scene=2`）放在「图片校验完、**还没落库**」之间
+  ⇒ 违规内容不进库，也不留下孤儿 media 引用；改昵称（`scene=1`）。
+- openid 取自 `users.login_subject`；内存驱动恒返回 `''` ⇒ 本地/测试自动跳过。
+- 开关：`WX_CONTENT_SECURITY = off | log | block`；**线上已置 `block`**。
+- **实测**：`stable_token` OK；`msg_sec_check` → `errcode:0 / suggest:pass / label:100`；
+  `media_check_async` → `trace_id`。
+- ⚠️ **`mediaCheckAsync` 是异步的**，结果要靠小程序后台配「消息推送」回调才能拿到
+  ⇒ 目前它只负责提交，**真正拦违规的是文本侧**。要让图片也拦，需再加回调端点。
+
+## 3. 双端跳转：小程序不能跳，App 才跳
+
+- **小程序端只有「复制链接」这一个合规解**：`taobao://` 这类外部 scheme 打不开；
+  `web-view` 只能加载已备案的业务域名，且微信明令禁止用它承载站外电商导流 ⇒ 跳 H5 既麻烦又易被判「诱导跳转」。
+- **App 端唤起淘宝 App 最顺**（现有实现：`taobao://` → 系统浏览器 → 复制兜底）；App 不受微信规则约束，
+  这正是 App 相对小程序的价值点。
+- 已落地：`pages/product/detail.uvue` 按钮文案按平台区分（小程序显示「复制链接」，App 显示「前往原店」），
+  消除「文案与行为不符」的审核风险。
+
+## 7. 拆文件到底能优化多少性能 —— 诚实结论：几乎不能
+
+实测当前产物：`common/vendor.js` **95.8KB**（共享底座），页面 chunk 最大依次是
+`pages/product/detail.js` **23.4KB**、`reminder/edit.js` 22.7KB、`favorites/index.js` 20.6KB。
+`detail.uvue` 782 行 = **20 个 `ref` + 60 个 `computed`** + 25 个函数。
+
+- 拆 `.uvue` **不改变产物体积**（uvue 按页面聚合编译到同一个 chunk），**也不改变运行时性能**
+  （小程序执行的还是同一份压缩代码）。
+- 真收益是**可维护性 / 评审 diff / 编译增量**（HMR 只重编改动文件）。**不要把「拆文件」当性能优化来讲。**
+- 真正影响性能的三件事：① 减少 `computed` / `ref` 数量（60 个 computed 每次响应式变更都要重算脏节点）；
+  ② 非首屏块懒加载（分包 / 条件渲染）；③ 图片按显示尺寸取图（已落地）。
+- ⚠️ 未做真机 profile 之前**不给百分比**。
+
+## 8. manifest 最佳化
+
+- ✅ **乱码注释自动化剥离**：新增 `scripts/strip-manifest-junk.py`（只删「超长且确实是注释」的行；
+  剥离后用 JSON5 去注释再校验一次合法性，不合法就**拒绝写入**），已接进 `build-mp-weixin.ps1` 编译后自动执行。
+- ✅ 参数合法性：改完脚本用 PowerShell 解析器验证过（1022 tokens / **0 parse errors**，UTF-8 BOM 完好）。
+- ⏳ 可做但不急：`app.distribute.icons.android` 四档是空字符串（uni-app x 用 `app-android`，这段是残留）；
+  `quickapp / mp-alipay / mp-baidu / mp-toutiao` 四个平台 stub 用不到（本工程只出微信 + App）。
