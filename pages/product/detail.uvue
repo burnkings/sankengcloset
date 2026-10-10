@@ -188,7 +188,7 @@
       <view :style="botIcon"><AppIcon name="share" :size="40" :active="true" /></view>
       <text :style="botLabel">分享</text>
     </view>
-    <view :style="goBtn" @tap="openOfficial"><text :style="goBtnText">前往原店</text></view>
+    <view :style="goBtn" @tap="openOfficial"><text :style="goBtnText">{{ goBtnLabel }}</text></view>
   </view>
 </template>
 
@@ -555,6 +555,18 @@ function onToggleBlacklist() {
   const blocked = blacklist.toggleBlacklist(name)
   showFeedback(blocked ? `已屏蔽品牌：${name}` : `已恢复品牌：${name}`)
 }
+
+/**
+ * 「原店」按钮文案必须与**实际行为**一致（2026-10-11）：
+ *   小程序端开不了 `taobao://` 这类外部 scheme，web-view 也不允许承载站外电商页
+ *   ⇒ 唯一合规动作是复制链接（见 utils/share.uts 的 openExternalUrl）；
+ *   App 端能唤起淘宝 App / 系统浏览器，才是真正的「前往」。
+ * 文案不一致既误导用户，也容易被审核按「诱导跳转 / 名不符实」挑出来。
+ */
+const goBtnLabel = ref('前往原店')
+// #ifdef MP-WEIXIN
+goBtnLabel.value = '复制链接'
+// #endif
 
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录原店链接'); return }

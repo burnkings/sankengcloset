@@ -186,6 +186,14 @@ if ($manifestAfter -notmatch '"mp-weixin"\s*:\s*\{[^}]*?"appid"\s*:\s*"([^"]*)"'
   }
 }
 
+# ===== manifest.json 乱码注释剥离（2026-10-11 新增）=====
+# 每次 cli publish 都会把两行共约 16MB 的乱码注释写回 manifest.json
+# （内容已多重编码、不可恢复、无任何语义）。它是合法 JSON5 注释，HBuilderX 读得懂、
+# 产物也不受影响，但会把文件从 1.9KB 撑到 16.7MB，拖慢构建与 git。
+# 实测每 publish 一次就再写回来一次 ⇒ 这里在编译后自动剥，省得每次手工清。
+$stripManifest = Join-Path $PSScriptRoot 'strip-manifest-junk.py'
+& $python $stripManifest $manifestPath
+if ($LASTEXITCODE -ne 0) { throw "manifest.json 乱码注释剥离失败（strip-manifest-junk.py）。" }
 # V3：patch-vendor.py 已改为产物结构校验（不再注入 Pinia/defineStore 补丁）。
 # 校验失败（含 v2 残留 / defineStore 残留 / createSSRApp 缺失）即整体失败。
 & $python $patchScript $distRoot
