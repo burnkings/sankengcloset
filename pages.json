@@ -124,6 +124,13 @@
       }
     },
     {
+      // 相关动态「查看全部」（2026-10-11）：详情页横滑放最热的 9 条，全量可分页看在这里
+      "path": "pages/product/community",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/wardrobe/index",
       "style": {
         // #ifdef APP
@@ -313,7 +320,8 @@
       "name": "product",
       "root": "pages/product",
       "pages": [
-        { "path": "detail", "style": { "navigationStyle": "custom" } }
+        { "path": "detail", "style": { "navigationStyle": "custom" } },
+        { "path": "community", "style": { "navigationStyle": "custom" } }
       ]
     },
     {

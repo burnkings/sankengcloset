@@ -1,0 +1,159 @@
+<template>
+  <MainLayout navbar-content-height="88rpx">
+    <template #navbar><AppNavbar title="相关动态" :show-back="true" /></template>
+    <template #default>
+      <view class="page-canvas" :style="pageWrap">
+        <template v-if="posts.length === 0 && !loading && errorMessage === ''">
+          <PageState icon="camera" title="还没有相关动态" message="有人发布动态并关联这件商品后，会集中出现在这里" />
+        </template>
+        <template v-if="posts.length === 0 && !loading && errorMessage !== ''">
+          <PageState icon="info" :title="errorMessage" action-text="重新加载" @action="reload" />
+        </template>
+        <view v-for="post in posts" :key="post.id" :style="postShell">
+          <PostCard :image="post.imageUrl" :caption="post.caption !== '' ? post.caption : '上身返图'" :author="post.authorNickname !== '' ? post.authorNickname : '同好'" :avatar-text="post.authorNickname !== '' ? post.authorNickname.substring(0, 1) : '同'" :avatar-url="post.authorAvatarUrl" :time-text="postTime(post.createdAt)" :like-count="post.likeCount" :liked="post.liked" :product-id="post.productId" @tap="previewPost(post)" @toggle-like="toggleLike(post)" @product="openProduct(post.productId)">
+            <template #tags>
+              <view :style="tagRow">
+                <text :style="topicStyle">#{{ post.topic !== '' ? post.topic : '相关动态' }}</text>
+                <text :style="categoryStyle">{{ categoryLabel(post.category) }}</text>
+              </view>
+            </template>
+          </PostCard>
+        </view>
+        <view v-if="hasMore" :style="moreRow" @tap="loadMore">
+          <text :style="moreText">{{ loading ? '加载中…' : '加载更多' }}</text>
+        </view>
+        <view v-else-if="posts.length > 0" :style="endRow">
+          <text :style="endText">没有更多了</text>
+        </view>
+      </view>
+    </template>
+  </MainLayout>
+</template>
+
+<script setup lang="uts">
+/**
+ * 商品详情「相关动态 · 查看全部」（2026-10-11 新增）
+ *
+ * 为什么要有这一页：详情页那个位置是横滑，横滑能承载的条数天然有限
+ * （后端默认 9、上限 20），用户反馈「参考太少」—— 淘宝/拼多多那种能翻几十条。
+ * 做法不是把横滑无限拉长，而是：**横滑负责「挑最热的 9 条给你看」，这一页负责「全部、可分页」**。
+ * 两个位置的数据同源（同一个 `/api/v1/community/posts`，只是这里带 `productId` 筛选），
+ * 排序口径也一致（后端 hot：点赞倒序 → 时间倒序）。
+ *
+ * 为什么不复用社区广场的 `pages/community/index`：那是 **tabBar 页**，
+ * `navigateTo` 打不开它、`switchTab` 又不接受 query 参数，带不了 productId。
+ */
+import { n, initPageTheme } from '@/theme/use-theme'
+import MainLayout from '@/components/layout/MainLayout.uvue'
+import AppNavbar from '@/components/base/AppNavbar.uvue'
+import PageState from '@/components/v3/PageState.uvue'
+import PostCard from '@/components/v3/PostCard.uvue'
+import { fontSize } from '@/theme/tokens/typography'
+import { flexRow } from '@/theme/layout/flex'
+import { PAGE_HEADER_CONTENT_GAP, PAGE_GUTTER_V3 } from '@/theme/tokens/responsive'
+import { CommunityPostRemote, listCommunityPostPageRemote, setCommunityPostLikeRemote } from '@/services/user-data/user-data-service'
+import { openProductDetail } from '@/utils/content-navigation'
+import { showFeedback } from '@/utils/feedback'
+
+const posts = ref([]) as Ref<CommunityPostRemote[]>
+const loading = ref(false)
+const hasMore = ref(false)
+const errorMessage = ref('')
+let nextCursor = ''
+let productId = ''
+let loadedOnce = false
+
+async function loadMore() {
+  if (loading.value) return
+  loading.value = true
+  try {
+    const page = await listCommunityPostPageRemote(nextCursor, '', '', false, productId)
+    const merged = [...posts.value]
+    for (let i = 0; i < page.items.length; i++) merged.push(page.items[i])
+    posts.value = merged
+    nextCursor = page.nextCursor
+    hasMore.value = page.hasMore
+    errorMessage.value = ''
+  } catch (e) {
+    // 首屏失败才出错误态；翻页失败保留已有内容，只提示一次
+    if (posts.value.length === 0) errorMessage.value = e instanceof Error ? e.message : '加载失败，请重试'
+    else showFeedback('加载更多失败，请重试')
+  }
+  loading.value = false
+}
+
+function reload() {
+  nextCursor = ''
+  hasMore.value = false
+  posts.value = []
+  errorMessage.value = ''
+  loadMore()
+}
+
+function toggleLike(post: CommunityPostRemote) {
+  // 乐观点赞：先本地回弹（卡片立即有反馈），失败再提示；下次进页面以服务端为准
+  const next = !post.liked
+  post.liked = next
+  post.likeCount = next ? post.likeCount + 1 : Math.max(0, post.likeCount - 1)
+  try {
+    setCommunityPostLikeRemote(post.id, next)
+  } catch (e) {
+    showFeedback('点赞失败，请重试')
+  }
+}
+
+function previewPost(post: CommunityPostRemote) {
+  const urls = post.imageUrls.length > 0 ? post.imageUrls : (post.imageUrl !== '' ? [post.imageUrl] : [])
+  if (urls.length === 0) return
+  uni.previewImage({ current: urls[0], urls })
+}
+function openProduct(id: string) { if (id !== '') openProductDetail(id) }
+function categoryLabel(category: string): string {
+  if (category === 'LOLITA') return 'Lolita'
+  if (category === 'HANFU') return '汉服'
+  if (category === 'MIXED') return '混搭'
+  if (category === 'JK') return 'JK制服'
+  return ''
+}
+/** 相对时间：口径与「我的动态」完全一致（ISO 串 + 纯数字时间戳两种形态都要认） */
+function postTime(createdAt: string): string {
+  if (createdAt == '') return '刚刚'
+  const numeric = parseInt(createdAt)
+  let timestamp = 0
+  if (!isNaN(numeric) && createdAt.indexOf('-') < 0 && createdAt.indexOf('T') < 0) {
+    timestamp = createdAt.length <= 10 ? numeric * 1000 : numeric
+  } else {
+    timestamp = Date.parse(createdAt)
+  }
+  if (isNaN(timestamp) || timestamp <= 0) return '刚刚'
+  const minutes = Math.floor(Math.max(0, Date.now() - timestamp) / 60000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  return days < 30 ? `${days}天前` : `${Math.floor(days / 30)}个月前`
+}
+
+onLoad((options) => {
+  initPageTheme()
+  productId = options != null && options['productId'] != null ? options['productId'] as string : ''
+  reload()
+})
+/** 返回本页时静默刷新：别人可能刚发了新返图，而排序是热度序 —— 旧列表会停在上一屏 */
+onShow(() => {
+  initPageTheme()
+  if (loadedOnce) reload()
+  loadedOnce = true
+})
+
+const pageWrap = { paddingTop: PAGE_HEADER_CONTENT_GAP, paddingBottom: '40rpx', paddingLeft: PAGE_GUTTER_V3, paddingRight: PAGE_GUTTER_V3 }
+const postShell = { marginBottom: '20rpx' }
+const tagRow = computed((): any => ({ ...flexRow, alignItems: 'center', marginTop: '6rpx' }))
+const topicStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive }))
+const categoryStyle = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary, marginLeft: '16rpx' }))
+const moreRow = computed((): any => ({ height: '88rpx', alignItems: 'center', justifyContent: 'center' }))
+const moreText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.iconActive }))
+const endRow = computed((): any => ({ height: '88rpx', alignItems: 'center', justifyContent: 'center' }))
+const endText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textTertiary }))
+</script>

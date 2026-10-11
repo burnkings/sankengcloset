@@ -118,7 +118,7 @@ export async function loadPreferencesRemote(): Promise<UTSJSONObject> {
 }
 export function savePreferencesRemote(payload: UTSJSONObject) { return apiPutAuthorized('/api/v1/me/preferences', payload) }
 
-export async function listCommunityPostPageRemote(cursor: string = '', category: string = '', topic: string = '', mine: boolean = false): Promise<CommunityPostPageRemote> {
+export async function listCommunityPostPageRemote(cursor: string = '', category: string = '', topic: string = '', mine: boolean = false, productId: string = ''): Promise<CommunityPostPageRemote> {
   const root = mine ? '/api/v1/me/community/posts' : '/api/v1/community/posts'
   // 只传有值的参数：cursor 空不传、category/topic 空不传；limit 由后端默认 20
   let path = root
@@ -126,6 +126,8 @@ export async function listCommunityPostPageRemote(cursor: string = '', category:
   if (cursor != '') { path += '?cursor=' + encodeQuery(cursor); hasQuery = true }
   if (!mine && category != '') { path += (hasQuery ? '&' : '?') + 'category=' + encodeQuery(category); hasQuery = true }
   if (!mine && topic != '') { path += (hasQuery ? '&' : '?') + 'topic=' + encodeQuery(topic); hasQuery = true }
+  // 2026-10-11：详情页「查看全部相关动态」——公开列表也能只看某个商品
+  if (!mine && productId != '') { path += (hasQuery ? '&' : '?') + 'productId=' + encodeQuery(productId); hasQuery = true }
   // 公开帖子允许匿名读取；我的发布必须认证（401 自动刷新重试）
   const response = mine ? await apiGetAuthorized(path) : await apiGet(path)
   const values = response.data as any[] | null

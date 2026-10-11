@@ -163,6 +163,12 @@
                 </view>
               </scroll-view>
             </view>
+            <!-- 「查看全部」（2026-10-11）：横滑只放最热的几条（后端 limit 默认 9、上限 20），
+                 用户反馈「参考太少」；全量、可分页地在专门页面看，两边数据与排序口径同源 -->
+            <view :style="buyerAllRow" @tap="openAllBuyerPosts">
+              <text :style="buyerAllText">查看全部相关动态</text>
+              <AppIcon name="arrow-right" :size="28" />
+            </view>
           </template>
 
           <view :style="actionSpacer" />
@@ -568,6 +574,12 @@ const goBtnLabel = ref('前往原店')
 goBtnLabel.value = '原店链接'
 // #endif
 
+/** 相关动态「查看全部」：本页横滑只展示最热的几条，全量列表在 pages/product/community */
+function openAllBuyerPosts() {
+  if (itemId.value === '') return
+  uni.navigateTo({ url: '/pages/product/community?productId=' + encodeURIComponent(itemId.value) })
+}
+
 function openOfficial() {
   if (shopUrl.value === '') { showFeedback('暂未收录原店链接'); return }
   // uni-app x 不支持 plus.runtime.openURL：降级为复制链接（全平台可用）
@@ -763,6 +775,9 @@ const buyerItem = { width: '200rpx', marginRight: '16rpx', flexShrink: 0 }
 const buyerImage = computed((): any => ({ width: '200rpx', height: '260rpx', borderRadius: '16rpx', backgroundColor: n.value.bgSecondary }))
 const buyerAuthor = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.text, marginTop: '8rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1 }))
 const buyerCaption = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary, marginTop: '4rpx', whiteSpace: 'normal' as string, overflow: 'hidden', textOverflow: 'ellipsis', lines: 1, lineHeight: '32rpx' }))
+/** 「查看全部相关动态」入口：贴在横滑卡片下方，右对齐（低频动作，不做成大按钮抢注意力） */
+const buyerAllRow = computed((): any => ({ ...flexRow, alignItems: 'center', justifyContent: 'flex-end', marginTop: '12rpx' }))
+const buyerAllText = computed((): any => ({ fontSize: fontSize.xs, color: n.value.iconActive, marginRight: '4rpx' }))
 const detailCard = computed((): any => ({ ...CARD_GAP, padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface }))
 const detailText = computed((): any => ({ fontSize: fontSize.sm, color: n.value.textSecondary, lineHeight: '42rpx' }))
 // 底部栏高度改为「内容驱动」：原来写死 160rpx，图标下方会留出约 70px 空白
