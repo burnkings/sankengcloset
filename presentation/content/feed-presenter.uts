@@ -256,6 +256,50 @@ function formatPriceRangeBound(cents: number): string {
 }
 
 /**
+ * 详情页顶部价格的三级回落（**顺序不能换**）。
+ *
+ * ⚠️ 这里曾经是个死代码 bug（2026-10-11 用户反馈「款式的最低价和最高价结合起来不难吧」时发现）：
+ *   原实现是
+ *     ```
+ *     const range = formatPriceRange(price, maxPriceCents)
+ *     if (range !== '') return range        // ← 这里
+ *     ...再从款式参考价现算
+ *     ```
+ *   而 `formatPriceRange(23300, 0)` 在「最高价缺失」时**返回的是单值 `¥233.00`（非空）**，
+ *   于是上面这个 `return` 永远先命中 ⇒ 后面那段「款式参考价现算」**一行都跑不到**，
+ *   3095 个商品全都只会显示商品级单值。**「回落链」的每一级都必须有明确的进入条件，
+ *   不能靠「上一级返回空串」来兜底 —— 上线一年多没人发现，就是因为输出看起来完全正常。**
+ *
+ * 现在的顺序：
+ *   ① 商品级区间：仅当 `maxPriceCents > priceCents` 才算区间
+ *   ② 款式参考价现算：≥2 个不同价 ⇒ min~max（这才是「把款式的最低价和最高价结合起来」）
+ *   ③ 都没有 ⇒ 商品级单值（定金/尾款那套摘要由调用方再兜一层）
+ *
+ * @param priceCents 商品价（分）
+ * @param maxPriceCents 商品最高价（分）；<= priceCents 表示没有商品级区间
+ * @param variantPrices 款式参考价（分），可含重复/0
+ */
+export function resolveProductPriceRange(priceCents: number, maxPriceCents: number, variantPrices: number[]): string {
+  // ① 商品级有真区间才用它（把「缺失」和「单值」区分开，是修掉上面那个 bug 的关键）
+  if (priceCents > 0 && maxPriceCents > priceCents) {
+    const range = formatPriceRange(priceCents, maxPriceCents)
+    if (range !== '') return range
+  }
+  // ② 商品级没有区间 ⇒ 用款式参考价现算（去重、丢 0）
+  const prices: number[] = []
+  for (let i = 0; i < variantPrices.length; i++) {
+    const cents = variantPrices[i]
+    if (cents > 0 && prices.indexOf(cents) < 0) prices.push(cents)
+  }
+  if (prices.length >= 2) {
+    prices.sort((a: number, b: number): number => a - b)
+    return formatPriceRange(prices[0], prices[prices.length - 1])
+  }
+  // ③ 兜底：商品级单值（priceCents<=0 时 formatPriceRange 会退到 maxPriceCents）
+  return formatPriceRange(priceCents, maxPriceCents)
+}
+
+/**
  * 商品卡价格行（区间版）——替代原 formatPricePrimary 的调用点。
  * 有区间就用区间；没有区间（最高价缺省）时回落到原来的 price_type 语义摘要，
  * 保证定金/尾款/意向金那套展示不丢。

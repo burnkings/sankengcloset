@@ -43,18 +43,23 @@ test('话题清单没有重复项', () => {
   }
 });
 
-test('每个话题都有非空的边界说明（communityTopicHint 必须覆盖全部）', () => {
+test('每个话题都有维护用的定义（写在 community-topics.uts 的注释里）', () => {
+  // 2026-10-11：原先要求「每个话题都有一句 UI 边界说明」，用户反馈发布页显示太繁琐 ⇒ 已撤掉 UI。
+  // 但定义本身必须留在文件里（维护依据），否则下一个人不知道该把「出片分享」和「今日穿搭」怎么分。
   for (const topic of topicList()) {
-    const marker = `if (topic == '${topic}') return `;
-    const hit = src.indexOf(marker);
-    assert.notEqual(hit, -1, `话题「${topic}」没有在 communityTopicHint 里给边界说明`);
-    const line = src.slice(hit, src.indexOf('\n', hit));
-    const text = line.slice(marker.length).trim();
     assert.ok(
-      text.length >= 6 && text !== "''",
-      `话题「${topic}」的边界说明太短或为空（当前：${text}）—— 边界说不清就等于没划`,
+      src.includes(`${topic} →`) || src.includes(`${topic} `),
+      `话题「${topic}」在文件注释里没有定义说明 —— 边界依据不能只存在于某个人脑子里`,
     );
   }
+});
+
+test('发布页不再显示话题边界提示（用户反馈太繁琐）', () => {
+  const create = fs.readFileSync(path.join(__dirname, '..', 'pages', 'share', 'create.uvue'), 'utf8');
+  assert.ok(
+    !create.includes('communityTopicHint'),
+    '发布页不应再引入/显示话题边界说明（2026-10-11 已按用户反馈撤掉）',
+  );
 });
 
 test('「开箱测评」已删除，不许复活', () => {

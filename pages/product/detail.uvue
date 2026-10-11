@@ -71,6 +71,8 @@
               <view v-if="releaseStatusText !== ''" :style="releaseRow"><text :style="releaseLabel">当前状态</text><text :style="releaseValue">{{ releaseStatusText }}</text></view>
               <view v-if="releaseBatchText !== ''" :style="releaseRow"><text :style="releaseLabel">批次</text><text :style="releaseValue">{{ releaseBatchText }}</text></view>
               <view v-if="releaseStartText !== ''" :style="releaseRow"><text :style="releaseLabel">预售时间</text><text :style="releaseValue">{{ releaseStartText }}</text></view>
+              <!-- 单批次也要有倒计时：这是「要不要现在下单」的唯一时间依据 -->
+              <view v-if="singleCountdownText !== ''" :style="releaseRow"><text :style="releaseLabel">剩余时间</text><text :style="releaseCountdownValue">{{ singleCountdownText }}</text></view>
               <view v-if="shipDateText !== ''" :style="releaseRow"><text :style="releaseLabel">出货时间</text><text :style="releaseValue">{{ shipDateText }}</text></view>
               <!-- 发货说明：运营手写的时效承诺（「7天内发货」这类）。它**不是预售**，属于现货的发货承诺，
                    所以放在出货时间下面单独一行，不掺进状态里。 -->
@@ -88,6 +90,9 @@
                     <text :style="batchNameStyle(b.saleStatus)">{{ batchTitle(b) }}</text>
                     <text :style="batchDateStyle(b.saleStatus)">{{ batchDateText(b) }}</text>
                   </view>
+                  <!-- 倒计时（2026-10-11）：预约/预售最关心的是「还剩多久能下单」，
+                       光给日期区间要用户自己算。≤3 天转强调色催一下。 -->
+                  <text v-if="batchCountdown(b) !== ''" :style="batchCountdownStyle(b)">{{ batchCountdown(b) }}</text>
                   <text v-if="batchPriceText(b) !== ''" :style="batchPriceStyle(b.saleStatus)">{{ batchPriceText(b) }}</text>
                 </view>
                 <view :style="releaseDashedDivider"></view>
@@ -206,7 +211,7 @@ import { ProductReleaseBatch } from '@/domain/content/product'
 import { extractImageUrls } from '@/domain/content/product'
 import { StyleInfo } from '@/domain/content/style'
 import { ProductVariant } from '@/domain/content/product-variant'
-import { deriveReleaseStatusText, formatPriceSummaryByType, formatPriceRange } from '@/presentation/content/feed-presenter'
+import { deriveReleaseStatusText, formatPriceSummaryByType, formatPriceRange, resolveProductPriceRange } from '@/presentation/content/feed-presenter'
 import { fetchStyle } from '@/services/content/style-service'
 import { fetchProductCommunity, ProductCommunityPost } from '@/services/content/product-service'
 import { useProductDetailStore } from '@/stores/product-detail-store'
@@ -295,20 +300,18 @@ const shippingNote = ref('')
  *   商品级没有区间时回落到**规格参考价现算**（分部件定价的老路径，保留兼容），
  *   仍为空则回落到 price_type 摘要（定金/尾款那套）。
  */
+/**
+ * 顶部价格：三级回落交给 `resolveProductPriceRange`（唯一口径，见那里的注释）。
+ * ⚠️ 不要在这里自己写「取 range，非空就 return」——那会让款式价那一段变成**永远跑不到的死代码**
+ *    （2026-10-11 修掉的就是这个：`formatPriceRange(p, 0)` 返回的是单值而非空串）。
+ */
 const priceRangeText = computed((): string => {
-  if (item.value !== null) {
-    const range = formatPriceRange(item.value!.price, item.value!.maxPriceCents)
-    if (range !== '') return range
-  }
-  // 回落：从款式参考价现算（同一款式多个价也算，去重后取最低/最高）
-  const prices: number[] = []
+  const variantPrices: number[] = []
   for (let i = 0; i < variants.value.length; i++) {
-    const c = variants.value[i].referencePriceCents
-    if (c != null && c > 0 && prices.indexOf(c) < 0) prices.push(c)
+    const cents = variants.value[i].referencePriceCents
+    if (cents != null) variantPrices.push(cents)
   }
-  if (prices.length < 2) return ''
-  prices.sort((a: number, b: number): number => a - b)
-  return formatPriceRange(prices[0], prices[prices.length - 1])
+  return resolveProductPriceRange(item.value !== null ? item.value!.price : 0, item.value !== null ? item.value!.maxPriceCents : 0, variantPrices)
 })
 /** 顶栏最终显示的价格文本：优先区间，其次价格摘要（定金/尾款那套） */
 const priceDisplayText = computed((): string => priceRangeText.value !== '' ? priceRangeText.value : priceSummaryText.value)
@@ -339,9 +342,10 @@ const hasStylePrices = computed((): boolean => {
 function stylePriceText(style: string): string {
   const prices = stylePrices(style)
   if (prices.length === 0) return ''
-  const low = (prices[0] / 100).toString()
-  const high = (prices[prices.length - 1] / 100).toString()
-  return '¥' + low + (low === high ? '' : '–' + high)
+  // 走统一口径（2026-10-11 改）：原来这里手拼 `'¥' + low + '–' + high`，
+  // 于是同一个页面里「顶部价格」和「规格价格」在万级缩写（x.x万）、小数位裁剪、
+  // en-dash 三处会分叉 —— 详情页不该有第二套价格格式化。
+  return formatPriceRange(prices[0], prices[prices.length - 1])
 }
 const styleOptions = computed((): string[] => {
   const list: string[] = []
@@ -438,6 +442,75 @@ function batchPriceText(b: ProductReleaseBatch): string {
   if (b.fullPriceCents != null && b.fullPriceCents > 0) parts.push(`全价 ${formatPriceCents(b.fullPriceCents)}`)
   return parts.join(' · ')
 }
+
+/**
+ * 发售倒计时（2026-10-11 新增）。
+ *
+ * 为什么只有日期不够：预约/预售这个场景里，用户真正要回答的是「我现在还能不能下单、还剩多久」，
+ * 而「2026-09-01 ~ 2026-09-30」要他自己和今天做减法 —— 这是页面该做的事。
+ *
+ * 时钟精度取 1 分钟：倒计时最大只精确到分钟，秒级刷新既费电又会让整页频繁重渲。
+ * 页面 onShow 起、onHide/onUnload 停（和「我的动态」同一套做法）。
+ */
+const nowTs = ref(Date.now())
+let countdownTimer: number | null = null
+function startCountdownClock() {
+  nowTs.value = Date.now()
+  if (countdownTimer != null) return
+  countdownTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
+}
+function stopCountdownClock() {
+  const timer = countdownTimer
+  if (timer != null) clearInterval(timer)
+  countdownTimer = null
+}
+
+/** 把「到期时间」转成倒计时文案；已过期/无值/解析失败一律返回 ''（不显示，而不是显示 0） */
+function countdownTo(iso: string, prefix: string): string {
+  if (iso === '') return ''
+  const target = Date.parse(iso)
+  if (isNaN(target) || target <= 0) return ''
+  const diff = target - nowTs.value
+  if (diff <= 0) return ''
+  const minutes = Math.floor(diff / 60000)
+  const days = Math.floor(minutes / 1440)
+  const hours = Math.floor((minutes % 1440) / 60)
+  if (days > 0) return `${prefix} ${days} 天 ${hours} 小时`
+  if (hours > 0) return `${prefix} ${hours} 小时 ${minutes % 60} 分`
+  return `${prefix} ${minutes} 分钟`
+}
+
+/** 剩余是否已进入「该催一下」的窗口（≤3 天）。UI 用强调色，不新增 token。 */
+function isCountdownUrgent(iso: string): boolean {
+  if (iso === '') return false
+  const target = Date.parse(iso)
+  if (isNaN(target) || target <= 0) return false
+  const diff = target - nowTs.value
+  return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
+}
+
+/**
+ * 批次倒计时：即将发售看开始时间；现货/预售/预约看本批结束；没结束时间再看尾款截止。
+ * 已结束（ENDED/售罄/未知）不显示 —— 给结束了的批次加倒计时只会让人以为还能买。
+ */
+function batchCountdown(b: ProductReleaseBatch): string {
+  if (!isBatchActive(b.saleStatus)) return ''
+  if (b.saleStatus === 'UPCOMING') return countdownTo(b.startAt, '距开始')
+  const ending = countdownTo(b.endAt, '距本批结束')
+  if (ending !== '') return ending
+  return countdownTo(b.balanceDueAt, '尾款截止')
+}
+
+/** 单批次（batchList 为空、只有 currentRelease）时的倒计时，口径与批次一致 */
+const singleCountdownText = computed((): string => {
+  const r = currentRelease.value
+  if (r == null) return ''
+  if (!isBatchActive(r.saleStatus)) return ''
+  if (r.saleStatus === 'UPCOMING') return countdownTo(r.startAt, '距开始')
+  const ending = countdownTo(r.endAt, '距结束')
+  if (ending !== '') return ending
+  return countdownTo(r.balanceDueAt, '尾款截止')
+})
 
 function batchDateText(b: ProductReleaseBatch): string {
   const start = b.startAt !== '' ? b.startAt.substring(0, 10) : ''
@@ -605,9 +678,17 @@ function createReminder() {
   const r = currentRelease.value
   // 尾款期 → 尾款提醒；其余 → 发售提醒（基于真实 release 状态，非 badgeText）
   const type = releaseStatusText.value === '尾款' ? 'BALANCE' : 'RELEASE'
+  // ⚠️ 提醒日期必须和详情页上那句倒计时**指同一个时间点**（2026-10-11）：
+  //    用户看着「距本批结束 2 天」去设提醒，结果收到的是「发售开始」提醒 —— 等于白设。
+  //    规则：尾款期 → 尾款截止；即将发售 → 开始时间；预约/预售中 → 本批结束时间（没有才退回开始时间）。
+  let date = ''
+  if (r != null) {
+    if (type === 'BALANCE') date = r.balanceDueAt
+    else if (r.saleStatus === 'UPCOMING') date = r.startAt
+    else date = r.endAt !== '' ? r.endAt : r.startAt
+  }
   const title = `${item.value!.title} ${releaseStatusText.value !== '' ? releaseStatusText.value : '发售'}`
   const note = `${item.value!.brandName} · 来源于商品详情`
-  const date = r != null ? (type === 'BALANCE' ? r.balanceDueAt : r.startAt) : ''
   uni.navigateTo({ url: `/pages/reminder/edit?title=${encoded(title)}&type=${type}&date=${encoded(date)}&note=${encoded(note)}&productId=${encoded(itemId.value)}&releaseId=${encoded(r != null ? r.id : '')}` })
 }
 
@@ -670,7 +751,9 @@ async function loadDetail() {
 
 // 页面卸载后丢弃异步回调，避免写入已销毁实例的 ref
 let unmounted = false
-onUnload(() => { unmounted = true })
+onUnload(() => { unmounted = true; stopCountdownClock() })
+onShow(() => { startCountdownClock() })
+onHide(() => { stopCountdownClock() })
 
 onLoad((options) => {
   initPageTheme()
@@ -744,6 +827,14 @@ const releaseFootnote = computed((): any => ({ fontSize: fontSize['2xs'], color:
 const releaseRow = { flexDirection: 'row' as string, alignItems: 'center', justifyContent: 'space-between', minHeight: '56rpx' }
 const releaseLabel = computed((): any => ({ fontSize: fontSize.xs, color: n.value.textSecondary }))
 const releaseValue = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: n.value.text, marginLeft: '24rpx' }))
+/** 「剩余时间」那一行：用强调色，因为它是这张卡里唯一带时效、需要马上行动的信息 */
+const releaseCountdownValue = computed((): any => ({ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: n.value.iconActive, marginLeft: '24rpx' }))
+/** 批次倒计时：未进入催单窗口用次要色；≤3 天转强调色（不新增 token，复用 iconActive） */
+function batchCountdownStyle(b: ProductReleaseBatch): any {
+  const deadline = b.saleStatus === 'UPCOMING' ? b.startAt : (b.endAt !== '' ? b.endAt : b.balanceDueAt)
+  const urgent = isCountdownUrgent(deadline)
+  return { fontSize: fontSize.xs, marginTop: '4rpx', color: urgent ? n.value.iconActive : n.value.textTertiary }
+}
 // 规格卡：左侧固定标签列 + 右侧可换行 chip 组（颜色/尺码共用）
 const specCard = computed((): any => ({ ...CARD_GAP, padding: CARD_PADDING, borderRadius: '20rpx', backgroundColor: n.value.surface, borderWidth: '1rpx', borderStyle: 'solid', borderColor: n.value.border }))
 const specRow = { flexDirection: 'row' as string, alignItems: 'flex-start' as string, marginBottom: '12rpx' }
