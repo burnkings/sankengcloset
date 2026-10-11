@@ -295,8 +295,12 @@ export function resolveProductPriceRange(priceCents: number, maxPriceCents: numb
     prices.sort((a: number, b: number): number => a - b)
     return formatPriceRange(prices[0], prices[prices.length - 1])
   }
-  // ③ 兜底：商品级单值（priceCents<=0 时 formatPriceRange 会退到 maxPriceCents）
-  return formatPriceRange(priceCents, maxPriceCents)
+  // ③ **没有第二个价 ⇒ 返回空串**，不要在这里硬塞一个单值。
+  //    因为「单值」在不同 price_type 下含义完全不同：DEPOSIT 的 price_cents 是**定金**、
+  //    INTENTION 的是**意向金** —— 直接当售价显示就是「¥100」这种误导（东西其实 368）。
+  //    调用方（详情页）拿到空串后会走 price_type 摘要（「定金 ¥100 · 全款 ¥368」），
+  //    再退单值。**「谁来决定怎么显示」不该由这个纯函数替调用方拍板。**
+  return ''
 }
 
 /**

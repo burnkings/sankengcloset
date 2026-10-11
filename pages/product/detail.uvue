@@ -293,17 +293,15 @@ const variants = ref([]) as Ref<ProductVariant[]>
  */
 const shippingNote = ref('')
 
-/** 价格摘要（price_type 语义，与商品卡一致）：FULL「¥368」/ DEPOSIT「定金 ¥100 · 全款 ¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」/ UNKNOWN 空 */
 /**
- * 顶部价格（2026-10-09 起统一走「最低价～最高价」）：
- *   优先用**商品级区间**（priceCents ↔ maxPriceCents，由后台/款式参考价推导），
- *   商品级没有区间时回落到**规格参考价现算**（分部件定价的老路径，保留兼容），
- *   仍为空则回落到 price_type 摘要（定金/尾款那套）。
- */
-/**
- * 顶部价格：三级回落交给 `resolveProductPriceRange`（唯一口径，见那里的注释）。
- * ⚠️ 不要在这里自己写「取 range，非空就 return」——那会让款式价那一段变成**永远跑不到的死代码**
- *    （2026-10-11 修掉的就是这个：`formatPriceRange(p, 0)` 返回的是单值而非空串）。
+ * 顶部价格：三级回落，**顺序不能换**（2026-10-11 修掉的是一个「后两级永远跑不到」的死代码 bug）。
+ *
+ *   ① 真区间：`resolveProductPriceRange()`（商品级 `maxPriceCents > price` 或 ≥2 个不同款式价）
+ *   ② price_type 摘要：DEPOSIT「定金 ¥100 · 全款 ¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」
+ *   ③ 单值兜底：price_type=UNKNOWN 之类拿不到语义的，才直接显示这个数
+ *
+ * ⚠️ **不要在本地自己写「取 range，非空就 return」**：`formatPriceRange(p, 0)` 在最高价缺失时
+ *    返回的是单值（非空），那种写法会让 ②③ 永远执行不到，表现就是「定金商品显示成 ¥100」。
  */
 const priceRangeText = computed((): string => {
   const variantPrices: number[] = []
@@ -313,8 +311,18 @@ const priceRangeText = computed((): string => {
   }
   return resolveProductPriceRange(item.value !== null ? item.value!.price : 0, item.value !== null ? item.value!.maxPriceCents : 0, variantPrices)
 })
-/** 顶栏最终显示的价格文本：优先区间，其次价格摘要（定金/尾款那套） */
-const priceDisplayText = computed((): string => priceRangeText.value !== '' ? priceRangeText.value : priceSummaryText.value)
+/** 单值文案（③ 那一级才用）：只有量词正确时才显示，「¥100」这种定金单值不会走到这里 */
+const priceSingleText = computed((): string => item.value !== null ? formatPriceRange(item.value!.price, item.value!.maxPriceCents) : '')
+/** 顶栏最终显示的价格文本：**区间 → price_type 摘要 → 单值**（顺序不能换，见下面 ③ 的说明） */
+const priceDisplayText = computed((): string => {
+  // ① 真区间（商品级 max>price，或 ≥2 个不同款式价）
+  if (priceRangeText.value !== '') return priceRangeText.value
+  // ② price_type 摘要：DEPOSIT「定金 ¥100 · 全款 ¥368」/ BALANCE「尾款 ¥268」/ INTENTION「意向金 ¥1」
+  //    ⚠️ 这一级原先**永远跑不到**（同一个死代码 bug）⇒ 定金商品显示成「¥100」，看着像售价。
+  if (priceSummaryText.value !== '') return priceSummaryText.value
+  // ③ 单值兜底：price_type=UNKNOWN 之类拿不到语义的，才直接显示这个数
+  return priceSingleText.value
+})
 // productShippingNoteText 已删（2026-10-08）：摘要卡的「发货说明」胶囊去掉后它没有使用者，
 // 发货说明统一由 shippingNoteText（下面，发售信息卡）读取。
 const priceSummaryText = computed((): string => {

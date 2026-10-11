@@ -39,16 +39,31 @@ function resolverBody() {
     .join('\n');
 }
 
-test('三级回落的顺序：商品级「有真区间」→ 款式价现算 → 单值兜底', () => {
+test('三级回落的顺序：商品级「有真区间」→ 款式价现算 → 返回空串交给调用方', () => {
   const body = resolverBody();
   const guard = body.indexOf('maxPriceCents > priceCents');
   const variantLoop = body.indexOf('variantPrices.length');
   assert.notEqual(guard, -1, '必须先判断 maxPriceCents > priceCents（把「缺失」和「单值」区分开）');
   assert.notEqual(variantLoop, -1, '必须有款式参考价现算那一段');
-  // 最后那个 return（单值兜底）必须排在款式价之后
-  const lastReturn = body.lastIndexOf('return formatPriceRange(');
   assert.ok(guard < variantLoop, '商品级区间的判断必须排在款式价之前');
-  assert.ok(variantLoop < lastReturn, '款式价现算必须排在最后的单值兜底之前');
+  // 到底没有第二价时必须**返回空串**，让调用方按 price_type 决定怎么显示：
+  // 「单值」在 DEPOSIT 下是定金、INTENTION 下是意向金，直接当售价显示就是误导。
+  const tail = body.slice(body.lastIndexOf('prices.length >= 2'));
+  assert.match(tail, /return ''/, '没有第二个价时必须 return \'\'（不能硬塞单值）');
+});
+
+test('没有第二个价时不许返回单值（定金/意向金不能被当成售价）', () => {
+  // 判据要落在**最后一条 return** 上：款式价那一段本身当然会 `return formatPriceRange(prices[0], …)`，
+  // 真正要禁的是「全都落空之后还塞一个单值出去」。
+  const body = resolverBody();
+  const lastReturn = body.lastIndexOf('return ');
+  assert.notEqual(lastReturn, -1, '函数里应该有 return');
+  const lineEnd = body.indexOf('\n', lastReturn);
+  const statement = body.slice(lastReturn, lineEnd < 0 ? body.length : lineEnd).trim();
+  assert.ok(
+    /^return ''\s*;?$/.test(statement),
+    `函数最后一条返回必须是 \`return ''\`，实际是「${statement}」—— 塞单值出去会让定金商品显示成 ¥100`,
+  );
 });
 
 test('商品级区间必须先判「有没有真区间」再取，不能无条件优先', () => {
