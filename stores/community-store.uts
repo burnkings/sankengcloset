@@ -349,6 +349,15 @@ export function togglePostLike(postId: string): boolean {
 
 export function reloadCommunity() {
   communityState.likedPostIds = readList(LIKED_POST_IDS_KEY)
-  // 我的发布：远程帖子由 refreshMyPosts 拉取；本机发布过的动态从存储恢复
-  communityState.outfitPosts = readMockPosts()
+  // 我的发布：远程帖子由 refreshMyPosts 拉取；本机发布过的动态从存储恢复。
+  //
+  // ⚠️ 这里**只能重置「本机」那一半，远程帖必须原样留着**（2026-10-11 修）。
+  //    原先写的是 `communityState.outfitPosts = readMockPosts()` —— 整条覆盖。
+  //    而 `library.reload()` 被首页 / 发现 / 收藏 / 登录 / 提醒编辑这些**并不紧接着
+  //    refreshMyPosts()** 的页面调用 ⇒ 每次切到它们，远程帖（包括用户刚发布的那条）
+  //    就被清成「只有本机帖」，对纯远程用户等于空列表，看起来就是「发完动态，我的动态没更新」。
+  //    顺序与 refreshMyPosts 保持一致：远程在前、本机在后。
+  const local = readMockPosts()
+  const remote = communityState.outfitPosts.filter((item: SavedOutfitPost): boolean => item.isRemote)
+  communityState.outfitPosts = [...remote, ...local]
 }
